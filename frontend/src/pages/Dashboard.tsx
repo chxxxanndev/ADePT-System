@@ -1,6 +1,27 @@
+import { useState } from 'react';
+import '../styles/dashboard.css';
+
+import { Sidebar } from '../components/Sidebar';
+import { DashboardHeader, WelcomeBanner } from '../components/DashboardHeader';
+import { DashboardSummary } from '../components/StatCard';
+import { AnalyticsOverview } from '../components/AnalyticsOverview';
+import { DocumentDistribution } from '../components/DocumentDistribution';
+import { RecentTransactions } from '../components/RecentTransactions';
+import { QuickActions } from '../components/QuickActions';
+import { DashboardFooter } from '../components/DashboardFooter';
+
 import type { User } from '../types/auth';
-import sealImg from '../assets/seal.png';
-import logoImg from '../assets/logo.png';
+
+import {
+    navSections,
+    operationalSummary,
+    administrativeSummary,
+    weeklyTrend,
+    documentDistribution,
+    totalDocuments,
+    recentTransactions,
+    quickActions,
+} from '../data/dashboardMockData';
 
 interface DashboardProps {
     user: User;
@@ -8,65 +29,72 @@ interface DashboardProps {
     onLogout: () => void;
 }
 
-export function Dashboard({ user, backendHealthy, onLogout }: DashboardProps) {
+export function Dashboard({ user, onLogout }: DashboardProps) {
+    const [activeView, setActiveView] = useState('dashboard');
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    const handleNavigate = (view: string) => {
+        setActiveView(view);
+        setMobileMenuOpen(false);
+        // Wire this up to your router, e.g. navigate(`/${view}`)
+    };
+
+    const fullName = `${user.firstName} ${user.lastName}`;
+
+    // DashboardHeader was likely built against the mock UserProfile shape
+    // ({ name, email, role, lastLogin }), but real auth only gives us
+    // firstName/lastName/email/username. Adapting here until either
+    // DashboardHeader is updated to take `User` directly, or the backend
+    // starts returning role/lastLogin.
+    const headerUser = {
+        name: fullName,
+        email: user.email,
+        role: 'Staff', // placeholder — replace once role comes from backend/auth
+        lastLogin: '—', // placeholder — replace once lastLogin is tracked
+    };
+
     return (
-        <div className="dashboard-container">
-            <div className="dashboard-header">
-                <div className="dashboard-header-brand">
-                    <img src={sealImg} alt="Zamboanga del Norte Seal" className="page-brand-logo" />
-                    <img src={logoImg} alt="ADePT Logo" className="page-brand-logo" />
-                    <div>
-                        <h1 style={{ fontSize: '30px', color: 'var(--primary-color)', margin: '0 0 5px', fontWeight: 800 }}>
-                            ADePT Portal
-                        </h1>
-                        <p style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
-                            Assessor Document Processing &amp; Tracking System
-                        </p>
+        <div className="dashboard-page">
+            <Sidebar
+                sections={navSections}
+                activeView={activeView}
+                onNavigate={handleNavigate}
+                onLogout={onLogout}
+                mobileOpen={mobileMenuOpen}
+            />
+
+            <div className="dashboard-main">
+                <DashboardHeader
+                    user={headerUser}
+                    userName={fullName}
+                    onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
+                />
+
+                <WelcomeBanner />
+
+                <div className="dashboard-content">
+                    <DashboardSummary
+                        title="Operational Summary"
+                        items={operationalSummary}
+                        iconType="operational"
+                    />
+                    <DashboardSummary
+                        title="Administrative Summary"
+                        items={administrativeSummary}
+                        iconType="admin"
+                    />
+
+                    <div className="dashboard-row">
+                        <AnalyticsOverview data={weeklyTrend} lastUpdated="Today • 2:45 PM" />
+                        <DocumentDistribution slices={documentDistribution} totalDocuments={totalDocuments} />
+                    </div>
+
+                    <div className="dashboard-row">
+                        <RecentTransactions rows={recentTransactions} onViewAll={() => handleNavigate('transaction-registry')} />
+                        <QuickActions actions={quickActions} onSelect={handleNavigate} />
                     </div>
                 </div>
-                <button className="logout-btn" onClick={onLogout}>Sign Out</button>
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-                <h2 style={{ fontSize: '19px', marginBottom: '10px', color: 'var(--primary-color)' }}>
-                    Welcome back, {user.firstName}!
-                </h2>
-                <p style={{ fontWeight: 550, color: 'var(--text-muted)' }}>
-                    You have successfully signed in to the Assessor's Portal.
-                </p>
-            </div>
-
-            <div className="user-profile-card">
-                <div className="profile-field">
-                    <span className="profile-label">First Name</span>
-                    <span className="profile-value">{user.firstName}</span>
-                </div>
-                <div className="profile-field">
-                    <span className="profile-label">Last Name</span>
-                    <span className="profile-value">{user.lastName}</span>
-                </div>
-                <div className="profile-field">
-                    <span className="profile-label">Email Address</span>
-                    <span className="profile-value">{user.email}</span>
-                </div>
-                <div className="profile-field">
-                    <span className="profile-label">Username</span>
-                    <span className="profile-value">{user.username}</span>
-                </div>
-            </div>
-
-            <div
-                style={{
-                    padding: '16px 20px',
-                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(59, 130, 246, 0.3)',
-                    color: '#1e3a8a',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                }}
-            >
-                System Connection Mode: {backendHealthy ? 'Connected to Express & Supabase Backend' : 'Standalone Frontend Demo Mode'}
+                <DashboardFooter />
             </div>
         </div>
     );
