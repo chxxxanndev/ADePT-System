@@ -53,55 +53,48 @@ async registerUser({ firstName, lastName, email, username, password }) {
 
     // src/services/auth.service.js
 
+// src/services/auth.service.js
+
 async loginUser({ username, password }) {
     let email = username;
 
-    // 1. If the user didn't type an '@', assume they typed their 'username'
     if (!username.includes('@')) {
-        const { data: profile, error: lookupError } = await supabase
+        const { data: profile } = await supabase
             .from('staff')
             .select('email')
-            .ilike('username', username) // .ilike is case-INSENSITIVE
+            .ilike('username', username)
             .single();
         
-        if (profile) {
-            email = profile.email;
-        } else {
-            console.error("Lookup Error:", lookupError); // Look at your terminal for this!
-            throw new Error("Username not found.");
-        }
+        if (profile) email = profile.email;
+        else throw new Error("Username not found.");
     }
 
-    // 2. Attempt Supabase Auth Login using the resolved email
-    const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-    });
-
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
-    // 3. Check 'staff' table status (Access Control)
+    // 1. UPDATED THIS LINE: Added first_name, last_name, and username to the select
     const { data: staffMember, error: staffError } = await supabase
         .from('staff')
-        .select('account_status, roles(code)')
+        .select('first_name, last_name, username, account_status, roles(code)')
         .eq('auth_user_id', data.user.id)
         .single();
 
-    if (staffError || !staffMember) {
-        throw new Error("Staff profile not found. Please contact admin.");
-    }
+    if (staffError || !staffMember) throw new Error("Staff profile not found.");
 
-    // 4. Block login if account isn't ACTIVE
     if (staffMember.account_status !== 'ACTIVE') {
-        await supabase.auth.signOut(); // Log them out immediately
+        await supabase.auth.signOut();
         throw new Error(`Access Denied. Your account is ${staffMember.account_status.replace('_', ' ')}.`);
     }
 
+    // 2. UPDATED THIS RETURN: Map the database fields to the names your frontend expects
     return {
         token: data.session?.access_token,
         user: {
             id: data.user.id,
             email: data.user.email,
+            firstName: staffMember.first_name, // Map first_name -> firstName
+            lastName: staffMember.last_name,   // Map last_name -> lastName
+            username: staffMember.username,
             role: staffMember.roles?.code,
             status: staffMember.account_status
         }
