@@ -3,13 +3,12 @@ import '../styles/dashboard.css';
 
 import { Sidebar } from '../components/Sidebar';
 import { DashboardHeader, WelcomeBanner } from '../components/DashboardHeader';
-import { SummarySection } from '../components/StatCard';
+import { DashboardSummary } from '../components/StatCard';
 import { AnalyticsOverview } from '../components/AnalyticsOverview';
 import { DocumentDistribution } from '../components/DocumentDistribution';
 import { RecentTransactions } from '../components/RecentTransactions';
 import { QuickActions } from '../components/QuickActions';
 import { DashboardFooter } from '../components/DashboardFooter';
-import { ClipboardListIcon, SettingsIcon } from '../components/icons';
 
 import type { User } from '../types/auth';
 
@@ -74,16 +73,15 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                 <WelcomeBanner />
 
                 <div className="dashboard-content">
-                    <SummarySection
+                    <DashboardSummary
                         title="Operational Summary"
-                        icon={<ClipboardListIcon size={16} />}
-                        stats={operationalSummary}
+                        items={operationalSummary}
+                        iconType="operational"
                     />
-
-                    <SummarySection
+                    <DashboardSummary
                         title="Administrative Summary"
-                        icon={<SettingsIcon size={16} />}
-                        stats={administrativeSummary}
+                        items={administrativeSummary}
+                        iconType="admin"
                     />
 
                     <div className="dashboard-row">

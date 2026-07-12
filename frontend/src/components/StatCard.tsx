@@ -1,62 +1,56 @@
-import type { StatCardData } from '../types/dashboard';
-import {
-    RequestsIcon,
-    CheckCircleIcon,
-    FilesIcon,
-    ClockIcon,
-    ArchiveIcon,
-    RotateCcwIcon,
-    CopyIcon,
-    XCircleIcon,
-} from './icons';
+import * as Icons from './icons';
 
-const ICONS: Record<StatCardData['icon'], React.ComponentType<{ size?: number; className?: string }>> = {
-    requests: RequestsIcon,
-    released: CheckCircleIcon,
-    issued: FilesIcon,
-    active: ClockIcon,
-    archived: ArchiveIcon,
-    voided: RotateCcwIcon,
-    reprinted: CopyIcon,
-    cancelled: XCircleIcon,
+const ICON_MAP: Record<string, any> = {
+    requests: Icons.FolderIcon,
+    released: Icons.FolderIcon,
+    issued: Icons.FolderIcon,
+    active: Icons.FolderIcon,
+    archived: Icons.ArchiveBoxIcon,
+    voided: Icons.AlertTriangleIcon,
+    reprinted: Icons.PrinterPlusIcon,
+    cancelled: Icons.XSquareIcon,
 };
 
-export function StatCard({ data }: { data: StatCardData }) {
-    const Icon = ICONS[data.icon];
+const SUB_ICON_MAP: Record<string, any> = {
+    'total-requests': Icons.TrendUpIcon,
+    'released-today': Icons.CheckCircleIcon,
+    'monthly-issued': Icons.CalendarIcon,
+    'active-requests': Icons.ClockIcon,
+    'archived': Icons.FilesIcon,
+    'voided': Icons.RotateCcwIcon,
+    'reprinted': Icons.CopyIcon,
+    'cancelled': Icons.SettingsIcon,
+};
 
+export function DashboardSummary({ title, items, iconType }: { title: string, items: any[], iconType: 'operational' | 'admin' }) {
     return (
-        <div className={`stat-card accent-${data.accent}`}>
-            <div className="stat-card-top">
-                <span className="stat-card-label">{data.label}</span>
-                <span className="stat-card-icon"><Icon size={17} /></span>
-            </div>
-            <span className="stat-card-value">{data.value}</span>
-            <span className={`stat-card-sublabel ${data.trend === 'up' ? 'trend-up' : ''}`}>
-                {data.trend === 'up' && '↑ '}
-                {data.sublabel}
-            </span>
-        </div>
-    );
-}
-
-interface SummarySectionProps {
-    title: string;
-    icon: React.ReactNode;
-    stats: StatCardData[];
-}
-
-export function SummarySection({ title, icon, stats }: SummarySectionProps) {
-    return (
-        <section>
+        <div className="summary-container">
             <div className="section-heading">
-                <span className="section-heading-icon">{icon}</span>
+                {iconType === 'operational' ? <Icons.DoubleBarIcon /> : <Icons.LinkIcon />}
                 <h3>{title}</h3>
             </div>
             <div className="stat-grid">
-                {stats.map((stat) => (
-                    <StatCard key={stat.id} data={stat} />
-                ))}
+                {items.map((item) => {
+                    const MainIcon = ICON_MAP[item.icon];
+                    const SubIcon = SUB_ICON_MAP[item.id];
+
+                    return (
+                        <div key={item.id} className={`stat-card accent-${item.accent}`}>
+                            <div className="stat-card-top">
+                                <span className="stat-card-label">{item.label}</span>
+                                <div className="stat-card-icon">
+                                    <MainIcon size={22} />
+                                </div>
+                            </div>
+                            <div className="stat-card-value">{item.value}</div>
+                            <div className="stat-card-sublabel">
+                                <SubIcon size={16} className="sub-icon" />
+                                {item.sublabel}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
-        </section>
+        </div>
     );
 }
