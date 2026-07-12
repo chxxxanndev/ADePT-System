@@ -1,0 +1,131 @@
+import { useState } from 'react';
+import type { NavSection } from '../types/dashboard';
+import logoImg from '../assets/logo.png';
+import {
+    ChevronDownIcon,
+    DashboardIcon,
+    FilePlusIcon,
+    ClipboardListIcon,
+    FilesIcon,
+    SwapIcon,
+    BarChartIcon,
+    SettingsIcon,
+    LogoutIcon,
+} from './icons';
+
+const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+    dashboard: DashboardIcon,
+    newRequest: FilePlusIcon,
+    requestProcessing: ClipboardListIcon,
+    documentProcessing: FilesIcon,
+    transactionManagement: SwapIcon,
+    reports: BarChartIcon,
+    settings: SettingsIcon,
+};
+
+// Simple Hamburger Icon SVG
+const MenuIcon = ({ size = 20 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+);
+
+interface SidebarProps {
+    sections: NavSection[];
+    activeView: string;
+    onNavigate: (view: string) => void;
+    onLogout: () => void;
+    mobileOpen?: boolean;
+    setMobileOpen?: (open: boolean) => void; // Added to handle mobile closing
+}
+
+export function Sidebar({ sections, activeView, onNavigate, onLogout, mobileOpen, setMobileOpen }: SidebarProps) {
+    const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    const toggleMenu = (label: string) => {
+        if (isCollapsed) setIsCollapsed(false); // Expand if clicking an item while collapsed
+        setOpenMenus((prev) => ({ ...prev, [label]: !prev[label] }));
+    };
+
+    const handleToggleSidebar = () => {
+        if (window.innerWidth <= 900 && setMobileOpen) {
+            setMobileOpen(false); // Close drawer on mobile
+        } else {
+            setIsCollapsed(!isCollapsed); // Collapse/Expand on desktop
+        }
+    };
+
+    return (
+        <aside className={`dashboard-sidebar ${mobileOpen ? 'mobile-open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
+            <div className="sidebar-brand">
+                <div className="sidebar-brand-left">
+                    <div className="sidebar-logo-circle">
+                        <img src={logoImg} alt="ADePT" />
+                    </div>
+                    {!isCollapsed && <span className="sidebar-brand-name">ADePT</span>}
+                </div>
+                <button className="sidebar-toggle-btn" onClick={handleToggleSidebar} title="Toggle Sidebar">
+                    <MenuIcon size={18} />
+                </button>
+            </div>
+
+            <nav className="sidebar-nav">
+                {sections.map((section) => (
+                    <div className="nav-section" key={section.label}>
+                        {!isCollapsed && <span className="nav-section-label">{section.label}</span>}
+
+                        {section.items.map((item) => {
+                            const Icon = ICONS[item.icon] ?? DashboardIcon;
+                            const hasSubItems = !!item.subItems?.length;
+                            const isOpen = !!openMenus[item.label];
+                            const isActive = item.view === activeView;
+
+                            return (
+                                <div key={item.label}>
+                                    <button
+                                        className={`nav-item ${isActive ? 'active' : ''}`}
+                                        onClick={() => (hasSubItems ? toggleMenu(item.label) : item.view && onNavigate(item.view))}
+                                        title={isCollapsed ? item.label : ""}
+                                    >
+                                        <span className="nav-item-icon"><Icon size={18} /></span>
+                                        {!isCollapsed && <span className="nav-item-label">{item.label}</span>}
+                                        {!isCollapsed && hasSubItems && (
+                                            <span className={`nav-item-chevron ${isOpen ? 'open' : ''}`}>
+                                                <ChevronDownIcon size={14} />
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    {!isCollapsed && hasSubItems && (
+                                        <div className={`nav-subitems ${isOpen ? 'open' : ''}`}>
+                                            {item.subItems!.map((sub) => (
+                                                <div
+                                                    key={sub.label}
+                                                    className={`nav-subitem ${sub.view === activeView ? 'active' : ''}`}
+                                                    onClick={() => onNavigate(sub.view)}
+                                                >
+                                                    <span className="nav-subitem-label">{sub.label}</span>
+                                                    {typeof sub.badge === 'number' && sub.badge > 0 && (
+                                                        <span className="nav-subitem-badge">{sub.badge}</span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                ))}
+            </nav>
+
+            <button className="sidebar-logout" onClick={onLogout} title={isCollapsed ? "Log out" : ""}>
+                <span className="nav-item-icon"><LogoutIcon size={18} /></span>
+                {!isCollapsed && <span className="nav-item-label">Log out</span>}
+            </button>
+        </aside>
+    );
+}
