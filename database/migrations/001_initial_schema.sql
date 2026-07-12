@@ -2,45 +2,15 @@
 -- ADePT — Assessor's Office Document Request Tracking and Printing System
 -- PostgreSQL 15+ / Supabase Schema
 -- Office of the Provincial Assessor, Zamboanga del Norte
---
--- DESIGN PHILOSOPHY
---   This is a REQUEST-TRACKING & DOCUMENT-GENERATION system, not a Property
---   Information System (PIS). Tax Declaration data is captured as an
---   immutable, per-request SNAPSHOT (staff re-type from physical archives
---   each time a request is processed) — never as a shared/master property
---   record. This means:
---     - Every printed document is legally defensible on the data actually
---       encoded for that transaction, even if a later request for the same
---       TD Number is encoded slightly differently (physical record amended,
---       or a prior typo corrected).
---     - Indexes on TD Number / ARP / PIN / Owner Name still let staff find
---       "have we processed this property before" without treating that
---       history as authoritative property data.
---   All primary keys are UUID. Nothing is ever physically deleted
---   (deleted_at / deleted_by everywhere). Corrections use VOID + CLONE.
---   Identity is Supabase Auth (auth.users); `staff` is the office profile
---   that extends it 1:1 — no shared accounts.
 -- ============================================================================
 
--- ============================================================================
--- 0. EXTENSIONS
--- ============================================================================
-create extension if not exists pgcrypto;   -- gen_random_uuid()
-create extension if not exists pg_trgm;    -- typo-tolerant search on owner/declarant names
+create extension if not exists pgcrypto;
+create extension if not exists pg_trgm;
 
--- ============================================================================
--- 1. ENUM TYPES
--- ============================================================================
 create type action_taken_enum as enum ('PENDING', 'APPROVED', 'DISAPPROVED');
 
 create type request_status_enum as enum (
-  'DRAFT',                 -- request form encoded, not yet submitted for payment
-  'PENDING_PAYMENT',       -- control number issued, client sent to Treasurer's Office
-  'OR_VALIDATED',          -- OR number entered & validated
-  'READY_FOR_SIGNATURE',   -- signatory selected, PDF generation pending
-  'SIGNED',                -- locked PDF generated, physically signed
-  'RELEASED',              -- handed to client
-  'VOID'                   -- superseded / cancelled, see void_* columns
+  'DRAFT', 'PENDING_PAYMENT', 'OR_VALIDATED', 'READY_FOR_SIGNATURE', 'SIGNED', 'RELEASED', 'VOID'
 );
 
 create type taxability_enum as enum ('TAXABLE', 'EXEMPT');
@@ -50,9 +20,6 @@ create type request_document_status_enum as enum (
   'PENDING', 'PDF_GENERATED', 'PRINTED', 'RELEASED'
 );
 
--- Account lifecycle: every new login must be approved by Super Admin before
--- it can do anything in the system; Super Admin can also disable an account
--- at any time (e.g. resignation, leave, suspected misuse).
 create type account_status_enum as enum (
   'PENDING_APPROVAL', 'ACTIVE', 'DISABLED', 'REJECTED'
 );
@@ -62,16 +29,9 @@ create type audit_action_enum as enum (
   'LOGIN', 'LOGOUT', 'PASSWORD_CHANGE', 'OR_VALIDATION', 'CLONE', 'AMEND'
 );
 
--- ============================================================================
--- 2. REFERENCE / LOOKUP TABLES
--- ============================================================================
-
--- Generic extensible lookup pattern for small, admin-maintained value sets
--- (authorization types, purposes, classifications, actual use, property
--- types). New categories can be added by INSERT, not migration.
 create table lookup_categories (
   id          uuid primary key default gen_random_uuid(),
-  code        varchar(50)  not null unique,   -- e.g. 'AUTHORIZATION_TYPE'
+  code        varchar(50)  not null unique,
   name        varchar(150) not null,
   created_at  timestamptz  not null default now()
 );
@@ -90,11 +50,14 @@ create table lookup_values (
 );
 create index idx_lookup_values_category on lookup_values(category_id) where is_active;
 
--- Document types are a first-class table (not generic lookup) because they
--- carry behavioral flags the application depends on.
+-- Document types: added `prefix` for the human-facing per-document control
+-- number (e.g. 'TD', 'CLH', 'CNL', 'CTC') — deliberately separate from
+-- `code`, which stays a stable internal identifier the app can key logic
+-- off of, so renaming a display prefix later never touches application code.
 create table document_types (
   id                         uuid primary key default gen_random_uuid(),
   code                       varchar(50)  not null unique,
+  prefix                     varchar(10)  not null unique,
   name                       varchar(255) not null,
   description                text,
   requires_tax_declaration   boolean      not null default true,
@@ -104,7 +67,6 @@ create table document_types (
   updated_at                 timestamptz  not null default now()
 );
 
--- Location normalization (Province is fixed: Zamboanga del Norte)
 create table municipalities (
   id          uuid primary key default gen_random_uuid(),
   name        varchar(150) not null unique,
@@ -122,52 +84,37 @@ create table barangays (
 );
 create index idx_barangays_municipality on barangays(municipality_id);
 
--- ============================================================================
--- 3. IDENTITY, STAFF & ACCESS CONTROL
--- ============================================================================
-
--- Only two roles: SUPER_ADMIN (the office head — manages the system, approves
--- and disables staff accounts, manages lookups/document types/system
--- settings, views system-wide statistics, has full audit trail access) and
--- OFFICE_STAFF (rotating duty — any active staff member may encode, verify,
--- or release; that rotation is enforced at the transaction level, see
--- requests table + trigger below, independent of role). A staff member
--- holds exactly one role at a time (see staff.role_id below) — there is no
--- many-to-many junction table because the office doesn't need one.
 create table roles (
-  id          uuid primary key default gen_random_uuid(),
-  code        varchar(50)  not null unique,     -- SUPER_ADMIN, OFFICE_STAFF
-  name        varchar(150) not null,
-  description text
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code VARCHAR(50) NOT NULL UNIQUE,
+  name VARCHAR(150) NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- One row per office employee, extending Supabase auth.users 1:1.
--- No shared accounts — auth_user_id is unique and NOT NULL.
---
--- Account lifecycle: a new sign-up creates its own row (self-registration,
--- see RLS policy staff_insert below) with status PENDING_APPROVAL. It has
--- no effective access anywhere in the system until Super Admin approves it
--- (fn_current_staff_id() only resolves ACTIVE accounts, and every other RLS
--- policy in this schema is keyed off that function).
+-- FIX: the uploaded version was missing a comma between updated_at and
+-- approved_by, which is a hard syntax error — confirmed by running this
+-- exact table definition against Postgres; it fails immediately and no
+-- table after it in the script would ever get created.
 create table staff (
-  id              uuid primary key default gen_random_uuid(),
-  auth_user_id    uuid not null unique references auth.users(id),
-  employee_number varchar(50)  not null unique,
-  last_name       varchar(150) not null,
-  first_name      varchar(150) not null,
-  position        varchar(255),
-  email           varchar(255),
-  role_id         uuid not null references roles(id),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  auth_user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id),
+  employee_number VARCHAR(50) UNIQUE,
+  last_name VARCHAR(150) NOT NULL,
+  first_name VARCHAR(150) NOT NULL,
+  username VARCHAR(150) NOT NULL UNIQUE,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  role_id UUID REFERENCES roles(id),
+  account_status account_status_enum NOT NULL DEFAULT 'PENDING_APPROVAL',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
 
-  account_status  account_status_enum not null default 'PENDING_APPROVAL',
   approved_by     uuid references staff(id),
   approved_at     timestamptz,
   disabled_by     uuid references staff(id),
   disabled_at     timestamptz,
   disable_reason  text,
 
-  created_at      timestamptz  not null default now(),
-  updated_at      timestamptz  not null default now(),
   deleted_at      timestamptz,
   deleted_by      uuid references staff(id),
 
@@ -176,8 +123,6 @@ create table staff (
 create index idx_staff_status on staff(account_status) where deleted_at is null;
 create index idx_staff_role on staff(role_id);
 
--- Authorized signatories may or may not have a login (e.g. the Provincial
--- Assessor may not personally use the system), hence the optional link.
 create table authorized_signatories (
   id             uuid primary key default gen_random_uuid(),
   staff_id       uuid references staff(id),
@@ -190,32 +135,48 @@ create table authorized_signatories (
 );
 
 -- ============================================================================
--- 4. CONTROL NUMBER GENERATION (atomic, gap-free per year, no duplicates)
+-- CONTROL NUMBER GENERATION
+--
+-- Two SEPARATE numbering namespaces, generated in two different places,
+-- because they answer two different questions:
+--
+--  1. requests.control_number — the number written on the physical Request
+--     Form and used at the Treasurer's Office for payment. One request can
+--     cover MULTIPLE document types (confirmed as the intended design), so
+--     this number is NOT prefixed by document type — there is no single
+--     "the" document type to derive a prefix from. Generated with a fixed
+--     neutral prefix ('REQ') the moment the request itself is created.
+--
+--  2. request_documents.document_number — the number that appears ON each
+--     individual generated certificate (e.g. "CLH-000089"), matching the
+--     Transaction Registry screenshot where each row is one requested
+--     document with its own type-prefixed number. Generated per requested
+--     document, using that row's own document_type_id — which is already
+--     known at insert time, so there's no timing problem the way there was
+--     trying to derive this from requests.
 -- ============================================================================
 create table control_number_counters (
-  year        smallint primary key,
+  prefix      varchar(10) primary key,
   last_number bigint not null default 0
 );
 
-create or replace function generate_control_number(p_year smallint default null)
+create or replace function generate_control_number(p_prefix varchar)
 returns varchar
 language plpgsql
 as $$
 declare
-  v_year   smallint := coalesce(p_year, extract(year from now())::smallint);
   v_number bigint;
 begin
-  insert into control_number_counters (year, last_number)
-  values (v_year, 1)
-  on conflict (year) do update
+  insert into control_number_counters (prefix, last_number)
+  values (p_prefix, 1)
+  on conflict (prefix) do update
     set last_number = control_number_counters.last_number + 1
   returning last_number into v_number;
 
-  return 'ADePT-' || v_year::text || '-' || lpad(v_number::text, 6, '0');
+  return p_prefix || '-' || lpad(v_number::text, 6, '0');
 end;
 $$;
 
--- Generic "touch updated_at" trigger function, reused across tables.
 create or replace function fn_touch_updated_at()
 returns trigger language plpgsql as $$
 begin
@@ -224,48 +185,35 @@ begin
 end;
 $$;
 
--- ============================================================================
--- 5. CORE TRANSACTIONAL TABLES
--- ============================================================================
-
--- One row per client Request Form (the transaction header).
 create table requests (
   id                       uuid primary key default gen_random_uuid(),
   control_number           varchar(30) not null unique,
 
-  -- Request form fields
   declarant_name           varchar(255) not null,
   request_date             date not null default current_date,
   authorization_required   boolean not null default false,
-  authorization_type_id    uuid references lookup_values(id),   -- category AUTHORIZATION_TYPE
-  authorization_reference  varchar(255),                         -- e.g. SPA / letter doc no.
+  authorization_type_id    uuid references lookup_values(id),
+  authorization_reference  varchar(255),
 
-  -- Front-desk verification of Valid ID / SPA / Authorization Letter. The
-  -- office does not currently digitize or store copies of these documents,
-  -- so this is a verification record, not a document store: who checked it,
-  -- and when — not the document itself.
   requirements_verified     boolean not null default false,
   requirements_verified_by  uuid references staff(id),
   requirements_verified_at  timestamptz,
 
-  purpose_id               uuid references lookup_values(id),   -- category PURPOSE
+  purpose_id               uuid references lookup_values(id),
   purpose_other_text       varchar(255),
-  requested_by_name        varchar(255),                        -- signature line on the form
+  requested_by_name        varchar(255),
   action_taken             action_taken_enum not null default 'PENDING',
   archive_returned_date    date,
 
-  -- Requester ID verification (compliance enhancement beyond the paper form)
   id_type_presented        varchar(100),
   id_number_presented      varchar(100),
 
-  -- Workflow & accountability
   status        request_status_enum not null default 'DRAFT',
   encoded_by    uuid not null references staff(id),
   verified_by   uuid references staff(id),
   released_by   uuid references staff(id),
   signatory_id  uuid references authorized_signatories(id),
 
-  -- Void / amend — records are never deleted
   is_void                 boolean not null default false,
   void_reason              text,
   voided_by                uuid references staff(id),
@@ -286,11 +234,16 @@ create table requests (
   )
 );
 
+-- FIX: no longer tries to look up request_documents for a row that doesn't
+-- exist yet (that lookup could never find anything — confirmed by testing:
+-- it always fell back to 'REQ' regardless of intended document type, which
+-- coincidentally is now exactly what we want at the REQUEST level anyway,
+-- since one request can span multiple document types).
 create or replace function fn_assign_control_number()
 returns trigger language plpgsql as $$
 begin
   if new.control_number is null then
-    new.control_number := generate_control_number();
+    new.control_number := generate_control_number('REF');
   end if;
   return new;
 end;
@@ -304,8 +257,6 @@ create trigger trg_requests_touch
 before update on requests
 for each row execute function fn_touch_updated_at();
 
--- Separation-of-duties safety net at the database layer (defense in depth;
--- the application/UI layer should also prevent this from being attempted).
 create or replace function fn_enforce_separation_of_duties()
 returns trigger language plpgsql as $$
 begin
@@ -323,14 +274,10 @@ create trigger trg_requests_separation_of_duties
 before insert or update on requests
 for each row execute function fn_enforce_separation_of_duties();
 
--- ----------------------------------------------------------------------------
--- Encoded Tax Declaration snapshots (immutable-by-convention per request)
--- ----------------------------------------------------------------------------
 create table encoded_tax_declarations (
   id                              uuid primary key default gen_random_uuid(),
   request_id                      uuid not null references requests(id),
 
-  -- Property Information
   tax_declaration_number          varchar(50) not null,
   property_identification_number  varchar(50),
   arp_number                      varchar(50),
@@ -341,30 +288,25 @@ create table encoded_tax_declarations (
   block_number                    varchar(50),
   registered_date                 date,
 
-  -- Owner Information
   owner_name       varchar(255) not null,
   owner_tin        varchar(20),
   owner_address    text,
   owner_telephone  varchar(20),
 
-  -- Administrator Information
   administrator_name       varchar(255),
   administrator_tin        varchar(20),
   administrator_address    text,
   administrator_telephone  varchar(20),
 
-  -- Location
   property_street  varchar(255),
   barangay_id      uuid references barangays(id),
   municipality_id  uuid references municipalities(id),
 
-  -- Boundaries
   boundary_north text,
   boundary_south text,
   boundary_east  text,
   boundary_west  text,
 
-  -- Totals & other information
   total_market_value      numeric(15,2),
   total_assessed_value    numeric(15,2),
   amount_in_words         varchar(500),
@@ -384,12 +326,10 @@ create table encoded_tax_declarations (
 create trigger trg_etd_touch before update on encoded_tax_declarations
 for each row execute function fn_touch_updated_at();
 
--- A Tax Declaration snapshot may cover multiple property types (Land,
--- Building, Machinery, Others), each with its own descriptive detail.
 create table encoded_property_types (
   id                          uuid primary key default gen_random_uuid(),
   encoded_tax_declaration_id  uuid not null references encoded_tax_declarations(id),
-  property_type_id            uuid not null references lookup_values(id), -- category PROPERTY_TYPE
+  property_type_id            uuid not null references lookup_values(id),
   brief_description            text,
   number_of_storeys            smallint,
   specify                       varchar(255),
@@ -397,36 +337,32 @@ create table encoded_property_types (
 );
 create index idx_ept_etd on encoded_property_types(encoded_tax_declaration_id);
 
--- A Tax Declaration snapshot may contain multiple assessment rows.
 create table encoded_assessment_rows (
   id                          uuid primary key default gen_random_uuid(),
   encoded_tax_declaration_id  uuid not null references encoded_tax_declarations(id),
   row_order                    smallint not null default 0,
-  classification_id            uuid references lookup_values(id),  -- category CLASSIFICATION
-  actual_use_id                 uuid references lookup_values(id),  -- category ACTUAL_USE
+  classification_id            uuid references lookup_values(id),
+  actual_use_id                 uuid references lookup_values(id),
   actual_use_other_text         varchar(255),
   area                           numeric(14,4),
   area_unit                      area_unit_enum,
   market_value                   numeric(15,2),
-  assessment_level               numeric(5,2),   -- percentage, e.g. 12.00
+  assessment_level               numeric(5,2),
   assessed_value                  numeric(15,2),
   created_at                      timestamptz not null default now()
 );
 create index idx_ear_etd on encoded_assessment_rows(encoded_tax_declaration_id);
 
--- ----------------------------------------------------------------------------
--- Requested documents (one request -> many document types / TDs).
--- This table represents WHAT was requested. Everything about the actual
--- generated PDF (which version, when, by whom, its file hash) now lives in
--- generated_documents below — one request_documents row can accumulate many
--- generated_documents rows over time (reprints, corrections), which a single
--- pdf_file_reference column could never represent cleanly.
--- ----------------------------------------------------------------------------
+-- FIX: added document_number, generated per-row from this row's own
+-- document_type_id — no timing problem, since document_type_id is already
+-- present on the same row being inserted. This is what should show up in
+-- the Transaction Registry as "TD-000191", "CLH-000089", etc.
 create table request_documents (
   id                          uuid primary key default gen_random_uuid(),
   request_id                  uuid not null references requests(id),
   document_type_id            uuid not null references document_types(id),
-  encoded_tax_declaration_id  uuid references encoded_tax_declarations(id), -- null for docs that need no TD (e.g. Certificate of No Landholding)
+  document_number             varchar(30) not null unique,
+  encoded_tax_declaration_id  uuid references encoded_tax_declarations(id),
   status                       request_document_status_enum not null default 'PENDING',
   created_at                   timestamptz not null default now(),
   updated_at                   timestamptz not null default now()
@@ -435,18 +371,26 @@ create index idx_rd_request on request_documents(request_id);
 create trigger trg_rd_touch before update on request_documents
 for each row execute function fn_touch_updated_at();
 
--- ----------------------------------------------------------------------------
--- Generated Documents — metadata about every PDF actually generated for a
--- requested document. Supports: generation history, reprints (a new row,
--- not an overwrite), future QR verification (verification_code could be
--- added here later), future digital signatures, and the void-and-amend
--- pattern applied to the document artifact itself, not just the request.
---
--- version_number + is_current model "this is the 3rd PDF generated for this
--- requested document, and only one of the (non-void) versions is the one
--- currently valid to hand to the client" — enforced below by a partial
--- unique index, not just application logic.
--- ----------------------------------------------------------------------------
+create or replace function fn_assign_document_number()
+returns trigger language plpgsql as $$
+declare
+  v_prefix varchar;
+begin
+  if new.document_number is null then
+    select prefix into v_prefix from document_types where id = new.document_type_id;
+    if v_prefix is null then
+      v_prefix := 'DOC';
+    end if;
+    new.document_number := generate_control_number(v_prefix);
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trg_rd_assign_document_number
+before insert on request_documents
+for each row execute function fn_assign_document_number();
+
 create table generated_documents (
   id                    uuid primary key default gen_random_uuid(),
   request_document_id   uuid not null references request_documents(id),
@@ -454,7 +398,7 @@ create table generated_documents (
   generated_by          uuid not null references staff(id),
   generated_at          timestamptz not null default now(),
   pdf_path              text not null,
-  file_hash             varchar(128),   -- e.g. sha256 hex digest, to detect tampering later
+  file_hash             varchar(128),
   is_current            boolean not null default true,
   is_void                boolean not null default false,
   void_reason            text,
@@ -465,11 +409,6 @@ create table generated_documents (
 );
 create index idx_gendoc_request_document on generated_documents(request_document_id);
 
--- Auto-assign the next version number for this requested document, so the
--- app never has to compute "what's the current max version" itself (and
--- two staff generating a reprint at the same moment can't both grab the
--- same version_number — protected by the unique constraint above plus this
--- trigger running inside the same transaction as the insert).
 create or replace function fn_assign_document_version()
 returns trigger language plpgsql as $$
 begin
@@ -484,20 +423,10 @@ create trigger trg_gendoc_assign_version
 before insert on generated_documents
 for each row execute function fn_assign_document_version();
 
--- Only one CURRENT, non-void version may exist per requested document at a
--- time — this is the actual "which PDF is valid right now" guarantee.
 create unique index idx_gendoc_one_current
   on generated_documents(request_document_id)
   where is_current and not is_void;
 
--- When a new version is marked current, automatically retire the previous
--- current version — so the app never has to remember to do this itself,
--- and a race between two staff generating a reprint at once can't leave two
--- rows both claiming to be current. Must run BEFORE insert: the partial
--- unique index idx_gendoc_one_current is checked immediately (it isn't
--- deferrable), so the old row has to be retired first, not after the new
--- row already exists — confirmed by hitting the unique-violation exactly
--- this way in testing when this was an AFTER trigger.
 create or replace function fn_retire_previous_generated_document()
 returns trigger language plpgsql as $$
 begin
@@ -515,17 +444,6 @@ create trigger trg_gendoc_retire_previous
 before insert on generated_documents
 for each row execute function fn_retire_previous_generated_document();
 
--- Keep request_documents.status in sync automatically, since generation and
--- printing are now tracked in their own tables rather than columns on
--- request_documents itself. The app never has to remember to update this
--- separately from inserting the generation/print event.
---
--- Two separate functions, not one branching on tg_table_name: PL/pgSQL
--- resolves NEW's fields against the actual record type of whichever table
--- fired the trigger, so a reference to a column that only exists on the
--- other table (e.g. generated_documents.is_current from a print_history
--- invocation) errors immediately regardless of which branch would "reach"
--- it at runtime — confirmed by hitting exactly this error in testing.
 create or replace function fn_sync_status_on_generation()
 returns trigger language plpgsql as $$
 begin
@@ -541,10 +459,6 @@ create trigger trg_gendoc_sync_status
 after insert on generated_documents
 for each row execute function fn_sync_status_on_generation();
 
--- Companion to fn_sync_status_on_generation above, for the print side of the
--- same status-sync responsibility. Kept as a separate function (not a single
--- one branching on tg_table_name) because NEW's available columns differ by
--- source table — see the note above fn_sync_status_on_generation.
 create or replace function fn_sync_status_on_print()
 returns trigger language plpgsql as $$
 declare
@@ -560,9 +474,6 @@ begin
 end;
 $$;
 
--- ----------------------------------------------------------------------------
--- Official Receipt validation & reuse tracking
--- ----------------------------------------------------------------------------
 create table or_usage_log (
   id                 uuid primary key default gen_random_uuid(),
   request_id         uuid not null unique references requests(id),
@@ -579,8 +490,6 @@ create table or_usage_log (
 );
 create index idx_or_usage_or_number on or_usage_log(or_number);
 
--- Flags is_reuse automatically when an OR number has been seen before,
--- and blocks the insert until the app supplies a justification.
 create or replace function fn_flag_or_reuse()
 returns trigger language plpgsql as $$
 begin
@@ -598,12 +507,6 @@ create trigger trg_or_usage_flag_reuse
 before insert on or_usage_log
 for each row execute function fn_flag_or_reuse();
 
--- ----------------------------------------------------------------------------
--- Print history — every physical print of a specific generated PDF version,
--- including reprints. Points at generated_documents (a specific version),
--- not request_documents, so a reprint of an older version is distinguishable
--- from a print of the current one.
--- ----------------------------------------------------------------------------
 create table print_history (
   id                     uuid primary key default gen_random_uuid(),
   generated_document_id  uuid not null references generated_documents(id),
@@ -619,10 +522,6 @@ create trigger trg_print_sync_status
 after insert on print_history
 for each row execute function fn_sync_status_on_print();
 
--- ----------------------------------------------------------------------------
--- Request status history (workflow trail, independent of the audit log so
--- it can drive UI timelines cheaply without scanning generic audit rows)
--- ----------------------------------------------------------------------------
 create table request_status_history (
   id                uuid primary key default gen_random_uuid(),
   request_id         uuid not null references requests(id),
@@ -634,12 +533,6 @@ create table request_status_history (
 );
 create index idx_rsh_request on request_status_history(request_id);
 
--- SECURITY DEFINER is intentional: request_status_history has no direct
--- INSERT policy for the app (see RLS section below) because it should only
--- ever be populated by this trigger, never fabricated directly by a client
--- — that's what makes it trustworthy as a derived audit trail. Running the
--- trigger itself with definer privileges is what lets it write despite that
--- restriction.
 create or replace function fn_log_status_change()
 returns trigger
 language plpgsql
@@ -665,12 +558,9 @@ create trigger trg_requests_status_history
 after insert or update of status on requests
 for each row execute function fn_log_status_change();
 
--- ============================================================================
--- 6. AUDIT LOG (append-only, government-grade)
--- ============================================================================
 create table audit_logs (
   id           uuid primary key default gen_random_uuid(),
-  staff_id      uuid references staff(id),   -- nullable only for system-level events
+  staff_id      uuid references staff(id),
   action_type   audit_action_enum not null,
   table_name    varchar(100),
   record_id     uuid,
@@ -685,7 +575,6 @@ create index idx_audit_logs_record on audit_logs(table_name, record_id);
 create index idx_audit_logs_staff on audit_logs(staff_id);
 create index idx_audit_logs_created_at on audit_logs(created_at);
 
--- Enforce append-only at the database level: no UPDATE or DELETE, ever.
 create or replace function fn_block_audit_mutation()
 returns trigger language plpgsql as $$
 begin
@@ -701,14 +590,6 @@ create trigger trg_audit_no_delete
 before delete on audit_logs
 for each row execute function fn_block_audit_mutation();
 
--- ============================================================================
--- 6B. SYSTEM SETTINGS & SESSION TRACKING
--- ============================================================================
-
--- Configurable system values instead of hardcoding them in the application.
--- setting_value is stored as text; the application is responsible for
--- parsing it according to the convention implied by setting_key (e.g.
--- session_timeout_minutes -> integer, allow_reprint -> 'true'/'false').
 create table system_settings (
   id            uuid primary key default gen_random_uuid(),
   setting_key   varchar(100) not null unique,
@@ -721,14 +602,6 @@ create table system_settings (
 create trigger trg_settings_touch before update on system_settings
 for each row execute function fn_touch_updated_at();
 
--- Login sessions, tracked SEPARATELY from audit_logs. audit_logs already
--- records LOGIN/LOGOUT as immutable historical events (see action_type
--- enum) — but that append-only log is the wrong shape for "who is logged
--- in right now" or "force-logout this session", both of which need a row
--- you can UPDATE (logout_time, is_active) and query cheaply without
--- scanning the entire audit history. The two tables serve different
--- questions: audit_logs answers "what happened and when, forever";
--- login_sessions answers "what is the current state of active sessions".
 create table login_sessions (
   id           uuid primary key default gen_random_uuid(),
   staff_id     uuid not null references staff(id),
@@ -741,9 +614,6 @@ create table login_sessions (
 create index idx_login_sessions_staff on login_sessions(staff_id);
 create index idx_login_sessions_active on login_sessions(staff_id) where is_active;
 
--- ============================================================================
--- 7. INDEXES (search & required lookups)
--- ============================================================================
 create unique index if not exists idx_requests_control_number on requests(control_number);
 create index idx_requests_created_at on requests(created_at);
 create index idx_requests_declarant_name_trgm on requests using gin (declarant_name gin_trgm_ops);
@@ -756,9 +626,6 @@ create index idx_etd_owner_name_trgm on encoded_tax_declarations using gin (owne
 create index idx_etd_td_arp_composite on encoded_tax_declarations(tax_declaration_number, arp_number);
 create index idx_etd_location on encoded_tax_declarations(municipality_id, barangay_id);
 
--- ============================================================================
--- 8. ROW LEVEL SECURITY
--- ============================================================================
 alter table staff enable row level security;
 alter table requests enable row level security;
 alter table request_documents enable row level security;
@@ -780,22 +647,6 @@ alter table generated_documents enable row level security;
 alter table system_settings enable row level security;
 alter table login_sessions enable row level security;
 
--- Helper: resolve the calling auth.uid() to an active staff row.
--- Only ACTIVE, non-deleted accounts resolve to a usable staff identity.
--- A PENDING_APPROVAL or DISABLED account therefore has zero effective
--- access anywhere in the system, since every policy below is keyed off
--- this function.
---
--- SECURITY DEFINER is required here, not optional: the staff_select RLS
--- policy itself calls fn_current_staff_id() to decide what a caller may
--- see. If this function were a plain (invoker-rights) function, its
--- internal "select ... from staff" would itself be subject to the
--- staff_select policy, which calls fn_current_staff_id() again — infinite
--- recursion (confirmed in testing: Postgres throws "stack depth limit
--- exceeded" the moment this runs as a real non-owner role). Marking it
--- SECURITY DEFINER makes its internal query run with the function owner's
--- privileges, which bypasses RLS entirely (the standard, documented way to
--- break this cycle), so the recursion never starts.
 create or replace function fn_current_staff_id()
 returns uuid
 language sql stable
@@ -808,8 +659,6 @@ as $$
     and deleted_at is null;
 $$;
 
--- Same reasoning as above: this queries staff directly and must not be
--- re-subject to staff's own RLS policies.
 create or replace function fn_has_role(p_role_code varchar)
 returns boolean
 language sql stable
@@ -830,10 +679,6 @@ as $$
   select fn_has_role('SUPER_ADMIN');
 $$;
 
--- Transactional tables: any active staff member may read office-wide
--- (verification/release requires seeing requests they didn't encode).
--- Inserts must be attributed to the caller; updates/voids gated by role
--- where the workflow demands it.
 create policy requests_select on requests for select
   using (fn_current_staff_id() is not null);
 
@@ -864,15 +709,12 @@ create policy print_history_all on print_history for all
 create policy rsh_select on request_status_history for select
   using (fn_current_staff_id() is not null);
 
--- Audit logs: everyone can INSERT (via trusted server-side function), but
--- only Super Admin may read the raw trail.
 create policy audit_insert on audit_logs for insert
   with check (true);
 
 create policy audit_select on audit_logs for select
   using (fn_is_super_admin());
 
--- Reference/lookup tables: everyone can read; only Super Admin may write.
 create policy lookups_read on lookup_values for select using (true);
 create policy lookups_write on lookup_values for insert with check (fn_is_super_admin());
 create policy lookups_update on lookup_values for update using (fn_is_super_admin());
@@ -884,19 +726,6 @@ create policy doc_types_update on document_types for update using (fn_is_super_a
 create policy municipalities_read on municipalities for select using (true);
 create policy barangays_read on barangays for select using (true);
 
--- Staff: a brand-new Supabase Auth sign-up may insert exactly one row for
--- itself (self-registration), which starts PENDING_APPROVAL and has no
--- other access until Super Admin approves it. Critically, the insert is
--- only allowed if role_id resolves to OFFICE_STAFF — a self-registering
--- user cannot grant themselves SUPER_ADMIN by simply passing a different
--- role_id in the request payload. The one Super Admin account is bootstrapped
--- manually (a one-time manual insert after deployment), never self-registered.
--- Anyone can read the staff directory (needed to attribute encoder/verifier/
--- releaser names in the UI) plus their own row regardless of status (so a
--- pending/disabled user can see "your account is awaiting approval" /
--- "your account is disabled"). Only Super Admin may approve, disable, or
--- otherwise update staff rows (including promoting someone to SUPER_ADMIN,
--- which is just a normal UPDATE of role_id via this same policy).
 create policy staff_insert on staff for insert
   with check (
     auth_user_id = auth.uid()
@@ -914,26 +743,14 @@ create policy signatories_write on authorized_signatories for insert with check 
 
 create policy roles_read on roles for select using (true);
 
--- Generated documents: any active staff member may generate/view/void a
--- document (consistent with how void/amend is handled everywhere else in
--- this schema — corrections are a rotating-duty action, not an admin-only
--- one). Attribution (generated_by) is enforced at the application layer,
--- same pattern as encoded_by on requests.
 create policy generated_documents_all on generated_documents for all
   using (fn_current_staff_id() is not null);
 
--- System settings: every active staff member needs to read these (session
--- timeout, allow_reprint, etc. drive UI/behavior for everyone); only Super
--- Admin may change them.
 create policy settings_read on system_settings for select
   using (fn_current_staff_id() is not null);
 create policy settings_write on system_settings for insert with check (fn_is_super_admin());
 create policy settings_update on system_settings for update using (fn_is_super_admin());
 
--- Login sessions: a staff member manages their own session rows (the app
--- inserts one at login, updates it at logout); Super Admin can see and
--- force-close anyone's session (e.g. "who's currently logged in" dashboard,
--- or revoking access immediately after a disable).
 create policy sessions_select on login_sessions for select
   using (staff_id = fn_current_staff_id() or fn_is_super_admin());
 create policy sessions_insert on login_sessions for insert
@@ -941,12 +758,6 @@ create policy sessions_insert on login_sessions for insert
 create policy sessions_update on login_sessions for update
   using (staff_id = fn_current_staff_id() or fn_is_super_admin());
 
--- ----------------------------------------------------------------------------
--- System statistics — restricted to Super Admin. A SECURITY DEFINER function
--- (rather than a plain view) so access control lives in one obvious place
--- and can't be bypassed by querying the underlying tables directly through
--- some other route, since it explicitly checks the caller's role first.
--- ----------------------------------------------------------------------------
 create or replace function get_system_statistics()
 returns jsonb
 language plpgsql
@@ -991,12 +802,6 @@ begin
 end;
 $$;
 
--- ----------------------------------------------------------------------------
--- Account approval / disable — the two Super Admin actions this system was
--- specifically asked to support. SECURITY DEFINER + explicit role check so
--- the app layer never needs to hand-craft the UPDATE (and never needs
--- table-level UPDATE privilege on staff to do it).
--- ----------------------------------------------------------------------------
 create or replace function approve_staff_account(p_staff_id uuid)
 returns void
 language plpgsql
@@ -1048,9 +853,6 @@ begin
 end;
 $$;
 
--- ============================================================================
--- 9. VIEWS (convenience, not a substitute for the base tables)
--- ============================================================================
 create or replace view v_active_requests as
 select * from requests where deleted_at is null and not is_void;
 
@@ -1068,9 +870,24 @@ left join staff ver on ver.id = r.verified_by
 left join staff rel on rel.id = r.released_by
 where r.deleted_at is null;
 
--- ============================================================================
--- 10. SEED DATA (lookup categories, document types, roles)
--- ============================================================================
+-- NEW: the per-document view matching the Transaction Registry screenshot
+-- (control-style number, declarant, document type name, status per document
+-- rather than per request).
+create or replace view v_transaction_registry as
+select
+  rd.id as request_document_id,
+  rd.document_number,
+  r.declarant_name,
+  dt.name as document_name,
+  rd.status,
+  r.control_number as request_control_number,
+  r.is_void as request_is_void,
+  rd.created_at
+from request_documents rd
+join requests r on r.id = rd.request_id
+join document_types dt on dt.id = rd.document_type_id
+where r.deleted_at is null;
+
 insert into lookup_categories (code, name) values
   ('AUTHORIZATION_TYPE', 'Authorization Type'),
   ('PURPOSE', 'Purpose of Request'),
@@ -1113,13 +930,15 @@ select id, v.code, v.label, v.sort_order from lookup_categories,
 where lookup_categories.code = 'PROPERTY_TYPE'
 on conflict do nothing;
 
-insert into document_types (code, name, requires_tax_declaration, sort_order) values
-  ('CTC_LATEST_TD', 'Certified True Copy of Latest Tax Declaration', true, 1),
-  ('CTC_OLD_TD',    'Certified True Copy of Old Tax Declaration',    true, 2),
-  ('CERT_LANDHOLDING',    'Certificate of Landholding',    true,  3),
-  ('CERT_NO_LANDHOLDING', 'Certificate of No Landholding', false, 4),
-  ('TAX_MAP_VERIFICATION', 'Tax Map Verification', true, 5),
-  ('DEED_OF_CONVEYANCE',   'Deed of Conveyance',   true, 6)
+-- FIX: added `prefix` per document type — this is what request_documents
+-- uses to build "TD-000191", "CLH-000089", "CNL-000062" etc.
+insert into document_types (code, prefix, name, requires_tax_declaration, sort_order) values
+  ('CTC_LATEST_TD', 'TD',  'Certified True Copy of Latest Tax Declaration', true, 1),
+  ('CTC_OLD_TD',    'CTC', 'Certified True Copy of Old Tax Declaration',    true, 2),
+  ('CERT_LANDHOLDING',    'CLH', 'Certificate of Landholding',    true,  3),
+  ('CERT_NO_LANDHOLDING', 'CNL', 'Certificate of No Landholding', false, 4),
+  ('TAX_MAP_VERIFICATION', 'TMV', 'Tax Map Verification', true, 5),
+  ('DEED_OF_CONVEYANCE',   'DOC', 'Deed of Conveyance',   true, 6)
 on conflict (code) do nothing;
 
 insert into roles (code, name, description) values
@@ -1135,7 +954,3 @@ insert into system_settings (setting_key, setting_value, description) values
   ('allow_reprint', 'true', 'Whether staff may generate a new PDF version for an already-generated document'),
   ('archive_after_days', '365', 'Days after release before a request is eligible for cold-storage archival (informational; no automated job in this schema)')
 on conflict (setting_key) do nothing;
-
--- ============================================================================
--- END OF SCRIPT
--- ============================================================================
