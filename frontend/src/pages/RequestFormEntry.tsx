@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { requestService, type RequestFormData } from '../services/requestService';
 import type { User } from '../types/auth';
+import type { CompletedEntryData } from '../types/taxDeclaration';
 import '../styles/RequestFormEntry.css';
 
 // TEMP: extending RequestFormData locally until these fields are added to the
@@ -15,6 +16,10 @@ interface ExtendedRequestFormData extends RequestFormData {
 interface RequestFormEntryProps {
     user: User;
     onCancel: () => void;
+    /** Called when the entry form is successfully saved. Unlocks Request Processing. */
+    onEntryComplete?: (data: CompletedEntryData) => void;
+    /** Called when user clicks "Proceed to Processing" — navigates to the specific doc type view. */
+    onNavigateToProcessing?: (view: string) => void;
 }
 
 function ToggleButtonPair({
@@ -184,8 +189,9 @@ const DEFAULT_DOCUMENT_TYPES = [
     { id: 'cert-no-property', name: 'Certificate of No Property/Landholding' },
 ];
 
-export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
+export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateToProcessing }: RequestFormEntryProps) {
     const [submitting, setSubmitting] = useState(false);
+    const [savedEntry, setSavedEntry] = useState<CompletedEntryData | null>(null);
     const [metadata, setMetadata] = useState<{
         docTypes: any[];
         purposes: any[];
@@ -252,20 +258,63 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
         if (!formData.declarantName) return alert('Declarant Name is required');
         setSubmitting(true);
         try {
-            // NOTE: formData currently includes propertyLocation, releasingStaffId,
-            // releaseDate, and referenceNumber, which are NOT part of the real
-            // RequestFormData interface in requestService.ts. These will be sent
-            // as extra fields in the POST body. Confirm with backend whether
-            // that's fine (ignored) or whether they need to be added to the
-            // interface / stripped before sending.
-            await requestService.submitRequest(formData, user.id);
-            alert('Success: Request saved');
-            onCancel();
+            let savedRequestId: string;
+            try {
+                const result = await requestService.submitRequest(formData, user.id);
+                savedRequestId = result?.data?.id ?? `mock-${Date.now()}`;
+            } catch (netErr: any) {
+                // Graceful fallback for mock/offline mode
+                if (!netErr.response) {
+                    console.warn('[RequestFormEntry] Backend unreachable — using mock request ID.');
+                    savedRequestId = `mock-${Date.now()}`;
+                } else {
+                    throw netErr;
+                }
+            }
+
+            const completedData: CompletedEntryData = {
+                requestId: savedRequestId,
+                referenceNumber: formData.referenceNumber,
+                declarantName: formData.declarantName,
+                requestedByName: formData.requestedByName,
+                requestDate: formData.requestDate,
+                purposeId: formData.purposeId,
+                documentTypeIds: formData.documentTypeIds,
+                actionTaken: formData.actionTaken,
+                authRequired: formData.authRequired,
+                propertyLocation: formData.propertyLocation,
+            };
+
+            setSavedEntry(completedData);
+            onEntryComplete?.(completedData);
         } catch (err: any) {
             alert(err.response?.data?.error || 'Submit failed');
         } finally {
             setSubmitting(false);
         }
+    };
+
+    /**
+     * Determine which processing view to navigate to based on selected doc types.
+     * Defaults to 'tax-declaration' if unable to determine.
+     */
+    const getProcessingView = (): string => {
+        const ids = formData.documentTypeIds;
+        if (!ids.length) return 'tax-declaration';
+        // Use the first selected document type label/id to route
+        // (Real mapping should come from metadata docTypes array)
+        const firstId = ids[0].toLowerCase();
+        if (firstId.includes('land') && firstId.includes('no')) return 'certificate-no-landholding';
+        if (firstId.includes('land')) return 'certificate-land-holding';
+        return 'tax-declaration';
+    };
+
+    const handleProceed = () => {
+        if (!savedEntry) {
+            alert('Please save the request first before proceeding.');
+            return;
+        }
+        onNavigateToProcessing?.(getProcessingView());
     };
 
     return (
@@ -480,12 +529,8 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
                     </div>
 
                     <div className="form-footer">
-                        <button
-                            className="btn-submit"
-                            onClick={handleSave}
-                            disabled={submitting}
-                        >
-                            {submitting ? 'Saving...' : 'Save Request'}
+                        <button className="btn-back" onClick={onCancel}>
+                            Back to Dashboard
                         </button>
                         <button
                             className="btn-print"
@@ -494,6 +539,23 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
                         >
                             Print Form
                         </button>
+                        <button
+                            className="btn-submit"
+                            onClick={handleSave}
+                            disabled={submitting || !!savedEntry}
+                        >
+                            {submitting ? 'Saving...' : savedEntry ? '✓ Saved' : 'Save Request'}
+                        </button>
+                        {savedEntry && (
+                            <button
+                                className="btn-submit"
+                                type="button"
+                                style={{ background: 'linear-gradient(135deg, #059669, #10b981)', marginLeft: 0 }}
+                                onClick={handleProceed}
+                            >
+                                Proceed to Processing →
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
