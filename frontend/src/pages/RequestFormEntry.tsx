@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { requestService, type RequestFormData } from '../services/requestService';
 import type { User } from '../types/auth';
 import '../styles/RequestFormEntry.css';

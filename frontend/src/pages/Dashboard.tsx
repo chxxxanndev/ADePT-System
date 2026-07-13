@@ -98,10 +98,12 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         || activeView === 'request-form'
         || activeView === 'tax-declaration'
         || activeView === 'certificate-land-holding'
-        || activeView === 'certificate-no-landholding';
+        || activeView === 'certificate-no-landholding'
+        || activeView === 'account-settings';
 
     // Only the entry-form views route to RequestFormEntry.
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
+    const isAccountSettingsView = activeView === 'account-settings';
 
     // ── Adapter: map the app-wide `User` shape to what AccountSettings expects ──
     const accountUser: AccountUser = {
