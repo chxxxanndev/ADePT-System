@@ -2,6 +2,8 @@
    AccountSettings.css — Account Settings page
    ADePT Design System — palette matches TaxDeclaration.css
    Primary: #29237a  |  Gradient end: #3730a3 / #4338ca
+   Indigo is used as an ACCENT (header, buttons, section markers) —
+   card bodies stay light, matching the Tax Declaration form.
    ========================================================= */
 
 .as-page {
@@ -19,7 +21,7 @@
 }
 
 .as-page-title {
-    font-size: 1.7rem;
+    font-size: 2.5rem;
     font-weight: 800;
     color: #29237a;
     letter-spacing: -0.3px;
@@ -32,7 +34,7 @@
     font-weight: 400;
 }
 
-/* ── Profile banner ───────────────────────────────────────── */
+/* ── Profile banner (kept as the one indigo block — matches td-card-header) ── */
 .as-profile-banner {
     background: linear-gradient(135deg, #29237a 0%, #3730a3 100%);
     border-radius: 14px;
@@ -146,6 +148,19 @@
     font-weight: 800;
     color: #1e293b;
     margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.as-section-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    background: #29237a;
+    border-radius: 2px;
+    flex-shrink: 0;
 }
 
 .as-section-subtitle {
@@ -153,15 +168,15 @@
     color: #64748b;
 }
 
-/* ── Profile information card (solid indigo, per app palette) ── */
+/* ── Profile information card — light, matches td-boundaries-box ── */
 .as-info-card {
-    background: linear-gradient(135deg, #29237a 0%, #322a8c 100%);
+    background: #fafbff;
+    border: 1.5px solid #e2e8f0;
     border-radius: 14px;
     padding: 22px 24px 20px;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    box-shadow: 0 6px 20px rgba(41, 35, 122, 0.14);
 }
 
 .as-field {
@@ -171,15 +186,15 @@
 }
 
 .as-field-label {
-    font-size: 0.82rem;
+    font-size: 0.86rem;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.85);
+    color: #475569;
     letter-spacing: 0.2px;
 }
 
 .as-field-hint {
-    font-size: 0.74rem;
-    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.76rem;
+    color: #94a3b8;
     font-style: italic;
     margin-top: -2px;
 }
@@ -200,7 +215,7 @@
 .as-input {
     width: 100%;
     padding: 11px 40px 11px 14px;
-    border: 1.5px solid transparent;
+    border: 1.5px solid #e2e8f0;
     border-radius: 8px;
     font-size: 0.95rem;
     font-family: inherit;
@@ -217,15 +232,17 @@
 
 .as-input:focus {
     outline: none;
-    border-color: #ffffff;
+    border-color: #29237a;
     background: #ffffff;
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
+    box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
 }
 
 .as-input[readonly] {
+    background: #f1f5f9;
     color: #64748b;
     cursor: default;
     letter-spacing: 2px;
+    border-style: dashed;
 }
 
 .as-input-edit-icon {
@@ -239,9 +256,9 @@
 
 .as-inline-btn {
     flex-shrink: 0;
-    background: #1e1a5c;
+    background: #29237a;
     color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: none;
     border-radius: 8px;
     padding: 11px 16px;
     font-size: 0.82rem;
@@ -253,12 +270,12 @@
 }
 
 .as-inline-btn:hover {
-    background: #16134a;
+    background: #201c5e;
 }
 
 .as-field-footnote {
     font-size: 0.74rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: #94a3b8;
 }
 
 /* ── Card action row (Discard / Save) ─────────────────────── */
@@ -319,24 +336,28 @@
     box-shadow: none;
 }
 
-/* ── Account status / danger zone ─────────────────────────── */
+/* ── Account status / danger zone — light card, red only on the toggle ── */
 .as-status-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: linear-gradient(135deg, #29237a 0%, #322a8c 100%);
+    background: #fafbff;
+    border: 1.5px solid #e2e8f0;
     border-radius: 12px;
     padding: 16px 22px;
-    box-shadow: 0 6px 20px rgba(41, 35, 122, 0.14);
 }
 
 .as-status-label {
     display: flex;
     align-items: center;
     gap: 10px;
-    color: #ffffff;
+    color: #1e293b;
     font-size: 0.95rem;
     font-weight: 700;
+}
+
+.as-status-label svg {
+    color: #29237a;
 }
 
 /* Toggle switch */
@@ -347,7 +368,7 @@
     width: 46px;
     height: 26px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.18);
+    background: #e2e8f0;
     border: none;
     cursor: pointer;
     padding: 3px;
@@ -364,7 +385,7 @@
     height: 20px;
     border-radius: 50%;
     background: #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
     transition: transform 0.2s ease;
 }
 
@@ -382,9 +403,10 @@
     padding: 9px 14px;
 }
 
-/* ── Footer strip ──────────────────────────────────────────── */
+/* ── Footer strip — light, quiet, like td-footer ─────────────── */
 .as-app-footer {
-    background: linear-gradient(135deg, #29237a 0%, #3730a3 100%);
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 14px 24px;
     display: flex;
@@ -407,8 +429,8 @@
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: #ffffff;
-    color: #29237a;
+    background: #29237a;
+    color: #ffffff;
     font-weight: 800;
     font-size: 9px;
     flex-shrink: 0;
@@ -421,13 +443,13 @@
 }
 
 .as-app-footer-name {
-    color: #ffffff;
+    color: #1e293b;
     font-size: 0.8rem;
     font-weight: 700;
 }
 
 .as-app-footer-desc {
-    color: rgba(199, 210, 254, 0.85);
+    color: #64748b;
     font-size: 0.7rem;
 }
 
@@ -436,18 +458,18 @@
     flex-direction: column;
     align-items: flex-end;
     gap: 2px;
-    color: rgba(199, 210, 254, 0.9);
+    color: #64748b;
     font-size: 0.72rem;
 }
 
 .as-app-footer-copyright {
     width: 100%;
     text-align: center;
-    color: rgba(199, 210, 254, 0.6);
+    color: #94a3b8;
     font-size: 0.68rem;
     padding-top: 10px;
     margin-top: 4px;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid #e2e8f0;
 }
 
 /* ── Responsive ───────────────────────────────────────────── */
