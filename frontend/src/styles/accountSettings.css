@@ -1,0 +1,479 @@
+/* =========================================================
+   AccountSettings.css — Account Settings page
+   ADePT Design System — palette matches TaxDeclaration.css
+   Primary: #29237a  |  Gradient end: #3730a3 / #4338ca
+   ========================================================= */
+
+.as-page {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding: 4px 0 20px;
+}
+
+/* ── Page heading ─────────────────────────────────────────── */
+.as-page-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.as-page-title {
+    font-size: 1.7rem;
+    font-weight: 800;
+    color: #29237a;
+    letter-spacing: -0.3px;
+    margin: 0;
+}
+
+.as-page-subtitle {
+    font-size: 0.92rem;
+    color: #64748b;
+    font-weight: 400;
+}
+
+/* ── Profile banner ───────────────────────────────────────── */
+.as-profile-banner {
+    background: linear-gradient(135deg, #29237a 0%, #3730a3 100%);
+    border-radius: 14px;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    box-shadow: 0 6px 20px rgba(41, 35, 122, 0.18);
+}
+
+.as-profile-identity {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.as-avatar-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    color: #29237a;
+    font-weight: 800;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.as-avatar-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.as-profile-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.as-profile-name {
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.as-profile-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(199, 210, 254, 0.9);
+    font-size: 0.82rem;
+}
+
+.as-profile-meta-dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: rgba(199, 210, 254, 0.7);
+    flex-shrink: 0;
+}
+
+.as-role-chip {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    padding: 2px 10px;
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.as-change-photo-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    color: #29237a;
+    border: none;
+    border-radius: 9px;
+    padding: 10px 18px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    white-space: nowrap;
+}
+
+.as-change-photo-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+/* ── Section heading (outside cards) ──────────────────────── */
+.as-section-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 14px;
+}
+
+.as-section-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0;
+}
+
+.as-section-subtitle {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+/* ── Profile information card (solid indigo, per app palette) ── */
+.as-info-card {
+    background: linear-gradient(135deg, #29237a 0%, #322a8c 100%);
+    border-radius: 14px;
+    padding: 22px 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 6px 20px rgba(41, 35, 122, 0.14);
+}
+
+.as-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.as-field-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.85);
+    letter-spacing: 0.2px;
+}
+
+.as-field-hint {
+    font-size: 0.74rem;
+    color: rgba(255, 255, 255, 0.55);
+    font-style: italic;
+    margin-top: -2px;
+}
+
+.as-field-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.as-input-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.as-input {
+    width: 100%;
+    padding: 11px 40px 11px 14px;
+    border: 1.5px solid transparent;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    background: #f8fafc;
+    color: #1e293b;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+}
+
+.as-input::placeholder {
+    color: #b0b8c8;
+    font-style: italic;
+}
+
+.as-input:focus {
+    outline: none;
+    border-color: #ffffff;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
+}
+
+.as-input[readonly] {
+    color: #64748b;
+    cursor: default;
+    letter-spacing: 2px;
+}
+
+.as-input-edit-icon {
+    position: absolute;
+    right: 12px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+}
+
+.as-inline-btn {
+    flex-shrink: 0;
+    background: #1e1a5c;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 11px 16px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+}
+
+.as-inline-btn:hover {
+    background: #16134a;
+}
+
+.as-field-footnote {
+    font-size: 0.74rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Card action row (Discard / Save) ─────────────────────── */
+.as-card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: -6px;
+}
+
+.as-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 20px;
+    border-radius: 9px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.as-btn:hover {
+    transform: translateY(-1px);
+}
+
+.as-btn:active {
+    transform: translateY(0);
+}
+
+.as-btn-discard {
+    background: #f1f5f9;
+    border: 1.5px solid #cbd5e1;
+    color: #64748b;
+}
+
+.as-btn-discard:hover {
+    background: #e2e8f0;
+}
+
+.as-btn-save {
+    background: linear-gradient(135deg, #29237a 0%, #4338ca 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(41, 35, 122, 0.30);
+}
+
+.as-btn-save:hover {
+    box-shadow: 0 8px 20px rgba(41, 35, 122, 0.40);
+}
+
+.as-btn-save:disabled,
+.as-btn-discard:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* ── Account status / danger zone ─────────────────────────── */
+.as-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #29237a 0%, #322a8c 100%);
+    border-radius: 12px;
+    padding: 16px 22px;
+    box-shadow: 0 6px 20px rgba(41, 35, 122, 0.14);
+}
+
+.as-status-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+/* Toggle switch */
+.as-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: 46px;
+    height: 26px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    border: none;
+    cursor: pointer;
+    padding: 3px;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+}
+
+.as-toggle.is-on {
+    background: #ef4444;
+}
+
+.as-toggle-knob {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease;
+}
+
+.as-toggle.is-on .as-toggle-knob {
+    transform: translateX(20px);
+}
+
+.as-status-warning {
+    margin-top: 10px;
+    font-size: 0.78rem;
+    color: #b91c1c;
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    border-radius: 8px;
+    padding: 9px 14px;
+}
+
+/* ── Footer strip ──────────────────────────────────────────── */
+.as-app-footer {
+    background: linear-gradient(135deg, #29237a 0%, #3730a3 100%);
+    border-radius: 12px;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.as-app-footer-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.as-app-footer-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #29237a;
+    font-weight: 800;
+    font-size: 9px;
+    flex-shrink: 0;
+}
+
+.as-app-footer-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.as-app-footer-name {
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.as-app-footer-desc {
+    color: rgba(199, 210, 254, 0.85);
+    font-size: 0.7rem;
+}
+
+.as-app-footer-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    color: rgba(199, 210, 254, 0.9);
+    font-size: 0.72rem;
+}
+
+.as-app-footer-copyright {
+    width: 100%;
+    text-align: center;
+    color: rgba(199, 210, 254, 0.6);
+    font-size: 0.68rem;
+    padding-top: 10px;
+    margin-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .as-profile-banner,
+    .as-status-row,
+    .as-app-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .as-change-photo-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .as-card-actions {
+        justify-content: stretch;
+    }
+
+    .as-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .as-app-footer-right {
+        align-items: flex-start;
+    }
+}

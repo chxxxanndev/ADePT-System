@@ -185,54 +185,43 @@ export const PeriodToggleIcon = ({ size = 16, className }: IconProps) => (
     </svg>
 );
 
-export const SidebarToggleIcon = ({ size, className }: IconProps) => (
-    <svg {...base(size)} className={className}>
-        <rect x="3" y="5" width="18" height="14" rx="4" />
-        <polyline points="11 9 14 12 11 15" />
-    </svg>
-);
+export function CameraIcon({ size = 15 }: { size?: number }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+                d="M4 8.5C4 7.39543 4.89543 6.5 6 6.5H7.5L8.5 4.5H15.5L16.5 6.5H18C19.1046 6.5 20 7.39543 20 8.5V17C20 18.1046 19.1046 19 18 19H6C4.89543 19 4 18.1046 4 17V8.5Z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+            />
+            <circle cx="12" cy="12.5" r="3.4" stroke="currentColor" strokeWidth="1.8" />
+        </svg>
+    );
+}
 
-export const FileUploadIcon = ({ size, className }: IconProps) => (
-    <svg {...base(size)} className={className}>
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="12" y1="17" x2="12" y2="11" />
-        <polyline points="9 14 12 11 15 14" />
-    </svg>
-);
+export function EditPencilIcon({ size = 15 }: { size?: number }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+                d="M16.5 3.5L20.5 7.5L8 20H4V16L16.5 3.5Z"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
+            />
+            <path d="M14 6L18 10" stroke="currentColor" strokeWidth="1.7" />
+        </svg>
+    );
+}
 
-export const DocumentGearIcon = ({ size, className }: IconProps) => (
-    <svg {...base(size)} className={className}>
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8" />
-        <polyline points="14 2 14 8 20 8" />
-        <circle cx="17" cy="18" r="2.6" />
-        <line x1="17" y1="14.3" x2="17" y2="15.4" />
-        <line x1="17" y1="20.6" x2="17" y2="21.7" />
-        <line x1="20.3" y1="18" x2="19.2" y2="18" />
-        <line x1="14.8" y1="18" x2="13.7" y2="18" />
-    </svg>
-);
-
-export const DocumentLinesIcon = ({ size, className }: IconProps) => (
-    <svg {...base(size)} className={className}>
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="8" y1="13" x2="16" y2="13" />
-        <line x1="8" y1="17" x2="16" y2="17" />
-    </svg>
-);
-
-export const SlidersIcon = ({ size, className }: IconProps) => (
-    <svg {...base(size)} className={className}>
-        <line x1="21" y1="4" x2="14" y2="4" />
-        <line x1="10" y1="4" x2="3" y2="4" />
-        <line x1="21" y1="12" x2="12" y2="12" />
-        <line x1="8" y1="12" x2="3" y2="12" />
-        <line x1="21" y1="20" x2="16" y2="20" />
-        <line x1="12" y1="20" x2="3" y2="20" />
-        <line x1="14" y1="2" x2="14" y2="6" />
-        <line x1="8" y1="10" x2="8" y2="14" />
-        <line x1="16" y1="18" x2="16" y2="22" />
-    </svg>
-);
-
+export function ShieldIcon({ size = 14 }: { size?: number }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+                d="M12 3L19 6V11C19 15.5 16 18.8 12 20C8 18.8 5 15.5 5 11V6L12 3Z"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
+            />
+        </svg>
+    );
+}
