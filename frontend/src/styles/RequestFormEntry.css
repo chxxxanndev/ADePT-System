@@ -101,7 +101,7 @@
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
     width: 100%;
-    max-width: 900px;
+    max-width: 1400px;
     border: 1px solid var(--adept-border);
 }
 
@@ -112,6 +112,26 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+}
+
+/* NEW: wrapper for the small icon badge next to "REQUEST FORM ENTRY" */
+.form-header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* NEW: icon badge, sized/colored to sit alongside .form-header h2 */
+.form-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #eef2ff;
+    color: var(--adept-indigo);
+    flex-shrink: 0;
 }
 
 .form-header h2 {
@@ -144,13 +164,26 @@
     margin-bottom: 32px;
 }
 
+/* CHANGED: added flex/gap so the icon sits inline with the label text.
+   Kept your existing font/color/border-bottom exactly as-is. */
 .section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 1.1rem;
     font-weight: 700;
     color: var(--adept-indigo);
     border-bottom: 2px solid #f1f5f9;
     padding-bottom: 8px;
     margin-bottom: 20px;
+}
+
+/* NEW: size/color the section-title icons to match the heading text */
+.section-title svg {
+    width: 18px;
+    height: 18px;
+    color: var(--adept-indigo);
+    flex-shrink: 0;
 }
 
 .form-group {

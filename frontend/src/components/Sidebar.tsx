@@ -32,14 +32,24 @@ interface SidebarProps {
     onLogout: () => void;
     mobileOpen?: boolean;
     setMobileOpen?: (open: boolean) => void; // Added to handle mobile closing
+    collapsed: boolean;                      // NOW CONTROLLED: lifted to parent so
+    onToggleCollapse: () => void;            // Dashboard can force-collapse on certain views
 }
 
-export function Sidebar({ sections, activeView, onNavigate, onLogout, mobileOpen, setMobileOpen }: SidebarProps) {
+export function Sidebar({
+    sections,
+    activeView,
+    onNavigate,
+    onLogout,
+    mobileOpen,
+    setMobileOpen,
+    collapsed,
+    onToggleCollapse,
+}: SidebarProps) {
     const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
-    const [isCollapsed, setIsCollapsed] = useState(false);
 
     const toggleMenu = (label: string) => {
-        if (isCollapsed) setIsCollapsed(false); // Expand if clicking an item while collapsed
+        if (collapsed) onToggleCollapse(); // Expand if clicking an item while collapsed
         setOpenMenus((prev) => ({ ...prev, [label]: !prev[label] }));
     };
 
@@ -47,18 +57,18 @@ export function Sidebar({ sections, activeView, onNavigate, onLogout, mobileOpen
         if (window.innerWidth <= 900 && setMobileOpen) {
             setMobileOpen(false); // Close drawer on mobile
         } else {
-            setIsCollapsed(!isCollapsed); // Collapse/Expand on desktop
+            onToggleCollapse(); // Collapse/Expand on desktop
         }
     };
 
     return (
-        <aside className={`dashboard-sidebar ${mobileOpen ? 'mobile-open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
+        <aside className={`dashboard-sidebar ${mobileOpen ? 'mobile-open' : ''} ${collapsed ? 'collapsed' : ''}`}>
             <div className="sidebar-brand">
                 <div className="sidebar-brand-left">
                     <div className="sidebar-logo-circle">
                         <img src={logoImg} alt="ADePT" />
                     </div>
-                    {!isCollapsed && <span className="sidebar-brand-name">ADePT</span>}
+                    {!collapsed && <span className="sidebar-brand-name">ADePT</span>}
                 </div>
                 <button className="sidebar-toggle-btn" onClick={handleToggleSidebar} title="Toggle Sidebar">
                     <MenuIcon size={18} />
@@ -68,7 +78,7 @@ export function Sidebar({ sections, activeView, onNavigate, onLogout, mobileOpen
             <nav className="sidebar-nav">
                 {sections.map((section) => (
                     <div className="nav-section" key={section.label}>
-                        {!isCollapsed && <span className="nav-section-label">{section.label}</span>}
+                        {!collapsed && <span className="nav-section-label">{section.label}</span>}
 
                         {section.items.map((item) => {
                             const Icon = ICONS[item.icon] ?? DashboardIcon;
@@ -81,18 +91,18 @@ export function Sidebar({ sections, activeView, onNavigate, onLogout, mobileOpen
                                     <button
                                         className={`nav-item ${isActive ? 'active' : ''}`}
                                         onClick={() => (hasSubItems ? toggleMenu(item.label) : item.view && onNavigate(item.view))}
-                                        title={isCollapsed ? item.label : ""}
+                                        title={collapsed ? item.label : ""}
                                     >
                                         <span className="nav-item-icon"><Icon size={18} /></span>
-                                        {!isCollapsed && <span className="nav-item-label">{item.label}</span>}
-                                        {!isCollapsed && hasSubItems && (
+                                        {!collapsed && <span className="nav-item-label">{item.label}</span>}
+                                        {!collapsed && hasSubItems && (
                                             <span className={`nav-item-chevron ${isOpen ? 'open' : ''}`}>
                                                 <ChevronDownIcon size={14} />
                                             </span>
                                         )}
                                     </button>
 
-                                    {!isCollapsed && hasSubItems && (
+                                    {!collapsed && hasSubItems && (
                                         <div className={`nav-subitems ${isOpen ? 'open' : ''}`}>
                                             {item.subItems!.map((sub) => (
                                                 <div
@@ -115,9 +125,9 @@ export function Sidebar({ sections, activeView, onNavigate, onLogout, mobileOpen
                 ))}
             </nav>
 
-            <button className="sidebar-logout" onClick={onLogout} title={isCollapsed ? "Log out" : ""}>
+            <button className="sidebar-logout" onClick={onLogout} title={collapsed ? "Log out" : ""}>
                 <span className="nav-item-icon"><LogoutIcon size={18} /></span>
-                {!isCollapsed && <span className="nav-item-label">Log out</span>}
+                {!collapsed && <span className="nav-item-label">Log out</span>}
             </button>
         </aside>
     );

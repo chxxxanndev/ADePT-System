@@ -3,22 +3,22 @@ import '../styles/dashboard.css';
 import { Sidebar } from '../components/Sidebar';
 import { DashboardHeader, WelcomeBanner } from '../components/DashboardHeader';
 import { DashboardFooter } from '../components/DashboardFooter';
-import { RequestFormEntry } from './RequestFormEntry'; 
+import { RequestFormEntry } from './RequestFormEntry';
 import { DashboardSummary } from '../components/StatCard';
 import { AnalyticsOverview } from '../components/AnalyticsOverview';
 import { DocumentDistribution } from '../components/DocumentDistribution';
 import { RecentTransactions } from '../components/RecentTransactions';
 import { QuickActions } from '../components/QuickActions';
 
-import { 
-    navSections, 
-    operationalSummary, 
-    administrativeSummary, 
-    weeklyTrend, 
-    documentDistribution, 
-    totalDocuments, 
-    recentTransactions, 
-    quickActions 
+import {
+    navSections,
+    operationalSummary,
+    administrativeSummary,
+    weeklyTrend,
+    documentDistribution,
+    totalDocuments,
+    recentTransactions,
+    quickActions
 } from '../data/dashboardMockData';
 
 import type { User } from '../types/auth';
@@ -32,6 +32,7 @@ interface DashboardProps {
 export function Dashboard({ user, onLogout }: DashboardProps) {
     const [activeView, setActiveView] = useState('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
     // Defensive check: If user is missing, show nothing or a loader
     if (!user) return <div className="white-screen-fix">Loading Session...</div>;
@@ -49,6 +50,11 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         lastLogin: 'Today • 8:12 AM',
     };
 
+    // The Request Form Entry view has its own in-card header (icon, title,
+    // REF badge), so the generic "DASHBOARD / Welcome back" banner is skipped
+    // for that view to avoid showing two headers stacked on top of each other.
+    const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
+
     return (
         <div className="dashboard-page">
             <Sidebar
@@ -57,14 +63,18 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                 onNavigate={handleNavigate}
                 onLogout={onLogout}
                 mobileOpen={mobileMenuOpen}
+                collapsed={sidebarCollapsed}
+                onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
             />
 
             <div className="dashboard-main">
-                <DashboardHeader
-                    user={headerUser}
-                    userName={fullName}
-                    onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
-                />
+                {!isRequestFormView && (
+                    <DashboardHeader
+                        user={headerUser}
+                        userName={fullName}
+                        onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
+                    />
+                )}
 
                 <div className="dashboard-content">
                     {activeView === 'dashboard' ? (
@@ -81,7 +91,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 <QuickActions actions={quickActions} onSelect={setActiveView} />
                             </div>
                         </>
-                    ) : activeView === 'new-request' || activeView === 'request-form' ? (
+                    ) : isRequestFormView ? (
                         <RequestFormEntry user={user} onCancel={() => setActiveView('dashboard')} />
                     ) : (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
@@ -95,6 +105,6 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
             </div>
         </div>
 
-    
+
     );
 }
