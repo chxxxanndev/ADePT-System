@@ -5,6 +5,8 @@ import { DashboardHeader, WelcomeBanner } from '../components/DashboardHeader';
 import { DashboardFooter } from '../components/DashboardFooter';
 import { RequestFormEntry } from './RequestFormEntry';
 import { TaxDeclarationForm } from './request-processing/TaxDeclaration/TaxDeclarationForm';
+import { LandholdingCertificateForm } from './request-processing/LandholdingCertificate/LandholdingCertificateForm';
+import { NoLandholdingCertificateForm } from './request-processing/NoLandholdingCertificate/NoLandholdingCertificateForm';
 import { DashboardSummary } from '../components/StatCard';
 import { AnalyticsOverview } from '../components/AnalyticsOverview';
 import { DocumentDistribution } from '../components/DocumentDistribution';
@@ -89,9 +91,14 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         lastLogin: 'Today • 8:12 AM',
     };
 
-    // The Request Form Entry view has its own in-card header (icon, title,
-    // REF badge), so the generic "DASHBOARD / Welcome back" banner is skipped
-    // for that view to avoid showing two headers stacked on top of each other.
+    // Controls which views show their own in-card header (hides the dashboard header).
+    const hideHeader = activeView === 'new-request'
+        || activeView === 'request-form'
+        || activeView === 'tax-declaration'
+        || activeView === 'certificate-land-holding'
+        || activeView === 'certificate-no-landholding';
+
+    // Only the entry-form views route to RequestFormEntry.
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
 
     return (
@@ -107,7 +114,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
             />
 
             <div className="dashboard-main">
-                {!isRequestFormView && (
+                {!hideHeader && (
                     <DashboardHeader
                         user={headerUser}
                         userName={fullName}
@@ -143,6 +150,42 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                             entryData={completedEntryData ?? {
                                 requestId: 'preview-mode',
                                 referenceNumber: 'REF-PREVIEW',
+                                declarantName: '',
+                                requestedByName: '',
+                                requestDate: new Date().toISOString().split('T')[0],
+                                purposeId: '',
+                                documentTypeIds: [],
+                                actionTaken: 'PENDING',
+                                authRequired: false,
+                                propertyLocation: '',
+                            }}
+                            onBack={() => setActiveView('new-request')}
+                            onBackToDashboard={() => setActiveView('dashboard')}
+                        />
+                    ) : activeView === 'certificate-land-holding' ? (
+                        <LandholdingCertificateForm
+                            user={user}
+                            entryData={completedEntryData ?? {
+                                requestId: 'preview-mode',
+                                referenceNumber: 'LH-PREVIEW',
+                                declarantName: '',
+                                requestedByName: '',
+                                requestDate: new Date().toISOString().split('T')[0],
+                                purposeId: '',
+                                documentTypeIds: [],
+                                actionTaken: 'PENDING',
+                                authRequired: false,
+                                propertyLocation: '',
+                            }}
+                            onBack={() => setActiveView('new-request')}
+                            onBackToDashboard={() => setActiveView('dashboard')}
+                        />
+                    ) : activeView === 'certificate-no-landholding' ? (
+                        <NoLandholdingCertificateForm
+                            user={user}
+                            entryData={completedEntryData ?? {
+                                requestId: 'preview-mode',
+                                referenceNumber: 'NLH-PREVIEW',
                                 declarantName: '',
                                 requestedByName: '',
                                 requestDate: new Date().toISOString().split('T')[0],
