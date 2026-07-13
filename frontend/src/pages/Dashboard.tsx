@@ -1,31 +1,30 @@
 import { useState } from 'react';
 import '../styles/dashboard.css';
-
 import { Sidebar } from '../components/Sidebar';
 import { DashboardHeader, WelcomeBanner } from '../components/DashboardHeader';
+import { DashboardFooter } from '../components/DashboardFooter';
+import { RequestFormEntry } from './RequestFormEntry'; 
 import { DashboardSummary } from '../components/StatCard';
 import { AnalyticsOverview } from '../components/AnalyticsOverview';
 import { DocumentDistribution } from '../components/DocumentDistribution';
 import { RecentTransactions } from '../components/RecentTransactions';
 import { QuickActions } from '../components/QuickActions';
-import { DashboardFooter } from '../components/DashboardFooter';
+
+import { 
+    navSections, 
+    operationalSummary, 
+    administrativeSummary, 
+    weeklyTrend, 
+    documentDistribution, 
+    totalDocuments, 
+    recentTransactions, 
+    quickActions 
+} from '../data/dashboardMockData';
 
 import type { User } from '../types/auth';
 
-import {
-    navSections,
-    operationalSummary,
-    administrativeSummary,
-    weeklyTrend,
-    documentDistribution,
-    totalDocuments,
-    recentTransactions,
-    quickActions,
-} from '../data/dashboardMockData';
-
 interface DashboardProps {
     user: User;
-    backendHealthy: boolean | null;
     onLogout: () => void;
 }
 
@@ -33,24 +32,20 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     const [activeView, setActiveView] = useState('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+    // Defensive check: If user is missing, show nothing or a loader
+    if (!user) return <div className="white-screen-fix">Loading Session...</div>;
+
     const handleNavigate = (view: string) => {
         setActiveView(view);
         setMobileMenuOpen(false);
-        // Wire this up to your router, e.g. navigate(`/${view}`)
     };
 
-    const fullName = `${user.firstName} ${user.lastName}`;
-
-    // DashboardHeader was likely built against the mock UserProfile shape
-    // ({ name, email, role, lastLogin }), but real auth only gives us
-    // firstName/lastName/email/username. Adapting here until either
-    // DashboardHeader is updated to take `User` directly, or the backend
-    // starts returning role/lastLogin.
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`;
     const headerUser = {
         name: fullName,
-        email: user.email,
-        role: 'Staff', // placeholder — replace once role comes from backend/auth
-        lastLogin: '—', // placeholder — replace once lastLogin is tracked
+        email: user.email || '',
+        role: user.role || 'Staff',
+        lastLogin: 'Today • 8:12 AM',
     };
 
     return (
@@ -70,32 +65,35 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                     onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
                 />
 
-                <WelcomeBanner />
-
                 <div className="dashboard-content">
-                    <DashboardSummary
-                        title="Operational Summary"
-                        items={operationalSummary}
-                        iconType="operational"
-                    />
-                    <DashboardSummary
-                        title="Administrative Summary"
-                        items={administrativeSummary}
-                        iconType="admin"
-                    />
-
-                    <div className="dashboard-row">
-                        <AnalyticsOverview data={weeklyTrend} lastUpdated="Today • 2:45 PM" />
-                        <DocumentDistribution slices={documentDistribution} totalDocuments={totalDocuments} />
-                    </div>
-
-                    <div className="dashboard-row">
-                        <RecentTransactions rows={recentTransactions} onViewAll={() => handleNavigate('transaction-registry')} />
-                        <QuickActions actions={quickActions} onSelect={handleNavigate} />
-                    </div>
+                    {activeView === 'dashboard' ? (
+                        <>
+                            <WelcomeBanner />
+                            <DashboardSummary title="Operational Summary" items={operationalSummary} iconType="operational" />
+                            <DashboardSummary title="Administrative Summary" items={administrativeSummary} iconType="admin" />
+                            <div className="dashboard-row">
+                                <AnalyticsOverview data={weeklyTrend} lastUpdated="Today • 2:45 PM" />
+                                <DocumentDistribution slices={documentDistribution} totalDocuments={totalDocuments} />
+                            </div>
+                            <div className="dashboard-row">
+                                <RecentTransactions rows={recentTransactions} onViewAll={() => setActiveView('transaction-registry')} />
+                                <QuickActions actions={quickActions} onSelect={setActiveView} />
+                            </div>
+                        </>
+                    ) : activeView === 'new-request' || activeView === 'request-form' ? (
+                        <RequestFormEntry user={user} onCancel={() => setActiveView('dashboard')} />
+                    ) : (
+                        <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
+                            <h2>{activeView.toUpperCase()}</h2>
+                            <p>Module under development.</p>
+                            <button onClick={() => setActiveView('dashboard')}>Return</button>
+                        </div>
+                    )}
                 </div>
                 <DashboardFooter />
             </div>
         </div>
+
+    
     );
 }

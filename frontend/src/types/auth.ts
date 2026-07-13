@@ -1,12 +1,13 @@
-export type View = 'login' | 'signup' | 'forgot';
-
 export interface User {
-    firstName: string;
-    lastName: string;
+    id: string;          // Added this
     email: string;
     username: string;
+    firstName: string;
+    lastName: string;
+    role?: string;       // Added this (optional)
+    status?: string;
 }
 
-export interface MockUser extends User {
-    password?: string;
-}
+// If you have a View type in this file, keep it
+export type View = 'login' | 'signup' | 'forgot';
+
