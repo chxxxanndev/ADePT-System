@@ -1,0 +1,368 @@
+:root {
+    --adept-indigo-dark: #2e2a7a;
+    --adept-indigo: #4338ca;
+    --adept-purple: #7c3aed;
+    --adept-border: #e2e8f0;
+}
+
+.request-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    background: #f1f5f9;
+}
+
+/* ---------- Header ---------- */
+.assessordesk-header {
+    background: var(--adept-indigo-dark);
+    padding: 20px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.assessordesk-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.assessordesk-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+.assessordesk-title {
+    font-weight: 800;
+    font-size: 1.15rem;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+}
+
+.assessordesk-title .accent {
+    background: linear-gradient(90deg, #a78bfa, #60a5fa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.assessordesk-subtitle {
+    font-size: 0.75rem;
+    color: #c7d2fe;
+}
+
+.assessordesk-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 8px 16px;
+    border-radius: 999px;
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #c7d2fe;
+    color: var(--adept-indigo-dark);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-name {
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.user-date {
+    color: #c7d2fe;
+    font-size: 0.75rem;
+}
+
+/* ---------- Form card ---------- */
+.request-form-container {
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.form-card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 900px;
+    border: 1px solid var(--adept-border);
+}
+
+.form-header {
+    background: #f8fafc;
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--adept-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.form-header h2 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 1.5rem;
+}
+
+.form-subtitle {
+    color: #64748b;
+    font-size: 0.85rem;
+    margin-top: 4px;
+}
+
+.ref-badge {
+    background: #f1f5f9;
+    border: 1px solid var(--adept-border);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: 700;
+    color: #334155;
+    white-space: nowrap;
+}
+
+.form-body {
+    padding: 32px;
+}
+
+.form-section {
+    margin-bottom: 32px;
+}
+
+.section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--adept-indigo);
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 8px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: #f8fafc;
+}
+
+/* ---------- Dropdowns ---------- */
+.custom-select {
+    position: relative;
+    width: 100%;
+}
+
+.custom-select-trigger {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #f8fafc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #1e293b;
+    text-align: left;
+}
+
+.placeholder-text {
+    color: #94a3b8;
+}
+
+.chevron {
+    transition: transform 0.15s ease;
+    color: #64748b;
+}
+
+.chevron-up {
+    transform: rotate(180deg);
+}
+
+.custom-select-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--adept-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 20;
+}
+
+.custom-select-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-weight: 400;
+    color: #334155;
+}
+
+.custom-select-option:hover {
+    background: #f1f5f9;
+}
+
+.custom-select-empty {
+    padding: 12px 14px;
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+.native-select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #f8fafc;
+    font-size: 1rem;
+    color: #1e293b;
+    appearance: none;
+}
+
+/* ---------- Toggle button pairs ---------- */
+.toggle-pair {
+    display: flex;
+    gap: 16px;
+}
+
+.toggle-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #f8fafc;
+    cursor: pointer;
+    font-weight: 600;
+    color: #475569;
+    font-size: 0.95rem;
+}
+
+.toggle-btn-active {
+    border-color: var(--adept-indigo);
+    background: #eef2ff;
+    color: var(--adept-indigo);
+}
+
+.toggle-checkbox {
+    width: 18px;
+    height: 18px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    background: #fff;
+}
+
+.toggle-btn-active .toggle-checkbox {
+    border-color: var(--adept-indigo);
+    background: var(--adept-indigo);
+    color: #fff;
+}
+
+/* ---------- Action taken / archive box ---------- */
+.return-archive-box {
+    background: #f5f3ff;
+    border: 1px solid #ddd6fe;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 16px;
+}
+
+.return-archive-label {
+    color: #6d28d9;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+/* ---------- Signature block ---------- */
+.signature-block {
+    text-align: right;
+    margin-top: 32px;
+}
+
+.signature-name {
+    font-weight: 700;
+    color: #1e293b;
+    border-top: 1px solid #94a3b8;
+    display: inline-block;
+    padding-top: 6px;
+    margin-top: 40px;
+}
+
+.signature-title {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+/* ---------- Footer ---------- */
+.form-footer {
+    padding: 24px 32px;
+    background: #f8fafc;
+    border-top: 1px solid var(--adept-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+}
+
+.btn-submit {
+    background: var(--adept-indigo);
+    color: white;
+    padding: 12px 32px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.btn-submit:disabled {
+    background: #94a3b8;
+}
+
+.btn-back,
+.btn-print {
+    background: white;
+    border: 1px solid #cbd5e1;
+    padding: 12px 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #475569;
+}

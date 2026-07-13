@@ -14,6 +14,45 @@ backend/
 └── package.json
 
 frontend/
+├── node modules/
+├── public/
+├── src/
+│   ├── assets/             
+│   ├── components/ 
+│   │   ├── AlertBanner.tsx
+│   │   ├── AnalyticsOverview.tsx
+│   │   ├── AuthBanner.tsx
+│   │   ├── DashboardFooter.tsx
+│   │   ├── DocumentDistribution.tsx
+│   │   ├── icons.tsx
+│   │   ├── LockDisclaimer.tsx
+│   │   ├── PasswordInput.tsx
+│   │   ├── QuickActions.tsx
+│   │   ├── RecentTransactions.tsx
+│   │   ├── Sidebar.tsx
+│   │   ├── StatCard.tsx
+│   ├── data/             
+│   ├── hooks/   
+│   │   ├── useAuth.ts
+│   ├── pages/ 
+│   │   ├── Dashboard.tsx
+│   │   ├── ForgotPasswordForm.tsx
+│   │   ├── LoginForm.tsx
+│   │   ├── SignupForm.tsx
+│   ├── styles/ 
+│   │   ├── dashboard.css
+│   ├── types/ 
+│   │   ├── App.css
+│   │   ├── App.tsx
+│   │   ├── index.css
+│   │   ├── main.tsx
+|   
+├── .gitignore
+├── .oxlintrc.json
+├── index.html
+├── package-lock.json
+├── README.md
+└── package.json
 
 recommended:
 docs/

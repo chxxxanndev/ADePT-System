@@ -1269,3 +1269,45 @@
         padding: 16px 16px 4px;
     }
 }
+
+.dashboard-header-brand {
+    background: #2e2a7a;
+}
+
+.header-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.header-brand-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+.header-brand-title {
+    font-weight: 800;
+    font-size: 1.15rem;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+.header-brand-accent {
+    background: linear-gradient(90deg, #a78bfa, #60a5fa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.header-brand-subtitle {
+    font-size: 0.75rem;
+    color: #c7d2fe;
+    margin: 2px 0 0;
+}
