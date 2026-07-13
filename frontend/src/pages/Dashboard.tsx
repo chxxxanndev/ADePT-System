@@ -236,6 +236,17 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                             onBack={() => setActiveView('new-request')}
                             onBackToDashboard={() => setActiveView('dashboard')}
                         />
+
+                    ) : activeView === 'account-settings' ? (
+                        <AccountSettings
+                            user={accountUser}
+                            onSave={handleAccountSave}
+                            onUpdateEmail={handleUpdateEmail}
+                            onChangePassword={handleChangePassword}
+                            onChangePhoto={handleChangePhoto}
+                            onDisableAccount={handleDisableAccount}
+                        />
+
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
                             <h2>{VIEW_LABELS[activeView] ?? activeView}</h2>
