@@ -78,6 +78,7 @@ export function useAuth() {
                         );
                         if (user) {
                             const userObj: User = {
+                                id: 'mock-id',
                                 firstName: user.firstName,
                                 lastName: user.lastName,
                                 email: user.email,
