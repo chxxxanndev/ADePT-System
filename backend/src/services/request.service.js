@@ -1,21 +1,79 @@
-import { supabase } from '../config/supabase.js';
+import { supabase, useMock } from '../config/supabase.js';
 
 class RequestService {
     /**
      * Fetches all dropdown data needed for the Request Form
      */
     async getMetadata() {
+        if (useMock || !supabase) {
+            return {
+                municipalities: [
+                    { id: 'm1', name: 'Sibutad' },
+                    { id: 'm2', name: 'Dapitan' },
+                    { id: 'm3', name: 'Dipolog' },
+                ],
+                barangays: [
+                    { id: 'b1', name: 'Pob. Sibutad', municipality_id: 'm1' },
+                    { id: 'b2', name: 'Calamba', municipality_id: 'm1' },
+                ],
+                docTypes: [
+                    { id: 'dt1', name: 'Certified True Copy of Latest Tax Declaration', prefix: 'TD' },
+                    { id: 'dt2', name: 'Certified True Copy of Old Tax Declaration', prefix: 'CTC' },
+                    { id: 'dt3', name: 'Certificate of Landholding', prefix: 'CLH' },
+                ],
+                purposes: [
+                    { id: 'p1', label: 'For Settling of Tax Obligation', code: 'TAX_OBLIGATION' },
+                    { id: 'p2', label: 'For Court and Other Legal Purposes', code: 'LEGAL' },
+                    { id: 'p3', label: 'Others', code: 'OTHERS' },
+                ],
+                classifications: [
+                    { id: 'c1', label: 'Agricultural', code: 'AGRICULTURAL' },
+                    { id: 'c2', label: 'Residential', code: 'RESIDENTIAL' },
+                    { id: 'c3', label: 'Commercial', code: 'COMMERCIAL' },
+                    { id: 'c4', label: 'Industrial', code: 'INDUSTRIAL' },
+                    { id: 'c5', label: 'Special', code: 'SPECIAL' },
+                ],
+                propertyTypes: [
+                    { id: 'pt1', label: 'Land', code: 'LAND' },
+                    { id: 'pt2', label: 'Building', code: 'BUILDING' },
+                    { id: 'pt3', label: 'Machinery', code: 'MACHINERY' },
+                    { id: 'pt4', label: 'Others', code: 'OTHERS' },
+                ],
+            };
+        }
+
         const { data: municipalities } = await supabase.from('municipalities').select('id, name');
         const { data: barangays } = await supabase.from('barangays').select('id, name, municipality_id');
         const { data: docTypes } = await supabase.from('document_types').select('id, name, prefix');
         
-        // Fetch purposes (Assuming category 'PURPOSE' exists in lookup_categories)
-        const { data: purposes } = await supabase
+        // Fetch categories and values separately to safely group them
+        const { data: categories } = await supabase.from('lookup_categories').select('id, code');
+        const { data: values } = await supabase
             .from('lookup_values')
-            .select('id, label')
+            .select('id, category_id, code, label')
             .eq('is_active', true);
 
-        return { municipalities, barangays, docTypes, purposes };
+        const categoryMap = {};
+        categories?.forEach((c) => {
+            categoryMap[c.id] = c.code;
+        });
+
+        const purposes = [];
+        const classifications = [];
+        const propertyTypes = [];
+
+        values?.forEach((v) => {
+            const catCode = categoryMap[v.category_id];
+            if (catCode === 'PURPOSE') {
+                purposes.push({ id: v.id, label: v.label, code: v.code });
+            } else if (catCode === 'CLASSIFICATION') {
+                classifications.push({ id: v.id, label: v.label, code: v.code });
+            } else if (catCode === 'PROPERTY_TYPE') {
+                propertyTypes.push({ id: v.id, label: v.label, code: v.code });
+            }
+        });
+
+        return { municipalities, barangays, docTypes, purposes, classifications, propertyTypes };
     }
 
     /**

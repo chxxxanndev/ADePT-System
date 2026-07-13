@@ -1,0 +1,246 @@
+/* =========================================================
+   RequestGuard — Warning gate styles
+   Uses the ADePT design system tokens (Outfit font, indigo palette)
+   ========================================================= */
+
+.guard-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+    padding: 40px 24px;
+    background: transparent;
+}
+
+/* ── Card ─────────────────────────────────────────────────── */
+.guard-card {
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow:
+        0 0 0 2px rgba(251, 191, 36, 0.30),
+        0 20px 60px rgba(41, 35, 122, 0.12);
+    width: 100%;
+    max-width: 680px;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.45s ease, transform 0.45s ease;
+}
+
+.guard-card.guard-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ── Amber accent bar (pulsing) ───────────────────────────── */
+.guard-accent-bar {
+    height: 6px;
+    background: linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b);
+    background-size: 200% 100%;
+    animation: guard-pulse-bar 2.5s ease-in-out infinite;
+}
+
+@keyframes guard-pulse-bar {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* ── Body ─────────────────────────────────────────────────── */
+.guard-body {
+    padding: 40px 48px 44px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+/* ── Warning icon ─────────────────────────────────────────── */
+.guard-icon-wrap {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: #fffbeb;
+    border: 2px solid #fde68a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    animation: guard-icon-bounce 3s ease-in-out infinite;
+}
+
+@keyframes guard-icon-bounce {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-5px); }
+}
+
+.guard-icon {
+    width: 34px;
+    height: 34px;
+    color: #d97706;
+}
+
+/* ── Title ────────────────────────────────────────────────── */
+.guard-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 14px;
+    letter-spacing: -0.3px;
+}
+
+/* ── Message ──────────────────────────────────────────────── */
+.guard-message {
+    font-size: 0.97rem;
+    color: #64748b;
+    line-height: 1.7;
+    max-width: 500px;
+}
+
+.guard-highlight {
+    color: #29237a;
+    font-weight: 700;
+}
+
+/* ── Divider ──────────────────────────────────────────────── */
+.guard-divider {
+    width: 100%;
+    height: 1px;
+    background: #f1f5f9;
+    margin: 28px 0;
+}
+
+/* ── Steps ────────────────────────────────────────────────── */
+.guard-steps {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.guard-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    max-width: 220px;
+    text-align: left;
+}
+
+.guard-step-num {
+    min-width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #29237a;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.guard-step-num.step-muted {
+    background: #cbd5e1;
+    color: #64748b;
+}
+
+.guard-step-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.guard-step-text strong {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.guard-step-text span {
+    font-size: 0.82rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.guard-step-arrow {
+    font-size: 1.5rem;
+    color: #cbd5e1;
+    flex-shrink: 0;
+}
+
+/* ── Actions ──────────────────────────────────────────────── */
+.guard-actions {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.guard-btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #29237a, #4338ca);
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 13px 28px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.2px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 4px 14px rgba(41, 35, 122, 0.30);
+}
+
+.guard-btn-primary svg {
+    width: 16px;
+    height: 16px;
+}
+
+.guard-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(41, 35, 122, 0.35);
+}
+
+.guard-btn-primary:active {
+    transform: translateY(0);
+}
+
+.guard-btn-secondary {
+    background: transparent;
+    color: #64748b;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 13px 24px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.guard-btn-secondary:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+@media (max-width: 600px) {
+    .guard-body {
+        padding: 28px 24px 32px;
+    }
+    .guard-title {
+        font-size: 1.3rem;
+    }
+    .guard-steps {
+        flex-direction: column;
+        align-items: center;
+    }
+    .guard-step-arrow {
+        transform: rotate(90deg);
+    }
+}
