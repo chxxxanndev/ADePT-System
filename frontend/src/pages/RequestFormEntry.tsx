@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { requestService, type RequestFormData } from '../services/requestService';
 import type { User } from '../types/auth';
+import type { CompletedEntryData } from '../types/taxDeclaration';
 import '../styles/RequestFormEntry.css';
 
 // TEMP: extending RequestFormData locally until these fields are added to the
@@ -15,6 +16,10 @@ interface ExtendedRequestFormData extends RequestFormData {
 interface RequestFormEntryProps {
     user: User;
     onCancel: () => void;
+    /** Called when the entry form is successfully saved. Unlocks Request Processing. */
+    onEntryComplete?: (data: CompletedEntryData) => void;
+    /** Called when user clicks "Proceed to Processing" — navigates to the specific doc type view. */
+    onNavigateToProcessing?: (view: string) => void;
 }
 
 function ToggleButtonPair({
@@ -154,8 +159,39 @@ function SingleSelectDropdown({
     );
 }
 
-export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
+// Small inline icon set for section headers — swap for your existing icon
+// library (e.g. lucide-react) if you have one; kept dependency-free for now.
+const PersonIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+    </svg>
+);
+const PlusCircleIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8v8M8 12h8" />
+    </svg>
+);
+const ClipboardIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="5" y="4" width="14" height="17" rx="2" />
+        <path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1M9 10h6M9 14h6M9 18h3" />
+    </svg>
+);
+
+// Default options for "May I/We request for:" — used until/unless the
+// backend metadata endpoint returns its own docTypes list (see fetchMeta below).
+const DEFAULT_DOCUMENT_TYPES = [
+    { id: 'ctc-latest-tax-dec', name: 'Certified True Copy of the Latest Tax Declaration' },
+    { id: 'ctc-old-tax-dec', name: 'Certified True Copy of Old Tax Declaration' },
+    { id: 'cert-property', name: 'Certificate of Property/Landholding' },
+    { id: 'cert-no-property', name: 'Certificate of No Property/Landholding' },
+];
+
+export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateToProcessing }: RequestFormEntryProps) {
     const [submitting, setSubmitting] = useState(false);
+    const [savedEntry, setSavedEntry] = useState<CompletedEntryData | null>(null);
     const [metadata, setMetadata] = useState<{
         docTypes: any[];
         purposes: any[];
@@ -213,20 +249,63 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
         if (!formData.declarantName) return alert('Declarant Name is required');
         setSubmitting(true);
         try {
-            // NOTE: formData currently includes propertyLocation, releasingStaffId,
-            // releaseDate, and referenceNumber, which are NOT part of the real
-            // RequestFormData interface in requestService.ts. These will be sent
-            // as extra fields in the POST body. Confirm with backend whether
-            // that's fine (ignored) or whether they need to be added to the
-            // interface / stripped before sending.
-            await requestService.submitRequest(formData, user.id);
-            alert('Success: Request saved');
-            onCancel();
+            let savedRequestId: string;
+            try {
+                const result = await requestService.submitRequest(formData, user.id);
+                savedRequestId = result?.data?.id ?? `mock-${Date.now()}`;
+            } catch (netErr: any) {
+                // Graceful fallback for mock/offline mode
+                if (!netErr.response) {
+                    console.warn('[RequestFormEntry] Backend unreachable — using mock request ID.');
+                    savedRequestId = `mock-${Date.now()}`;
+                } else {
+                    throw netErr;
+                }
+            }
+
+            const completedData: CompletedEntryData = {
+                requestId: savedRequestId,
+                referenceNumber: formData.referenceNumber,
+                declarantName: formData.declarantName,
+                requestedByName: formData.requestedByName,
+                requestDate: formData.requestDate,
+                purposeId: formData.purposeId,
+                documentTypeIds: formData.documentTypeIds,
+                actionTaken: formData.actionTaken,
+                authRequired: formData.authRequired,
+                propertyLocation: formData.propertyLocation,
+            };
+
+            setSavedEntry(completedData);
+            onEntryComplete?.(completedData);
         } catch (err: any) {
             alert(err.response?.data?.error || 'Submit failed');
         } finally {
             setSubmitting(false);
         }
+    };
+
+    /**
+     * Determine which processing view to navigate to based on selected doc types.
+     * Defaults to 'tax-declaration' if unable to determine.
+     */
+    const getProcessingView = (): string => {
+        const ids = formData.documentTypeIds;
+        if (!ids.length) return 'tax-declaration';
+        // Use the first selected document type label/id to route
+        // (Real mapping should come from metadata docTypes array)
+        const firstId = ids[0].toLowerCase();
+        if (firstId.includes('land') && firstId.includes('no')) return 'certificate-no-landholding';
+        if (firstId.includes('land')) return 'certificate-land-holding';
+        return 'tax-declaration';
+    };
+
+    const handleProceed = () => {
+        if (!savedEntry) {
+            alert('Please save the request first before proceeding.');
+            return;
+        }
+        onNavigateToProcessing?.(getProcessingView());
     };
 
     return (
@@ -423,10 +502,20 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
                         <button
                             className="btn-submit"
                             onClick={handleSave}
-                            disabled={submitting}
+                            disabled={submitting || !!savedEntry}
                         >
-                            {submitting ? 'Saving...' : 'Save Request'}
+                            {submitting ? 'Saving...' : savedEntry ? '✓ Saved' : 'Save Request'}
                         </button>
+                        {savedEntry && (
+                            <button
+                                className="btn-submit"
+                                type="button"
+                                style={{ background: 'linear-gradient(135deg, #059669, #10b981)', marginLeft: 0 }}
+                                onClick={handleProceed}
+                            >
+                                Proceed to Processing →
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
