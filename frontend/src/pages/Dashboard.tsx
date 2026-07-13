@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import '../styles/dashboard.css';
+import '../styles/accountSettings.css'
 import { Sidebar } from '../components/Sidebar';
 import { DashboardHeader, WelcomeBanner } from '../components/DashboardHeader';
 import { DashboardFooter } from '../components/DashboardFooter';
 import { RequestFormEntry } from './RequestFormEntry';
+import { AccountSettings } from './accountSettings';
 import { TaxDeclarationForm } from './request-processing/TaxDeclaration/TaxDeclarationForm';
 import { LandholdingCertificateForm } from './request-processing/LandholdingCertificate/LandholdingCertificateForm';
 import { NoLandholdingCertificateForm } from './request-processing/NoLandholdingCertificate/NoLandholdingCertificateForm';
@@ -12,6 +14,9 @@ import { AnalyticsOverview } from '../components/AnalyticsOverview';
 import { DocumentDistribution } from '../components/DocumentDistribution';
 import { RecentTransactions } from '../components/RecentTransactions';
 import { QuickActions } from '../components/QuickActions';
+import type { User } from '../types/auth';
+import type { CompletedEntryData } from '../types/taxDeclaration';
+import type { AccountUser, AccountSettingsFormData } from '../types/accountSettings';
 
 import {
     navSections,
@@ -24,10 +29,7 @@ import {
     quickActions
 } from '../data/dashboardMockData';
 
-import type { User } from '../types/auth';
-import type { CompletedEntryData } from '../types/taxDeclaration';
-
-// Views that live under "Request Processing" and require a completed entry form
+// Views that live under "Request Processing" and require a completed entry formx`
 const REQUEST_PROCESSING_VIEWS = new Set([
     'tax-declaration',
     'certificate-land-holding',
@@ -100,6 +102,42 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
     // Only the entry-form views route to RequestFormEntry.
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
+
+    // ── Adapter: map the app-wide `User` shape to what AccountSettings expects ──
+    const accountUser: AccountUser = {
+        id: user.id,
+        fullName: fullName.trim(),
+        username: user.username || user.email?.split('@')[0] || '',
+        email: user.email || '',
+        role: user.role || 'Staff',
+        avatarUrl: (user as any).avatarUrl,
+        lastPasswordChange: (user as any).lastPasswordChange,
+    };
+
+    // ── AccountSettings handlers ──
+    // TODO: replace these with real calls to your auth/user service
+    // (mirrors the taxDeclarationService.save(...) pattern already in the app).
+    const handleAccountSave = async (data: AccountSettingsFormData) => {
+        console.log('TODO: wire up account save', data);
+        // await userService.updateProfile(user.id, data);
+    };
+
+    const handleUpdateEmail = () => {
+        console.log('TODO: open update-email flow');
+    };
+
+    const handleChangePassword = () => {
+        console.log('TODO: open change-password flow');
+    };
+
+    const handleChangePhoto = () => {
+        console.log('TODO: open photo upload flow');
+    };
+
+    const handleDisableAccount = async (disabled: boolean) => {
+        console.log('TODO: wire up disable-account toggle', disabled);
+        // await userService.setDisabled(user.id, disabled);
+    };
 
     return (
         <div className="dashboard-page">
@@ -198,6 +236,17 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                             onBack={() => setActiveView('new-request')}
                             onBackToDashboard={() => setActiveView('dashboard')}
                         />
+
+                    ) : activeView === 'account-settings' ? (
+                        <AccountSettings
+                            user={accountUser}
+                            onSave={handleAccountSave}
+                            onUpdateEmail={handleUpdateEmail}
+                            onChangePassword={handleChangePassword}
+                            onChangePhoto={handleChangePhoto}
+                            onDisableAccount={handleDisableAccount}
+                        />
+
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
                             <h2>{VIEW_LABELS[activeView] ?? activeView}</h2>

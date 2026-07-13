@@ -120,7 +120,7 @@ export const navSections: NavSection[] = [
     {
         label: 'Other',
         items: [
-            { label: 'Settings', icon: 'settings', view: 'settings' },
+            { label: 'Settings', icon: 'settings', view: 'account-settings' },
         ],
     },
 ];
