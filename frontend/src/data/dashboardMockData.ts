@@ -74,7 +74,7 @@ export const navSections: NavSection[] = [
         label: 'Requests',
         items: [
             {
-                label: 'Request Processing',
+                label: 'Document Request',
                 icon: 'requestProcessing',
                 subItems: [
                     { label: 'Tax Declaration', view: 'tax-declaration' },

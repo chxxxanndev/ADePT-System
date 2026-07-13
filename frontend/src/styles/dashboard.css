@@ -545,32 +545,282 @@
     justify-content: space-between;
     gap: 16px;
     flex-wrap: wrap;
-    padding: 16px 28px;
+    padding: 10px 5px;
     border-bottom: 1px solid var(--db-glass-border-alt);
 }
-
-
 
 .period-selector {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 9px 14px;
-    border-radius: 20px;
-    background-color: var(--db-glass-card-bg);
-    border: 1px solid var(--db-glass-border-alt);
+    padding: 8px 8px 8px 16px;
+    border-radius: 999px;
+    background-color: #F0F0F2;
+    border: none;
     font-size: 12.5px;
-    font-weight: 600;
-    color: var(--db-primary);
+    color: var(--db-slate);
     cursor: pointer;
     white-space: nowrap;
+}
+
+.period-selector-label {
+    font-weight: 700;
+    color: var(--db-slate);
+}
+
+.period-selector-value {
+    font-weight: 500;
+    color: var(--db-slate);
+    margin-left: -2px;
+}
+
+.period-selector-toggle {
+    color: var(--db-text-muted);
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+
+@keyframes dropdown-in {
+    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.period-selector-wrap {
+    position: relative;
+    display: inline-flex;
+}
+
+.period-selector-toggle {
+    transition: transform 0.2s ease;
+}
+
+.period-selector-toggle.open {
+    transform: rotate(180deg);
+}
+
+.period-dropdown-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: transparent;
+}
+
+.period-dropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 100;
+    min-width: 200px;
+    max-height: 340px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 8px;
+    list-style: none;
+    background-color: #ffffff;
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: var(--db-radius-md);
+    box-shadow: 0 12px 32px rgba(41, 35, 122, 0.16), 0 2px 8px rgba(41, 35, 122, 0.08);
+    animation: dropdown-in 0.16s ease-out;
+    transform-origin: top right;
+}
+
+.period-dropdown::-webkit-scrollbar {
+    width: 5px;
+}
+
+.period-dropdown::-webkit-scrollbar-thumb {
+    background: rgba(41, 35, 122, 0.15);
+    border-radius: 10px;
+}
+
+.period-dropdown-item {
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--db-slate);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.period-dropdown-item:hover {
+    background-color: var(--db-hover-highlight);
+    color: var(--db-primary);
+}
+
+.period-dropdown-item.active {
+    background-color: rgba(41, 35, 122, 0.08);
+    color: var(--db-primary);
+    font-weight: 700;
+}
+
+/* Custom range calendar */
+.period-dropdown-calendar {
+    min-width: 280px;
+    padding: 14px;
+}
+
+.calendar-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.calendar-picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.calendar-month-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--db-primary);
+}
+
+.calendar-nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border: none;
+    background: none;
+    color: var(--db-primary);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.calendar-nav-btn:hover {
+    background-color: var(--db-hover-highlight);
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+}
+
+.calendar-weekday {
+    text-align: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--db-text-muted);
+    text-transform: uppercase;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.calendar-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border: none;
+    background: none;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--db-slate);
+    cursor: pointer;
+}
+
+.calendar-cell.empty {
+    cursor: default;
+}
+
+.calendar-cell:not(.empty):hover {
+    background-color: var(--db-hover-highlight);
+}
+
+.calendar-cell.is-today {
+    color: var(--db-secondary);
+    font-weight: 800;
+}
+
+.calendar-cell.in-range {
+    background-color: rgba(0, 188, 212, 0.12);
+    border-radius: 0;
+}
+
+.calendar-cell.range-start,
+.calendar-cell.range-end {
+    background-color: var(--db-primary);
+    color: #ffffff;
+    font-weight: 800;
+}
+
+.calendar-cell.range-start { border-radius: 999px 0 0 999px; }
+.calendar-cell.range-end { border-radius: 0 999px 999px 0; }
+.calendar-cell.range-start.range-end { border-radius: 999px; }
+
+.calendar-picker-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--db-glass-border-alt);
+}
+
+.calendar-range-preview {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--db-text-muted);
+}
+
+.calendar-picker-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.calendar-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.15s, opacity 0.15s;
+}
+
+.calendar-btn-ghost {
+    background: none;
+    color: var(--db-text-muted);
+}
+
+.calendar-btn-ghost:hover {
+    background-color: var(--db-hover-highlight);
+    color: var(--db-slate);
+}
+
+.calendar-btn-primary {
+    background-color: var(--db-primary);
+    color: #ffffff;
+}
+
+.calendar-btn-primary:hover {
+    background-color: var(--db-primary-hover);
+}
+
+.calendar-btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 /* Content */
 .dashboard-content {
     display: flex;
     flex-direction: column;
-    padding: 20px 28px 32px;
+    padding: 12px 28px 32px;
 }
 
 /* Section header */
@@ -578,15 +828,15 @@
     background-color: #ffffff;
     border: 1px solid rgba(0, 0, 0, 0.05);
     border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 24px;
+    padding: 18px;
+    margin-bottom: 18px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
 .section-heading {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     margin-bottom: 24px;
     color: var(--db-primary);
 }
@@ -1268,46 +1518,4 @@
     .dashboard-welcome {
         padding: 16px 16px 4px;
     }
-}
-
-.dashboard-header-brand {
-    background: #2e2a7a;
-}
-
-.header-brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.header-brand-logo {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-}
-
-.header-brand-title {
-    font-weight: 800;
-    font-size: 1.15rem;
-    color: #ffffff;
-    letter-spacing: 0.5px;
-    margin: 0;
-}
-
-.header-brand-accent {
-    background: linear-gradient(90deg, #a78bfa, #60a5fa);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-}
-
-.header-brand-subtitle {
-    font-size: 0.75rem;
-    color: #c7d2fe;
-    margin: 2px 0 0;
 }

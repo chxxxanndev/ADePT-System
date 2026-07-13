@@ -177,3 +177,11 @@ export const LinkIcon = ({ size = 20 }) => (
         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
     </svg>
 );
+
+export const PeriodToggleIcon = ({ size = 16, className }: IconProps) => (
+    <svg {...base(size)} className={className} strokeWidth={1.75}>
+        <rect x="2" y="6" width="20" height="12" rx="6" />
+        <polyline points="9 10 12 13 15 10" />
+    </svg>
+);
+
