@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { requestService, type RequestFormData } from '../services/requestService';
 import type { User } from '../types/auth';
-import type { CompletedEntryData } from '../types/taxDeclaration';
 import '../styles/RequestFormEntry.css';
 
 // TEMP: extending RequestFormData locally until these fields are added to the
@@ -16,10 +15,7 @@ interface ExtendedRequestFormData extends RequestFormData {
 interface RequestFormEntryProps {
     user: User;
     onCancel: () => void;
-    /** Called when the entry form is successfully saved. Unlocks Request Processing. */
-    onEntryComplete?: (data: CompletedEntryData) => void;
-    /** Called when user clicks "Proceed to Processing" — navigates to the specific doc type view. */
-    onNavigateToProcessing?: (view: string) => void;
+    onNavigateToDocument: (view: string) => void;
 }
 
 function ToggleButtonPair({
@@ -189,15 +185,14 @@ const DEFAULT_DOCUMENT_TYPES = [
     { id: 'cert-no-property', name: 'Certificate of No Property/Landholding' },
 ];
 
-export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateToProcessing }: RequestFormEntryProps) {
+export function RequestFormEntry({ user, onCancel, onNavigateToDocument }: RequestFormEntryProps) {
     const [submitting, setSubmitting] = useState(false);
-    const [savedEntry, setSavedEntry] = useState<CompletedEntryData | null>(null);
     const [metadata, setMetadata] = useState<{
         docTypes: any[];
         purposes: any[];
         staff: any[];
     }>({
-        docTypes: [],
+        docTypes: DEFAULT_DOCUMENT_TYPES,
         purposes: [],
         staff: [],
     });
@@ -217,7 +212,13 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     });
 
     // Derived header display values from the real User shape (firstName/lastName)
-
+    const fullName = `${user.firstName} ${user.lastName}`;
+    const initial = user.firstName ? user.firstName.charAt(0).toUpperCase() : '?';
+    const today = new Date().toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+    });
 
     useEffect(() => {
         let isMounted = true;
@@ -226,7 +227,10 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                 const data = await requestService.getMetadata();
                 if (isMounted && data) {
                     setMetadata({
-                        docTypes: Array.isArray(data.docTypes) ? data.docTypes : [],
+                        docTypes:
+                            Array.isArray(data.docTypes) && data.docTypes.length > 0
+                                ? data.docTypes
+                                : DEFAULT_DOCUMENT_TYPES,
                         purposes: Array.isArray(data.purposes) ? data.purposes : [],
                         // TODO(confirm): backend /api/requests/metadata does not
                         // guarantee a `staff` array in the current requestService.ts.
@@ -245,39 +249,47 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
         };
     }, []);
 
+    // PLACEHOLDER: maps a document type's display name to the view/page it
+    // should proceed to. Swap these view keys for your real route names once
+    // they're finalized — these currently fall through to Dashboard's generic
+    // "Module under development" placeholder view since they don't match any
+    // real view yet.
+    const DOCUMENT_TYPE_VIEW_MAP: Record<string, string> = {
+        'Tax Declaration': 'tax-declaration',
+        'Land Holding': 'land-holding',
+        'No Land Holding': 'no-land-holding',
+    };
+
+    const handleProceedToDocument = () => {
+        if (formData.documentTypeIds.length === 0) {
+            return alert('Please select a document type first.');
+        }
+        // Only the first selected document type is used to decide where to go.
+        const selectedId = formData.documentTypeIds[0];
+        const selectedDoc = metadata.docTypes.find((d) => d.id === selectedId);
+        const view = selectedDoc ? DOCUMENT_TYPE_VIEW_MAP[selectedDoc.name] : undefined;
+
+        if (!view) {
+            return alert(
+                `No document page is set up yet for "${selectedDoc?.name ?? 'this document type'}".`
+            );
+        }
+        onNavigateToDocument(view);
+    };
+
     const handleSave = async () => {
         if (!formData.declarantName) return alert('Declarant Name is required');
         setSubmitting(true);
         try {
-            let savedRequestId: string;
-            try {
-                const result = await requestService.submitRequest(formData, user.id);
-                savedRequestId = result?.data?.id ?? `mock-${Date.now()}`;
-            } catch (netErr: any) {
-                // Graceful fallback for mock/offline mode
-                if (!netErr.response) {
-                    console.warn('[RequestFormEntry] Backend unreachable — using mock request ID.');
-                    savedRequestId = `mock-${Date.now()}`;
-                } else {
-                    throw netErr;
-                }
-            }
-
-            const completedData: CompletedEntryData = {
-                requestId: savedRequestId,
-                referenceNumber: formData.referenceNumber,
-                declarantName: formData.declarantName,
-                requestedByName: formData.requestedByName,
-                requestDate: formData.requestDate,
-                purposeId: formData.purposeId,
-                documentTypeIds: formData.documentTypeIds,
-                actionTaken: formData.actionTaken,
-                authRequired: formData.authRequired,
-                propertyLocation: formData.propertyLocation,
-            };
-
-            setSavedEntry(completedData);
-            onEntryComplete?.(completedData);
+            // NOTE: formData currently includes propertyLocation, releasingStaffId,
+            // releaseDate, and referenceNumber, which are NOT part of the real
+            // RequestFormData interface in requestService.ts. These will be sent
+            // as extra fields in the POST body. Confirm with backend whether
+            // that's fine (ignored) or whether they need to be added to the
+            // interface / stripped before sending.
+            await requestService.submitRequest(formData, user.id);
+            alert('Success: Request saved');
+            onCancel();
         } catch (err: any) {
             alert(err.response?.data?.error || 'Submit failed');
         } finally {
@@ -285,40 +297,39 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
         }
     };
 
-    /**
-     * Determine which processing view to navigate to based on selected doc types.
-     * Defaults to 'tax-declaration' if unable to determine.
-     */
-    const getProcessingView = (): string => {
-        const ids = formData.documentTypeIds;
-        if (!ids.length) return 'tax-declaration';
-        // Use the first selected document type label/id to route
-        // (Real mapping should come from metadata docTypes array)
-        const firstId = ids[0].toLowerCase();
-        if (firstId.includes('land') && firstId.includes('no')) return 'certificate-no-landholding';
-        if (firstId.includes('land')) return 'certificate-land-holding';
-        return 'tax-declaration';
-    };
-
-    const handleProceed = () => {
-        if (!savedEntry) {
-            alert('Please save the request first before proceeding.');
-            return;
-        }
-        onNavigateToProcessing?.(getProcessingView());
-    };
-
     return (
         <div className="request-page">
-            {/* Page header — ASSESSORDESK branding, matches Dashboard's user badge */}
+            <div className="assessordesk-header">
+                <div className="assessordesk-brand">
+                    <span className="assessordesk-logo">🏛️</span>
+                    <div>
+                        <div className="assessordesk-title">
+                            ASSESSOR<span className="accent">DESK</span>
+                        </div>
+                        <div className="assessordesk-subtitle">Office Of The Provincial Assessor</div>
+                    </div>
+                </div>
+                <div className="assessordesk-user">
+                    <span className="user-avatar">{initial}</span>
+                    <div>
+                        <div className="user-name">{fullName}</div>
+                        <div className="user-date">{today}</div>
+                    </div>
+                </div>
+            </div>
 
             <div className="request-form-container">
                 <div className="form-card">
                     <div className="form-header">
-                        <div>
-                            <h2>REQUEST FORM ENTRY</h2>
-                            <div className="form-subtitle">
-                                Property Record and Document Request
+                        <div className="form-header-title">
+                            <span className="form-header-icon">
+                                <ClipboardIcon />
+                            </span>
+                            <div>
+                                <h2>REQUEST FORM ENTRY</h2>
+                                <div className="form-subtitle">
+                                    Property Record and Document Request
+                                </div>
                             </div>
                         </div>
                         <span className="ref-badge">{formData.referenceNumber}</span>
@@ -327,7 +338,10 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                     <div className="form-body">
                         {/* Declarant Details */}
                         <div className="form-section">
-                            <div className="section-title">Declarant Details</div>
+                            <div className="section-title">
+                                <PersonIcon />
+                                <span>Declarant Details</span>
+                            </div>
 
                             <div className="form-group">
                                 <label>Name of Declarant</label>
@@ -397,7 +411,10 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
 
                         {/* Request Details */}
                         <div className="form-section">
-                            <div className="section-title">Request Details</div>
+                            <div className="section-title">
+                                <PlusCircleIcon />
+                                <span>Request Details</span>
+                            </div>
 
                             <div className="form-group">
                                 <label>May I/We request for:</label>
@@ -426,7 +443,10 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
 
                         {/* Action Taken */}
                         <div className="form-section">
-                            <div className="section-title">Action Taken</div>
+                            <div className="section-title">
+                                <ClipboardIcon />
+                                <span>Action Taken</span>
+                            </div>
 
                             <div className="form-group">
                                 <ToggleButtonPair
@@ -489,33 +509,20 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                     </div>
 
                     <div className="form-footer">
-                        <button className="btn-back" onClick={onCancel}>
-                            Back to Dashboard
-                        </button>
-                        <button
-                            className="btn-print"
-                            type="button"
-                            onClick={() => window.print()}
-                        >
-                            Print Form
-                        </button>
                         <button
                             className="btn-submit"
                             onClick={handleSave}
-                            disabled={submitting || !!savedEntry}
+                            disabled={submitting}
                         >
-                            {submitting ? 'Saving...' : savedEntry ? '✓ Saved' : 'Save Request'}
+                            {submitting ? 'Saving...' : 'Save Request'}
                         </button>
-                        {savedEntry && (
-                            <button
-                                className="btn-submit"
-                                type="button"
-                                style={{ background: 'linear-gradient(135deg, #059669, #10b981)', marginLeft: 0 }}
-                                onClick={handleProceed}
-                            >
-                                Proceed to Processing →
-                            </button>
-                        )}
+                        <button
+                            className="btn-proceed"
+                            type="button"
+                            onClick={handleProceedToDocument}
+                        >
+                            Proceed to Document
+                        </button>
                     </div>
                 </div>
             </div>

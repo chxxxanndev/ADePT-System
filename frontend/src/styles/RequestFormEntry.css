@@ -9,16 +9,21 @@
     display: flex;
     flex-direction: column;
     min-height: 100%;
-    background: #f1f5f9;
+    gap: 0px;
 }
 
 /* ---------- Header ---------- */
 .assessordesk-header {
-    background: var(--adept-indigo-dark);
+    background: var(--db-primary);
+    box-sizing: border-box;
     padding: 20px 32px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    margin: -24px -24px 0 -32px;   /* adjust to match your layout's padding */
+    width: calc(100% + 70px);  
+    height: 132px;         
 }
 
 .assessordesk-brand {
@@ -64,6 +69,7 @@
     background: rgba(255, 255, 255, 0.12);
     padding: 8px 16px;
     border-radius: 999px;
+    margin-right: 36px;
 }
 
 .user-avatar {
@@ -98,11 +104,12 @@
 
 .form-card {
     background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
     width: 100%;
     max-width: 1400px;
     border: 1px solid var(--adept-border);
+    overflow: hidden; 
 }
 
 .form-header {
@@ -390,7 +397,7 @@
 }
 
 .btn-back,
-.btn-print {
+.btn-proceed {
     background: white;
     border: 1px solid #cbd5e1;
     padding: 12px 32px;
