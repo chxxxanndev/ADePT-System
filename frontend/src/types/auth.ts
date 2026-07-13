@@ -8,6 +8,15 @@ export interface User {
     status?: string;
 }
 
+export interface MockUser {
+    firstName: string;
+    lastName: string;
+    email: string;
+    username: string;
+    password: string;
+}
+
 // If you have a View type in this file, keep it
 export type View = 'login' | 'signup' | 'forgot';
+
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { requestService, type RequestFormData } from '../services/requestService';
 import type { User } from '../types/auth';
 import '../styles/RequestFormEntry.css';
@@ -181,8 +181,7 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
     });
 
     // Derived header display values from the real User shape (firstName/lastName)
-    const fullName = `${user.firstName} ${user.lastName}`;
-    const initial = user.firstName ? user.firstName.charAt(0).toUpperCase() : '?';
+
 
     useEffect(() => {
         let isMounted = true;

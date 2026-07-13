@@ -26,6 +26,7 @@ import type { User } from '../types/auth';
 interface DashboardProps {
     user: User;
     onLogout: () => void;
+    backendHealthy?: boolean | null;
 }
 
 export function Dashboard({ user, onLogout }: DashboardProps) {
