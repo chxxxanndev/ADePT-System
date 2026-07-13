@@ -24,16 +24,15 @@ const ICONS: Record<string, React.ComponentType<{ size?: number; className?: str
     settings: SettingsIcon,
 };
 
-
 interface SidebarProps {
     sections: NavSection[];
     activeView: string;
     onNavigate: (view: string) => void;
     onLogout: () => void;
     mobileOpen?: boolean;
-    setMobileOpen?: (open: boolean) => void; // Added to handle mobile closing
-    collapsed: boolean;                      // NOW CONTROLLED: lifted to parent so
-    onToggleCollapse: () => void;            // Dashboard can force-collapse on certain views
+    setMobileOpen?: (open: boolean) => void;
+    collapsed: boolean;
+    onToggleCollapse: () => void;
 }
 
 export function Sidebar({
@@ -48,16 +47,38 @@ export function Sidebar({
 }: SidebarProps) {
     const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
+    // Only toggles the dropdown open/closed. Never touches collapsed state anymore.
     const toggleMenu = (label: string) => {
-        if (collapsed) onToggleCollapse(); // Expand if clicking an item while collapsed
         setOpenMenus((prev) => ({ ...prev, [label]: !prev[label] }));
     };
 
     const handleToggleSidebar = () => {
         if (window.innerWidth <= 900 && setMobileOpen) {
-            setMobileOpen(false); // Close drawer on mobile
+            setMobileOpen(false);
         } else {
-            onToggleCollapse(); // Collapse/Expand on desktop
+            onToggleCollapse();
+        }
+    };
+
+    // Central click handler for every nav item (with or without sub-items).
+    const handleItemClick = (item: NavSection['items'][number]) => {
+        const hasSubItems = !!item.subItems?.length;
+
+        if (collapsed) {
+            // Collapsed: never expand the rail. Jump straight to a preview page instead.
+            if (hasSubItems) {
+                onNavigate(item.subItems![0].view);
+            } else if (item.view) {
+                onNavigate(item.view);
+            }
+            return;
+        }
+
+        // Expanded: normal behavior — toggle dropdown, or navigate directly.
+        if (hasSubItems) {
+            toggleMenu(item.label);
+        } else if (item.view) {
+            onNavigate(item.view);
         }
     };
 
@@ -71,7 +92,7 @@ export function Sidebar({
                     {!collapsed && <span className="sidebar-brand-name">ADePT</span>}
                 </div>
                 <button className="sidebar-toggle-btn" onClick={handleToggleSidebar} title="Toggle Sidebar">
-                    <MenuIcon size={18} />
+                    {collapsed ? <MenuIcon size={18} /> : <MenuIcon size={18} />}
                 </button>
             </div>
 
@@ -84,14 +105,18 @@ export function Sidebar({
                             const Icon = ICONS[item.icon] ?? DashboardIcon;
                             const hasSubItems = !!item.subItems?.length;
                             const isOpen = !!openMenus[item.label];
-                            const isActive = item.view === activeView;
+
+                            // Parent counts as active if its own view matches, OR one of its children is active.
+                            const isActive =
+                                item.view === activeView ||
+                                (hasSubItems && item.subItems!.some((sub) => sub.view === activeView));
 
                             return (
                                 <div key={item.label}>
                                     <button
                                         className={`nav-item ${isActive ? 'active' : ''}`}
-                                        onClick={() => (hasSubItems ? toggleMenu(item.label) : item.view && onNavigate(item.view))}
-                                        title={collapsed ? item.label : ""}
+                                        onClick={() => handleItemClick(item)}
+                                        title={collapsed ? item.label : ''}
                                     >
                                         <span className="nav-item-icon"><Icon size={18} /></span>
                                         {!collapsed && <span className="nav-item-label">{item.label}</span>}
@@ -125,7 +150,7 @@ export function Sidebar({
                 ))}
             </nav>
 
-            <button className="sidebar-logout" onClick={onLogout} title={collapsed ? "Log out" : ""}>
+            <button className="sidebar-logout" onClick={onLogout} title={collapsed ? 'Log out' : ''}>
                 <span className="nav-item-icon"><LogoutIcon size={18} /></span>
                 {!collapsed && <span className="nav-item-label">Log out</span>}
             </button>

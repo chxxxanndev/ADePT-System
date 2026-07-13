@@ -123,8 +123,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 20px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 30px 20px 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
     /* The line under ADePT */
     margin-bottom: 5px;
 }
@@ -139,8 +139,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background-color: #ffffff;
     color: var(--db-primary);
@@ -157,7 +157,7 @@
 }
 
 .sidebar-brand-name {
-    font-size: 19px;
+    font-size: 35px;
     font-weight: 800;
     letter-spacing: -0.3px;
 }
@@ -243,6 +243,13 @@
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
+.nav-item:active,
+.sidebar-toggle-btn:active,
+.sidebar-logout:active {
+    background-color: #ffffff;
+    color: var(--db-primary);
+}
+
 .nav-item-icon {
     display: flex;
     align-items: center;
@@ -315,26 +322,46 @@
 }
 
 .dashboard-sidebar.collapsed .sidebar-brand {
+    flex-direction: column;
     justify-content: center;
-    padding: 20px 10px;
+    align-items: center;
+    gap: 5px;
+    padding: 20px 10px 16px;
+}
+
+.sidebar-brand-name,
+.nav-section-label,
+.nav-item-label,
+.nav-item-chevron {
+    opacity: 1;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: opacity 0.2s ease, max-width 0.25s ease;
 }
 
 .dashboard-sidebar.collapsed .sidebar-brand-name,
 .dashboard-sidebar.collapsed .nav-section-label,
 .dashboard-sidebar.collapsed .nav-item-label,
-.dashboard-sidebar.collapsed .nav-item-chevron,
-.dashboard-sidebar.collapsed .nav-subitems {
-    display: none;
+.dashboard-sidebar.collapsed .nav-item-chevron {
+    opacity: 0;
+    max-width: 0;
 }
+
+.dashboard-sidebar.collapsed .nav-subitems {
+    max-height: 0 !important;
+}
+
 
 .dashboard-sidebar.collapsed .nav-item,
 .dashboard-sidebar.collapsed .sidebar-logout {
     justify-content: center;
-    padding: 12px 0;
+    padding: 10px 0;
     width: 100%;
     margin-left: 0;
     margin-right: 0;
 }
+
 
 /* Scrollbar Style */
 .sidebar-nav::-webkit-scrollbar {

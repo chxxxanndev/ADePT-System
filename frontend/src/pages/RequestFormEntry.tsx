@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { requestService, type RequestFormData } from '../services/requestService';
 import type { User } from '../types/auth';
 import '../styles/RequestFormEntry.css';
@@ -86,9 +86,9 @@ function MultiSelectDropdown({
         selectedIds.length === 0
             ? placeholder
             : options
-                .filter((o) => selectedIds.includes(o.id))
-                .map((o) => o.name)
-                .join(', ');
+                  .filter((o) => selectedIds.includes(o.id))
+                  .map((o) => o.name)
+                  .join(', ');
 
     return (
         <div className="custom-select" ref={ref}>
@@ -154,36 +154,6 @@ function SingleSelectDropdown({
     );
 }
 
-// Small inline icon set for section headers — swap for your existing icon
-// library (e.g. lucide-react) if you have one; kept dependency-free for now.
-const PersonIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
-    </svg>
-);
-const PlusCircleIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 8v8M8 12h8" />
-    </svg>
-);
-const ClipboardIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="5" y="4" width="14" height="17" rx="2" />
-        <path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1M9 10h6M9 14h6M9 18h3" />
-    </svg>
-);
-
-// Default options for "May I/We request for:" — used until/unless the
-// backend metadata endpoint returns its own docTypes list (see fetchMeta below).
-const DEFAULT_DOCUMENT_TYPES = [
-    { id: 'ctc-latest-tax-dec', name: 'Certified True Copy of the Latest Tax Declaration' },
-    { id: 'ctc-old-tax-dec', name: 'Certified True Copy of Old Tax Declaration' },
-    { id: 'cert-property', name: 'Certificate of Property/Landholding' },
-    { id: 'cert-no-property', name: 'Certificate of No Property/Landholding' },
-];
-
 export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
     const [submitting, setSubmitting] = useState(false);
     const [metadata, setMetadata] = useState<{
@@ -191,7 +161,7 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
         purposes: any[];
         staff: any[];
     }>({
-        docTypes: DEFAULT_DOCUMENT_TYPES,
+        docTypes: [],
         purposes: [],
         staff: [],
     });
@@ -211,13 +181,7 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
     });
 
     // Derived header display values from the real User shape (firstName/lastName)
-    const fullName = `${user.firstName} ${user.lastName}`;
-    const initial = user.firstName ? user.firstName.charAt(0).toUpperCase() : '?';
-    const today = new Date().toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-    });
+
 
     useEffect(() => {
         let isMounted = true;
@@ -226,10 +190,7 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
                 const data = await requestService.getMetadata();
                 if (isMounted && data) {
                     setMetadata({
-                        docTypes:
-                            Array.isArray(data.docTypes) && data.docTypes.length > 0
-                                ? data.docTypes
-                                : DEFAULT_DOCUMENT_TYPES,
+                        docTypes: Array.isArray(data.docTypes) ? data.docTypes : [],
                         purposes: Array.isArray(data.purposes) ? data.purposes : [],
                         // TODO(confirm): backend /api/requests/metadata does not
                         // guarantee a `staff` array in the current requestService.ts.
@@ -270,37 +231,15 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
 
     return (
         <div className="request-page">
-            <div className="assessordesk-header">
-                <div className="assessordesk-brand">
-                    <span className="assessordesk-logo">🏛️</span>
-                    <div>
-                        <div className="assessordesk-title">
-                            ASSESSOR<span className="accent">DESK</span>
-                        </div>
-                        <div className="assessordesk-subtitle">Office Of The Provincial Assessor</div>
-                    </div>
-                </div>
-                <div className="assessordesk-user">
-                    <span className="user-avatar">{initial}</span>
-                    <div>
-                        <div className="user-name">{fullName}</div>
-                        <div className="user-date">{today}</div>
-                    </div>
-                </div>
-            </div>
+            {/* Page header — ASSESSORDESK branding, matches Dashboard's user badge */}
 
             <div className="request-form-container">
                 <div className="form-card">
                     <div className="form-header">
-                        <div className="form-header-title">
-                            <span className="form-header-icon">
-                                <ClipboardIcon />
-                            </span>
-                            <div>
-                                <h2>REQUEST FORM ENTRY</h2>
-                                <div className="form-subtitle">
-                                    Property Record and Document Request
-                                </div>
+                        <div>
+                            <h2>REQUEST FORM ENTRY</h2>
+                            <div className="form-subtitle">
+                                Property Record and Document Request
                             </div>
                         </div>
                         <span className="ref-badge">{formData.referenceNumber}</span>
@@ -309,10 +248,7 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
                     <div className="form-body">
                         {/* Declarant Details */}
                         <div className="form-section">
-                            <div className="section-title">
-                                <PersonIcon />
-                                <span>Declarant Details</span>
-                            </div>
+                            <div className="section-title">Declarant Details</div>
 
                             <div className="form-group">
                                 <label>Name of Declarant</label>
@@ -382,10 +318,7 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
 
                         {/* Request Details */}
                         <div className="form-section">
-                            <div className="section-title">
-                                <PlusCircleIcon />
-                                <span>Request Details</span>
-                            </div>
+                            <div className="section-title">Request Details</div>
 
                             <div className="form-group">
                                 <label>May I/We request for:</label>
@@ -414,10 +347,7 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
 
                         {/* Action Taken */}
                         <div className="form-section">
-                            <div className="section-title">
-                                <ClipboardIcon />
-                                <span>Action Taken</span>
-                            </div>
+                            <div className="section-title">Action Taken</div>
 
                             <div className="form-group">
                                 <ToggleButtonPair
@@ -427,8 +357,8 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
                                         formData.actionTaken === 'APPROVED'
                                             ? true
                                             : formData.actionTaken === 'DISAPPROVED'
-                                                ? false
-                                                : null
+                                            ? false
+                                            : null
                                     }
                                     onChange={(val) =>
                                         setFormData({
@@ -480,12 +410,8 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
                     </div>
 
                     <div className="form-footer">
-                        <button
-                            className="btn-submit"
-                            onClick={handleSave}
-                            disabled={submitting}
-                        >
-                            {submitting ? 'Saving...' : 'Save Request'}
+                        <button className="btn-back" onClick={onCancel}>
+                            Back to Dashboard
                         </button>
                         <button
                             className="btn-print"
@@ -493,6 +419,13 @@ export function RequestFormEntry({ user, onCancel }: RequestFormEntryProps) {
                             onClick={() => window.print()}
                         >
                             Print Form
+                        </button>
+                        <button
+                            className="btn-submit"
+                            onClick={handleSave}
+                            disabled={submitting}
+                        >
+                            {submitting ? 'Saving...' : 'Save Request'}
                         </button>
                     </div>
                 </div>
