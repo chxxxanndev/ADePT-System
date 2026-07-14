@@ -38,9 +38,9 @@ const REQUEST_PROCESSING_VIEWS = new Set([
 
 // Map view → human-readable label for the guard message
 const VIEW_LABELS: Record<string, string> = {
-    'tax-declaration':             'Tax Declaration',
-    'certificate-land-holding':    'Certificate of Land Holding',
-    'certificate-no-landholding':  'Certificate of No Landholding',
+    'tax-declaration': 'Tax Declaration',
+    'certificate-land-holding': 'Certificate of Land Holding',
+    'certificate-no-landholding': 'Certificate of No Landholding',
 };
 
 interface DashboardProps {
@@ -114,7 +114,6 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
     // Only the entry-form views route to RequestFormEntry.
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
-    const isAccountSettingsView = activeView === 'account-settings';
 
     // ── Adapter: map the app-wide `User` shape to what AccountSettings expects ──
     const accountUser: AccountUser = {
@@ -176,106 +175,106 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                 <div className="dashboard-content">
                     <div key={activeView} className="page-transition">
 
-                    {activeView === 'dashboard' ? (
-                        <>
-                            <WelcomeBanner />
-                            <DashboardSummary title="Operational Summary" items={operationalSummary} iconType="operational" />
-                            <DashboardSummary title="Administrative Summary" items={administrativeSummary} iconType="admin" />
-                            <div className="dashboard-row">
-                                <AnalyticsOverview data={weeklyTrend} lastUpdated="Today • 2:45 PM" />
-                                <DocumentDistribution slices={documentDistribution} totalDocuments={totalDocuments} />
-                            </div>
-                            <div className="dashboard-row">
-                                <RecentTransactions rows={recentTransactions} onViewAll={() => setActiveView('transaction-registry')} />
-                                <QuickActions actions={quickActions} onSelect={setActiveView} />
-                            </div>
-                        </>
-                    ) : isRequestFormView ? (
-                        <RequestFormEntry
-                            user={user}
-                            onCancel={() => setActiveView('dashboard')}
-                            onEntryComplete={handleEntryComplete}
-                            onNavigateToProcessing={handleNavigateToProcessing}
-                        />
-                    ) : activeView === 'tax-declaration' ? (
-                        <TaxDeclarationForm
-                            user={user}
-                            entryData={completedEntryData ?? {
-                                requestId: 'preview-mode',
-                                referenceNumber: 'REF-PREVIEW',
-                                declarantName: '',
-                                requestedByName: '',
-                                requestDate: new Date().toISOString().split('T')[0],
-                                purposeId: '',
-                                documentTypeIds: [],
-                                actionTaken: 'PENDING',
-                                authRequired: false,
-                                propertyLocation: '',
-                            }}
-                            onBack={() => setActiveView('new-request')}
-                            onBackToDashboard={() => setActiveView('dashboard')}
-                        />
-                    ) : activeView === 'certificate-land-holding' ? (
-                        <LandholdingCertificateForm
-                            user={user}
-                            entryData={completedEntryData ?? {
-                                requestId: 'preview-mode',
-                                referenceNumber: 'LH-PREVIEW',
-                                declarantName: '',
-                                requestedByName: '',
-                                requestDate: new Date().toISOString().split('T')[0],
-                                purposeId: '',
-                                documentTypeIds: [],
-                                actionTaken: 'PENDING',
-                                authRequired: false,
-                                propertyLocation: '',
-                            }}
-                            onBack={() => setActiveView('new-request')}
-                            onBackToDashboard={() => setActiveView('dashboard')}
-                        />
-                    ) : activeView === 'certificate-no-landholding' ? (
-                        <NoLandholdingCertificateForm
-                            user={user}
-                            entryData={completedEntryData ?? {
-                                requestId: 'preview-mode',
-                                referenceNumber: 'NLH-PREVIEW',
-                                declarantName: '',
-                                requestedByName: '',
-                                requestDate: new Date().toISOString().split('T')[0],
-                                purposeId: '',
-                                documentTypeIds: [],
-                                actionTaken: 'PENDING',
-                                authRequired: false,
-                                propertyLocation: '',
-                            }}
-                            onBack={() => setActiveView('new-request')}
-                            onBackToDashboard={() => setActiveView('dashboard')}
-                        />
+                        {activeView === 'dashboard' ? (
+                            <>
+                                <WelcomeBanner />
+                                <DashboardSummary title="Operational Summary" items={operationalSummary} iconType="operational" />
+                                <DashboardSummary title="Administrative Summary" items={administrativeSummary} iconType="admin" />
+                                <div className="dashboard-row">
+                                    <AnalyticsOverview data={weeklyTrend} lastUpdated="Today • 2:45 PM" />
+                                    <DocumentDistribution slices={documentDistribution} totalDocuments={totalDocuments} />
+                                </div>
+                                <div className="dashboard-row">
+                                    <RecentTransactions rows={recentTransactions} onViewAll={() => setActiveView('transaction-registry')} />
+                                    <QuickActions actions={quickActions} onSelect={setActiveView} />
+                                </div>
+                            </>
+                        ) : isRequestFormView ? (
+                            <RequestFormEntry
+                                user={user}
+                                onCancel={() => setActiveView('dashboard')}
+                                onEntryComplete={handleEntryComplete}
+                                onNavigateToProcessing={handleNavigateToProcessing}
+                            />
+                        ) : activeView === 'tax-declaration' ? (
+                            <TaxDeclarationForm
+                                user={user}
+                                entryData={completedEntryData ?? {
+                                    requestId: 'preview-mode',
+                                    referenceNumber: 'REF-PREVIEW',
+                                    declarantName: '',
+                                    requestedByName: '',
+                                    requestDate: new Date().toISOString().split('T')[0],
+                                    purposeId: '',
+                                    documentTypeIds: [],
+                                    actionTaken: 'PENDING',
+                                    authRequired: false,
+                                    propertyLocation: '',
+                                }}
+                                onBack={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                            />
+                        ) : activeView === 'certificate-land-holding' ? (
+                            <LandholdingCertificateForm
+                                user={user}
+                                entryData={completedEntryData ?? {
+                                    requestId: 'preview-mode',
+                                    referenceNumber: 'LH-PREVIEW',
+                                    declarantName: '',
+                                    requestedByName: '',
+                                    requestDate: new Date().toISOString().split('T')[0],
+                                    purposeId: '',
+                                    documentTypeIds: [],
+                                    actionTaken: 'PENDING',
+                                    authRequired: false,
+                                    propertyLocation: '',
+                                }}
+                                onBack={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                            />
+                        ) : activeView === 'certificate-no-landholding' ? (
+                            <NoLandholdingCertificateForm
+                                user={user}
+                                entryData={completedEntryData ?? {
+                                    requestId: 'preview-mode',
+                                    referenceNumber: 'NLH-PREVIEW',
+                                    declarantName: '',
+                                    requestedByName: '',
+                                    requestDate: new Date().toISOString().split('T')[0],
+                                    purposeId: '',
+                                    documentTypeIds: [],
+                                    actionTaken: 'PENDING',
+                                    authRequired: false,
+                                    propertyLocation: '',
+                                }}
+                                onBack={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                            />
 
-                    ) : activeView === 'account-settings' ? (
-                        <AccountSettings
-                            user={accountUser}
-                            onSave={handleAccountSave}
-                            onUpdateEmail={handleUpdateEmail}
-                            onChangePassword={handleChangePassword}
-                            onChangePhoto={handleChangePhoto}
-                            onDisableAccount={handleDisableAccount}
-                        />
+                        ) : activeView === 'account-settings' ? (
+                            <AccountSettings
+                                user={accountUser}
+                                onSave={handleAccountSave}
+                                onUpdateEmail={handleUpdateEmail}
+                                onChangePassword={handleChangePassword}
+                                onChangePhoto={handleChangePhoto}
+                                onDisableAccount={handleDisableAccount}
+                            />
 
-                    ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
-                        <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
-                            <h2>{VIEW_LABELS[activeView] ?? activeView}</h2>
-                            <p>Module under development.</p>
-                            <button onClick={() => setActiveView('dashboard')}>Return to Dashboard</button>
-                        </div>
-                    ) : (
-                        <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
-                            <h2>{activeView.replace(/-/g, ' ').toUpperCase()}</h2>
-                            <p>Module under development.</p>
-                            <button onClick={() => setActiveView('dashboard')}>Return to Dashboard</button>
-                        </div>
-                    )}
-                </div>
+                        ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
+                            <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
+                                <h2>{VIEW_LABELS[activeView] ?? activeView}</h2>
+                                <p>Module under development.</p>
+                                <button onClick={() => setActiveView('dashboard')}>Return to Dashboard</button>
+                            </div>
+                        ) : (
+                            <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
+                                <h2>{activeView.replace(/-/g, ' ').toUpperCase()}</h2>
+                                <p>Module under development.</p>
+                                <button onClick={() => setActiveView('dashboard')}>Return to Dashboard</button>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <DashboardFooter />
             </div>
