@@ -14,9 +14,9 @@ export function useAuth() {
         if (saved) return JSON.parse(saved);
         return [
             {
-                firstName: 'Juan',
-                lastName: 'Dela Cruz',
-                email: 'JuanDelaCruz@gmail.com',
+                firstName: 'Mommy',
+                lastName: 'Dionisia',
+                email: 'provincialassessor@gmail.com',
                 username: 'admin',
                 password: 'Password123!',
             },
@@ -71,18 +71,20 @@ export function useAuth() {
             } else {
                 return await new Promise((resolve) => {
                     setTimeout(() => {
-                        const user = mockDb.find(
+                        const userIndex = mockDb.findIndex(
                             (u) =>
                                 (u.username === username || u.email === username) &&
                                 u.password === password
                         );
-                        if (user) {
+                        if (userIndex !== -1) {
+                            const user = mockDb[userIndex];
                             const userObj: User = {
                                 id: 'mock-id',
                                 firstName: user.firstName,
                                 lastName: user.lastName,
                                 email: user.email,
                                 username: user.username,
+                                role: userIndex === 0 ? 'SUPER_ADMIN' : 'OFFICE_STAFF',
                             };
                             localStorage.setItem('adept_user', JSON.stringify(userObj));
                             setCurrentUser(userObj);

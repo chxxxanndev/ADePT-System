@@ -6,6 +6,7 @@ import { LoginForm } from './auth-folder/LoginForm';
 import { SignupForm } from './auth-folder/SignupForm';
 import { ForgotPasswordForm } from './auth-folder/ForgotPasswordForm';
 import { Dashboard } from './users/pages/Dashboard';
+import { AdminDashboard } from './admin/pages/AdminDashboard';
 
 function App() {
   const [view, setView] = useState<View>('login');
@@ -20,6 +21,10 @@ function App() {
   const navigateTo = (newView: View) => setView(newView);
 
   if (currentUser) {
+    const isAdmin = currentUser.role === 'SUPER_ADMIN';
+    if (isAdmin) {
+      return <AdminDashboard user={currentUser} onLogout={logout} />;
+    }
     return <Dashboard user={currentUser} backendHealthy={backendHealthy} onLogout={logout} />;
   }
 
