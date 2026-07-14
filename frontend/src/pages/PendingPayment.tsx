@@ -38,11 +38,7 @@ const STATUS_MODIFIER: Record<PendingPaymentRequest['status'], string> = {
 // Props
 // ─────────────────────────────────────────────────────────────
 interface PendingPaymentProps {
-    /**
-     * Called when a row is clicked (or activated via keyboard).
-     * Wire this up in Dashboard.tsx to store the selected payment and switch
-     * activeView, the same way onNavigateToProcessing works for RequestFormEntry.
-     */
+    
     onSelectPayment: (payment: PendingPaymentRequest) => void;
     /** Display name shown in the page header. TODO: wire up to the logged-in user. */
     userName?: string;
