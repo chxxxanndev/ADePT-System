@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { requestService, type RequestFormData } from '../services/requestService';
 import type { User } from '../types/auth';
+import type { CompletedEntryData } from '../types/taxDeclaration';
 import '../styles/RequestFormEntry.css';
 
 // TEMP: extending RequestFormData locally until these fields are added to the
@@ -15,7 +16,8 @@ interface ExtendedRequestFormData extends RequestFormData {
 interface RequestFormEntryProps {
     user: User;
     onCancel: () => void;
-    onNavigateToDocument: (view: string) => void;
+    onEntryComplete: (data: CompletedEntryData) => void;
+    onNavigateToProcessing: (view: string) => void;
 }
 
 function ToggleButtonPair({
@@ -185,7 +187,22 @@ const DEFAULT_DOCUMENT_TYPES = [
     { id: 'cert-no-property', name: 'Certificate of No Property/Landholding' },
 ];
 
-export function RequestFormEntry({ user, onCancel, onNavigateToDocument }: RequestFormEntryProps) {
+// PLACEHOLDER: maps a document type's display name to the view/page it
+// should proceed to. Swap these view keys for your real route names once
+// they're finalized.
+const DOCUMENT_TYPE_VIEW_MAP: Record<string, string> = {
+    'Certified True Copy of the Latest Tax Declaration': 'tax-declaration',
+    'Certified True Copy of Old Tax Declaration': 'tax-declaration',
+    'Certificate of Property/Landholding': 'certificate-land-holding',
+    'Certificate of No Property/Landholding': 'certificate-no-landholding',
+};
+
+export function RequestFormEntry({
+    user,
+    onCancel,
+    onEntryComplete,
+    onNavigateToProcessing,
+}: RequestFormEntryProps) {
     const [submitting, setSubmitting] = useState(false);
     const [metadata, setMetadata] = useState<{
         docTypes: any[];
@@ -249,16 +266,23 @@ export function RequestFormEntry({ user, onCancel, onNavigateToDocument }: Reque
         };
     }, []);
 
-    // PLACEHOLDER: maps a document type's display name to the view/page it
-    // should proceed to. Swap these view keys for your real route names once
-    // they're finalized — these currently fall through to Dashboard's generic
-    // "Module under development" placeholder view since they don't match any
-    // real view yet.
-    const DOCUMENT_TYPE_VIEW_MAP: Record<string, string> = {
-        'Tax Declaration': 'tax-declaration',
-        'Land Holding': 'land-holding',
-        'No Land Holding': 'no-land-holding',
-    };
+    // Builds the CompletedEntryData payload handed up to Dashboard so the
+    // Request Processing views (Tax Declaration / Landholding / No Landholding)
+    // have real entry data instead of the preview-mode fallback.
+    // TODO: swap requestId for the real ID once requestService.submitRequest()
+    // returns one from the backend.
+    const buildCompletedEntryData = (): CompletedEntryData => ({
+        requestId: formData.referenceNumber,
+        referenceNumber: formData.referenceNumber,
+        declarantName: formData.declarantName,
+        requestedByName: formData.requestedByName,
+        requestDate: formData.requestDate,
+        purposeId: formData.purposeId,
+        documentTypeIds: formData.documentTypeIds,
+        actionTaken: formData.actionTaken,
+        authRequired: formData.authRequired,
+        propertyLocation: formData.propertyLocation,
+    });
 
     const handleProceedToDocument = () => {
         if (formData.documentTypeIds.length === 0) {
@@ -274,7 +298,8 @@ export function RequestFormEntry({ user, onCancel, onNavigateToDocument }: Reque
                 `No document page is set up yet for "${selectedDoc?.name ?? 'this document type'}".`
             );
         }
-        onNavigateToDocument(view);
+        onEntryComplete(buildCompletedEntryData());
+        onNavigateToProcessing(view);
     };
 
     const handleSave = async () => {
@@ -289,6 +314,7 @@ export function RequestFormEntry({ user, onCancel, onNavigateToDocument }: Reque
             // interface / stripped before sending.
             await requestService.submitRequest(formData, user.id);
             alert('Success: Request saved');
+            onEntryComplete(buildCompletedEntryData());
             onCancel();
         } catch (err: any) {
             alert(err.response?.data?.error || 'Submit failed');
