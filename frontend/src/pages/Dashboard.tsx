@@ -298,6 +298,8 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                     )}
                 </div>
                 </div>
+
+                
                 <DashboardFooter />
             </div>
         </div>
