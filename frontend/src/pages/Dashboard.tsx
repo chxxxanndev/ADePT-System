@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import '../styles/dashboard.css';
 import '../styles/accountSettings.css'
 import { Sidebar } from '../components/Sidebar';
@@ -60,6 +60,17 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
      * object → entry saved; Request Processing views are unlocked.
      */
     const [completedEntryData, setCompletedEntryData] = useState<CompletedEntryData | null>(null);
+
+    /**
+     * .dashboard-main is the scrollable container (overflow-y: auto in dashboard.css).
+     * Every view renders as a child inside it, so scroll position persists across
+     * view switches unless we explicitly reset it here — this covers ALL pages,
+     * not just Dashboard/RequestFormEntry, since they all share this one container.
+     */
+    useEffect(() => {
+        const scrollContainer = document.querySelector('.dashboard-main');
+        scrollContainer?.scrollTo(0, 0);
+    }, [activeView]);
 
     /**
      * Called when RequestFormEntry successfully saves.
