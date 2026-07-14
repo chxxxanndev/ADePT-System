@@ -1,7 +1,7 @@
 import { useState, useEffect, type KeyboardEvent } from 'react';
 import type { PendingPaymentRequest } from '../types/PendingPayment';
 import { pendingPaymentData } from '../data/PendingPaymentData';
-import logoImg from '../assets/logo.png';
+import logoImg from '../../auth-folder/assets/logo.png';
 import '../styles/PendingPayment.css';
 
 // ─────────────────────────────────────────────────────────────

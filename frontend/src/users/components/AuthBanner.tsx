@@ -1,6 +1,6 @@
-import sealImg from '../assets/seal.png';
-import logoImg from '../assets/logo.png';
-import type { View } from '../types/auth';
+import sealImg from '../../auth-folder/assets/seal.png';
+import logoImg from '../../auth-folder/assets/logo.png';
+import type { View } from '../../auth-folder/types/auth';
 
 interface AuthBannerProps {
     view: View;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { User } from '../../../types/auth';
+import type { User } from '../../../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../../../types/taxDeclaration';
 import type { NoLandholdingFormData, PronounType, PropertyCountType } from '../../../types/noLandholding';
 import { EMPTY_NO_LANDHOLDING_FORM } from '../../../types/noLandholding';

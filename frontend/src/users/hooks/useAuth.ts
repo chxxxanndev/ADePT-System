@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { User, MockUser } from '../types/auth';
+import type { User, MockUser } from '../../auth-folder/types/auth';
 
 const API_BASE_URL = 'http://localhost:5000';
 

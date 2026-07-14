@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import type { View } from '../types/auth';
-import { AlertBanner } from '../components/AlertBanner';
-import { PasswordInput } from '../components/PasswordInput';
-import { LockDisclaimer } from '../components/LockDisclaimer';
-import sealImg from '../assets/seal.png';
-import logoImg from '../assets/logo.png';
+import type { View } from './types/auth';
+import { AlertBanner } from './components/AlertBanner';
+import { PasswordInput } from './components/PasswordInput';
+import { LockDisclaimer } from './components/LockDisclaimer';
+import sealImg from './assets/seal.png';
+import logoImg from './assets/logo.png';
 
 interface SignupFormProps {
     active: boolean;

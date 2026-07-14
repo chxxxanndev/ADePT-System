@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { User } from '../../../types/auth';
+import type { User } from '../../../../auth-folder/types/auth';
 import type { CompletedEntryData, TaxDeclarationFormData, AssessmentRow } from '../../../types/taxDeclaration';
 import { EMPTY_TAX_DECLARATION, EMPTY_ASSESSMENT_ROW } from '../../../types/taxDeclaration';
 import { taxDeclarationService } from '../../../services/taxDeclarationService';

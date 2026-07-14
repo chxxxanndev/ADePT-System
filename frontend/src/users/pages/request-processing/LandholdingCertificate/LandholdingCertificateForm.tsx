@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { User } from '../../../types/auth';
+import type { User } from '../../../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../../../types/taxDeclaration';
 import type { LandholdingFormData, LandholdingPropertyRow } from '../../../types/landholding';
 import {

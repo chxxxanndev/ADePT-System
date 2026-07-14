@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import type { View } from './types/auth';
-import { useAuth } from './hooks/useAuth';
-import { AuthBanner } from './components/AuthBanner';
-import { LoginForm } from './pages/LoginForm';
-import { SignupForm } from './pages/SignupForm';
-import { ForgotPasswordForm } from './pages/ForgotPasswordForm';
-import { Dashboard } from './pages/Dashboard';
+import type { View } from './auth-folder/types/auth';
+import { useAuth } from './users/hooks/useAuth';
+import { AuthBanner } from './users/components/AuthBanner';
+import { LoginForm } from './auth-folder/LoginForm';
+import { SignupForm } from './auth-folder/SignupForm';
+import { ForgotPasswordForm } from './auth-folder/ForgotPasswordForm';
+import { Dashboard } from './users/pages/Dashboard';
 
 function App() {
   const [view, setView] = useState<View>('login');

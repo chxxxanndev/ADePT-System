@@ -16,7 +16,7 @@ import { AnalyticsOverview } from '../components/AnalyticsOverview';
 import { DocumentDistribution } from '../components/DocumentDistribution';
 import { RecentTransactions } from '../components/RecentTransactions';
 import { QuickActions } from '../components/QuickActions';
-import type { User } from '../types/auth';
+import type { User } from '../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../types/taxDeclaration';
 import type { AccountUser, AccountSettingsFormData } from '../types/accountSettings';
 import type { PendingPaymentRequest } from '../types/PendingPayment';

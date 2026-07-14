@@ -1,4 +1,4 @@
-import logoImg from '../assets/logo.png';
+import logoImg from '../../auth-folder/assets/logo.png';
 import { MapPinIcon } from './icons';
 
 export function DashboardFooter() {

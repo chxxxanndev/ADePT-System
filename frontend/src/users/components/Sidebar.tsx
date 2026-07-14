@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { NavSection } from '../types/dashboard';
-import logoImg from '../assets/logo.png';
+import logoImg from '../../auth-folder/assets/logo.png';
 import {
     ChevronDownIcon,
     DashboardIcon,

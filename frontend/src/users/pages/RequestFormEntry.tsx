@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { requestService, type RequestFormData } from '../services/requestService';
-import type { User } from '../types/auth';
+import type { User } from '../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../types/taxDeclaration';
 import '../styles/RequestFormEntry.css';
 
