@@ -1,0 +1,254 @@
+/* ===== Pending Payment ===== */
+
+.pp-page {
+    /* Light gray-purple so the white card actually stands out instead of fading in */
+    background-color: #ECEAF3;
+    min-height: 100%;
+    padding: 0 4px 32px;
+}
+
+/* ---- Page header (self-contained for this view) ---- */
+
+.pp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 0 -4px 24px;
+    padding: 16px 28px;
+    background-color: var(--db-primary, #29237A);
+    color: #FFFFFF;
+}
+
+.pp-header-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pp-header-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #FFFFFF;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.pp-header-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.pp-header-brand-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pp-header-title {
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    color: #FFFFFF;
+}
+
+.pp-header-title-light {
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.pp-header-subtitle {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.pp-header-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 16px 6px 6px;
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+.pp-header-profile-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.18);
+    flex-shrink: 0;
+}
+
+.pp-header-profile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.pp-header-profile-name {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #FFFFFF;
+    line-height: 1.2;
+}
+
+.pp-header-profile-date {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.65);
+    line-height: 1.2;
+}
+
+/* ---- Section title ---- */
+
+.pp-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 24px 20px;
+}
+
+.pp-title-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background-color: #2B2A6E;
+    flex-shrink: 0;
+}
+
+.pp-title h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: #16161F;
+}
+
+/* ---- Card / table ---- */
+
+.pp-card {
+    background-color: #FFFFFF;
+    border: 1px solid #D7D2F2;
+    border-radius: 16px;
+    margin: 0 24px;
+    padding: 8px 28px 10px;
+    /* Stronger shadow so the card visibly lifts off the page background */
+    box-shadow: 0 10px 28px rgba(43, 42, 110, 0.12), 0 2px 6px rgba(43, 42, 110, 0.06);
+}
+
+.pp-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.pp-table thead th {
+    text-align: left;
+    padding: 18px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #16161F;
+    border-bottom: 2px solid #B7B0F0;
+    white-space: nowrap;
+}
+
+.pp-table tbody td {
+    padding: 16px 12px;
+    font-size: 13.5px;
+    color: #2B2A34;
+    border-bottom: 1px solid #EEECFB;
+}
+
+.pp-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.pp-row {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.pp-row:hover,
+.pp-row:focus-visible {
+    background-color: #FBF7FF;
+}
+
+.pp-row:focus-visible {
+    outline: 2px solid #8B85F5;
+    outline-offset: -2px;
+}
+
+.pp-table-empty {
+    text-align: center;
+    padding: 32px 12px;
+    color: #8A8894;
+    font-style: italic;
+}
+
+/* ---- Status badge ---- */
+
+.pp-badge {
+    display: inline-block;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.pp-badge--awaiting {
+    background-color: rgba(253, 216, 53, 0.44);
+    color: #8A6A00;
+}
+
+.pp-badge--paid {
+    background-color: rgba(60, 179, 113, 0.25);
+    color: #1E7A46;
+}
+
+.pp-badge--overdue {
+    background-color: rgba(235, 87, 87, 0.2);
+    color: #B0281C;
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 720px) {
+    .pp-header {
+        justify-content: center;
+        text-align: center;
+        padding: 16px 20px;
+    }
+
+    .pp-header-profile {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .pp-title,
+    .pp-card {
+        margin-left: 12px;
+        margin-right: 12px;
+    }
+
+    .pp-card {
+        padding: 8px 14px;
+        overflow-x: auto;
+    }
+
+    .pp-table {
+        min-width: 640px;
+    }
+}

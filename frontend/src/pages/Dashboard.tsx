@@ -9,6 +9,8 @@ import { AccountSettings } from './accountSettings';
 import { TaxDeclarationForm } from './request-processing/TaxDeclaration/TaxDeclarationForm';
 import { LandholdingCertificateForm } from './request-processing/LandholdingCertificate/LandholdingCertificateForm';
 import { NoLandholdingCertificateForm } from './request-processing/NoLandholdingCertificate/NoLandholdingCertificateForm';
+import { PendingPayment } from './PendingPayment';
+import { PaymentDetails } from './PaymentDetails';
 import { DashboardSummary } from '../components/StatCard';
 import { AnalyticsOverview } from '../components/AnalyticsOverview';
 import { DocumentDistribution } from '../components/DocumentDistribution';
@@ -17,6 +19,7 @@ import { QuickActions } from '../components/QuickActions';
 import type { User } from '../types/auth';
 import type { CompletedEntryData } from '../types/taxDeclaration';
 import type { AccountUser, AccountSettingsFormData } from '../types/accountSettings';
+import type { PendingPaymentRequest } from '../types/PendingPayment';
 
 import {
     navSections,
@@ -38,9 +41,9 @@ const REQUEST_PROCESSING_VIEWS = new Set([
 
 // Map view → human-readable label for the guard message
 const VIEW_LABELS: Record<string, string> = {
-    'tax-declaration':             'Tax Declaration',
-    'certificate-land-holding':    'Certificate of Land Holding',
-    'certificate-no-landholding':  'Certificate of No Landholding',
+    'tax-declaration': 'Tax Declaration',
+    'certificate-land-holding': 'Certificate of Land Holding',
+    'certificate-no-landholding': 'Certificate of No Landholding',
 };
 
 interface DashboardProps {
@@ -60,6 +63,9 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
      * object → entry saved; Request Processing views are unlocked.
      */
     const [completedEntryData, setCompletedEntryData] = useState<CompletedEntryData | null>(null);
+
+    /** Holds the row selected from Pending Payment, read by PaymentDetails. */
+    const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
 
     /**
      * .dashboard-main is the scrollable container (overflow-y: auto in dashboard.css).
@@ -88,6 +94,12 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         setActiveView(view);
     };
 
+    /** Called when a row in PendingPayment is clicked. */
+    const handleSelectPayment = (payment: PendingPaymentRequest) => {
+        setSelectedPayment(payment);
+        setActiveView('payment-details');
+    };
+
     // Defensive check: If user is missing, show nothing or a loader
     if (!user) return <div className="white-screen-fix">Loading Session...</div>;
 
@@ -110,11 +122,11 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         || activeView === 'tax-declaration'
         || activeView === 'certificate-land-holding'
         || activeView === 'certificate-no-landholding'
-        || activeView === 'account-settings';
+        || activeView === 'account-settings'
+        || activeView === 'pending-payment';
 
     // Only the entry-form views route to RequestFormEntry.
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
-    const isAccountSettingsView = activeView === 'account-settings';
 
     // ── Adapter: map the app-wide `User` shape to what AccountSettings expects ──
     const accountUser: AccountUser = {
@@ -258,6 +270,15 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                             onChangePassword={handleChangePassword}
                             onChangePhoto={handleChangePhoto}
                             onDisableAccount={handleDisableAccount}
+                        />
+
+                    ) : activeView === 'pending-payment' ? (
+                        <PendingPayment onSelectPayment={handleSelectPayment} />
+
+                    ) : activeView === 'payment-details' ? (
+                        <PaymentDetails
+                            payment={selectedPayment}
+                            onBack={() => setActiveView('pending-payment')}
                         />
 
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
