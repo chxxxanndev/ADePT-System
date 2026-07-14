@@ -186,6 +186,8 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                 )}
 
                 <div className="dashboard-content">
+                    <div key={activeView} className="page-transition">
+
                     {activeView === 'dashboard' ? (
                         <>
                             <WelcomeBanner />
@@ -294,6 +296,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                             <button onClick={() => setActiveView('dashboard')}>Return to Dashboard</button>
                         </div>
                     )}
+                </div>
                 </div>
                 <DashboardFooter />
             </div>
