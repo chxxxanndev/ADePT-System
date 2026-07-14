@@ -292,6 +292,12 @@
     color: #ffffff;
 }
 
+.nav-subitem.active {
+    background-color: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    font-weight: 700;
+}
+
 /* Logout Area */
 .sidebar-logout {
     display: flex;
@@ -1545,4 +1551,22 @@
     .dashboard-welcome {
         padding: 16px 16px 4px;
     }
+}
+
+/* =========================================================
+   Page transition
+   ========================================================= */
+@keyframes page-enter {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.page-transition {
+    animation: page-enter 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
