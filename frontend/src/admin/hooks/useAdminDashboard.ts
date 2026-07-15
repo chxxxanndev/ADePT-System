@@ -1,109 +1,55 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
-    accountAccessRequestsMock,
-    documentRequestQueueMock,
-    recentTransactionsMock,
+    accessRequestsMock,
+    requestQueueMock,
+    transactionsMock,
     staffPerformanceMock,
-    recentActivityMock
+    activitiesMock,
 } from '../data/dashboardMockData';
-import type {
-    AdminTransactionRow,
-    StaffPerformanceItem,
-    RecentActivityItem,
-    AdminStatItem
-} from '../data/dashboardMockData';
+
+// Simulated network delay for refresh actions so the spinning state is visible.
+const REFRESH_DELAY_MS = 700;
 
 export function useAdminDashboard() {
-    const [activeView, setActiveView] = useState<string>('overview');
-    const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
-    const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
-    const [searchQuery, setSearchQuery] = useState<string>('');
-    const [dateFilter, setDateFilter] = useState<string>('TODAY');
+    // Navigation / layout state
+    const [activeView, setActiveView] = useState('overview');
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-    // Stats & Data states to allow refreshing/updating
-    const [accessRequests, setAccessRequests] = useState<AdminStatItem[]>(accountAccessRequestsMock);
-    const [requestQueue, setRequestQueue] = useState<AdminStatItem[]>(documentRequestQueueMock);
-    const [transactions, setTransactions] = useState<AdminTransactionRow[]>(recentTransactionsMock);
-    const [staffPerformance, setStaffPerformance] = useState<StaffPerformanceItem[]>(staffPerformanceMock);
-    const [activities] = useState<RecentActivityItem[]>(recentActivityMock);
+    // Header controls
+    const [searchQuery, setSearchQuery] = useState('');
+    const [dateFilter] = useState('Today');
 
-    // Refresh states to trigger loading animations on individual components
-    const [refreshingTransactions, setRefreshingTransactions] = useState<boolean>(false);
-    const [refreshingPerformance, setRefreshingPerformance] = useState<boolean>(false);
-    const [refreshingDistribution, setRefreshingDistribution] = useState<boolean>(false);
-    const [refreshingAccessRequests, setRefreshingAccessRequests] = useState<boolean>(false);
-    const [refreshingQueue, setRefreshingQueue] = useState<boolean>(false);
+    // Data states — swap these setters for real API responses when ready
+    const [accessRequests] = useState(accessRequestsMock);
+    const [requestQueue] = useState(requestQueueMock);
+    const [transactions] = useState(transactionsMock);
+    const [staffPerformance] = useState(staffPerformanceMock);
+    const [activities] = useState(activitiesMock);
 
-    // Trigger local scroll resets on view change
-    useEffect(() => {
-        const scrollContainer = document.querySelector('.admin-dashboard-main');
-        scrollContainer?.scrollTo(0, 0);
-    }, [activeView]);
+    // Per-section refresh indicators
+    const [refreshingTransactions, setRefreshingTransactions] = useState(false);
+    const [refreshingPerformance, setRefreshingPerformance] = useState(false);
+    const [refreshingDistribution, setRefreshingDistribution] = useState(false);
+    const [refreshingAccessRequests, setRefreshingAccessRequests] = useState(false);
+    const [refreshingQueue, setRefreshingQueue] = useState(false);
 
-    // Simulated refresh handlers
-    const refreshTransactions = () => {
-        setRefreshingTransactions(true);
-        setTimeout(() => {
-            // Randomize values slightly to look "refreshed"
-            setTransactions(prev => prev.map(row => ({
-                ...row,
-                date: new Date().toLocaleDateString('en-US')
-            })));
-            setRefreshingTransactions(false);
-        }, 600);
+    const withSpinner = (
+        setter: (value: boolean) => void,
+        action?: () => void
+    ) => {
+        setter(true);
+        window.setTimeout(() => {
+            action?.();
+            setter(false);
+        }, REFRESH_DELAY_MS);
     };
 
-    const refreshPerformance = () => {
-        setRefreshingPerformance(true);
-        setTimeout(() => {
-            setStaffPerformance(prev => prev.map(staff => ({
-                ...staff,
-                requests: Math.max(0, staff.requests + Math.floor(Math.random() * 5) - 2)
-            })));
-            setRefreshingPerformance(false);
-        }, 600);
-    };
-
-    const refreshDistribution = () => {
-        setRefreshingDistribution(true);
-        setTimeout(() => {
-            setRefreshingDistribution(false);
-        }, 700);
-    };
-
-    const refreshAccessRequests = () => {
-        setRefreshingAccessRequests(true);
-        setTimeout(() => {
-            setAccessRequests(prev => prev.map(stat => ({
-                ...stat,
-                value: Math.max(0, stat.value + Math.floor(Math.random() * 3) - 1)
-            })));
-            setRefreshingAccessRequests(false);
-        }, 500);
-    };
-
-    const refreshQueue = () => {
-        setRefreshingQueue(true);
-        setTimeout(() => {
-            setRequestQueue(prev => prev.map(stat => ({
-                ...stat,
-                value: Math.max(0, stat.value + Math.floor(Math.random() * 4) - 1)
-            })));
-            setRefreshingQueue(false);
-        }, 500);
-    };
-
-    // Filter transactions and performance by search query
-    const filteredTransactions = transactions.filter(row =>
-        row.controlNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        row.declarant.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        row.document.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        row.assignedStaff.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    const filteredStaffPerformance = staffPerformance.filter(staff =>
-        staff.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const refreshTransactions = () => withSpinner(setRefreshingTransactions);
+    const refreshPerformance = () => withSpinner(setRefreshingPerformance);
+    const refreshDistribution = () => withSpinner(setRefreshingDistribution);
+    const refreshAccessRequests = () => withSpinner(setRefreshingAccessRequests);
+    const refreshQueue = () => withSpinner(setRefreshingQueue);
 
     return {
         activeView,
@@ -115,13 +61,12 @@ export function useAdminDashboard() {
         searchQuery,
         setSearchQuery,
         dateFilter,
-        setDateFilter,
 
         // Data states
         accessRequests,
         requestQueue,
-        transactions: filteredTransactions,
-        staffPerformance: filteredStaffPerformance,
+        transactions,
+        staffPerformance,
         activities,
 
         // Refresh indicators
@@ -136,6 +81,6 @@ export function useAdminDashboard() {
         refreshPerformance,
         refreshDistribution,
         refreshAccessRequests,
-        refreshQueue
+        refreshQueue,
     };
 }

@@ -12,7 +12,7 @@ export function AdminRecentTransactions({
     onRefresh,
     isRefreshing
 }: AdminRecentTransactionsProps) {
-    
+
     // Maps document titles to custom styled classes
     const getDocClass = (doc: string) => {
         const d = doc.toLowerCase();
@@ -86,7 +86,7 @@ export function AdminRecentTransactions({
 
             {/* Bottom button */}
             <div className="admin-table-footer">
-                <button 
+                <button
                     className="admin-view-all-btn"
                     onClick={() => console.log('Expand/view all transactions registry')}
                 >

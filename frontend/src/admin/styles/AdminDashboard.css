@@ -2,23 +2,31 @@
 
 /* Root styling variables mapping to the color palette */
 :root {
-    --admin-primary: #252175;          /* Deep Indigo */
+    --admin-primary: #252175;
+    /* Deep Indigo */
     --admin-primary-hover: #1c185a;
-    --admin-secondary: #00BCD4;        /* Marine Teal */
+    --admin-secondary: #00BCD4;
+    /* Marine Teal */
     --admin-secondary-hover: #00ACC1;
-    --admin-bg-base: #FFFCF9;          /* Warm White base */
-    --admin-text-primary: #2C3338;     /* Slate Gray */
+    --admin-bg-base: #FFFCF9;
+    /* Warm White base */
+    --admin-text-primary: #2C3338;
+    /* Slate Gray */
     --admin-text-muted: #64748B;
-    
+
     /* Status Badge Colors */
-    --admin-success: #4CAF50;          /* Agri Green */
+    --admin-success: #4CAF50;
+    /* Agri Green */
     --admin-success-bg: #E8F5E9;
-    --admin-pending: #FDD835;          /* Star Gold */
-    --admin-pending-dark: #C9A000;      /* Darker Gold for text legibility */
+    --admin-pending: #FDD835;
+    /* Star Gold */
+    --admin-pending-dark: #C9A000;
+    /* Darker Gold for text legibility */
     --admin-pending-bg: #FFFDE7;
-    --admin-error: #D32F2F;            /* Crimson Red */
+    --admin-error: #D32F2F;
+    /* Crimson Red */
     --admin-error-bg: #FFEBEE;
-    
+
     /* Glassmorphism settings */
     --admin-glass-bg: rgba(255, 252, 249, 0.55);
     --admin-glass-border-light: rgba(255, 255, 255, 0.35);
@@ -661,7 +669,9 @@
 }
 
 @keyframes spin {
-    100% { transform: rotate(360deg); }
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .recent-transaction-header-pill {
@@ -671,7 +681,7 @@
     border-radius: 8px;
     font-size: 13.5px;
     font-weight: 700;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .recent-transaction-tab {
@@ -697,7 +707,8 @@
 }
 
 .admin-table th {
-    background-color: rgba(41, 35, 122, 0.05); /* Light indigo tint */
+    background-color: rgba(41, 35, 122, 0.05);
+    /* Light indigo tint */
     color: var(--admin-text-primary);
     font-weight: 700;
     font-size: 13.5px;
@@ -874,12 +885,13 @@
     border-radius: 12px;
     overflow: hidden;
     position: relative;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .staff-perf-bar-fill {
     height: 100%;
-    background-color: rgba(76, 175, 80, 0.35); /* Agri Green soft fill */
+    background-color: rgba(76, 175, 80, 0.35);
+    /* Agri Green soft fill */
     border-right: 2px solid var(--admin-success);
     border-radius: 12px 0 0 12px;
     transition: width 1s ease-in-out;
@@ -1029,7 +1041,7 @@
     padding: 12px 14px;
     border-radius: 12px;
     background-color: #ffffff;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.01);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.01);
     border-left: 4px solid #ECEFF1;
 }
 
@@ -1187,7 +1199,7 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0,0,0,0.4);
+    background-color: rgba(0, 0, 0, 0.4);
     z-index: 9;
 }
 
@@ -1239,7 +1251,7 @@
     .admin-stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .admin-grid-columns {
         grid-template-columns: 1fr;
     }
@@ -1249,7 +1261,7 @@
     .mobile-menu-toggle {
         display: block;
     }
-    
+
     .admin-sidebar {
         position: fixed;
         left: -260px;
@@ -1260,19 +1272,20 @@
         transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         z-index: 100;
     }
-    
+
     .admin-sidebar.mobile-open {
         left: 0;
     }
-    
+
     .admin-sidebar.collapsed {
-        width: 260px; /* Do not collapse sidebar on mobile */
+        width: 260px;
+        /* Do not collapse sidebar on mobile */
     }
-    
+
     .mobile-sidebar-backdrop.active {
         display: block;
     }
-    
+
     .header-top-row {
         width: 100%;
     }
@@ -1282,25 +1295,25 @@
     .admin-stats-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .header-top-row {
         flex-direction: column;
         align-items: flex-start;
     }
-    
+
     .admin-profile-widget {
         width: 100%;
     }
-    
+
     .header-actions-row {
         flex-direction: column;
         align-items: stretch;
     }
-    
+
     .admin-search-wrapper {
         max-width: 100%;
     }
-    
+
     .admin-footer-main {
         flex-direction: column;
         gap: 16px;

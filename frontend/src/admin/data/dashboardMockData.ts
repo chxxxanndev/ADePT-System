@@ -1,9 +1,16 @@
+// Mock data source for the Admin Dashboard.
+// Values here are wired to match the reference screenshot 1:1.
+// Swap the arrays/fetchers for real API calls once endpoints are ready —
+// the shapes below are the contract the UI components already expect.
+
+/* --------------------------------- Types ---------------------------------- */
+
 export interface AdminStatItem {
     id: string;
     label: string;
-    value: number;
-    accent: 'teal' | 'gold' | 'green' | 'red';
+    value: number | string;
     icon: 'user' | 'alert' | 'check' | 'close' | 'request' | 'gears';
+    accent: 'teal' | 'gold' | 'green' | 'red';
 }
 
 export interface AdminTransactionRow {
@@ -24,6 +31,14 @@ export interface StaffPerformanceItem {
     avatarBg: string;
 }
 
+export interface AdminActivityItem {
+    id: string;
+    title: string;
+    actor: string;
+    time: string;
+    status: 'approved' | 'pending' | 'declined';
+}
+
 export interface DocumentDistributionSlice {
     id: string;
     label: string;
@@ -32,18 +47,15 @@ export interface DocumentDistributionSlice {
     color: string;
 }
 
-export interface RecentActivityItem {
-    id: string;
-    title: string;
-    actor: string;
-    time: string;
-    type: 'approved' | 'pending' | 'declined';
+export interface AdminNavSubItem {
+    label: string;
+    view: string;
 }
 
 export interface AdminNavItem {
     label: string;
     view: string;
-    subItems?: { label: string; view: string }[];
+    subItems?: AdminNavSubItem[];
 }
 
 export interface AdminNavSection {
@@ -51,75 +63,121 @@ export interface AdminNavSection {
     items: AdminNavItem[];
 }
 
+/* ------------------------------ Sidebar nav -------------------------------- */
+
 export const adminNavigation: AdminNavSection[] = [
     {
-        section: 'GENERAL',
+        section: 'General',
         items: [
-            { label: 'Overview', view: 'overview' }
-        ]
+            { label: 'Overview', view: 'overview' },
+        ],
     },
     {
-        section: 'ACCESS CONTROL',
+        section: 'Access Control',
         items: [
             {
                 label: 'User Management',
                 view: 'user-management',
                 subItems: [
                     { label: 'Account Request', view: 'account-request' },
-                    { label: 'Staff Accounts', view: 'staff-accounts' }
-                ]
-            }
-        ]
+                    { label: 'Staff Accounts', view: 'staff-accounts' },
+                ],
+            },
+            { label: 'Request queue', view: 'request-queue' },
+        ],
     },
     {
-        section: 'OTHER',
+        section: 'Other',
         items: [
-            { label: 'Request queue', view: 'request-queue' },
             { label: 'Reports & Analytics', view: 'reports-analytics' },
             { label: 'Audit Log', view: 'audit-log' },
-            { label: 'Settings', view: 'settings' }
-        ]
-    }
+            { label: 'Settings', view: 'settings' },
+        ],
+    },
 ];
 
-export const accountAccessRequestsMock: AdminStatItem[] = [
-    { id: 'active-acc', label: 'Active Accounts', value: 5, accent: 'teal', icon: 'user' },
-    { id: 'pending-reg', label: 'Pending Registration', value: 4, accent: 'gold', icon: 'alert' },
-    { id: 'approved-today', label: 'Approved Today', value: 7, accent: 'green', icon: 'check' },
-    { id: 'declined-today', label: 'Declined Today', value: 2, accent: 'red', icon: 'close' }
+/* ---------------------------- Account access requests ---------------------------- */
+
+export const accessRequestsMock: AdminStatItem[] = [
+    { id: 'active-accounts', label: 'Active Accounts', value: 5, icon: 'user', accent: 'teal' },
+    { id: 'pending-registration', label: 'Pending Registration', value: 4, icon: 'alert', accent: 'gold' },
+    { id: 'approved-today', label: 'Approved Today', value: 7, icon: 'check', accent: 'green' },
+    { id: 'declined-today', label: 'Declined Today', value: 2, icon: 'close', accent: 'red' },
 ];
 
-export const documentRequestQueueMock: AdminStatItem[] = [
-    { id: 'req-today', label: 'Request Today', value: 10, accent: 'teal', icon: 'request' },
-    { id: 'processing', label: 'Processing', value: 20, accent: 'gold', icon: 'gears' },
-    { id: 'approved-docs', label: 'Approved Documents', value: 148, accent: 'green', icon: 'check' },
-    { id: 'disapproved-docs', label: 'Disapproved Documents', value: 10, accent: 'red', icon: 'close' }
+/* ------------------------------ Document request queue ---------------------------- */
+
+export const requestQueueMock: AdminStatItem[] = [
+    { id: 'request-today', label: 'Request Today', value: 10, icon: 'request', accent: 'teal' },
+    { id: 'processing', label: 'Processing', value: 20, icon: 'gears', accent: 'gold' },
+    { id: 'approved-documents', label: 'Approved Documents', value: 148, icon: 'check', accent: 'green' },
+    { id: 'disapproved-documents', label: 'Disapproved Documents', value: 10, icon: 'close', accent: 'red' },
 ];
 
-export const recentTransactionsMock: AdminTransactionRow[] = [
-    { id: 'rt1', controlNo: '2026-ADR', declarant: 'Zacarias Jacob', document: 'Tax Declaration', assignedStaff: 'Linda', status: 'Approved', date: '7/11/2026' },
-    { id: 'rt2', controlNo: '2027-ADR', declarant: 'Elizabeth Santos', document: 'Landholding', assignedStaff: 'Josephine', status: 'Disapproved', date: '7/17/2026' },
-    { id: 'rt3', controlNo: '2028-ADR', declarant: 'Maria Montoon', document: 'No Landholding', assignedStaff: 'Emilio', status: 'Pending', date: '7/17/2026' },
-    { id: 'rt4', controlNo: '2029-ADR', declarant: 'Mister Bean', document: 'Tax Declaration', assignedStaff: 'Laurel', status: 'Approved', date: '7/20/2026' }
+/* --------------------------------- Transactions ------------------------------------ */
+
+export const transactionsMock: AdminTransactionRow[] = [
+    {
+        id: '2026-ADR',
+        controlNo: '2026-ADR',
+        declarant: 'Zacarias Jacob',
+        document: 'Tax Declaration',
+        assignedStaff: 'Linda',
+        status: 'Approved',
+        date: '7/1/2026',
+    },
+    {
+        id: '2027-ADR',
+        controlNo: '2027-ADR',
+        declarant: 'Elizabeth Santos',
+        document: 'Landholding',
+        assignedStaff: 'Josephine',
+        status: 'Disapproved',
+        date: '7/17/2026',
+    },
+    {
+        id: '2028-ADR',
+        controlNo: '2028-ADR',
+        declarant: 'Maria Montoro',
+        document: 'No Landholding',
+        assignedStaff: 'Emilio',
+        status: 'Pending',
+        date: '7/17/2026',
+    },
+    {
+        id: '2029-ADR',
+        controlNo: '2029-ADR',
+        declarant: 'Mister Bean',
+        document: 'Tax Declaration',
+        assignedStaff: 'Laurel',
+        status: 'Approved',
+        date: '7/20/2026',
+    },
 ];
+
+/* ------------------------------- Staff performance --------------------------------- */
 
 export const staffPerformanceMock: StaffPerformanceItem[] = [
-    { id: 'sp1', initials: 'ML', name: 'Maria Lopez', requests: 148, avatarBg: '#E0F2FE' }, // Light Blue
-    { id: 'sp2', initials: 'JC', name: 'John Cruz', requests: 100, avatarBg: '#FEF3C7' },  // Light Orange/Amber
-    { id: 'sp3', initials: 'AR', name: 'Anne Reyes', requests: 88, avatarBg: '#FCE7F3' },   // Light Pink
-    { id: 'sp4', initials: 'CG', name: 'Carlo Gomez', requests: 54, avatarBg: '#F3E8FF' }   // Light Purple
+    { id: 'maria-lopez', initials: 'ML', name: 'Maria Lopez', requests: 148, avatarBg: '#E3F2FD' },
+    { id: 'john-cruz', initials: 'JC', name: 'John Cruz', requests: 100, avatarBg: '#FFF3E0' },
+    { id: 'anne-reyes', initials: 'AR', name: 'Anne Reyes', requests: 88, avatarBg: '#E8F5E9' },
+    { id: 'carlo-gomez', initials: 'CG', name: 'Carlo Gomez', requests: 54, avatarBg: '#F3E5F5' },
 ];
+
+/* ----------------------------- Document distribution -------------------------------- */
 
 export const documentDistributionMock: DocumentDistributionSlice[] = [
-    { id: 'dd1', label: 'Tax Declaration', percentage: 52, count: 108, color: '#252175' },     // Primary Brand (Deep Indigo)
-    { id: 'dd2', label: 'Cert. of Landholding', percentage: 96, count: 210, color: '#FDD835' }, // Star Gold
-    { id: 'dd3', label: 'Cert. of No Landholding', percentage: 25, count: 302, color: '#D32F2F' } // Crimson Red
+    { id: 'tax-dec', label: 'Tax Declaration', percentage: 52, count: 4664, color: '#252175' },
+    { id: 'cert-landholding', label: 'Cert. of Landholding', percentage: 30, count: 2695, color: '#FDD835' },
+    { id: 'cert-no-landholding', label: 'Cert. of No Landholding', percentage: 18, count: 1617, color: '#D32F2F' },
 ];
 
-export const totalDocumentsCount = 8984;
+export const totalDocumentsCount = 8976;
 
-export const recentActivityMock: RecentActivityItem[] = [
-    { id: 'ra1', title: 'Approved Staff Account', actor: 'Super Admin', time: '7:58 AM', type: 'approved' },
-    { id: 'ra2', title: 'Pending Registration', actor: 'Super Admin', time: '10:58 AM', type: 'pending' },
-    { id: 'ra3', title: 'Declined Registration Request', actor: 'Super Admin', time: '7:58 AM', type: 'declined' }
+/* ------------------------------------ Activity -------------------------------------- */
+
+export const activitiesMock: AdminActivityItem[] = [
+    { id: 'act-1', title: 'Approved Staff Account', actor: 'Super Admin', time: '7:58 AM', status: 'approved' },
+    { id: 'act-2', title: 'Pending Registration', actor: 'Super Admin', time: '10:58 AM', status: 'pending' },
+    { id: 'act-3', title: 'Declined Registration Request', actor: 'Super Admin', time: '7:58 AM', status: 'declined' },
 ];

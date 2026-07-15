@@ -10,16 +10,15 @@ export function AdminDocumentDistribution({
     onRefresh,
     isRefreshing
 }: AdminDocumentDistributionProps) {
-    
+
     // Segment percentages for visual display (adding up to 100%)
-    // Segment 1 (Indigo): 55%
-    // Segment 2 (Yellow): 27%
-    // Segment 3 (Red): 18%
-    const segments = [
-        { percentage: 55, color: '#252175' },
-        { percentage: 27, color: '#FDD835' },
-        { percentage: 18, color: '#D32F2F' }
-    ];
+    // Segment 1 (Indigo): 52% Tax Declaration
+    // Segment 2 (Yellow): 30% Cert. of Landholding
+    // Segment 3 (Red): 18% Cert. of No Landholding
+    const segments = documentDistributionMock.map((item) => ({
+        percentage: item.percentage,
+        color: item.color,
+    }));
 
     // Calculate stroke offset accumulators
     let accumulatedPercent = 0;
@@ -42,13 +41,13 @@ export function AdminDocumentDistribution({
             {/* SVG Donut Chart */}
             <div className="donut-chart-container">
                 <svg viewBox="0 0 42 42" className="donut-chart-svg">
-                    <circle 
-                        cx="21" 
-                        cy="21" 
-                        r="15.91549430918954" 
-                        fill="transparent" 
-                        stroke="rgba(0, 0, 0, 0.03)" 
-                        strokeWidth="5" 
+                    <circle
+                        cx="21"
+                        cy="21"
+                        r="15.91549430918954"
+                        fill="transparent"
+                        stroke="rgba(0, 0, 0, 0.03)"
+                        strokeWidth="5"
                     />
                     {segments.map((seg, idx) => {
                         const dasharray = `${seg.percentage} ${100 - seg.percentage}`;
@@ -82,15 +81,15 @@ export function AdminDocumentDistribution({
                 {documentDistributionMock.map((item) => (
                     <div className="donut-legend-item" key={item.id}>
                         <div className="donut-legend-item-left">
-                            <div 
-                                className="donut-legend-marker" 
+                            <div
+                                className="donut-legend-marker"
                                 style={{ backgroundColor: item.color }}
                             />
                             <span>{item.label}</span>
                         </div>
                         <div className="donut-legend-item-right">
                             <span className="donut-legend-pct">{item.percentage}%</span>
-                            <span className="donut-legend-cnt">{item.count} Documents</span>
+                            <span className="donut-legend-cnt">{item.count.toLocaleString()} Documents</span>
                         </div>
                     </div>
                 ))}

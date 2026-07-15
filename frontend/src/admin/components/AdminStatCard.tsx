@@ -1,24 +1,25 @@
-import { 
-    UserIcon, 
-    AlertTriangleIcon, 
-    CheckCircleIcon, 
+import {
+    UserIcon,
+    AlertTriangleIcon,
+    CheckCircleIcon,
     XCircleIcon,
-    RequestsIcon
+    RequestsIcon,
+    RefreshIcon
 } from '../../users/components/icons';
 import type { AdminStatItem } from '../data/dashboardMockData';
 
 // SVG Gears Icon for the "Processing" card
 function GearsIcon({ size = 18, className }: { size?: number; className?: string }) {
     return (
-        <svg 
-            width={size} 
-            height={size} 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             className={className}
         >
             <circle cx="12" cy="12" r="3" />
@@ -65,12 +66,12 @@ interface AdminStatsSectionProps {
     isRefreshing?: boolean;
 }
 
-export function AdminStatsSection({ 
-    title, 
-    items, 
-    sectionIcon, 
-    onRefresh, 
-    isRefreshing 
+export function AdminStatsSection({
+    title,
+    items,
+    sectionIcon,
+    onRefresh,
+    isRefreshing
 }: AdminStatsSectionProps) {
     return (
         <section className="admin-stats-section">
@@ -80,15 +81,12 @@ export function AdminStatsSection({
                     <span>{title}</span>
                 </div>
                 {onRefresh && (
-                    <button 
-                        onClick={onRefresh} 
+                    <button
+                        onClick={onRefresh}
                         className={`admin-refresh-btn ${isRefreshing ? 'spinning' : ''}`}
                         title={`Refresh ${title}`}
                     >
-                        {/* Inline refresh icon path */}
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                        </svg>
+                        <RefreshIcon size={16} />
                     </button>
                 )}
             </div>

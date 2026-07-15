@@ -83,8 +83,8 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
     return (
         <div className="admin-dashboard-page">
             {/* Mobile backdrop for dismissing the slide-in menu */}
-            <div 
-                className={`mobile-sidebar-backdrop ${mobileMenuOpen ? 'active' : ''}`} 
+            <div
+                className={`mobile-sidebar-backdrop ${mobileMenuOpen ? 'active' : ''}`}
                 onClick={() => setMobileMenuOpen(false)}
             />
 

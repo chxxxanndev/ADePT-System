@@ -72,7 +72,7 @@ export function AdminSidebar({
                     <img src={logoImg} alt="ADePT Seal" className="sidebar-brand-logo" />
                     {!collapsed && <span className="sidebar-brand-title">ADePT</span>}
                 </div>
-                <button 
+                <button
                     className="sidebar-collapse-trigger"
                     onClick={onToggleCollapse}
                     title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
@@ -90,9 +90,9 @@ export function AdminSidebar({
                             const IconComponent = ICON_MAP[item.label] || DashboardIcon;
                             const hasSubItems = !!item.subItems?.length;
                             const isExpanded = item.label === 'User Management' ? userManagementExpanded : false;
-                            
+
                             // Check if active
-                            const isParentActive = activeView === item.view || 
+                            const isParentActive = activeView === item.view ||
                                 (hasSubItems && item.subItems?.some(sub => sub.view === activeView));
 
                             return (

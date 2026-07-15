@@ -41,7 +41,7 @@ export function AdminStaffPerformance({
                     return (
                         <div className="staff-performance-item" key={staff.id}>
                             <div className="staff-perf-left">
-                                <div 
+                                <div
                                     className="staff-perf-avatar"
                                     style={{ backgroundColor: staff.avatarBg }}
                                 >
@@ -49,7 +49,7 @@ export function AdminStaffPerformance({
                                 </div>
                                 <span className="staff-perf-name">{staff.name}</span>
                                 <div className="staff-perf-bar-wrapper">
-                                    <div 
+                                    <div
                                         className="staff-perf-bar-fill"
                                         style={{ width: `${widthPercent}%` }}
                                     />
