@@ -66,10 +66,10 @@ export function Sidebar({
 
         if (collapsed) {
             // Collapsed: never expand the rail. Jump straight to a preview page instead.
-            if (hasSubItems) {
-                onNavigate(item.subItems![0].view);
-            } else if (item.view) {
+            if (item.view) {
                 onNavigate(item.view);
+            } else if (hasSubItems) {
+                onNavigate(item.subItems![0].view);
             }
             return;
         }
@@ -77,6 +77,9 @@ export function Sidebar({
         // Expanded: normal behavior — toggle dropdown, or navigate directly.
         if (hasSubItems) {
             toggleMenu(item.label);
+            if (item.view) {
+                onNavigate(item.view);
+            }
         } else if (item.view) {
             onNavigate(item.view);
         }

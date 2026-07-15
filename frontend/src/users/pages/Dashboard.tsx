@@ -11,6 +11,9 @@ import { LandholdingCertificateForm } from './request-processing/LandholdingCert
 import { NoLandholdingCertificateForm } from './request-processing/NoLandholdingCertificate/NoLandholdingCertificateForm';
 import { PendingPayment } from './PendingPayment';
 import { PaymentDetails } from './PaymentDetails';
+import { DocumentRequestDashboard } from './DocumentRequestDashboard';
+import { requestService } from '../services/requestService';
+import { RequestGuard } from '../components/RequestGuard';
 import { DashboardSummary } from '../components/StatCard';
 import { AnalyticsOverview } from '../components/AnalyticsOverview';
 import { DocumentDistribution } from '../components/DocumentDistribution';
@@ -32,18 +35,24 @@ import {
     quickActions
 } from '../data/dashboardMockData';
 
-// Views that live under "Request Processing" and require a completed entry formx`
+// Views that live under "Request Processing" and require a completed entry form
 const REQUEST_PROCESSING_VIEWS = new Set([
     'tax-declaration',
     'certificate-land-holding',
     'certificate-no-landholding',
+    'tax-dec',
+    'land-holding',
+    'no-land-holding',
 ]);
 
 // Map view → human-readable label for the guard message
 const VIEW_LABELS: Record<string, string> = {
-    'tax-declaration':             'Tax Declaration',
-    'certificate-land-holding':    'Certificate of Land Holding',
-    'certificate-no-landholding':  'Certificate of No Landholding',
+    'tax-declaration': 'Tax Declaration',
+    'certificate-land-holding': 'Certificate of Land Holding',
+    'certificate-no-landholding': 'Certificate of No Landholding',
+    'tax-dec': 'Tax Declaration',
+    'land-holding': 'Certificate of Land Holding',
+    'no-land-holding': 'Certificate of No Landholding',
 };
 
 interface DashboardProps {
@@ -67,6 +76,56 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     /** Holds the row selected from Pending Payment, read by PaymentDetails. */
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
 
+    /** Holds draft or prefilled data to pass to RequestFormEntry. */
+    const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
+
+    const handleSelectNewRequest = async (type: 'tax' | 'landholding' | 'nolandholding') => {
+        try {
+            const meta = await requestService.getMetadata();
+            const docTypes = Array.isArray(meta?.docTypes) ? meta.docTypes : [];
+            let documentTypeIds: string[] = [];
+
+            if (type === 'tax') {
+                const found = docTypes.find((d: any) => d.name.toLowerCase().includes('tax declaration') || d.id === 'dt1' || d.id === 'dt2');
+                if (found) documentTypeIds = [found.id];
+            } else if (type === 'landholding') {
+                const found = docTypes.find((d: any) => d.name.toLowerCase().includes('property/landholding') || d.name.toLowerCase().includes('landholding') || d.id === 'dt3');
+                if (found) documentTypeIds = [found.id];
+            } else if (type === 'nolandholding') {
+                const found = docTypes.find((d: any) => d.name.toLowerCase().includes('no property/landholding') || d.name.toLowerCase().includes('no landholding') || d.id === 'dt4');
+                if (found) documentTypeIds = [found.id];
+            }
+
+            setPrefilledRequestData({
+                declarantName: '',
+                requestedByName: '',
+                requestDate: new Date().toISOString().split('T')[0],
+                purposeId: '',
+                documentTypeIds,
+                authRequired: false,
+                actionTaken: 'PENDING',
+                propertyLocation: '',
+                releasingStaffId: '',
+                releaseDate: '',
+                referenceNumber: `REF-${new Date().getFullYear()}-0000`,
+            });
+            setActiveView('new-request');
+        } catch (err) {
+            console.error('Failed to get metadata for prefilling', err);
+            setActiveView('new-request');
+        }
+    };
+
+    const handleSelectDraft = (draft: any) => {
+        setPrefilledRequestData(draft);
+        setActiveView('new-request');
+    };
+
+    const handleCancelEntry = () => {
+        setPrefilledRequestData(null);
+        setActiveView('document-request');
+    };
+
     /**
      * .dashboard-main is the scrollable container (overflow-y: auto in dashboard.css).
      * Every view renders as a child inside it, so scroll position persists across
@@ -84,6 +143,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
      */
     const handleEntryComplete = (data: CompletedEntryData) => {
         setCompletedEntryData(data);
+        setPrefilledRequestData(null);
     };
 
     /**
@@ -98,6 +158,27 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     const handleSelectPayment = (payment: PendingPaymentRequest) => {
         setSelectedPayment(payment);
         setActiveView('payment-details');
+    };
+
+    const handleAddAnother = () => {
+        if (completedEntryData) {
+            // SETBACK 4 FIXED (Sticky Blindness): Keep names, but clear doc type AND location.
+            // SETBACK 2 FIXED (Ghost Records): We just put this in React State (prefilledRequestData), 
+            // we do NOT hit the database until they actually click "Proceed" or "Save Draft".
+            setPrefilledRequestData({
+                declarantName: completedEntryData.declarantName,
+                requestedByName: completedEntryData.requestedByName,
+                requestDate: new Date().toISOString().split('T')[0],
+                purposeId: completedEntryData.purposeId,
+                authRequired: completedEntryData.authRequired,
+                actionTaken: completedEntryData.actionTaken || 'PENDING',
+                referenceNumber: `REF-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+                documentTypeIds: [],
+                propertyLocation: '', // Force them to pick the location again
+            });
+            setCompletedEntryData(null);
+            setActiveView('new-request');
+        }
     };
 
     // Defensive check: If user is missing, show nothing or a loader
@@ -120,10 +201,14 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     const hideHeader = activeView === 'new-request'
         || activeView === 'request-form'
         || activeView === 'tax-declaration'
+        || activeView === 'tax-dec'
         || activeView === 'certificate-land-holding'
+        || activeView === 'land-holding'
         || activeView === 'certificate-no-landholding'
+        || activeView === 'no-land-holding'
         || activeView === 'account-settings'
-        || activeView === 'pending-payment';
+        || activeView === 'pending-payment'
+        || activeView === 'document-request';
 
     // Only the entry-form views route to RequestFormEntry.
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
@@ -141,10 +226,8 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
     // ── AccountSettings handlers ──
     // TODO: replace these with real calls to your auth/user service
-    // (mirrors the taxDeclarationService.save(...) pattern already in the app).
     const handleAccountSave = async (data: AccountSettingsFormData) => {
         console.log('TODO: wire up account save', data);
-        // await userService.updateProfile(user.id, data);
     };
 
     const handleUpdateEmail = () => {
@@ -161,7 +244,6 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
     const handleDisableAccount = async (disabled: boolean) => {
         console.log('TODO: wire up disable-account toggle', disabled);
-        // await userService.setDisabled(user.id, disabled);
     };
 
     return (
@@ -203,63 +285,66 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                     ) : isRequestFormView ? (
                         <RequestFormEntry
                             user={user}
-                            onCancel={() => setActiveView('dashboard')}
+                            onCancel={handleCancelEntry}
                             onEntryComplete={handleEntryComplete}
                             onNavigateToProcessing={handleNavigateToProcessing}
+                            prefilledRequestData={prefilledRequestData}
                         />
-                    ) : activeView === 'tax-declaration' ? (
-                        <TaxDeclarationForm
+                    ) : activeView === 'tax-declaration' || activeView === 'tax-dec' ? (
+                        completedEntryData ? (
+                            <TaxDeclarationForm
+                                user={user}
+                                entryData={completedEntryData}
+                                onBack={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                                onAddAnother={handleAddAnother}
+                            />
+                        ) : (
+                            <RequestGuard
+                                attemptedView="Tax Declaration"
+                                onGoToEntry={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                            />
+                        )
+                    ) : activeView === 'certificate-land-holding' || activeView === 'land-holding' ? (
+                        completedEntryData ? (
+                            <LandholdingCertificateForm
+                                user={user}
+                                entryData={completedEntryData}
+                                onBack={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                                onAddAnother={handleAddAnother} /* ✅ ADDED TO LANDHOLDING */
+                            />
+                        ) : (
+                            <RequestGuard
+                                attemptedView="Certificate of Land Holding"
+                                onGoToEntry={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                            />
+                        )
+                    ) : activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' ? (
+                        completedEntryData ? (
+                            <NoLandholdingCertificateForm
+                                user={user}
+                                entryData={completedEntryData}
+                                onBack={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                                onAddAnother={handleAddAnother} /* ✅ ADDED TO NO-LANDHOLDING */
+                            />
+                        ) : (
+                            <RequestGuard
+                                attemptedView="Certificate of No Landholding"
+                                onGoToEntry={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                            />
+                        )
+
+                    ) : activeView === 'document-request' ? (
+                        <DocumentRequestDashboard
                             user={user}
-                            entryData={completedEntryData ?? {
-                                requestId: 'preview-mode',
-                                referenceNumber: 'REF-PREVIEW',
-                                declarantName: '',
-                                requestedByName: '',
-                                requestDate: new Date().toISOString().split('T')[0],
-                                purposeId: '',
-                                documentTypeIds: [],
-                                actionTaken: 'PENDING',
-                                authRequired: false,
-                                propertyLocation: '',
-                            }}
-                            onBack={() => setActiveView('new-request')}
-                            onBackToDashboard={() => setActiveView('dashboard')}
-                        />
-                    ) : activeView === 'certificate-land-holding' ? (
-                        <LandholdingCertificateForm
-                            user={user}
-                            entryData={completedEntryData ?? {
-                                requestId: 'preview-mode',
-                                referenceNumber: 'LH-PREVIEW',
-                                declarantName: '',
-                                requestedByName: '',
-                                requestDate: new Date().toISOString().split('T')[0],
-                                purposeId: '',
-                                documentTypeIds: [],
-                                actionTaken: 'PENDING',
-                                authRequired: false,
-                                propertyLocation: '',
-                            }}
-                            onBack={() => setActiveView('new-request')}
-                            onBackToDashboard={() => setActiveView('dashboard')}
-                        />
-                    ) : activeView === 'certificate-no-landholding' ? (
-                        <NoLandholdingCertificateForm
-                            user={user}
-                            entryData={completedEntryData ?? {
-                                requestId: 'preview-mode',
-                                referenceNumber: 'NLH-PREVIEW',
-                                declarantName: '',
-                                requestedByName: '',
-                                requestDate: new Date().toISOString().split('T')[0],
-                                purposeId: '',
-                                documentTypeIds: [],
-                                actionTaken: 'PENDING',
-                                authRequired: false,
-                                propertyLocation: '',
-                            }}
-                            onBack={() => setActiveView('new-request')}
-                            onBackToDashboard={() => setActiveView('dashboard')}
+                            onSelectNewRequest={handleSelectNewRequest}
+                            onSelectDraft={handleSelectDraft}
+                            onSelectDocumentView={(view) => setActiveView(view)}
                         />
 
                     ) : activeView === 'account-settings' ? (

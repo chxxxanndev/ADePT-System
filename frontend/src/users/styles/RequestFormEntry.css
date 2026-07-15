@@ -1,219 +1,173 @@
-:root {
-    --adept-indigo-dark: #2e2a7a;
-    --adept-indigo: #4338ca;
-    --adept-purple: #7c3aed;
-    --adept-border: #e2e8f0;
-}
+/* =========================================================
+   RequestFormEntry.css — Request Form Entry
+   Matches the premium theme of Tax Declaration / Landholding forms
+   ========================================================= */
 
-.request-page {
+.rfe-page {
     display: flex;
     flex-direction: column;
     min-height: 100%;
-    gap: 0px;
+    background: transparent;
+    padding: 0;
+    margin-left: -28px;
+    margin-right: -28px;
+    margin-top: -12px;
 }
 
-/* ---------- Header ---------- */
-.assessordesk-header {
-    background: var(--db-primary);
-    box-sizing: border-box;
-    padding: 20px 32px;
+.rfe-page-inner {
+    flex: 1;
+    padding: 4px 16px 20px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-    margin: -24px -24px 0 -32px;   /* adjust to match your layout's padding */
-    width: calc(100% + 70px);  
-    height: 132px;         
+    flex-direction: column;
+    gap: 0;
 }
 
-.assessordesk-brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.assessordesk-logo {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-}
-
-.assessordesk-title {
-    font-weight: 800;
-    font-size: 1.15rem;
-    color: #ffffff;
-    letter-spacing: 0.5px;
-}
-
-.assessordesk-title .accent {
-    background: linear-gradient(90deg, #a78bfa, #60a5fa);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-}
-
-.assessordesk-subtitle {
-    font-size: 0.75rem;
-    color: #c7d2fe;
-}
-
-.assessordesk-user {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: rgba(255, 255, 255, 0.12);
-    padding: 8px 16px;
-    border-radius: 999px;
-    margin-right: 36px;
-}
-
-.user-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: #c7d2fe;
-    color: var(--adept-indigo-dark);
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.user-name {
-    color: #ffffff;
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-.user-date {
-    color: #c7d2fe;
-    font-size: 0.75rem;
-}
-
-/* ---------- Form card ---------- */
-.request-form-container {
-    padding: 20px;
-    display: flex;
-    justify-content: center;
-}
-
-.form-card {
+/* ── Main card ────────────────────────────────────────────── */
+.rfe-card {
     background: #ffffff;
-    border-radius: 24px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
-    width: 100%;
-    max-width: 1400px;
-    border: 1px solid var(--adept-border);
-    overflow: hidden; 
+    border-radius: 16px;
+    box-shadow: 0 6px 30px rgba(41, 35, 122, 0.10);
+    border: 1px solid rgba(41, 35, 122, 0.09);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
-.form-header {
-    background: #f8fafc;
-    padding: 24px 32px;
-    border-bottom: 1px solid var(--adept-border);
+/* ── Card header ──────────────────────────────────────────── */
+.rfe-card-header {
+    background: linear-gradient(135deg, #29237a 0%, #3730a3 100%);
+    padding: 22px 32px;
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: flex-start;
-}
-
-/* NEW: wrapper for the small icon badge next to "REQUEST FORM ENTRY" */
-.form-header-title {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-/* NEW: icon badge, sized/colored to sit alongside .form-header h2 */
-.form-header-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: #eef2ff;
-    color: var(--adept-indigo);
+    gap: 16px;
     flex-shrink: 0;
 }
 
-.form-header h2 {
+.rfe-card-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.rfe-card-title {
+    color: #ffffff;
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.2px;
     margin: 0;
-    color: #1e293b;
-    font-size: 1.5rem;
 }
 
-.form-subtitle {
-    color: #64748b;
-    font-size: 0.85rem;
-    margin-top: 4px;
+.rfe-card-subtitle {
+    color: rgba(199, 210, 254, 0.9);
+    font-size: 0.92rem;
+    font-weight: 400;
 }
 
-.ref-badge {
-    background: #f1f5f9;
-    border: 1px solid var(--adept-border);
-    border-radius: 8px;
-    padding: 8px 16px;
+.rfe-ref-chip {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    padding: 6px 16px;
+    color: #ffffff;
+    font-size: 0.8rem;
     font-weight: 700;
-    color: #334155;
+    letter-spacing: 0.5px;
     white-space: nowrap;
+    backdrop-filter: blur(4px);
 }
 
-.form-body {
-    padding: 32px;
+/* ── Form body ────────────────────────────────────────────── */
+.rfe-form-body {
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow-y: auto;
+    flex: 1;
 }
 
-.form-section {
-    margin-bottom: 32px;
+/* ── Sections ─────────────────────────────────────────────── */
+.rfe-section {
+    margin-bottom: 28px;
 }
 
-/* CHANGED: added flex/gap so the icon sits inline with the label text.
-   Kept your existing font/color/border-bottom exactly as-is. */
-.section-title {
+.rfe-section-title {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: #29237a;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 2px solid #eef2ff;
+    padding-bottom: 7px;
+    margin-bottom: 16px;
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--adept-indigo);
-    border-bottom: 2px solid #f1f5f9;
-    padding-bottom: 8px;
-    margin-bottom: 20px;
 }
 
-/* NEW: size/color the section-title icons to match the heading text */
-.section-title svg {
-    width: 18px;
-    height: 18px;
-    color: var(--adept-indigo);
+.rfe-section-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    background: #29237a;
+    border-radius: 2px;
     flex-shrink: 0;
 }
 
-.form-group {
-    margin-bottom: 20px;
+/* ── Grid layouts ─────────────────────────────────────────── */
+.rfe-row {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 14px;
 }
 
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
+.rfe-row-2 {
+    grid-template-columns: 1fr 1fr;
+}
+
+/* ── Field group ──────────────────────────────────────────── */
+.rfe-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.rfe-label {
+    font-size: 0.86rem;
+    font-weight: 700;
     color: #475569;
+    letter-spacing: 0.2px;
 }
 
-.form-input {
+/* ── Inputs (Matches TD EXACTLY) ──────────────────────────── */
+.rfe-input {
     width: 100%;
-    padding: 12px;
-    border: 1px solid #cbd5e1;
+    padding: 11px 14px;
+    border: 1.5px solid #e2e8f0;
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.98rem;
+    font-family: inherit;
     background: #f8fafc;
+    color: #1e293b;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
 }
 
-/* ---------- Dropdowns ---------- */
+.rfe-input:focus {
+    outline: none;
+    border-color: #29237a;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
+}
+
+.rfe-input::placeholder {
+    color: #b0b8c8;
+    font-style: italic;
+}
+
+/* ── Custom Selects (re-mapped to look like rfe-input) ────── */
 .custom-select {
     position: relative;
     width: 100%;
@@ -221,30 +175,25 @@
 
 .custom-select-trigger {
     width: 100%;
-    padding: 12px 14px;
-    border: 1px solid #cbd5e1;
+    padding: 11px 14px;
+    border: 1.5px solid #e2e8f0;
     border-radius: 8px;
     background: #f8fafc;
     display: flex;
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.98rem;
     color: #1e293b;
-    text-align: left;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.placeholder-text {
-    color: #94a3b8;
-}
-
-.chevron {
-    transition: transform 0.15s ease;
-    color: #64748b;
-}
-
-.chevron-up {
-    transform: rotate(180deg);
+.custom-select-trigger:focus,
+.custom-select-trigger:active {
+    outline: none;
+    border-color: #29237a;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
 }
 
 .custom-select-menu {
@@ -252,10 +201,10 @@
     top: calc(100% + 4px);
     left: 0;
     right: 0;
-    background: #fff;
-    border: 1px solid var(--adept-border);
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
     border-radius: 8px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 8px 24px rgba(41, 35, 122, 0.12);
     max-height: 220px;
     overflow-y: auto;
     z-index: 20;
@@ -267,143 +216,290 @@
     gap: 10px;
     padding: 10px 14px;
     cursor: pointer;
-    font-weight: 400;
-    color: #334155;
+    font-size: 0.9rem;
+    color: #1e293b;
 }
 
 .custom-select-option:hover {
-    background: #f1f5f9;
+    background: #f8faff;
+    color: #29237a;
 }
 
-.custom-select-empty {
-    padding: 12px 14px;
-    color: #94a3b8;
-    font-size: 0.9rem;
-}
-
-.native-select {
-    width: 100%;
-    padding: 12px 14px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    background: #f8fafc;
-    font-size: 1rem;
-    color: #1e293b;
-    appearance: none;
-}
-
-/* ---------- Toggle button pairs ---------- */
+/* ── Toggle button pairs ─────────────────────────────────── */
 .toggle-pair {
     display: flex;
-    gap: 16px;
+    gap: 12px;
 }
 
 .toggle-btn {
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
-    border: 1px solid #cbd5e1;
+    gap: 9px;
+    padding: 11px 16px;
+    border: 1.5px solid #e2e8f0;
     border-radius: 8px;
     background: #f8fafc;
     cursor: pointer;
-    font-weight: 600;
-    color: #475569;
-    font-size: 0.95rem;
+    font-weight: 700;
+    color: #64748b;
+    font-size: 0.9rem;
+    transition: all 0.15s ease;
 }
 
 .toggle-btn-active {
-    border-color: var(--adept-indigo);
+    border-color: #29237a;
     background: #eef2ff;
-    color: var(--adept-indigo);
+    color: #29237a;
 }
 
 .toggle-checkbox {
     width: 18px;
     height: 18px;
-    border: 1px solid #cbd5e1;
+    border: 1.5px solid #cbd5e1;
     border-radius: 4px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 0.75rem;
-    background: #fff;
+    background: #ffffff;
+    color: transparent;
 }
 
 .toggle-btn-active .toggle-checkbox {
-    border-color: var(--adept-indigo);
-    background: var(--adept-indigo);
+    border-color: #29237a;
+    background: #29237a;
     color: #fff;
 }
 
-/* ---------- Action taken / archive box ---------- */
-.return-archive-box {
-    background: #f5f3ff;
-    border: 1px solid #ddd6fe;
-    border-radius: 10px;
-    padding: 20px;
-    margin-top: 16px;
-}
-
-.return-archive-label {
-    color: #6d28d9;
-    font-weight: 700;
-    margin-bottom: 16px;
-}
-
-/* ---------- Signature block ---------- */
-.signature-block {
-    text-align: right;
-    margin-top: 32px;
-}
-
-.signature-name {
-    font-weight: 700;
-    color: #1e293b;
-    border-top: 1px solid #94a3b8;
-    display: inline-block;
-    padding-top: 6px;
-    margin-top: 40px;
-}
-
-.signature-title {
-    color: #64748b;
-    font-size: 0.85rem;
-    margin-right: 35px;
-}
-
-/* ---------- Footer ---------- */
-.form-footer {
-    padding: 24px 32px;
-    background: #f8fafc;
-    border-top: 1px solid var(--adept-border);
+/* ── Footer ─────────────────────────────────────────────────── */
+.rfe-footer {
+    padding: 16px 32px;
     display: flex;
-    justify-content: flex-end;
-    gap: 16px;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    flex-shrink: 0;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.btn-proceed {
+    background: linear-gradient(135deg, #29237a 0%, #3730a3 100%);
+    color: #ffffff;
+    padding: 10px 24px;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(41, 35, 122, 0.30);
+    transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.btn-proceed:hover {
+    box-shadow: 0 6px 20px rgba(41, 35, 122, 0.40);
+    transform: translateY(-1px);
 }
 
 .btn-submit {
-    background: var(--adept-indigo);
-    color: white;
-    padding: 12px 32px;
-    border: none;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1.5px solid #e2e8f0;
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.btn-submit:hover:not(:disabled) {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+/* ── Warnings / Notice ─────────────────────────────────────── */
+.form-reuse-notice {
+    background: #fffbeb;
+    border: 1.5px solid #fde68a;
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 0.85rem;
+    color: #92400e;
+    margin: 0 32px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.form-reuse-notice strong {
+    font-weight: 800;
+    color: #78350f;
+}
+
+.warning-banner {
+    color: #b91c1c;
+    background: #fee2e2;
+    border: 1.5px solid #fca5a5;
+    padding: 10px 16px;
     border-radius: 8px;
+    margin: 0 32px 16px;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+/* Wrapper for input + clear button */
+.input-with-clear {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* Quick Clear (X) Button */
+.input-clear-btn {
+    position: absolute;
+    right: 8px;
+    background: #f1f5f9;
+    border: none;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    color: #64748b;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.input-clear-btn:hover {
+    background: #e2e8f0;
+    color: #ef4444;
+}
+
+/* Reset New Client Button */
+.btn-reset-form {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 0.75rem;
     font-weight: 700;
     cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: background 0.2s;
 }
 
-.btn-submit:disabled {
-    background: #94a3b8;
+.btn-reset-form:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
-.btn-back,
-.btn-proceed {
-    background: white;
-    border: 1px solid #cbd5e1;
-    padding: 12px 32px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
+/* ── Header icon ───────────────────────────────────────────── */
+.rfe-header-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.85);
+    flex-shrink: 0;
+}
+
+.rfe-header-icon svg {
+    width: 28px;
+    height: 28px;
+}
+
+/* ── Section title icons ───────────────────────────────────── */
+.rfe-section-title svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+/* ── Return / Archive box ──────────────────────────────────── */
+.rfe-return-archive-box {
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-top: 16px;
+}
+
+.rfe-return-archive-label {
+    font-size: 0.88rem;
+    font-weight: 700;
     color: #475569;
+    margin-bottom: 12px;
+}
+
+/* ── Signature block ───────────────────────────────────────── */
+.rfe-signature-block {
+    text-align: center;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1.5px solid #e2e8f0;
+}
+
+.rfe-signature-name {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #1e293b;
+    letter-spacing: 0.3px;
+}
+
+.rfe-signature-title {
+    font-size: 0.82rem;
+    color: #64748b;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+/* ── Template controls ─────────────────────────────────────── */
+.rfe-template-controls {
+    display: flex;
+    gap: 10px;
+    padding: 0 32px 16px;
+}
+
+.rfe-btn-template {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1.5px solid #e2e8f0;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.rfe-btn-template:hover {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+
+/* ── Native select (for SingleSelectDropdown) ──────────────── */
+.native-select {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.98rem;
+    font-family: inherit;
+    background: #f8fafc;
+    color: #1e293b;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+    appearance: auto;
+    cursor: pointer;
+}
+
+.native-select:focus {
+    outline: none;
+    border-color: #29237a;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
 }

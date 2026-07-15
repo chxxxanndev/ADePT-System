@@ -937,3 +937,19 @@ textarea.td-input {
         margin: 1cm;
     }
 }
+
+/* Submit & Add Another Button */
+.td-btn-add-another,
+.lh-btn-add-another {
+    background: #eef2ff;
+    color: #3730a3;
+    border: 1.5px solid #c7d2fe;
+}
+
+.td-btn-add-another:hover:not(:disabled),
+.lh-btn-add-another:hover:not(:disabled) {
+    background: #e0e7ff;
+    border-color: #a5b4fc;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(55, 48, 163, 0.15);
+}

@@ -4,16 +4,16 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
 let supabase = null;
 let useMock = true;
 
-if (supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('placeholder')) {
+if (supabaseUrl && supabaseKey && !supabaseUrl.includes('placeholder')) {
   try {
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
+    supabase = createClient(supabaseUrl, supabaseKey);
     useMock = false;
-    console.log('Successfully initialized Supabase connection.');
+    console.log('Successfully initialized Supabase connection using ' + (process.env.SUPABASE_SERVICE_ROLE_KEY ? 'service role key' : 'anon key') + '.');
   } catch (error) {
     console.error('Failed to initialize Supabase. Falling back to Mock mode.', error.message);
   }
