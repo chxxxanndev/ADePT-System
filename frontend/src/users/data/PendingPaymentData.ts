@@ -10,6 +10,14 @@ export const pendingPaymentData: PendingPaymentRequest[] = [
         amountDue: 40,
         dateRequested: '07/16/2026',
         status: 'Awaiting Payment',
+        documentKey: 'tax-declaration',
+        formSummary: {
+            title: 'Declaration of Real Property',
+            ownerName: 'Juan Dela Cruz',
+            propertyIndexNumber: '050-21-0004-002-30',
+            taxDeclarationNumber: '21-0004-00082',
+            notes: ['Owner address: Purok 5, Gutalac, Zamboanga del Norte', 'Taxability: TAXABLE'],
+        },
     },
     {
         controlNumber: 'LH-2026-020',
@@ -18,6 +26,18 @@ export const pendingPaymentData: PendingPaymentRequest[] = [
         amountDue: 120,
         dateRequested: '07/20/2026',
         status: 'Awaiting Payment',
+        documentKey: 'certificate-land-holding',
+        formSummary: {
+            title: 'Certificate of Landholding',
+            declarantName: 'Juana Dela Cruz',
+            ownershipType: 'Single owner',
+            properties: [
+                { label: 'TD/ARP No.', value: '03-0004-00123' },
+                { label: 'Location', value: 'Poblacion, Gutalac' },
+                { label: 'Lot No.', value: '62-C' },
+                { label: 'Assessed Value', value: 'PHP 250,000.00' },
+            ],
+        },
     },
     {
         controlNumber: 'NLH-2026-025',
@@ -26,6 +46,14 @@ export const pendingPaymentData: PendingPaymentRequest[] = [
         amountDue: 80,
         dateRequested: '07/23/2026',
         status: 'Awaiting Payment',
+        documentKey: 'certificate-no-landholding',
+        formSummary: {
+            title: 'Certificate of No Landholding',
+            declarantName: 'Jose Dela Cruz',
+            pronoun: 'His',
+            propertyCount: 'Singular',
+            notes: ['No real property declared in his name per office records.'],
+        },
     },
 ];
 

@@ -32,13 +32,15 @@ const STATUS_MODIFIER: Record<PendingPaymentRequest['status'], string> = {
     'Awaiting Payment': 'pp-badge--awaiting',
     Paid: 'pp-badge--paid',
     Overdue: 'pp-badge--overdue',
+    'Pending Validation': 'pp-badge--awaiting',
+    Voided: 'pp-badge--overdue',
 };
 
 // ─────────────────────────────────────────────────────────────
 // Props
 // ─────────────────────────────────────────────────────────────
 interface PendingPaymentProps {
-    
+    payments?: PendingPaymentRequest[];
     onSelectPayment: (payment: PendingPaymentRequest) => void;
     /** Display name shown in the page header. TODO: wire up to the logged-in user. */
     userName?: string;
@@ -50,6 +52,7 @@ interface PendingPaymentProps {
 // Component
 // ─────────────────────────────────────────────────────────────
 export function PendingPayment({
+    payments: externalPayments,
     onSelectPayment,
     userName = 'Vicente Desoy',
     userDate = 'July 10, 2026',
@@ -57,10 +60,14 @@ export function PendingPayment({
     const [payments, setPayments] = useState<PendingPaymentRequest[]>([]);
 
     useEffect(() => {
+        if (externalPayments) {
+            setPayments(externalPayments);
+            return;
+        }
         // Mock data for now -- swap for a real call once the endpoint exists, e.g.
         // requestService.getPendingPayments().then(setPayments);
         setPayments(pendingPaymentData);
-    }, []);
+    }, [externalPayments]);
 
     const handleRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, payment: PendingPaymentRequest) => {
         if (event.key === 'Enter' || event.key === ' ') {

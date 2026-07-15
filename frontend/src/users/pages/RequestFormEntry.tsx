@@ -303,24 +303,6 @@ export function RequestFormEntry({
         };
     }, []);
 
-    // Builds the CompletedEntryData payload handed up to Dashboard so the
-    // Request Processing views (Tax Declaration / Landholding / No Landholding)
-    // have real entry data instead of the preview-mode fallback.
-    // TODO: swap requestId for the real ID once requestService.submitRequest()
-    // returns one from the backend.
-    const buildCompletedEntryData = (): CompletedEntryData => ({
-        requestId: formData.referenceNumber,
-        referenceNumber: formData.referenceNumber,
-        declarantName: formData.declarantName,
-        requestedByName: formData.requestedByName,
-        requestDate: formData.requestDate,
-        purposeId: formData.purposeId,
-        documentTypeIds: formData.documentTypeIds,
-        actionTaken: formData.actionTaken,
-        authRequired: formData.authRequired,
-        propertyLocation: formData.propertyLocation,
-    });
-
     // Mapping of document type IDs to processing view keys (fallback if name mapping fails)
     const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
         'dt1': 'tax-declaration', // Certified True Copy of the Latest Tax Declaration
