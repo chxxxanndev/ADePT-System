@@ -3,6 +3,7 @@ import type { User } from '../../../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../../../types/taxDeclaration';
 import type { NoLandholdingFormData, PronounType, PropertyCountType } from '../../../types/noLandholding';
 import { EMPTY_NO_LANDHOLDING_FORM } from '../../../types/noLandholding';
+import { requestService } from '../../../services/requestService';
 import '../../../styles/LandholdingCertificate.css';
 
 // ─────────────────────────────────────────────────────────────
@@ -81,6 +82,7 @@ interface NoLandholdingCertificateFormProps {
     entryData: CompletedEntryData;
     onBack: () => void;
     onBackToDashboard: () => void;
+    onAddAnother: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -91,6 +93,7 @@ export function NoLandholdingCertificateForm({
     entryData,
     onBack,
     onBackToDashboard,
+    onAddAnother,
 }: NoLandholdingCertificateFormProps) {
     const [form, setForm] = useState<NoLandholdingFormData>(() => ({
         ...EMPTY_NO_LANDHOLDING_FORM(),
@@ -112,7 +115,7 @@ export function NoLandholdingCertificateForm({
         setForm((prev) => ({ ...prev, [field]: value }));
 
     // ── Save ──
-    const handleSave = async (finalize = false) => {
+    const handleSave = async (action: 'draft' | 'finalize' | 'add_another') => {
         if (!form.declarantName.trim()) {
             setSaveError('Declarant / Owner Name is required.');
             return;
@@ -122,16 +125,34 @@ export function NoLandholdingCertificateForm({
         try {
             // TODO: wire to a real noLandholdingService.save() when backend is ready.
             await new Promise((res) => setTimeout(res, 800));
-            setSaved(true);
-            if (finalize) {
-                setTimeout(() => onBackToDashboard(), 1800);
+
+            // SETBACK 5 FIXED (Zombie Drafts):
+            // If finalizing, update the parent request status to PENDING_PAYMENT
+            if (action !== 'draft') {
+                await requestService.updateRequest(entryData.requestId, {
+                    declarantName: entryData.declarantName,
+                    requestedByName: entryData.requestedByName,
+                    requestDate: entryData.requestDate,
+                    authRequired: entryData.authRequired,
+                    purposeId: entryData.purposeId,
+                    documentTypeIds: entryData.documentTypeIds,
+                    actionTaken: entryData.actionTaken,
+                    status: 'PENDING_PAYMENT'
+                });
             }
+
+            setSaved(true);
+            setTimeout(() => {
+                if (action === 'finalize') onBackToDashboard();
+                else if (action === 'add_another') onAddAnother();
+            }, 1500);
         } catch (err: any) {
             setSaveError(err?.response?.data?.error || 'Failed to save. Please try again.');
         } finally {
             setSaving(false);
         }
     };
+
 
     const handlePrint = () => window.print();
 
@@ -628,30 +649,16 @@ export function NoLandholdingCertificateForm({
                             </button>
                         </div>
                         <div className="lh-footer-right">
-                            <button
-                                type="button"
-                                id="nlh-btn-print"
-                                className="lh-btn lh-btn-print"
-                                onClick={handlePrint}
-                            >
+                            <button type="button" className="lh-btn lh-btn-print" onClick={handlePrint}>
                                 🖨 Print Certificate
                             </button>
-                            <button
-                                type="button"
-                                id="nlh-btn-draft"
-                                className="lh-btn lh-btn-draft"
-                                onClick={() => handleSave(false)}
-                                disabled={saving}
-                            >
+                            <button type="button" className="lh-btn lh-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>
                                 {saving ? <span className="lh-spinner" /> : '💾'} Save Entry
                             </button>
-                            <button
-                                type="button"
-                                id="nlh-btn-submit"
-                                className="lh-btn lh-btn-submit"
-                                onClick={() => handleSave(true)}
-                                disabled={saving}
-                            >
+                            <button type="button" className="lh-btn lh-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving}>
+                                {saving ? <span className="lh-spinner" /> : '+'} Submit & Add Another
+                            </button>
+                            <button type="button" className="lh-btn lh-btn-submit" onClick={() => handleSave('finalize')} disabled={saving}>
                                 {saving ? <span className="lh-spinner" /> : '✓'} Finalize & Submit
                             </button>
                         </div>

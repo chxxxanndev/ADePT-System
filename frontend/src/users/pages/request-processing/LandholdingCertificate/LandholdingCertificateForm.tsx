@@ -6,6 +6,7 @@ import {
     EMPTY_LANDHOLDING_FORM,
     EMPTY_LANDHOLDING_ROW,
 } from '../../../types/landholding';
+import { requestService } from '../../../services/requestService';
 import '../../../styles/LandholdingCertificate.css';
 
 // ─────────────────────────────────────────────────────────────
@@ -71,6 +72,7 @@ interface LandholdingCertificateFormProps {
     entryData: CompletedEntryData;
     onBack: () => void;
     onBackToDashboard: () => void;
+    onAddAnother: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -163,6 +165,7 @@ export function LandholdingCertificateForm({
     entryData,
     onBack,
     onBackToDashboard,
+    onAddAnother,
 }: LandholdingCertificateFormProps) {
     const [form, setForm] = useState<LandholdingFormData>(() => ({
         ...EMPTY_LANDHOLDING_FORM(),
@@ -201,7 +204,7 @@ export function LandholdingCertificateForm({
         }));
 
     // ── Save ──
-    const handleSave = async (finalize = false) => {
+    const handleSave = async (action: 'draft' | 'finalize' | 'add_another') => {
         if (!form.declarantName.trim()) {
             setSaveError('Declarant / Owner Name is required.');
             return;
@@ -216,10 +219,27 @@ export function LandholdingCertificateForm({
             // TODO: wire to a real landholdingService.save() when backend is ready.
             // For now, simulate a successful save with a short delay.
             await new Promise((res) => setTimeout(res, 800));
-            setSaved(true);
-            if (finalize) {
-                setTimeout(() => onBackToDashboard(), 1800);
+
+            // SETBACK 5 FIXED (Zombie Drafts):
+            // If finalizing, update the parent request status to PENDING_PAYMENT
+            if (action !== 'draft') {
+                await requestService.updateRequest(entryData.requestId, {
+                    declarantName: entryData.declarantName,
+                    requestedByName: entryData.requestedByName,
+                    requestDate: entryData.requestDate,
+                    authRequired: entryData.authRequired,
+                    purposeId: entryData.purposeId,
+                    documentTypeIds: entryData.documentTypeIds,
+                    actionTaken: entryData.actionTaken,
+                    status: 'PENDING_PAYMENT'
+                });
             }
+
+            setSaved(true);
+            setTimeout(() => {
+                if (action === 'finalize') onBackToDashboard();
+                else if (action === 'add_another') onAddAnother();
+            }, 1500);
         } catch (err: any) {
             setSaveError(err?.response?.data?.error || 'Failed to save. Please try again.');
         } finally {
@@ -742,30 +762,16 @@ export function LandholdingCertificateForm({
                             </button>
                         </div>
                         <div className="lh-footer-right">
-                            <button
-                                type="button"
-                                id="lh-btn-print"
-                                className="lh-btn lh-btn-print"
-                                onClick={handlePrint}
-                            >
+                            <button type="button" className="lh-btn lh-btn-print" onClick={handlePrint}>
                                 🖨 Print Certificate
                             </button>
-                            <button
-                                type="button"
-                                id="lh-btn-draft"
-                                className="lh-btn lh-btn-draft"
-                                onClick={() => handleSave(false)}
-                                disabled={saving}
-                            >
+                            <button type="button" className="lh-btn lh-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>
                                 {saving ? <span className="lh-spinner" /> : '💾'} Save Entry
                             </button>
-                            <button
-                                type="button"
-                                id="lh-btn-submit"
-                                className="lh-btn lh-btn-submit"
-                                onClick={() => handleSave(true)}
-                                disabled={saving}
-                            >
+                            <button type="button" className="lh-btn lh-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving}>
+                                {saving ? <span className="lh-spinner" /> : '+'} Submit & Add Another
+                            </button>
+                            <button type="button" className="lh-btn lh-btn-submit" onClick={() => handleSave('finalize')} disabled={saving}>
                                 {saving ? <span className="lh-spinner" /> : '✓'} Finalize & Submit
                             </button>
                         </div>

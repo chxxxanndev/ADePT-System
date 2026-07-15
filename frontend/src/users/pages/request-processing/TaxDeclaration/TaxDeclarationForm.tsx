@@ -54,6 +54,7 @@ interface TaxDeclarationFormProps {
     entryData: CompletedEntryData;
     onBack: () => void;
     onBackToDashboard: () => void;
+    onAddAnother: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -175,7 +176,7 @@ function AssessmentRowItem({
 // ─────────────────────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────────────────────
-export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard }: TaxDeclarationFormProps) {
+export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard, onAddAnother }: TaxDeclarationFormProps) {
     const [form, setForm] = useState<TaxDeclarationFormData>(() => ({
         ...EMPTY_TAX_DECLARATION(),
         // Pre-fill from request entry data
@@ -282,27 +283,38 @@ export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard 
         }));
 
     // ── Save / Submit ──
-    const handleSave = async (finalize = false) => {
-        if (!form.taxDeclarationNumber) {
-            setSaveError('Assessment of Real Property No. is required.');
-            return;
-        }
-        if (!form.ownerName) {
-            setSaveError('Owner Name is required.');
-            return;
-        }
-        setSaveError('');
+    const handleSave = async (action: 'draft' | 'finalize' | 'add_another') => {
+        // ... keep your validation checks here ...
+
         setSaving(true);
         try {
+            // Save Document to database
             await taxDeclarationService.save(
                 { ...form, taxability: form.taxability },
                 entryData.requestId,
                 user.id,
             );
-            setSaved(true);
-            if (finalize) {
-                setTimeout(() => onBackToDashboard(), 1800);
+
+            // SETBACK 5 FIXED (Zombie Drafts):
+            // If finalizing, update the parent request status to PENDING_PAYMENT
+            if (action !== 'draft') {
+                await requestService.updateRequest(entryData.requestId, {
+                    declarantName: entryData.declarantName,
+                    requestedByName: entryData.requestedByName,
+                    requestDate: entryData.requestDate,
+                    authRequired: entryData.authRequired,
+                    purposeId: entryData.purposeId,
+                    documentTypeIds: entryData.documentTypeIds,
+                    actionTaken: entryData.actionTaken,
+                    status: 'PENDING_PAYMENT'
+                });
             }
+
+            setSaved(true);
+            setTimeout(() => {
+                if (action === 'finalize') onBackToDashboard();
+                else if (action === 'add_another') onAddAnother();
+            }, 1500);
         } catch (err: any) {
             setSaveError(err?.response?.data?.error || 'Failed to save. Please try again.');
         } finally {
@@ -939,31 +951,18 @@ export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard 
                             </button>
                         </div>
                         <div className="td-footer-right">
-                            <button
-                                type="button"
-                                id="td-btn-print"
-                                className="td-btn td-btn-print"
-                                onClick={handlePrint}
-                            >
+                            <button type="button" className="td-btn td-btn-print" onClick={handlePrint}>
                                 🖨 Print Document
                             </button>
-                            <button
-                                type="button"
-                                id="td-btn-draft"
-                                className="td-btn td-btn-draft"
-                                onClick={() => handleSave(false)}
-                                disabled={saving}
-                            >
+                            <button type="button" className="td-btn td-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>
                                 {saving ? <span className="td-spinner" /> : '💾'} Save Draft
                             </button>
-                            <button
-                                type="button"
-                                id="td-btn-submit"
-                                className="td-btn td-btn-submit"
-                                onClick={() => handleSave(true)}
-                                disabled={saving}
-                            >
-                                {saving ? <span className="td-spinner" /> : '✓'} Finalize &amp; Submit
+                            {/* ✅ NEW ADD ANOTHER BUTTON */}
+                            <button type="button" className="td-btn td-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving}>
+                                {saving ? <span className="td-spinner" /> : '➕'} Submit & Add Another
+                            </button>
+                            <button type="button" className="td-btn td-btn-submit" onClick={() => handleSave('finalize')} disabled={saving}>
+                                {saving ? <span className="td-spinner" /> : '✓'} Finalize & Submit
                             </button>
                         </div>
                     </div>

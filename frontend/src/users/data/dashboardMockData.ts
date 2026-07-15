@@ -67,7 +67,6 @@ export const navSections: NavSection[] = [
         label: 'General',
         items: [
             { label: 'Dashboard', icon: 'dashboard', view: 'dashboard' },
-            { label: 'Request Form Entry', icon: 'newRequest', view: 'new-request' },
         ],
     },
     {
@@ -76,11 +75,7 @@ export const navSections: NavSection[] = [
             {
                 label: 'Document Request',
                 icon: 'requestProcessing',
-                subItems: [
-                    { label: 'Tax Declaration', view: 'tax-declaration' },
-                    { label: 'Certificate of Land Holding', view: 'certificate-land-holding' },
-                    { label: 'Certificate of No Landholding', view: 'certificate-no-landholding' },
-                ],
+                view: 'document-request',
             },
         ],
     },

@@ -1,5 +1,7 @@
 import sealImg from '../../auth-folder/assets/seal.png';
 import logoImg from '../../auth-folder/assets/logo.png';
+// 1. Import the background image so Vite bundles it
+import bgImg from '../../auth-folder/assets/background.jpg';
 import type { View } from '../../auth-folder/types/auth';
 
 interface AuthBannerProps {
@@ -8,7 +10,16 @@ interface AuthBannerProps {
 
 export function AuthBanner({ view }: AuthBannerProps) {
     return (
-        <div className="auth-banner">
+        <div
+            className="auth-banner"
+            // 2. Apply the image and the ADePT blue overlay gradient here inline
+            style={{
+                backgroundImage: `linear-gradient(rgba(41, 35, 122, 0.85), rgba(41, 35, 122, 0.85)), url(${bgImg})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat'
+            }}
+        >
             <div className="banner-content">
                 <div className="banner-header">
                     <div className="header-logos">

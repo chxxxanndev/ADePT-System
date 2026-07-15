@@ -6,7 +6,6 @@ export const navSections: NavSection[] = [
         label: 'GENERAL',
         items: [
             { label: 'Dashboard', icon: 'dashboard', view: 'dashboard' },
-            { label: 'Request Form Entry', icon: 'newRequest', view: 'request-form' },
         ],
     },
     {

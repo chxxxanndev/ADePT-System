@@ -45,7 +45,7 @@ class RequestService {
         const { data: municipalities } = await supabase.from('municipalities').select('id, name');
         const { data: barangays } = await supabase.from('barangays').select('id, name, municipality_id');
         const { data: docTypes } = await supabase.from('document_types').select('id, name, prefix');
-        
+
         // Fetch categories and values separately to safely group them
         const { data: categories } = await supabase.from('lookup_categories').select('id, code');
         const { data: values } = await supabase
@@ -119,6 +119,152 @@ class RequestService {
         if (docError) throw docError;
 
         return request;
+    }
+
+    /**
+     * Updates an existing request and its document types
+     */
+    async updateRequest(id, formData) {
+        if (useMock || !supabase) {
+            return { id, ...formData };
+        }
+
+        // 1. Update requests table
+        const updateData = {
+            declarant_name: formData.declarantName,
+            request_date: formData.requestDate,
+            requested_by_name: formData.requestedByName,
+            authorization_required: formData.authRequired,
+            purpose_id: formData.purposeId || null,
+            action_taken: formData.actionTaken || 'PENDING',
+        };
+
+        if (formData.status) {
+            updateData.status = formData.status;
+        }
+
+        const { data: request, error: reqError } = await supabase
+            .from('requests')
+            .update(updateData)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (reqError) throw reqError;
+
+        // 2. Update document types in request_documents
+        if (formData.documentTypeIds) {
+            // Remove existing links
+            await supabase.from('request_documents').delete().eq('request_id', id);
+
+            // Link new document types
+            const docLinks = formData.documentTypeIds.map(docId => ({
+                request_id: id,
+                document_type_id: docId
+            }));
+
+            const { error: docError } = await supabase.from('request_documents').insert(docLinks);
+            if (docError) throw docError;
+        }
+
+        return request;
+    }
+
+    /**
+     * Deletes a request and all its database dependencies
+     */
+    async deleteRequest(id) {
+        if (useMock || !supabase) {
+            return;
+        }
+
+        // 1. Get all encoded_tax_declarations associated with the request
+        const { data: etds } = await supabase
+            .from('encoded_tax_declarations')
+            .select('id')
+            .eq('request_id', id);
+
+        if (etds && etds.length > 0) {
+            const etdIds = etds.map(e => e.id);
+            // Delete property types
+            await supabase.from('encoded_property_types').delete().in('encoded_tax_declaration_id', etdIds);
+            // Delete assessment rows
+            await supabase.from('encoded_assessment_rows').delete().in('encoded_tax_declaration_id', etdIds);
+            // Delete the tax declarations
+            await supabase.from('encoded_tax_declarations').delete().eq('request_id', id);
+        }
+
+        // 2. Get all request_documents associated with the request
+        const { data: reqDocs } = await supabase
+            .from('request_documents')
+            .select('id')
+            .eq('request_id', id);
+
+        if (reqDocs && reqDocs.length > 0) {
+            const docIds = reqDocs.map(d => d.id);
+            // Delete generated documents
+            await supabase.from('generated_documents').delete().in('request_document_id', docIds);
+            // Delete request documents
+            await supabase.from('request_documents').delete().eq('request_id', id);
+        }
+
+        // 3. Delete request
+        const { error } = await supabase.from('requests').delete().eq('id', id);
+        if (error) throw error;
+    }
+
+    /**
+     * Fetches all requests
+     */
+    async getAllRequests() {
+        if (useMock || !supabase) {
+            // return some mock requests
+            return [
+                {
+                    id: 'r1',
+                    control_number: 'REF-2026-0001',
+                    declarant_name: 'Juan Dela Cruz',
+                    request_date: '2026-07-14',
+                    requested_by_name: 'Juan Dela Cruz',
+                    authorization_required: false,
+                    purpose_id: 'p1',
+                    action_taken: 'APPROVED',
+                    status: 'DRAFT',
+                    documentTypeIds: ['dt1'],
+                    property_location: 'Pob. Sibutad, Sibutad',
+                },
+                {
+                    id: 'r2',
+                    control_number: 'REF-2026-0002',
+                    declarant_name: 'Maria Clara',
+                    request_date: '2026-07-14',
+                    requested_by_name: 'Ibarra',
+                    authorization_required: true,
+                    purpose_id: 'p2',
+                    action_taken: 'PENDING',
+                    status: 'DRAFT',
+                    documentTypeIds: ['dt2', 'dt3'],
+                    property_location: 'Calamba, Sibutad',
+                }
+            ];
+        }
+
+        const { data, error } = await supabase
+            .from('requests')
+            .select(`
+                *,
+                request_documents (
+                    document_type_id
+                )
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        return data.map(req => ({
+            ...req,
+            documentTypeIds: req.request_documents ? req.request_documents.map(d => d.document_type_id) : []
+        }));
     }
 }
 
