@@ -9,7 +9,6 @@ import { AdminDocumentDistribution } from '../components/AdminDocumentDistributi
 import { AdminRecentActivity } from '../components/AdminRecentActivity';
 import { DashboardFooter } from '../components/AdminDashboardFooter';
 import type { User } from '../../auth-folder/types/auth';
-import AccountRequest from '../pages/AccountRequest';
 
 // User Icon for Access Requests Header
 function ShieldUserIcon({ size = 18 }: { size?: number }) {
@@ -104,24 +103,27 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                 {/* Content container — everything except the footer lives here */}
                 <div className="admin-dashboard-content">
                     {activeView === 'overview' ? (
-                        <>
-                            {/* Access Requests cards */}
-                            <AdminStatsSection
-                                title="Account Access Requests"
-                                items={accessRequests}
-                                sectionIcon={<ShieldUserIcon />}
-                                onRefresh={refreshAccessRequests}
-                                isRefreshing={refreshingAccessRequests}
-                            />
+                        <div className="admin-overview-content">
+                            {/* Both stat sections share one box */}
+                            <div className="admin-stats-panel">
+                                {/* Access Requests cards */}
+                                <AdminStatsSection
+                                    title="Account Access Requests"
+                                    items={accessRequests}
+                                    sectionIcon={<ShieldUserIcon />}
+                                    onRefresh={refreshAccessRequests}
+                                    isRefreshing={refreshingAccessRequests}
+                                />
 
-                            {/* Request Queue cards */}
-                            <AdminStatsSection
-                                title="Document Request Queue"
-                                items={requestQueue}
-                                sectionIcon={<ChainLinkIcon />}
-                                onRefresh={refreshQueue}
-                                isRefreshing={refreshingQueue}
-                            />
+                                {/* Request Queue cards */}
+                                <AdminStatsSection
+                                    title="Document Request Queue"
+                                    items={requestQueue}
+                                    sectionIcon={<ChainLinkIcon />}
+                                    onRefresh={refreshQueue}
+                                    isRefreshing={refreshingQueue}
+                                />
+                            </div>
 
                             {/* Split column grids */}
                             <div className="admin-grid-columns">
@@ -150,9 +152,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                     />
                                 </div>
                             </div>
-                        </>
-                    ) : activeView === 'account-request' ? (
-                    <AccountRequest />
+                        </div>
                     ) : (
                         /* Placeholder views for submenu clicks */
                         <div className="admin-placeholder-view">
