@@ -16,6 +16,7 @@ export interface MockUser {
     password: string;
 }
 
+
 // If you have a View type in this file, keep it
 export type View = 'login' | 'signup' | 'forgot';
 
