@@ -15,7 +15,7 @@ export function DocumentRequestDashboard({
     user: _user,
     onSelectNewRequest,
     onSelectDraft,
-    onSelectDocumentView,
+    onSelectDocumentView: _onSelectDocumentView,
 }: DocumentRequestDashboardProps) {
     const [drafts, setDrafts] = useState<any[]>([]);
     const [metadata, setMetadata] = useState<{ docTypes: any[] }>({ docTypes: [] });

@@ -7,12 +7,10 @@ import '../styles/RequestFormEntry.css';
 // TEMP: extending RequestFormData locally until these fields are added to the
 // real requestService.ts interface. Confirm with backend before relying on this.
 interface ExtendedRequestFormData extends RequestFormData {
-    id?: string;
     propertyLocation: string;
     releasingStaffId: string;
     releaseDate: string;
     referenceNumber: string;
-    purposeOtherText: string;
 }
 
 interface RequestFormEntryProps {
@@ -160,96 +158,9 @@ function SingleSelectDropdown({
     );
 }
 
-// Searchable/typeahead combobox — used for property location, since that
-// list can grow to dozens of barangays and a plain <select> gets unwieldy.
-function SearchableSelectDropdown({
-    options,
-    value,
-    onChange,
-    placeholder,
-}: {
-    options: { id: string; name: string }[];
-    value: string;
-    onChange: (id: string) => void;
-    placeholder: string;
-}) {
-    const [open, setOpen] = useState(false);
-    const [query, setQuery] = useState('');
-    const ref = useRef<HTMLDivElement>(null);
-
-    const selected = options.find((o) => o.id === value);
-
-    // Keep the visible input text in sync with the selected option
-    // whenever the value changes from outside (e.g. form reset, prefill).
-    useEffect(() => {
-        setQuery(selected ? selected.name : '');
-    }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    useEffect(() => {
-        const handleClick = (e: MouseEvent) => {
-            if (ref.current && !ref.current.contains(e.target as Node)) {
-                setOpen(false);
-                // Snap back to the last valid selection's label if the user
-                // typed something and clicked away without picking a match.
-                setQuery(selected ? selected.name : '');
-            }
-        };
-        document.addEventListener('mousedown', handleClick);
-        return () => document.removeEventListener('mousedown', handleClick);
-    }, [selected]);
-
-    const filtered =
-        query.trim() === ''
-            ? options
-            : options.filter((o) =>
-                o.name.toLowerCase().includes(query.trim().toLowerCase())
-            );
-
-    const handleSelect = (opt: { id: string; name: string }) => {
-        onChange(opt.id);
-        setQuery(opt.name);
-        setOpen(false);
-    };
-
-    return (
-        <div className="custom-select" ref={ref}>
-            <input
-                className="rfe-input"
-                type="text"
-                placeholder={placeholder}
-                value={query}
-                onChange={(e) => {
-                    setQuery(e.target.value);
-                    setOpen(true);
-                    // Typing something that no longer matches the current
-                    // selection clears it, so stale ids can't get submitted.
-                    if (selected && e.target.value !== selected.name) {
-                        onChange('');
-                    }
-                }}
-                onFocus={() => setOpen(true)}
-            />
-            {open && (
-                <div className="custom-select-menu">
-                    {filtered.length === 0 && (
-                        <div className="custom-select-empty">No matches found</div>
-                    )}
-                    {filtered.map((opt) => (
-                        <div
-                            key={opt.id}
-                            className="custom-select-option"
-                            onClick={() => handleSelect(opt)}
-                        >
-                            {opt.name}
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-}
-
 // Small inline icon set for section headers — kept dependency-free.
+// Each SVG now has explicit width/height to prevent them from filling
+// their container when CSS doesn't constrain them.
 const PersonIcon = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="8" r="4" />
@@ -268,6 +179,7 @@ const ClipboardIcon = () => (
         <path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1M9 10h6M9 14h6M9 18h3" />
     </svg>
 );
+// Larger variant for the card header
 const ClipboardIconLarge = () => (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <rect x="5" y="4" width="14" height="17" rx="2" />
@@ -275,6 +187,8 @@ const ClipboardIconLarge = () => (
     </svg>
 );
 
+// Default options for "May I/We request for:" — used until/unless the
+// backend metadata endpoint returns its own docTypes list (see fetchMeta below).
 const DEFAULT_DOCUMENT_TYPES = [
     { id: 'ctc-latest-tax-dec', name: 'Certified True Copy of the Latest Tax Declaration' },
     { id: 'ctc-old-tax-dec', name: 'Certified True Copy of Old Tax Declaration' },
@@ -282,6 +196,9 @@ const DEFAULT_DOCUMENT_TYPES = [
     { id: 'cert-no-property', name: 'Certificate of No Property/Landholding' },
 ];
 
+// PLACEHOLDER: maps a document type's display name to the view/page it
+// should proceed to. Swap these view keys for your real route names once
+// they're finalized.
 const DOCUMENT_TYPE_VIEW_MAP: Record<string, string> = {
     'Certified True Copy of the Latest Tax Declaration': 'tax-declaration',
     'Certified True Copy of Latest Tax Declaration': 'tax-declaration',
@@ -304,20 +221,18 @@ export function RequestFormEntry({
         docTypes: any[];
         purposes: any[];
         staff: any[];
-        propertyLocations: { id: string; name: string }[];
     }>({
         docTypes: DEFAULT_DOCUMENT_TYPES,
         purposes: [],
         staff: [],
-        propertyLocations: [],
     });
+    // New state for template handling and validation
     const [validationError, setValidationError] = useState<string>('');
     const [hasSavedTemplate, setHasSavedTemplate] = useState<boolean>(false);
 
     const [formData, setFormData] = useState<ExtendedRequestFormData>({
         declarantName: '',
         requestedByName: '',
-        purposeOtherText: '',
         requestDate: new Date().toISOString().split('T')[0],
         purposeId: '',
         documentTypeIds: [],
@@ -334,7 +249,6 @@ export function RequestFormEntry({
             setFormData((prev) => ({
                 ...prev,
                 ...prefilledRequestData,
-                id: prefilledRequestData.id || prefilledRequestData.requestId || prev.id,
                 referenceNumber: prefilledRequestData.referenceNumber || prefilledRequestData.control_number || `REF-${new Date().getFullYear()}-0000`,
                 declarantName: prefilledRequestData.declarantName || prefilledRequestData.declarant_name || '',
                 requestedByName: prefilledRequestData.requestedByName || prefilledRequestData.requested_by_name || '',
@@ -348,10 +262,12 @@ export function RequestFormEntry({
                 documentTypeIds: prefilledRequestData.documentTypeIds || [],
             }));
         }
+        // Check for saved template on component mount
         const saved = localStorage.getItem('requestFormTemplate');
         if (saved) setHasSavedTemplate(true);
     }, [prefilledRequestData]);
 
+    // Used in the form header subtitle
     const today = new Date().toLocaleDateString('en-US', {
         month: 'long',
         day: 'numeric',
@@ -364,24 +280,17 @@ export function RequestFormEntry({
             try {
                 const data = await requestService.getMetadata();
                 if (isMounted && data) {
-                    const municipalityMap: Record<string, string> = {};
-                    (data.municipalities ?? []).forEach((m: any) => {
-                        municipalityMap[m.id] = m.name;
-                    });
-
-                    const propertyLocations = (data.barangays ?? []).map((b: any) => ({
-                        id: b.id,
-                        name: `${b.name}, ${municipalityMap[b.municipality_id] ?? ''}`.replace(/,\s*$/, ''),
-                    }));
-
                     setMetadata({
                         docTypes:
                             Array.isArray(data.docTypes) && data.docTypes.length > 0
                                 ? data.docTypes
                                 : DEFAULT_DOCUMENT_TYPES,
                         purposes: Array.isArray(data.purposes) ? data.purposes : [],
+                        // TODO(confirm): backend /api/requests/metadata does not
+                        // guarantee a `staff` array in the current requestService.ts.
+                        // Falls back to [] if absent — "Releasing Staff" dropdown
+                        // will be empty until the backend adds this.
                         staff: Array.isArray((data as any).staff) ? (data as any).staff : [],
-                        propertyLocations,
                     });
                 }
             } catch (err) {
@@ -394,25 +303,31 @@ export function RequestFormEntry({
         };
     }, []);
 
+    // Mapping of document type IDs to processing view keys (fallback if name mapping fails)
     const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
-        'dt1': 'tax-declaration',
-        'dt2': 'tax-declaration',
-        'dt3': 'certificate-land-holding',
-        'dt4': 'certificate-no-landholding',
+        'dt1': 'tax-declaration', // Certified True Copy of the Latest Tax Declaration
+        'dt2': 'tax-declaration', // Certified True Copy of Old Tax Declaration
+        'dt3': 'certificate-land-holding', // Certificate of Property/Landholding
+        'dt4': 'certificate-no-landholding', // Certificate of No Property/Landholding
     };
 
     const handleProceedToDocument = async () => {
+        // Basic required fields validation
         if (!formData.declarantName || !formData.requestedByName || !formData.requestDate || formData.documentTypeIds.length === 0) {
             setValidationError('Please fill out all required fields before proceeding.');
             return;
         }
         setValidationError('');
-
+        // Only the first selected document type is used to decide where to go.
         const selectedId = formData.documentTypeIds[0];
         const selectedDoc = metadata.docTypes.find((d) => d.id === selectedId);
+        // Determine target view using ID map directly (more reliable)
         let view: string | undefined;
         if (selectedDoc) {
+            // 1. Try explicit ID map or Name map
             view = DOCUMENT_TYPE_ID_VIEW_MAP[selectedDoc.id] || DOCUMENT_TYPE_VIEW_MAP[selectedDoc.name];
+
+            // 2. Try substring mapping if the exact match fails (handles dynamic database items)
             if (!view) {
                 const nameLower = selectedDoc.name.toLowerCase();
                 if (nameLower.includes('tax declaration') || nameLower.includes('tax dec')) {
@@ -433,9 +348,11 @@ export function RequestFormEntry({
         try {
             let savedRequest;
             if (formData.id) {
+                // Update existing request (typo fix!)
                 const res = await requestService.updateRequest(formData.id, formData);
                 savedRequest = res.data || res;
             } else {
+                // Create new request in database
                 const res = await requestService.submitRequest(formData, user.id);
                 savedRequest = res.data || res;
             }
@@ -443,12 +360,14 @@ export function RequestFormEntry({
             const actualRequestId = savedRequest?.id || formData.id || formData.referenceNumber;
             const actualReferenceNumber = savedRequest?.control_number || savedRequest?.referenceNumber || formData.referenceNumber;
 
+            // Update local form state with final database values
             setFormData(prev => ({
                 ...prev,
                 id: actualRequestId,
                 referenceNumber: actualReferenceNumber
             }));
 
+            // Save entry data then navigate
             onEntryComplete({
                 requestId: actualRequestId,
                 referenceNumber: actualReferenceNumber,
@@ -462,7 +381,8 @@ export function RequestFormEntry({
                 propertyLocation: formData.propertyLocation,
             });
 
-            setTimeout(() => onNavigateToProcessing(view as string), 0);
+            // Slight async tick to ensure state propagation before view change
+            setTimeout(() => onNavigateToProcessing(view), 0);
         } catch (err: any) {
             console.error('Failed to save request:', err);
             alert(err.response?.data?.error || 'Failed to save request. Please try again.');
@@ -472,6 +392,7 @@ export function RequestFormEntry({
     };
 
     const handleSaveDraft = async () => {
+        // SETBACK 1 & 5 FIXED (Forgiving Drafts): Allow saving as long as AT LEAST ONE name is typed.
         if (!formData.declarantName && !formData.requestedByName) {
             return alert('Please enter at least the Requester or Declarant name to save a draft.');
         }
@@ -491,7 +412,7 @@ export function RequestFormEntry({
                     }));
                 }
             }
-            onCancel();
+            onCancel(); // Goes back to Request Hub
         } catch (err: any) {
             alert(err.response?.data?.error || 'Submit failed');
         } finally {
@@ -504,7 +425,6 @@ export function RequestFormEntry({
             setFormData({
                 declarantName: '',
                 requestedByName: '',
-                purposeOtherText: '',
                 requestDate: new Date().toISOString().split('T')[0],
                 purposeId: '',
                 documentTypeIds: [],
@@ -524,6 +444,7 @@ export function RequestFormEntry({
             <div className="rfe-page-inner">
                 <div className="rfe-card">
 
+                    {/* ── Card header ── */}
                     <div className="rfe-card-header">
                         <div className="rfe-card-header-left">
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -540,14 +461,17 @@ export function RequestFormEntry({
                         </div>
                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                             <span className="rfe-ref-chip">{formData.referenceNumber}</span>
+                            {/* ✅ NEW RESET BUTTON */}
                             <button className="btn-reset-form" onClick={handleResetForm} title="Start fresh for a new client">
                                 ↻ New Client
                             </button>
                         </div>
                     </div>
 
+                    {/* ── Form body ── */}
                     <div className="rfe-form-body">
 
+                        {/* ══ SECTION 1: Declarant Details ══ */}
                         <div className="rfe-section">
                             <div className="rfe-section-title">
                                 <PersonIcon />
@@ -556,7 +480,7 @@ export function RequestFormEntry({
 
                             <div className="rfe-field">
                                 <label className="rfe-label">Name of Declarant</label>
-                                <div className="input-with-clear">
+                                <div className="input-with-clear"> {/* ✅ WRAPPER FOR CLEAR BTN */}
                                     <input
                                         className="rfe-input"
                                         type="text"
@@ -566,6 +490,7 @@ export function RequestFormEntry({
                                             setFormData({ ...formData, declarantName: e.target.value })
                                         }
                                     />
+                                    {/* ✅ QUICK CLEAR BUTTON */}
                                     {formData.declarantName && (
                                         <button
                                             type="button"
@@ -581,8 +506,8 @@ export function RequestFormEntry({
 
                             <div className="rfe-field" style={{ marginTop: 14 }}>
                                 <label className="rfe-label">Location of the Property</label>
-                                <SearchableSelectDropdown
-                                    options={metadata.propertyLocations}
+                                <SingleSelectDropdown
+                                    options={[]} // TODO: wire to a barangay/municipality data source
                                     value={formData.propertyLocation}
                                     onChange={(val) =>
                                         setFormData({ ...formData, propertyLocation: val })
@@ -632,6 +557,7 @@ export function RequestFormEntry({
                             </div>
                         </div>
 
+                        {/* ══ SECTION 2: Request Details ══ */}
                         <div className="rfe-section">
                             <div className="rfe-section-title">
                                 <PlusCircleIcon />
@@ -661,23 +587,9 @@ export function RequestFormEntry({
                                     placeholder="Select Reason / Purpose..."
                                 />
                             </div>
-
-                            {metadata.purposes.find((p) => p.id === formData.purposeId)?.code === 'OTHERS' && (
-                                <div className="rfe-field" style={{ marginTop: 14 }}>
-                                    <label className="rfe-label">Please specify</label>
-                                    <input
-                                        className="rfe-input"
-                                        type="text"
-                                        placeholder="Specify your reason..."
-                                        value={formData.purposeOtherText}
-                                        onChange={(e) =>
-                                            setFormData({ ...formData, purposeOtherText: e.target.value })
-                                        }
-                                    />
-                                </div>
-                            )}
                         </div>
 
+                        {/* ══ SECTION 3: Action Taken ══ */}
                         <div className="rfe-section">
                             <div className="rfe-section-title">
                                 <ClipboardIcon />
@@ -735,6 +647,7 @@ export function RequestFormEntry({
                                 </div>
                             </div>
 
+                            {/* NOTE: hardcoded per mockup */}
                             <div className="rfe-signature-block">
                                 <div className="rfe-signature-name">ENGR. VICENTE P. DESOY, REA</div>
                                 <div className="rfe-signature-title">PROVINCIAL ASSESSOR</div>
@@ -742,6 +655,7 @@ export function RequestFormEntry({
                         </div>
                     </div>
 
+                    {/* ── Reuse advisory ── */}
                     <div className="form-reuse-notice">
                         <div className="form-reuse-notice-icon">💡</div>
                         <div className="form-reuse-notice-text">
@@ -751,6 +665,7 @@ export function RequestFormEntry({
                         </div>
                     </div>
 
+                    {/* ── Template controls ── */}
                     <div className="rfe-template-controls">
                         <button className="rfe-btn-template" onClick={() => {
                             localStorage.setItem('requestFormTemplate', JSON.stringify(formData));
@@ -764,10 +679,12 @@ export function RequestFormEntry({
                         )}
                     </div>
 
+                    {/* ── Validation Warning ── */}
                     {validationError && (
                         <div className="warning-banner" role="alert">{validationError}</div>
                     )}
 
+                    {/* ── Footer ── */}
                     <div className="rfe-footer">
                         <button
                             className="btn-submit"

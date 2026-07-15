@@ -1,5 +1,7 @@
+import { useEffect, useRef, useState } from 'react';
 import { SearchIcon, CalendarIcon, ChevronDownIcon, MenuIcon } from '../../users/components/icons';
 import type { User } from '../../auth-folder/types/auth';
+import { CalendarPicker } from './Calendarpicker';
 
 interface AdminHeaderProps {
     user: User;
@@ -7,6 +9,30 @@ interface AdminHeaderProps {
     setSearchQuery: (query: string) => void;
     dateFilter: string;
     onToggleMobileMenu: () => void;
+    // Optional — wire this up once useAdminDashboard exposes a setter for dateFilter.
+    // Until then the dropdown just tracks its own selection locally.
+    onDateFilterChange?: (period: string) => void;
+}
+
+const PERIOD_OPTIONS = [
+    'Today',
+    'Yesterday',
+    'This Week',
+    'Last Week',
+    'This Month',
+    'Last Month',
+    'This Quarter',
+    'Last Quarter',
+    'This Year',
+    'Custom Range...',
+];
+
+function formatShort(date: Date) {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function isSameDate(a: Date, b: Date) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
 export function AdminHeader({
@@ -14,10 +40,47 @@ export function AdminHeader({
     searchQuery,
     setSearchQuery,
     dateFilter,
-    onToggleMobileMenu
+    onToggleMobileMenu,
+    onDateFilterChange
 }: AdminHeaderProps) {
     const fullName = `${user.firstName || 'Mommy'} ${user.lastName || 'Dionisia'}`;
     const initials = `${user.firstName?.[0] || 'M'}${user.lastName?.[0] || 'D'}`;
+
+    const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+    // 'list' shows the period options, 'calendar' shows the custom range picker
+    const [view, setView] = useState<'list' | 'calendar'>('list');
+    const dateDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close the dropdown when clicking outside of it
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dateDropdownRef.current && !dateDropdownRef.current.contains(event.target as Node)) {
+                setDateDropdownOpen(false);
+                setView('list');
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    function handleSelectPeriod(period: string) {
+        if (period === 'Custom Range...') {
+            setView('calendar');
+            return;
+        }
+        onDateFilterChange?.(period);
+        setDateDropdownOpen(false);
+        setView('list');
+    }
+
+    function handleApplyRange(start: Date, end: Date) {
+        const label = isSameDate(start, end)
+            ? formatShort(start)
+            : `${formatShort(start)} \u2013 ${formatShort(end)}`;
+        onDateFilterChange?.(label);
+        setDateDropdownOpen(false);
+        setView('list');
+    }
 
     return (
         <header className="admin-header">
@@ -78,11 +141,38 @@ export function AdminHeader({
                     />
                 </div>
 
-                <button className="date-selector-btn" onClick={() => console.log('Toggle date selector modal')}>
-                    <CalendarIcon size={16} />
-                    <span>{dateFilter}</span>
-                    <ChevronDownIcon size={14} />
-                </button>
+                <div className="date-selector-wrapper" ref={dateDropdownRef}>
+                    <button
+                        className="date-selector-btn"
+                        onClick={() => setDateDropdownOpen((prev) => !prev)}
+                        type="button"
+                    >
+                        <CalendarIcon size={16} />
+                        <span>Dashboard Period: <strong>{dateFilter}</strong></span>
+                        <ChevronDownIcon size={14} />
+                    </button>
+
+                    {dateDropdownOpen && view === 'list' && (
+                        <div className="period-dropdown">
+                            {PERIOD_OPTIONS.map((period) => (
+                                <button
+                                    key={period}
+                                    type="button"
+                                    className={`date-selector-option ${period === dateFilter ? 'active' : ''}`}
+                                    onClick={() => handleSelectPeriod(period)}
+                                >
+                                    {period}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {dateDropdownOpen && view === 'calendar' && (
+                        <div className="period-dropdown period-dropdown-calendar">
+                            <CalendarPicker onApply={handleApplyRange} onCancel={() => setView('list')} />
+                        </div>
+                    )}
+                </div>
             </div>
         </header>
     );

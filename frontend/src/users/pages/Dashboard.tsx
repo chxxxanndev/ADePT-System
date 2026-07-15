@@ -11,6 +11,8 @@ import { LandholdingCertificateForm } from './request-processing/LandholdingCert
 import { NoLandholdingCertificateForm } from './request-processing/NoLandholdingCertificate/NoLandholdingCertificateForm';
 import { PendingPayment } from './PendingPayment';
 import { PaymentDetails } from './PaymentDetails';
+import { OrValidationPage } from './payment-flow/OrValidationPage';
+import { VoidAmendPage } from './payment-flow/VoidAmendPage';
 import { DocumentRequestDashboard } from './DocumentRequestDashboard';
 import { requestService } from '../services/requestService';
 import { RequestGuard } from '../components/RequestGuard';
@@ -23,6 +25,7 @@ import type { User } from '../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../types/taxDeclaration';
 import type { AccountUser, AccountSettingsFormData } from '../types/accountSettings';
 import type { PendingPaymentRequest } from '../types/PendingPayment';
+import { pendingPaymentData } from '../data/PendingPaymentData';
 
 import {
     navSections,
@@ -75,6 +78,9 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
     /** Holds the row selected from Pending Payment, read by PaymentDetails. */
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
+    const [pendingPayments, setPendingPayments] = useState<PendingPaymentRequest[]>(() => pendingPaymentData);
+    const [validationQueue, setValidationQueue] = useState<PendingPaymentRequest[]>([]);
+    const [voidAmendQueue, setVoidAmendQueue] = useState<PendingPaymentRequest[]>([]);
 
     /** Holds draft or prefilled data to pass to RequestFormEntry. */
     const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
@@ -160,6 +166,33 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         setActiveView('payment-details');
     };
 
+    const handleProceedToPayment = (payment: PendingPaymentRequest) => {
+        setPendingPayments((current) => current.filter((item) => item.controlNumber !== payment.controlNumber));
+        setValidationQueue((current) => [
+            { ...payment, status: 'Pending Validation' },
+            ...current,
+        ]);
+        setSelectedPayment({ ...payment, status: 'Pending Validation' });
+        setActiveView('or-validation');
+    };
+
+    const handleVoidPayment = (payment: PendingPaymentRequest) => {
+        setPendingPayments((current) => current.filter((item) => item.controlNumber !== payment.controlNumber));
+        setVoidAmendQueue((current) => [
+            { ...payment, status: 'Voided' },
+            ...current,
+        ]);
+        setSelectedPayment({ ...payment, status: 'Voided' });
+        setActiveView('void-amend');
+    };
+
+    const handleUpdateValidationQueue = (updatedPayment: PendingPaymentRequest) => {
+        setValidationQueue((current) => current.map((item) => item.controlNumber === updatedPayment.controlNumber ? updatedPayment : item));
+        if (selectedPayment?.controlNumber === updatedPayment.controlNumber) {
+            setSelectedPayment(updatedPayment);
+        }
+    };
+
     const handleAddAnother = () => {
         if (completedEntryData) {
             // SETBACK 4 FIXED (Sticky Blindness): Keep names, but clear doc type AND location.
@@ -208,6 +241,9 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         || activeView === 'no-land-holding'
         || activeView === 'account-settings'
         || activeView === 'pending-payment'
+        || activeView === 'payment-details'
+        || activeView === 'or-validation'
+        || activeView === 'void-amend'
         || activeView === 'document-request';
 
     // Only the entry-form views route to RequestFormEntry.
@@ -358,11 +394,30 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                         />
 
                     ) : activeView === 'pending-payment' ? (
-                        <PendingPayment onSelectPayment={handleSelectPayment} />
+                        <PendingPayment
+                            payments={pendingPayments}
+                            onSelectPayment={handleSelectPayment}
+                        />
 
                     ) : activeView === 'payment-details' ? (
                         <PaymentDetails
                             payment={selectedPayment}
+                            onBack={() => setActiveView('pending-payment')}
+                            onProceedToPayment={handleProceedToPayment}
+                            onVoidPayment={handleVoidPayment}
+                        />
+
+                    ) : activeView === 'or-validation' ? (
+                        <OrValidationPage
+                            documents={validationQueue}
+                            selectedDocument={selectedPayment}
+                            onBack={() => setActiveView('pending-payment')}
+                            onUpdateDocument={handleUpdateValidationQueue}
+                        />
+
+                    ) : activeView === 'void-amend' ? (
+                        <VoidAmendPage
+                            documents={voidAmendQueue}
                             onBack={() => setActiveView('pending-payment')}
                         />
 
