@@ -9,6 +9,7 @@ import { AdminDocumentDistribution } from '../components/AdminDocumentDistributi
 import { AdminRecentActivity } from '../components/AdminRecentActivity';
 import { DashboardFooter } from '../components/AdminDashboardFooter';
 import type { User } from '../../auth-folder/types/auth';
+import AccountRequest from '../pages/AccountRequest';
 
 // User Icon for Access Requests Header
 function ShieldUserIcon({ size = 18 }: { size?: number }) {
@@ -150,6 +151,8 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                 </div>
                             </div>
                         </>
+                    ) : activeView === 'account-request' ? (
+                    <AccountRequest />
                     ) : (
                         /* Placeholder views for submenu clicks */
                         <div className="admin-placeholder-view">
