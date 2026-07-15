@@ -681,7 +681,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 7px;
     gap: 12px;
 }
 
@@ -732,13 +732,17 @@
 }
 
 .recent-transaction-header-pill {
-    background-color:  #B39DF3;
+    background-color: #B39DF3;
     color: var(--admin-primary);
     padding: 6px 14px;
     border-radius: 8px;
-    font-size: 20px;
-    font-weight: 700;
+    border-radius: 8px;
+    font-size: 15px;
     box-shadow: none;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+    margin-bottom: 20px;
 }
 
 .recent-transaction-tab {
@@ -886,14 +890,17 @@
 
 /* --- STAFF PERFORMANCE STYLING --- */
 .staff-performance-pill {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     width: fit-content;
     background-color: #B39DF3;
     color: var(--admin-primary);
     padding: 6px 16px;
     border-radius: 8px;
-    font-size: 20px;
+    font-size: 15px;
     font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
     margin-bottom: 20px;
 }
 
@@ -948,14 +955,18 @@
 }
 
 .staff-perf-req-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background-color: #B9E0C4;
     color: #1E5C33;
     font-size: 13px;
     font-weight: 700;
-    padding: 8px 20px;
+    padding: 8px 0;
     border-radius: 999px;
     text-align: center;
-    min-width: 110px;
+    width: 116px;
+    flex-shrink: 0;
 }
 
 /* --- DOCUMENT DISTRIBUTION --- */
@@ -1097,9 +1108,9 @@
 }
 
 .activity-color-block {
-    width: 25px;
-    height: 25px;
-    border-radius: 11px;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
     flex-shrink: 0;
 }
 
@@ -1152,89 +1163,6 @@
 
 .activity-full-log-btn:hover {
     background-color: #CFD8DC;
-}
-
-/* --- ADMIN FOOTER --- */
-.admin-footer {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    background-color: var(--admin-sidebar-bg);
-    color: rgba(255, 255, 255, 0.7);
-    border-top: none;
-    border-radius: 20px;
-    padding: 24px 28px;
-    margin-top: 10px;
-    font-size: 13px;
-}
-
-.admin-footer-main {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 24px;
-}
-
-.admin-footer-logo-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 6px;
-}
-
-.admin-footer-logo {
-    width: 28px;
-    height: 28px;
-    object-fit: contain;
-    border-radius: 50%;
-    background: #ffffff;
-    padding: 3px;
-}
-
-.admin-footer-title {
-    font-size: 15px;
-    font-weight: 850;
-    color: #ffffff;
-}
-
-.admin-footer-v {
-    font-size: 11px;
-    background-color: rgba(255, 255, 255, 0.12);
-    color: #ffffff;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 700;
-}
-
-.admin-footer-left,
-.admin-footer-right {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.admin-footer-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 550;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.admin-footer-icon {
-    display: flex;
-    align-items: center;
-    color: rgba(255, 255, 255, 0.85);
-}
-
-.admin-footer-copyright {
-    text-align: center;
-    font-size: 12px;
-    border-top: 1px dashed rgba(255, 255, 255, 0.15);
-    padding-top: 14px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.55);
 }
 
 /* Mobile responsive menu layout overlay */
@@ -1290,6 +1218,101 @@
 
 .admin-placeholder-view-btn:hover {
     background-color: var(--admin-primary-hover);
+}
+
+/* --- DASHBOARD FOOTER (standalone component) --- */
+.dashboard-footer {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--admin-sidebar-bg);
+    color: rgba(255, 255, 255, 0.7);
+    padding: 24px 28px;
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+.dashboard-footer-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 24px;
+}
+
+.footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.footer-brand-logo {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+    padding: 4px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.footer-brand-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.footer-brand-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.footer-brand-title {
+    font-size: 15px;
+    font-weight: 850;
+    color: #ffffff;
+}
+
+.footer-brand-tagline {
+    font-size: 12.5px;
+    color: rgba(255, 255, 255, 0.65);
+    font-weight: 550;
+}
+
+.footer-office {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    text-align: right;
+}
+
+.footer-office-name {
+    font-weight: 700;
+    color: #ffffff;
+    font-size: 13.5px;
+}
+
+.footer-office-location {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12.5px;
+    font-weight: 550;
+}
+
+.footer-copyright {
+    text-align: center;
+    font-size: 12px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.15);
+    padding-top: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
 }
 
 /* --- RESPONSIVE STYLES --- */
@@ -1360,8 +1383,13 @@
         max-width: 100%;
     }
 
-    .admin-footer-main {
+    .dashboard-footer-top {
         flex-direction: column;
         gap: 16px;
+    }
+
+    .footer-office {
+        align-items: flex-start;
+        text-align: left;
     }
 }
