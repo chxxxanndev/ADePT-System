@@ -8,7 +8,9 @@ export interface RequestFormData {
     authRequired: boolean;
     purposeId: string;
     documentTypeIds: string[];
-    actionTaken: string; // This is the property TypeScript is looking for
+    actionTaken: string;
+    releasingStaffId?: string;
+    releaseDate?: string;
     status?: string;
 }
 
@@ -20,15 +22,10 @@ export const requestService = {
         return response.data;
     },
 
-    getRequests: async () => {
-        const response = await axios.get(API_BASE_URL);
-        return response.data;
-    },
-
     submitRequest: async (formData: RequestFormData, staffAuthId: string) => {
         const response = await axios.post(API_BASE_URL, {
             ...formData,
-            staffAuthId
+            staffAuthId,
         });
         return response.data;
     },
@@ -37,9 +34,4 @@ export const requestService = {
         const response = await axios.put(`${API_BASE_URL}/${id}`, formData);
         return response.data;
     },
-
-    deleteRequest: async (id: string) => {
-        const response = await axios.delete(`${API_BASE_URL}/${id}`);
-        return response.data;
-    }
 };
