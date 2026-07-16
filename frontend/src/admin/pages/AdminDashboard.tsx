@@ -12,6 +12,7 @@ import type { User } from '../../auth-folder/types/auth';
 import AccountRequest from '../pages/AccountRequest';
 import { StaffAccounts } from '../pages/StaffAccounts';
 import { RequestQueue } from '../pages/RequestQueue';
+import { AdminReports } from '../pages/AdminReports';
 
 // User Icon for Access Requests Header
 function ShieldUserIcon({ size = 18 }: { size?: number }) {
@@ -94,8 +95,8 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
 
            {/* Main Panel */}
             <main className="admin-dashboard-main">
-                {/* Header — hidden on Staff Accounts, which has its own search bar */}
-                {activeView !== 'staff-accounts' && activeView !== 'request-queue' && (
+                {/* Header — hidden on views that render their own header */}
+                {activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && (
                     <AdminHeader
                         user={user}
                         searchQuery={searchQuery}
@@ -168,6 +169,8 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                         />
                     ) : activeView === 'request-queue' ? (
                         <RequestQueue user={user} />
+                    ) : activeView === 'reports-analytics' ? (
+                        <AdminReports user={user} />
                     ) : (
                         /* Placeholder views for submenu clicks */
                         <div className="admin-placeholder-view">
