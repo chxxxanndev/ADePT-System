@@ -91,16 +91,18 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                 setMobileOpen={setMobileMenuOpen}
             />
 
-            {/* Main Panel */}
+           {/* Main Panel */}
             <main className="admin-dashboard-main">
-                {/* Header */}
-                <AdminHeader
-                    user={user}
-                    searchQuery={searchQuery}
-                    setSearchQuery={setSearchQuery}
-                    dateFilter={dateFilter}
-                    onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
-                />
+                {/* Header — hidden on Staff Accounts, which has its own search bar */}
+                {activeView !== 'staff-accounts' && (
+                    <AdminHeader
+                        user={user}
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
+                        dateFilter={dateFilter}
+                        onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    />
+                )}
 
                 {/* Content container — everything except the footer lives here */}
                 <div className="admin-dashboard-content">
