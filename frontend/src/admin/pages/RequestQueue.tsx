@@ -44,8 +44,7 @@ export function RequestQueue({ user }: RequestQueueProps) {
 
     const fullName = `${user.firstName || 'Vicente'} ${user.lastName || 'Desoy'}`;
     const initials = `${user.firstName?.[0] || 'V'}${user.lastName?.[0] || 'D'}`;
-    const roleLabel = user.role === 'SUPER_ADMIN' ? 'Super admin' : user.role === 'OFFICE_STAFF' ? 'Office staff' : user.role || 'Super admin';
-
+    const roleLabel = user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : user.role || 'Super Admin';
     const countFor = (status: RequestStatus) => requests.filter((r) => r.status === status).length;
 
     const tabs: { key: TabKey; label: string; count: number | null }[] = [
@@ -69,40 +68,41 @@ export function RequestQueue({ user }: RequestQueueProps) {
 
     return (
         <div className="request-queue-page">
-            {/* Header */}
-            <div className="rq-header-row">
-                <div className="rq-header-title-group">
-                    <h1 className="rq-page-title">Request queue</h1>
-                    <p className="rq-page-subtitle">Track citizen document requests from submission to release.</p>
-                </div>
-
-                <div className="rq-header-actions">
-                    <div className="rq-search-wrapper">
-                        <input
-                            type="text"
-                            className="rq-search-input"
-                            placeholder="Search records"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                        <span className="rq-search-icon">
-                            <SearchIcon size={16} />
-                        </span>
+            {/* Page header */}
+            <div className="rq-page-header">
+                <div className="rq-page-header-row">
+                    <div>
+                        <h1 className="rq-page-title">Request Queue</h1>
+                        <p className="rq-page-subtitle">Track citizen document requests from submission to release.</p>
                     </div>
 
-                    {/* TODO: wire up to a real date-range control, mirroring AdminHeader's period dropdown */}
-                    <button type="button" className="rq-date-btn">
-                        <span>Today</span>
-                        <ChevronDownIcon size={14} />
-                    </button>
-
-                    <div className="rq-profile-compact">
-                        <div className="rq-profile-avatar">{initials}</div>
-                        <div className="rq-profile-info">
-                            <span className="rq-profile-name">{fullName}</span>
-                            <span className="rq-profile-role">{roleLabel}</span>
+                    <div className="admin-profile-widget">
+                        <div className="profile-widget-avatar-container">
+                            {initials}
+                        </div>
+                        <div className="profile-widget-info">
+                            <span className="profile-widget-name">{fullName}</span>
+                            <span className="profile-widget-email">{user.email || 'provincialassessor@gmail.com'}</span>
+                            <div className="profile-widget-meta">
+                                <span className="profile-widget-role">{roleLabel}</span>
+                                <span>Last Login : Today • 8:12 AM</span>
+                            </div>
                         </div>
                     </div>
+                </div>
+
+                {/* Search bar */}
+                <div className="rq-search-wrapper">
+                    <input
+                        type="text"
+                        className="rq-search-input"
+                        placeholder="Search"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <span className="rq-search-icon">
+                        <SearchIcon size={16} />
+                    </span>
                 </div>
             </div>
 
