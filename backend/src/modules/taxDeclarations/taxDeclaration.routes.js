@@ -1,5 +1,5 @@
 import express from 'express';
-import { createTaxDeclaration, getTaxDeclaration } from '../controllers/taxDeclaration.controller.js';
+import { createTaxDeclaration, getTaxDeclaration } from './taxDeclaration.controller.js';
 
 const router = express.Router();
 
