@@ -194,6 +194,8 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 <QuickActions actions={quickActions} onSelect={setActiveView} />
                             </div>
                         </>
+                    ) : activeView === 'reports' ? (
+                        <Reports />
                     ) : isRequestFormView ? (
                         <RequestFormEntry user={user} onCancel={handleCancelEntry} onEntryComplete={handleEntryComplete} onNavigateToProcessing={handleNavigateToProcessing} prefilledRequestData={prefilledRequestData} />
                     ) : activeView === 'tax-declaration' || activeView === 'tax-dec' ? (
@@ -239,7 +241,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                         <PaymentDetails
                             payment={selectedPayment}
                             onBack={() => setActiveView('pending-payment')}
-                            onEditDocument={(controlNumber) => {
+                            onEditDocument={(_controlNumber) => {
                                 if (selectedPayment?.documentType.toLowerCase().includes('landholding')) setActiveView('certificate-land-holding');
                                 else if (selectedPayment?.documentType.toLowerCase().includes('no landholding')) setActiveView('certificate-no-landholding');
                                 else setActiveView('tax-declaration');
