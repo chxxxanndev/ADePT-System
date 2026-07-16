@@ -12,6 +12,7 @@ export interface RequestFormData {
     releasingStaffId?: string;
     releaseDate?: string;
     status?: string;
+    propertyLocation?: string;
 }
 
 const API_BASE_URL = 'http://localhost:5000/api/requests';
@@ -19,6 +20,12 @@ const API_BASE_URL = 'http://localhost:5000/api/requests';
 export const requestService = {
     getMetadata: async () => {
         const response = await axios.get(`${API_BASE_URL}/metadata`);
+        return response.data;
+    },
+
+    // ADD THIS FUNCTION
+    getRequests: async () => {
+        const response = await axios.get(API_BASE_URL);
         return response.data;
     },
 
@@ -34,4 +41,10 @@ export const requestService = {
         const response = await axios.put(`${API_BASE_URL}/${id}`, formData);
         return response.data;
     },
+
+    // ADD THIS FUNCTION
+    deleteRequest: async (id: string) => {
+        const response = await axios.delete(`${API_BASE_URL}/${id}`);
+        return response.data;
+    }
 };
