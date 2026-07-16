@@ -14,7 +14,7 @@ import { PaymentDetails } from './PaymentDetails';
 import { OrValidationPage } from './payment-flow/OrValidationPage';
 import { VoidAmendPage } from './payment-flow/VoidAmendPage';
 import { DocumentRequestDashboard } from './DocumentRequestDashboard';
-import { Reports } from './Reports';
+import Reports from './Reports';
 import { requestService } from '../services/requestService';
 import { RequestGuard } from '../components/RequestGuard';
 import { DashboardSummary } from '../components/StatCard';
@@ -350,7 +350,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 entryData={completedEntryData}
                                 onBack={() => setActiveView('new-request')}
                                 onBackToDashboard={() => setActiveView('dashboard')}
-                                onAddAnother={handleAddAnother} /* ✅ ADDED TO LANDHOLDING */
+                                onAddAnother={handleAddAnother} /*  ADDED TO LANDHOLDING */
                             />
                         ) : (
                             <RequestGuard
