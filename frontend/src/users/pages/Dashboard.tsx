@@ -14,6 +14,7 @@ import { PaymentDetails } from './PaymentDetails';
 import { OrValidationPage } from './payment-flow/OrValidationPage';
 import { VoidAmendPage } from './payment-flow/VoidAmendPage';
 import { DocumentRequestDashboard } from './DocumentRequestDashboard';
+import { Reports } from './Reports';
 import { requestService } from '../services/requestService';
 import { RequestGuard } from '../components/RequestGuard';
 import { DashboardSummary } from '../components/StatCard';
@@ -420,6 +421,9 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                             documents={voidAmendQueue}
                             onBack={() => setActiveView('pending-payment')}
                         />
+
+                    ) : activeView === 'reports' ? (
+                        <Reports />
 
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
