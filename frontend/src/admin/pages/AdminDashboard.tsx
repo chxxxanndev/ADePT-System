@@ -159,8 +159,9 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                         </div>
                     ) : activeView === 'account-request' ? (
                         <AccountRequest />
-                    ) : activeView === 'staff-accounts' ? (
+                   ) : activeView === 'staff-accounts' ? (
                         <StaffAccounts
+                            user={user}
                             onAddStaff={() => console.log('TODO: open add-staff flow')}
                             onManageStaff={(staffId) => console.log('TODO: manage staff', staffId)}
                         />
