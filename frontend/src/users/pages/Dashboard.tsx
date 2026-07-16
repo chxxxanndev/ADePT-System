@@ -213,8 +213,9 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 user={user}
                                 entryData={completedEntryData}
                                 onBack={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')}
-                                onAddAnother={handleAddAnother} /* ✅ ADDED TO LANDHOLDING */
+                                onBackToDashboard={() => setActiveView('dashboard')} // Fallback
+                                onGoToPendingPayments={() => setActiveView('pending-payment')} // THIS TRIGGERS THE REDIRECT
+                                onAddAnother={handleAddAnother}
                             />
                         ) : (
                             <RequestGuard
@@ -250,7 +251,6 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 else setActiveView('tax-declaration');
                             }}
                         />
-
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
                             <h2>{VIEW_LABELS[activeView] ?? activeView}</h2>

@@ -95,7 +95,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
            {/* Main Panel */}
             <main className="admin-dashboard-main">
                 {/* Header — hidden on Staff Accounts, which has its own search bar */}
-                {activeView !== 'staff-accounts' && (
+                {activeView !== 'staff-accounts' && activeView !== 'request-queue' && (
                     <AdminHeader
                         user={user}
                         searchQuery={searchQuery}
