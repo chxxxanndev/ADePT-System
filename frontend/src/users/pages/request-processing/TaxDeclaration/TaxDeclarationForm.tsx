@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { User } from '../../../../auth-folder/types/auth';
 import type { CompletedEntryData, TaxDeclarationFormData, AssessmentRow } from '../../../types/taxDeclaration';
 import { EMPTY_TAX_DECLARATION, EMPTY_ASSESSMENT_ROW } from '../../../types/taxDeclaration';
 import { taxDeclarationService } from '../../../services/taxDeclarationService';
 import { requestService } from '../../../services/requestService';
 import '../../../styles/TaxDeclaration.css';
+
 
 const listedVerifiers = [
     "ISAGANI B. EMBOL, REA",
@@ -55,6 +56,77 @@ interface TaxDeclarationFormProps {
     onBack: () => void;
     onBackToDashboard: () => void;
     onAddAnother: () => void;
+}
+
+function SearchableSelectDropdown({
+    options,
+    value,
+    onChange,
+    placeholder,
+}: {
+    options: { id: string; name: string }[];
+    value: string;
+    onChange: (id: string) => void;
+    placeholder: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const ref = useRef<HTMLDivElement>(null);
+
+    const selected = options.find((o) => o.id === value);
+
+    useEffect(() => {
+        setQuery(selected ? selected.name : '');
+    }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) {
+                setOpen(false);
+                setQuery(selected ? selected.name : '');
+            }
+        };
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [selected]);
+
+    const filtered =
+        query.trim() === ''
+            ? options
+            : options.filter((o) => o.name.toLowerCase().includes(query.trim().toLowerCase()));
+
+    const handleSelect = (opt: { id: string; name: string }) => {
+        onChange(opt.id);
+        setQuery(opt.name);
+        setOpen(false);
+    };
+
+    return (
+        <div className="custom-select" ref={ref} style={{ position: 'relative' }}>
+            <input
+                className="td-input"
+                type="text"
+                placeholder={placeholder}
+                value={query}
+                onChange={(e) => {
+                    setQuery(e.target.value);
+                    setOpen(true);
+                    if (selected && e.target.value !== selected.name) onChange('');
+                }}
+                onFocus={() => setOpen(true)}
+            />
+            {open && (
+                <div className="custom-select-menu">
+                    {filtered.length === 0 && <div className="custom-select-empty">No matches found</div>}
+                    {filtered.map((opt) => (
+                        <div key={opt.id} className="custom-select-option" onClick={() => handleSelect(opt)}>
+                            {opt.name}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -190,9 +262,13 @@ export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard,
     const [metadata, setMetadata] = useState<{
         classifications: { id: string; label: string; code: string }[];
         propertyTypes: { id: string; label: string; code: string }[];
+        barangays: { id: string; name: string; municipality_id: string }[];
+        municipalities: { id: string; name: string }[];
     }>({
         classifications: [],
         propertyTypes: [],
+        barangays: [],
+        municipalities: [],
     });
 
     const [signatories, setSignatories] = useState<string[]>([
@@ -216,8 +292,14 @@ export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard,
                 const data = await requestService.getMetadata();
                 if (isMounted && data) {
                     setMetadata({
-                        classifications: Array.isArray(data.classifications) ? data.classifications : [],
-                        propertyTypes: Array.isArray(data.propertyTypes) ? data.propertyTypes : [],
+                        classifications: Array.isArray(data.classifications)
+                            ? data.classifications.map((c: any) => ({ id: c.id, label: c.name, code: c.code }))
+                            : [],
+                        propertyTypes: Array.isArray(data.propertyTypes)
+                            ? data.propertyTypes.map((p: any) => ({ id: p.id, label: p.name, code: p.code }))
+                            : [],
+                        barangays: Array.isArray(data.barangays) ? data.barangays : [],
+                        municipalities: Array.isArray(data.municipalities) ? data.municipalities : [],
                     });
                 }
             } catch (err) {
@@ -225,9 +307,7 @@ export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard,
             }
         };
         fetchMeta();
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, []);
 
     const classificationOptions = metadata.classifications.length > 0 ? metadata.classifications : [
@@ -456,31 +536,29 @@ export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard,
 
                             <div className="td-location-strip">
                                 <div className="td-location-cell">
-                                    <input
-                                        id="td-barangay"
-                                        className="td-input"
-                                        placeholder="Barangay"
-                                        value={form.barangay}
-                                        onChange={(e) => set('barangay', e.target.value)}
+                                    <SearchableSelectDropdown
+                                        options={metadata.barangays
+                                            .filter((b) => !form.municipalityId || b.municipality_id === form.municipalityId)
+                                            .map((b) => ({ id: b.id, name: b.name }))}
+                                        value={form.barangayId}
+                                        onChange={(val) => setForm((prev) => ({ ...prev, barangayId: val }))}
+                                        placeholder="Select Barangay"
                                     />
                                     <span className="td-location-sub">(Barangay)</span>
                                 </div>
                                 <div className="td-location-cell">
-                                    <input
-                                        id="td-municipality"
-                                        className="td-input"
-                                        placeholder="Municipality"
-                                        value={form.municipality}
-                                        onChange={(e) => set('municipality', e.target.value)}
+                                    <SearchableSelectDropdown
+                                        options={metadata.municipalities.map((m) => ({ id: m.id, name: m.name }))}
+                                        value={form.municipalityId}
+                                        onChange={(val) =>
+                                            setForm((prev) => ({ ...prev, municipalityId: val, barangayId: '' }))
+                                        }
+                                        placeholder="Select Municipality"
                                     />
                                     <span className="td-location-sub">(Municipality)</span>
                                 </div>
                                 <div className="td-location-cell td-province-fixed">
-                                    <input
-                                        className="td-input"
-                                        readOnly
-                                        value="ZAMBOANGA DEL NORTE"
-                                    />
+                                    <input className="td-input" readOnly value="ZAMBOANGA DEL NORTE" />
                                     <span className="td-location-sub">(Province)</span>
                                 </div>
                             </div>
