@@ -20,241 +20,37 @@ import {
   ChevronDown,
   Download,
   ListChecks,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import "../styles/ReportsAnalytics.css";
-
-/* ------------------------------------------------------------------ */
-/*  Chart fill colors — SVG fill can't read CSS custom properties,     */
-/*  so recharts needs literal hex values. Keep in sync with the        */
-/*  --color-* tokens defined in ReportsAnalytics.css.                  */
-/* ------------------------------------------------------------------ */
-const CHART_FILL = {
-  secondary: "#00bcd4",
-  truecopy: "#1976d2",
-  error: "#d32f2f",
-  flagged: "#ef6c6c",
-  archived: "#607d8b",
-};
+import {
+  documentsReleased,
+  totalRequests,
+  documentsReleasedTrend,
+  totalRequestsTrend,
+  documentTypeBreakdown,
+  processingQueue,
+  transactionManagement,
+  declarantRecords,
+  type DeclarantStatus,
+} from "../data/reportsMockData";
 
 type Period = "daily" | "weekly" | "monthly";
 
-/* ------------------------------------------------------------------ */
-/*  Mock data — replace with live data from services/                  */
-/* ------------------------------------------------------------------ */
-const SUMMARY: Record<
-  Period,
-  {
-    released: number;
-    requested: number;
-    taxDeclarations: number;
-    landholding: number;
-    noLandholding: number;
-    pendingPayment: number;
-    pendingVerification: number;
-  }
-> = {
-  daily: {
-    released: 42,
-    requested: 58,
-    taxDeclarations: 15,
-    landholding: 20,
-    noLandholding: 22,
-    pendingPayment: 12,
-    pendingVerification: 8,
-  },
-  weekly: {
-    released: 261,
-    requested: 340,
-    taxDeclarations: 96,
-    landholding: 128,
-    noLandholding: 133,
-    pendingPayment: 64,
-    pendingVerification: 41,
-  },
-  monthly: {
-    released: 1084,
-    requested: 1392,
-    taxDeclarations: 402,
-    landholding: 540,
-    noLandholding: 544,
-    pendingPayment: 219,
-    pendingVerification: 157,
-  },
+const PERIOD_LABEL: Record<Period, string> = {
+  daily: "Today",
+  weekly: "This Week",
+  monthly: "This Month",
 };
 
-const REGISTRY_STATUS: Record<
-  Period,
-  { name: string; value: number; color: string }[]
-> = {
-  daily: [
-    { name: "Transaction Registry", value: 58, color: CHART_FILL.secondary },
-    { name: "True Copies", value: 34, color: CHART_FILL.truecopy },
-    { name: "Void & Amended", value: 6, color: CHART_FILL.error },
-    { name: "Flagged", value: 4, color: CHART_FILL.flagged },
-    { name: "Archived", value: 11, color: CHART_FILL.archived },
-  ],
-  weekly: [
-    { name: "Transaction Registry", value: 340, color: CHART_FILL.secondary },
-    { name: "True Copies", value: 198, color: CHART_FILL.truecopy },
-    { name: "Void & Amended", value: 27, color: CHART_FILL.error },
-    { name: "Flagged", value: 19, color: CHART_FILL.flagged },
-    { name: "Archived", value: 63, color: CHART_FILL.archived },
-  ],
-  monthly: [
-    { name: "Transaction Registry", value: 1392, color: CHART_FILL.secondary },
-    { name: "True Copies", value: 812, color: CHART_FILL.truecopy },
-    { name: "Void & Amended", value: 104, color: CHART_FILL.error },
-    { name: "Flagged", value: 77, color: CHART_FILL.flagged },
-    { name: "Archived", value: 258, color: CHART_FILL.archived },
-  ],
-};
-
-type DocStatus =
-  | "Released"
-  | "Pending Payment"
-  | "Pending Verification"
-  | "Voided"
-  | "Flagged"
-  | "Archived";
-
-interface Declarant {
-  reference: string;
-  name: string;
-  initials: string;
-  avatarColor: string;
-  document: string;
-  dateReleased: string;
-  staffReleased: string;
-  encodedBy: string;
-  status: DocStatus;
-}
-
-const DECLARANTS: Declarant[] = [
-  {
-    reference: "TD-2026-04831",
-    name: "Leah Todd",
-    initials: "LT",
-    avatarColor: "#7c6fe8",
-    document: "Tax Declaration",
-    dateReleased: "10 Jul 2026 · 11:21 AM",
-    staffReleased: "Martin Philips",
-    encodedBy: "Ana Marquez",
-    status: "Released",
-  },
-  {
-    reference: "CTC-2026-02342",
-    name: "Allen Hanson",
-    initials: "AH",
-    avatarColor: "#3fb6c7",
-    document: "Certified True Copy",
-    dateReleased: "—",
-    staffReleased: "—",
-    encodedBy: "Ana Marquez",
-    status: "Pending Payment",
-  },
-  {
-    reference: "LH-2026-04791",
-    name: "Harriett Johnson",
-    initials: "HJ",
-    avatarColor: "#e88c4e",
-    document: "Landholding Certificate",
-    dateReleased: "26 Jun 2026 · 04:49 PM",
-    staffReleased: "Josie Ramos",
-    encodedBy: "Dennis Cruz",
-    status: "Released",
-  },
-  {
-    reference: "TD-2026-09437",
-    name: "Oscar Sullivan",
-    initials: "OS",
-    avatarColor: "#5e7ce2",
-    document: "Tax Declaration",
-    dateReleased: "—",
-    staffReleased: "—",
-    encodedBy: "Dennis Cruz",
-    status: "Pending Verification",
-  },
-  {
-    reference: "NLH-2026-05553",
-    name: "Victor Wilkins",
-    initials: "VW",
-    avatarColor: "#4ea8de",
-    document: "No-Landholding Certificate",
-    dateReleased: "11 Jun 2026 · 10:39 AM",
-    staffReleased: "Martin Philips",
-    encodedBy: "Ana Marquez",
-    status: "Released",
-  },
-  {
-    reference: "CTC-2026-05155",
-    name: "Minerva Duncan",
-    initials: "MD",
-    avatarColor: "#9b7fe0",
-    document: "Certified True Copy",
-    dateReleased: "23 May 2026 · 12:18 AM",
-    staffReleased: "Josie Ramos",
-    encodedBy: "Dennis Cruz",
-    status: "Voided",
-  },
-  {
-    reference: "LH-2026-09725",
-    name: "Tom Hanson",
-    initials: "TH",
-    avatarColor: "#63a375",
-    document: "Landholding Certificate",
-    dateReleased: "17 May 2026 · 02:29 PM",
-    staffReleased: "Martin Philips",
-    encodedBy: "Ana Marquez",
-    status: "Released",
-  },
-  {
-    reference: "TD-2026-08169",
-    name: "Sadie Blair",
-    initials: "SB",
-    avatarColor: "#e2698a",
-    document: "Tax Declaration",
-    dateReleased: "—",
-    staffReleased: "—",
-    encodedBy: "Josie Ramos",
-    status: "Flagged",
-  },
-  {
-    reference: "NLH-2026-00423",
-    name: "Sophia Rodriguez",
-    initials: "SR",
-    avatarColor: "#e8a94e",
-    document: "No-Landholding Certificate",
-    dateReleased: "01 Apr 2026 · 05:50 PM",
-    staffReleased: "Dennis Cruz",
-    encodedBy: "Ana Marquez",
-    status: "Archived",
-  },
-  {
-    reference: "CTC-2026-06657",
-    name: "Stanley Moore",
-    initials: "SM",
-    avatarColor: "#5eb6a8",
-    document: "Certified True Copy",
-    dateReleased: "12 Apr 2026 · 07:32 AM",
-    staffReleased: "Josie Ramos",
-    encodedBy: "Dennis Cruz",
-    status: "Released",
-  },
-];
-
-const STATUS_CLASS: Record<DocStatus, string> = {
+const STATUS_CLASS: Record<DeclarantStatus, string> = {
   Released: "status-badge--released",
   "Pending Payment": "status-badge--pending-payment",
   "Pending Verification": "status-badge--pending-verification",
   Voided: "status-badge--voided",
   Flagged: "status-badge--flagged",
   Archived: "status-badge--archived",
-};
-
-const PERIOD_LABEL: Record<Period, string> = {
-  daily: "Today",
-  weekly: "This Week",
-  monthly: "This Month",
 };
 
 /* ------------------------------------------------------------------ */
@@ -283,18 +79,38 @@ function PeriodToggle({
   );
 }
 
+function TrendTag({
+  direction,
+  percentage,
+  comparedTo,
+}: {
+  direction: "up" | "down";
+  percentage: number;
+  comparedTo: string;
+}) {
+  const Icon = direction === "up" ? TrendingUp : TrendingDown;
+  return (
+    <span className={`trend-tag trend-tag--${direction}`}>
+      <Icon size={12} />
+      {percentage}% vs {comparedTo}
+    </span>
+  );
+}
+
 function StatCard({
   icon,
   iconClass,
   label,
   value,
   sublabel,
+  trend,
 }: {
   icon: React.ReactNode;
   iconClass: string;
   label: string;
   value: number;
   sublabel?: string;
+  trend?: { direction: "up" | "down"; percentage: number; comparedTo: string };
 }) {
   return (
     <div className="stat-card">
@@ -306,11 +122,18 @@ function StatCard({
         <span className="stat-value">{value.toLocaleString()}</span>
         {sublabel && <span className="stat-sublabel">{sublabel}</span>}
       </div>
+      {trend && (
+        <TrendTag
+          direction={trend.direction}
+          percentage={trend.percentage}
+          comparedTo={trend.comparedTo}
+        />
+      )}
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: DocStatus }) {
+function StatusBadge({ status }: { status: DeclarantStatus }) {
   return (
     <span className={`status-badge ${STATUS_CLASS[status]}`}>
       <span className="status-dot" />
@@ -324,7 +147,7 @@ function CustomBarTooltip({ active, payload }: any) {
   const item = payload[0];
   return (
     <div className="chart-tooltip">
-      <div className="chart-tooltip-label">{item.payload.name}</div>
+      <div className="chart-tooltip-label">{item.payload.label}</div>
       <div style={{ color: item.payload.color }}>
         {item.value.toLocaleString()} documents
       </div>
@@ -338,20 +161,23 @@ function CustomBarTooltip({ active, payload }: any) {
 export default function Reports() {
   const [period, setPeriod] = useState<Period>("monthly");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"All" | DocStatus>("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | DeclarantStatus>("All");
 
-  const summary = SUMMARY[period];
-  const registryData = REGISTRY_STATUS[period];
+  const taxDeclaration = documentTypeBreakdown.find((d) => d.id === "tax-declaration")!;
+  const landHolding = documentTypeBreakdown.find((d) => d.id === "land-holding")!;
+  const noLandHolding = documentTypeBreakdown.find((d) => d.id === "no-land-holding")!;
+
+  const pendingPayment = processingQueue.find((p) => p.id === "pending-payment")!;
+  const pendingVerification = processingQueue.find((p) => p.id === "pending-verification")!;
 
   const filteredDeclarants = useMemo(() => {
-    return DECLARANTS.filter((d) => {
+    return declarantRecords.filter((d) => {
       const matchesSearch =
         search.trim() === "" ||
-        d.name.toLowerCase().includes(search.toLowerCase()) ||
+        d.declarantName.toLowerCase().includes(search.toLowerCase()) ||
         d.reference.toLowerCase().includes(search.toLowerCase()) ||
-        d.document.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus =
-        statusFilter === "All" || d.status === statusFilter;
+        d.documentRequested.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = statusFilter === "All" || d.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [search, statusFilter]);
@@ -377,35 +203,37 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Documents released / requested / declarations */}
+        {/* Documents released / requested / tax declarations / pending total */}
         <div className="stats-grid">
           <StatCard
             icon={<FileText size={18} />}
             iconClass="stat-icon--primary"
             label="Documents Released"
-            value={summary.released}
+            value={documentsReleased[period]}
             sublabel={PERIOD_LABEL[period]}
+            trend={documentsReleasedTrend}
           />
           <StatCard
             icon={<FileStack size={18} />}
             iconClass="stat-icon--secondary"
             label="Documents Requested"
-            value={summary.requested}
+            value={totalRequests[period]}
             sublabel={PERIOD_LABEL[period]}
+            trend={totalRequestsTrend}
           />
           <StatCard
             icon={<ListChecks size={18} />}
             iconClass="stat-icon--truecopy"
             label="Tax Declarations"
-            value={summary.taxDeclarations}
+            value={taxDeclaration[period]}
             sublabel={PERIOD_LABEL[period]}
           />
           <StatCard
             icon={<ShieldCheck size={18} />}
             iconClass="stat-icon--pending"
             label="Pending Payment + Verification"
-            value={summary.pendingPayment + summary.pendingVerification}
-            sublabel={PERIOD_LABEL[period]}
+            value={pendingPayment.count + pendingVerification.count}
+            sublabel="Live queue"
           />
         </div>
 
@@ -415,53 +243,50 @@ export default function Reports() {
             icon={<MapPin size={18} />}
             iconClass="stat-icon--success"
             label="Landholding Released"
-            value={summary.landholding}
+            value={landHolding[period]}
             sublabel={PERIOD_LABEL[period]}
           />
           <StatCard
             icon={<MapPinOff size={18} />}
             iconClass="stat-icon--secondary"
             label="No-Landholding Released"
-            value={summary.noLandholding}
+            value={noLandHolding[period]}
             sublabel={PERIOD_LABEL[period]}
           />
           <StatCard
             icon={<Clock3 size={18} />}
             iconClass="stat-icon--pending"
             label="Pending Payment"
-            value={summary.pendingPayment}
-            sublabel={PERIOD_LABEL[period]}
+            value={pendingPayment.count}
+            sublabel="Live queue"
           />
           <StatCard
             icon={<Clock3 size={18} />}
             iconClass="stat-icon--pending"
             label="Pending Verification"
-            value={summary.pendingVerification}
-            sublabel={PERIOD_LABEL[period]}
+            value={pendingVerification.count}
+            sublabel="Live queue"
           />
         </div>
 
-        {/* Registry status chart */}
+        {/* Transaction management chart */}
         <div className="chart-card">
           <div className="chart-header">
-            <h2 className="chart-title">
-              Registry &amp; Document Status Overview
-            </h2>
-            <span className="chart-period">{PERIOD_LABEL[period]}</span>
+            <h2 className="chart-title">Transaction &amp; Document Status Overview</h2>
           </div>
           <p className="chart-description">
-            Transaction registry, true copies, void &amp; amended, flagged,
-            and archived documents
+            Transaction registry, certified true copies, void &amp; amended, and
+            archived / flagged documents
           </p>
           <div className="chart-canvas">
             <ResponsiveContainer>
               <BarChart
-                data={registryData}
+                data={transactionManagement}
                 margin={{ top: 8, right: 8, left: -12, bottom: 8 }}
               >
                 <CartesianGrid vertical={false} stroke="rgba(41,35,122,0.08)" />
                 <XAxis
-                  dataKey="name"
+                  dataKey="label"
                   tick={{ fontSize: 11, fill: "#8b8fa3" }}
                   axisLine={{ stroke: "rgba(41,35,122,0.12)" }}
                   tickLine={false}
@@ -476,8 +301,8 @@ export default function Reports() {
                   content={<CustomBarTooltip />}
                   cursor={{ fill: "rgba(41,35,122,0.04)" }}
                 />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]} maxBarSize={56}>
-                  {registryData.map((entry, i) => (
+                <Bar dataKey="count" radius={[8, 8, 0, 0]} maxBarSize={56}>
+                  {transactionManagement.map((entry, i) => (
                     <Cell key={i} fill={entry.color} />
                   ))}
                 </Bar>
@@ -485,16 +310,11 @@ export default function Reports() {
             </ResponsiveContainer>
           </div>
           <div className="chart-legend">
-            {registryData.map((r) => (
-              <div key={r.name} className="legend-item">
-                <span
-                  className="legend-dot"
-                  style={{ backgroundColor: r.color }}
-                />
-                {r.name}
-                <span className="legend-value">
-                  {r.value.toLocaleString()}
-                </span>
+            {transactionManagement.map((r) => (
+              <div key={r.id} className="legend-item">
+                <span className="legend-dot" style={{ backgroundColor: r.color }} />
+                {r.label}
+                <span className="legend-value">{r.count.toLocaleString()}</span>
               </div>
             ))}
           </div>
@@ -524,7 +344,7 @@ export default function Reports() {
                 <select
                   value={statusFilter}
                   onChange={(e) =>
-                    setStatusFilter(e.target.value as "All" | DocStatus)
+                    setStatusFilter(e.target.value as "All" | DeclarantStatus)
                   }
                   className="filter-select"
                 >
@@ -560,16 +380,13 @@ export default function Reports() {
                     <td className="cell-reference">#{d.reference}</td>
                     <td>
                       <div className="declarant-cell">
-                        <div
-                          className="avatar"
-                          style={{ backgroundColor: d.avatarColor }}
-                        >
+                        <div className="avatar" style={{ backgroundColor: d.avatarColor }}>
                           {d.initials}
                         </div>
-                        <span>{d.name}</span>
+                        <span>{d.declarantName}</span>
                       </div>
                     </td>
-                    <td>{d.document}</td>
+                    <td>{d.documentRequested}</td>
                     <td className="cell-muted">{d.dateReleased}</td>
                     <td className="cell-muted">{d.staffReleased}</td>
                     <td className="cell-muted">{d.encodedBy}</td>
@@ -580,9 +397,7 @@ export default function Reports() {
                 ))}
                 {filteredDeclarants.length === 0 && (
                   <tr className="empty-row">
-                    <td colSpan={7}>
-                      No records match your search or filter.
-                    </td>
+                    <td colSpan={7}>No records match your search or filter.</td>
                   </tr>
                 )}
               </tbody>
