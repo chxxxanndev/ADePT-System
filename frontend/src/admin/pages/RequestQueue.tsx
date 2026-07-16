@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import '../styles/RequestQueue.css';
-import { SearchIcon, ChevronDownIcon } from '../components/icons';
+import { SearchIcon } from '../components/icons';
 import type { User } from '../../auth-folder/types/auth';
 
 type RequestStatus = 'Approved' | 'Disapproved' | 'Pending' | 'Certified' | 'Processing';
