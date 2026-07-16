@@ -1,5 +1,5 @@
-import { supabase, useMock } from '../config/supabase.js';
-import { mockUsers } from '../database/mockData.js';
+import { supabase, useMock } from '../../config/supabase.js';
+import { mockUsers } from '../../database/mockData.js';
 
 class AuthService {
   // src/services/auth.service.js

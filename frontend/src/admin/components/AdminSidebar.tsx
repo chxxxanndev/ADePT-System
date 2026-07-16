@@ -67,11 +67,12 @@ export function AdminSidebar({
     return (
         <aside className={`admin-sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
             {/* Brand Logo & Name */}
-            <div className="sidebar-brand-wrapper">
+            <div className={`sidebar-brand-wrapper ${collapsed ? 'collapsed' : ''}`}>
                 <div className="sidebar-brand-info">
                     <img src={logoImg} alt="ADePT Seal" className="sidebar-brand-logo" />
                     {!collapsed && <span className="sidebar-brand-title">ADePT</span>}
                 </div>
+                <div>
                 <button
                     className="sidebar-collapse-trigger"
                     onClick={onToggleCollapse}
@@ -79,6 +80,7 @@ export function AdminSidebar({
                 >
                     <MenuIcon size={18} />
                 </button>
+            </div>
             </div>
 
             {/* Navigation Lists */}
