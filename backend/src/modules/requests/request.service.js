@@ -1,4 +1,4 @@
-import { supabase, useMock } from '../config/supabase.js';
+import { supabase, useMock } from '../../config/supabase.js';
 
 class RequestService {
     async getMetadata() {

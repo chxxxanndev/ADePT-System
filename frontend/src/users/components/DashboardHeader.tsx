@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef  } from 'react';
 import type { UserProfile } from '../types/dashboard';
 import { SearchIcon, MenuIcon, CalendarIcon, UserIcon, PeriodToggleIcon } from './icons';
 
@@ -213,6 +213,21 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange }: Welco
     const [period, setPeriod] = useState(initialPeriod);
     const [open, setOpen] = useState(false);
     const [view, setView] = useState<'list' | 'calendar'>('list');
+    const wrapRef = useRef<HTMLDivElement>(null);
+
+    // Close on outside click — no full-screen backdrop div needed,
+    // so there's nothing that can sit on top of the dropdown and
+    // swallow clicks/scroll (which is what was happening before).
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) {
+                setOpen(false);
+                setView('list');
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const closeDropdown = () => {
         setOpen(false);
@@ -244,7 +259,7 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange }: Welco
                 <input type="text" placeholder="Search by Control No, Declarant, ARP No, OR Number..." />
             </div>
 
-            <div className="period-selector-wrap">
+            <div className="period-selector-wrap" ref={wrapRef}>
                 <button
                     type="button"
                     className="period-selector"
@@ -258,29 +273,29 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange }: Welco
                     <PeriodToggleIcon size={16} className={`period-selector-toggle${open ? ' open' : ''}`} />
                 </button>
 
-                {open && (
-                    <>
-                        <div className="period-dropdown-backdrop" onClick={closeDropdown} />
-                        {view === 'list' ? (
-                            <ul className="period-dropdown" role="listbox">
-                                {PERIOD_OPTIONS.map((opt) => (
-                                    <li
-                                        key={opt}
-                                        role="option"
-                                        aria-selected={opt === period}
-                                        className={`period-dropdown-item${opt === period ? ' active' : ''}`}
-                                        onClick={() => handleSelect(opt)}
-                                    >
-                                        {opt}
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <div className="period-dropdown period-dropdown-calendar">
-                                <CalendarPicker onApply={handleApplyRange} onCancel={() => setView('list')} />
-                            </div>
-                        )}
-                    </>
+                {/* No backdrop div — outside-click is handled via the
+                    document listener above instead, so nothing can
+                    ever overlap and block the dropdown's clicks/scroll. */}
+                {open && view === 'list' && (
+                    <ul className="period-dropdown" role="listbox">
+                        {PERIOD_OPTIONS.map((opt) => (
+                            <li
+                                key={opt}
+                                role="option"
+                                aria-selected={opt === period}
+                                className={`period-dropdown-item${opt === period ? ' active' : ''}`}
+                                onClick={() => handleSelect(opt)}
+                            >
+                                {opt}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+
+                {open && view === 'calendar' && (
+                    <div className="period-dropdown period-dropdown-calendar">
+                        <CalendarPicker onApply={handleApplyRange} onCancel={() => setView('list')} />
+                    </div>
                 )}
             </div>
         </div>

@@ -12,6 +12,7 @@ import { NoLandholdingCertificateForm } from './request-processing/NoLandholding
 import { PendingPayment } from './PendingPayment';
 import { PaymentDetails } from './PaymentDetails';
 import { DocumentRequestDashboard } from './DocumentRequestDashboard';
+import Reports from './Reports';
 import { requestService } from '../services/requestService';
 import { RequestGuard } from '../components/RequestGuard';
 import { DashboardSummary } from '../components/StatCard';

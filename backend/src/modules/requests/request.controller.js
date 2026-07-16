@@ -1,4 +1,4 @@
-import RequestService from '../services/request.service.js';
+import RequestService from '../requests/request.service.js';
 
 export const getFormMetadata = async (req, res) => {
     try {

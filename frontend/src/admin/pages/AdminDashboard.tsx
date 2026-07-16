@@ -11,6 +11,7 @@ import { DashboardFooter } from '../components/AdminDashboardFooter';
 import type { User } from '../../auth-folder/types/auth';
 import AccountRequest from '../pages/AccountRequest';
 import { StaffAccounts } from '../pages/StaffAccounts';
+import { RequestQueue } from '../pages/RequestQueue';
 
 // User Icon for Access Requests Header
 function ShieldUserIcon({ size = 18 }: { size?: number }) {
@@ -91,16 +92,18 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                 setMobileOpen={setMobileMenuOpen}
             />
 
-            {/* Main Panel */}
+           {/* Main Panel */}
             <main className="admin-dashboard-main">
-                {/* Header */}
-                <AdminHeader
-                    user={user}
-                    searchQuery={searchQuery}
-                    setSearchQuery={setSearchQuery}
-                    dateFilter={dateFilter}
-                    onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
-                />
+                {/* Header — hidden on Staff Accounts, which has its own search bar */}
+                {activeView !== 'staff-accounts' && activeView !== 'request-queue' && (
+                    <AdminHeader
+                        user={user}
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
+                        dateFilter={dateFilter}
+                        onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    />
+                )}
 
                 {/* Content container — everything except the footer lives here */}
                 <div className="admin-dashboard-content">
@@ -157,11 +160,14 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                         </div>
                     ) : activeView === 'account-request' ? (
                         <AccountRequest />
-                    ) : activeView === 'staff-accounts' ? (
+                   ) : activeView === 'staff-accounts' ? (
                         <StaffAccounts
+                            user={user}
                             onAddStaff={() => console.log('TODO: open add-staff flow')}
                             onManageStaff={(staffId) => console.log('TODO: manage staff', staffId)}
                         />
+                    ) : activeView === 'request-queue' ? (
+                        <RequestQueue user={user} />
                     ) : (
                         /* Placeholder views for submenu clicks */
                         <div className="admin-placeholder-view">

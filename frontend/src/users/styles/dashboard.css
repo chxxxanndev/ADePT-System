@@ -628,6 +628,8 @@
 .period-selector-wrap {
     position: relative;
     display: inline-flex;
+    z-index: 50;
+    isolation: isolate;
 }
 
 .period-selector-toggle {
