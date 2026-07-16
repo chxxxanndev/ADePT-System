@@ -5,7 +5,18 @@
     gap: 20px;
 }
 
-.rq-header-row {
+/* ===== Page Header ===== */
+.rq-page-header {
+    background: #ECEDF3;
+    border-radius: 14px;
+    padding: 24px 28px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.rq-page-header-row {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -14,23 +25,16 @@
 }
 
 .rq-page-title {
-    font-size: 26px;
+    font-size: 32px;
     font-weight: 800;
     color: #1F2333;
     margin: 0 0 4px;
 }
 
 .rq-page-subtitle {
-    font-size: 14px;
+    font-size: 15px;
     color: #6B6F80;
     margin: 0;
-}
-
-.rq-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
 }
 
 /* Search */
@@ -38,15 +42,17 @@
     position: relative;
     display: flex;
     align-items: center;
+    width: 100%;
+    max-width: 420px;
 }
 
 .rq-search-input {
-    width: 220px;
-    padding: 10px 14px 10px 38px;
+    width: 100%;
+    padding: 10px 44px 10px 16px;
     border: 1px solid #E2E4EC;
     border-radius: 10px;
     background: #FFFFFF;
-    font-size: 13.5px;
+    font-size: 14px;
     color: #1F2333;
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -63,75 +69,12 @@
 
 .rq-search-icon {
     position: absolute;
-    left: 12px;
-    display: flex;
-    align-items: center;
-    color: #9CA0AF;
-    pointer-events: none;
-}
-
-/* Date button */
-.rq-date-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 14px;
-    border: 1px solid #E2E4EC;
-    border-radius: 10px;
-    background: #FFFFFF;
-    font-family: inherit;
-    font-size: 13.5px;
-    font-weight: 600;
-    color: #1F2333;
-    cursor: pointer;
-    transition: border-color 0.15s ease;
-}
-
-.rq-date-btn:hover {
-    border-color: #3D2E7C;
-}
-
-/* Compact profile */
-.rq-profile-compact {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #FFFFFF;
-    border: 1px solid #E2E4EC;
-    border-radius: 999px;
-    padding: 6px 16px 6px 6px;
-}
-
-.rq-profile-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: #3D2E7C;
-    color: #FFFFFF;
+    right: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 13px;
-    flex-shrink: 0;
-}
-
-.rq-profile-info {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.25;
-}
-
-.rq-profile-name {
-    font-size: 13px;
-    font-weight: 700;
-    color: #1F2333;
-}
-
-.rq-profile-role {
-    font-size: 11.5px;
     color: #6B6F80;
-    font-weight: 600;
+    pointer-events: none;
 }
 
 /* ===== Card / Tabs ===== */
@@ -146,7 +89,6 @@
     border-bottom: 1px solid #EDEEF3;
     margin-bottom: 18px;
     padding-bottom: 12px;
-    overflow-x: auto;
 }
 
 .rq-tab {
@@ -182,11 +124,11 @@
 
 /* ===== Table cells ===== */
 .rq-table thead th {
-    text-align: left;
+    text-align: center;
 }
 
 .rq-table tbody td {
-    text-align: left;
+    text-align: center;
 }
 
 .rq-control-no {
