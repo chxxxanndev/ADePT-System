@@ -98,7 +98,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
            {/* Main Panel */}
             <main className="admin-dashboard-main">
                 {/* Header — hidden on views that render their own header */}
-                {activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && activeView !== 'audit-log' && activeView !== 'settings' && (
+                {activeView !== 'account-request' && activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && activeView !== 'audit-log' && activeView !== 'settings' && (
                     <AdminHeader
                         user={user}
                         searchQuery={searchQuery}
