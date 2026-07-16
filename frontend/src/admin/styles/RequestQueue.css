@@ -1,0 +1,248 @@
+/* ===== Page Header ===== */
+.request-queue-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.rq-header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.rq-page-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: #1F2333;
+    margin: 0 0 4px;
+}
+
+.rq-page-subtitle {
+    font-size: 14px;
+    color: #6B6F80;
+    margin: 0;
+}
+
+.rq-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Search */
+.rq-search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.rq-search-input {
+    width: 220px;
+    padding: 10px 14px 10px 38px;
+    border: 1px solid #E2E4EC;
+    border-radius: 10px;
+    background: #FFFFFF;
+    font-size: 13.5px;
+    color: #1F2333;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rq-search-input::placeholder {
+    color: #9CA0AF;
+}
+
+.rq-search-input:focus {
+    border-color: #3D2E7C;
+    box-shadow: 0 0 0 3px rgba(61, 46, 124, 0.1);
+}
+
+.rq-search-icon {
+    position: absolute;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    color: #9CA0AF;
+    pointer-events: none;
+}
+
+/* Date button */
+.rq-date-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border: 1px solid #E2E4EC;
+    border-radius: 10px;
+    background: #FFFFFF;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #1F2333;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+}
+
+.rq-date-btn:hover {
+    border-color: #3D2E7C;
+}
+
+/* Compact profile */
+.rq-profile-compact {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #FFFFFF;
+    border: 1px solid #E2E4EC;
+    border-radius: 999px;
+    padding: 6px 16px 6px 6px;
+}
+
+.rq-profile-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #3D2E7C;
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.rq-profile-info {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.rq-profile-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1F2333;
+}
+
+.rq-profile-role {
+    font-size: 11.5px;
+    color: #6B6F80;
+    font-weight: 600;
+}
+
+/* ===== Card / Tabs ===== */
+.rq-card {
+    padding: 20px 24px 24px;
+}
+
+.rq-tabs-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    border-bottom: 1px solid #EDEEF3;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    overflow-x: auto;
+}
+
+.rq-tab {
+    background: none;
+    border: none;
+    padding: 4px 2px 10px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6B6F80;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -13px;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.rq-tab:hover {
+    color: #1F2333;
+}
+
+.rq-tab.active {
+    color: #3D2E7C;
+    font-weight: 700;
+    border-bottom-color: #3D2E7C;
+}
+
+.rq-tab-count {
+    color: inherit;
+    opacity: 0.75;
+    font-weight: 600;
+}
+
+/* ===== Table cells ===== */
+.rq-table thead th {
+    text-align: left;
+}
+
+.rq-table tbody td {
+    text-align: left;
+}
+
+.rq-control-no {
+    font-weight: 700;
+    color: #1F2333;
+}
+
+.rq-document-cell {
+    color: #B8791E;
+    font-weight: 600;
+}
+
+/* ===== Status colors ===== */
+.rq-status-approved {
+    background: #E7F8EE;
+    color: #1E9E5A;
+    border-color: #C9EFDA;
+}
+
+.rq-status-disapproved {
+    background: #FDECEC;
+    color: #E1483F;
+    border-color: #F6CFCD;
+}
+
+.rq-status-pending {
+    background: #FFF6E5;
+    color: #D89A1D;
+    border-color: #F5E3B9;
+}
+
+.rq-status-certified {
+    background: #E8F1FD;
+    color: #2F6FE4;
+    border-color: #C9DFF9;
+}
+
+.rq-status-processing {
+    background: #F1EEFB;
+    color: #6D4FC4;
+    border-color: #DCD3F5;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+    .rq-header-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .rq-header-actions {
+        width: 100%;
+    }
+
+    .rq-search-wrapper,
+    .rq-search-input {
+        width: 100%;
+    }
+}

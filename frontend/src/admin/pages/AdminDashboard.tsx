@@ -11,6 +11,7 @@ import { DashboardFooter } from '../components/AdminDashboardFooter';
 import type { User } from '../../auth-folder/types/auth';
 import AccountRequest from '../pages/AccountRequest';
 import { StaffAccounts } from '../pages/StaffAccounts';
+import { RequestQueue } from '../pages/RequestQueue';
 
 // User Icon for Access Requests Header
 function ShieldUserIcon({ size = 18 }: { size?: number }) {
@@ -165,6 +166,8 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                             onAddStaff={() => console.log('TODO: open add-staff flow')}
                             onManageStaff={(staffId) => console.log('TODO: manage staff', staffId)}
                         />
+                    ) : activeView === 'request-queue' ? (
+                        <RequestQueue user={user} />
                     ) : (
                         /* Placeholder views for submenu clicks */
                         <div className="admin-placeholder-view">
