@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import '../styles/StaffAccounts.css';
+import type { User } from '../../auth-folder/types/auth';
 
 interface StaffAccount {
     id: string;
@@ -20,14 +21,18 @@ const mockStaffAccounts: StaffAccount[] = [
 ];
 
 interface StaffAccountsProps {
+    user: User;
     onAddStaff?: () => void;
     onManageStaff?: (staffId: string) => void;
 }
 
-export function StaffAccounts({ onAddStaff, onManageStaff }: StaffAccountsProps) {
+export function StaffAccounts({ user, onAddStaff, onManageStaff }: StaffAccountsProps) {
     const [staff] = useState<StaffAccount[]>(mockStaffAccounts);
     const [searchQuery, setSearchQuery] = useState('');
     const activeCount = staff.filter((s) => s.status === 'active').length;
+
+    const fullName = `${user.firstName || 'Mommy'} ${user.lastName || 'Dionisia'}`;
+    const initials = `${user.firstName?.[0] || 'M'}${user.lastName?.[0] || 'D'}`;
 
     const filteredStaff = staff.filter((member) => {
         const query = searchQuery.toLowerCase();
@@ -40,21 +45,47 @@ export function StaffAccounts({ onAddStaff, onManageStaff }: StaffAccountsProps)
 
     return (
         <>
-            {/* Search bar */}
-            <div className="admin-search-bar">
-                <input
-                    type="text"
-                    className="admin-search-input"
-                    placeholder="Search"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <span className="admin-search-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                </span>
+            {/* Page header */}
+            <div className="staff-page-header">
+                <div className="staff-page-header-row">
+                    <div>
+                        <h1 className="staff-page-title">Staff Accounts</h1>
+                        <p className="staff-page-subtitle">Manage assessor's office staff profiles and access.</p>
+                    </div>
+
+                    <div className="admin-profile-widget">
+                        <div className="profile-widget-avatar-container">
+                            {initials}
+                        </div>
+                        <div className="profile-widget-info">
+                            <span className="profile-widget-name">{fullName}</span>
+                            <span className="profile-widget-email">{user.email || 'provincialassessor@gmail.com'}</span>
+                            <div className="profile-widget-meta">
+                                <span className="profile-widget-role">
+                                    {user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : user.role || 'Super Admin'}
+                                </span>
+                                <span>Last Login : Today • 8:12 AM</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Search bar */}
+                <div className="admin-search-bar">
+                    <input
+                        type="text"
+                        className="admin-search-input"
+                        placeholder="Search"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <span className="admin-search-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                    </span>
+                </div>
             </div>
 
             <div className="admin-card staff-accounts-card">
@@ -77,7 +108,7 @@ export function StaffAccounts({ onAddStaff, onManageStaff }: StaffAccountsProps)
                                 <th>Role</th>
                                 <th>Status</th>
                                 <th>Date Added</th>
-                                <th></th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
