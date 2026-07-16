@@ -216,6 +216,23 @@
   color: var(--color-muted-light);
 }
 
+.trend-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  width: fit-content;
+}
+
+.trend-tag--up {
+  color: var(--color-success);
+}
+
+.trend-tag--down {
+  color: var(--color-error);
+}
+
 /* stat icon color variants */
 .stat-icon--primary {
   background-color: var(--table-header-bg);
