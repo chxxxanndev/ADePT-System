@@ -1623,3 +1623,23 @@
         text-align: left;
     }
 }
+.sidebar-brand-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+}
+
+.sidebar-brand-wrapper.collapsed {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 8px;
+}
+
+.sidebar-brand-wrapper.collapsed .sidebar-brand-info {
+    justify-content: center;
+}
+
+.sidebar-brand-wrapper.collapsed .sidebar-collapse-trigger {
+    margin: 0 auto;
+}
