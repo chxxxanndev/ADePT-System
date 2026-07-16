@@ -162,7 +162,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`;
     const headerUser = { name: fullName, email: user.email || '', role: user.role || 'Staff', lastLogin: 'Today • 8:12 AM' };
 
-    const hideHeader = activeView === 'new-request' || activeView === 'request-form' || activeView === 'tax-declaration' || activeView === 'tax-dec' || activeView === 'certificate-land-holding' || activeView === 'land-holding' || activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' || activeView === 'account-settings' || activeView === 'pending-payment' || activeView === 'payment-details' || activeView === 'document-request';
+    const hideHeader = activeView === 'new-request' || activeView === 'request-form' || activeView === 'tax-declaration' || activeView === 'tax-dec' || activeView === 'certificate-land-holding' || activeView === 'land-holding' || activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' || activeView === 'account-settings' || activeView === 'pending-payment' || activeView === 'payment-details' || activeView === 'document-request' || activeView === 'reports';
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
 
     const accountUser: AccountUser = { id: user.id, fullName: fullName.trim(), username: user.username || user.email?.split('@')[0] || '', email: user.email || '', role: user.role || 'Staff', avatarUrl: (user as any).avatarUrl, lastPasswordChange: (user as any).lastPasswordChange };
