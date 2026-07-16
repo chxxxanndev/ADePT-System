@@ -14,6 +14,7 @@ import { StaffAccounts } from '../pages/StaffAccounts';
 import { RequestQueue } from '../pages/RequestQueue';
 import { AdminReports } from '../pages/AdminReports';
 import { AdminAuditLog } from '../pages/AdminAuditLog';
+import { AdminAccountSettings } from '../pages/AdminAccountSettings';
 
 // User Icon for Access Requests Header
 function ShieldUserIcon({ size = 18 }: { size?: number }) {
@@ -97,7 +98,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
            {/* Main Panel */}
             <main className="admin-dashboard-main">
                 {/* Header — hidden on views that render their own header */}
-                {activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && activeView !== 'audit-log' && (
+                {activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && activeView !== 'audit-log' && activeView !== 'settings' && (
                     <AdminHeader
                         user={user}
                         searchQuery={searchQuery}
@@ -174,6 +175,15 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                         <AdminReports user={user} />
                     ) : activeView === 'audit-log' ? (
                         <AdminAuditLog user={user} />
+                    ) : activeView === 'settings' ? (
+                        <AdminAccountSettings
+                            user={user}
+                            onSave={(data) => console.log('TODO: save admin account settings', data)}
+                            onUpdateEmail={() => console.log('TODO: update email')}
+                            onChangePassword={() => console.log('TODO: change password')}
+                            onChangePhoto={() => console.log('TODO: change photo')}
+                            onDisableAccount={(disabled) => console.log('TODO: disable account', disabled)}
+                        />
                     ) : (
                         /* Placeholder views for submenu clicks */
                         <div className="admin-placeholder-view">
