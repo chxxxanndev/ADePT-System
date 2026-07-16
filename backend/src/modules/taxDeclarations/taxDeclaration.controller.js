@@ -1,4 +1,4 @@
-import TaxDeclarationService from '../services/taxDeclaration.service.js';
+import TaxDeclarationService from './taxDeclaration.service.js';
 
 /**
  * POST /api/tax-declarations

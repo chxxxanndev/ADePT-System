@@ -1,5 +1,5 @@
 import express from 'express';
-import { getFormMetadata, createRequest, updateRequest } from '../controllers/request.controller.js';
+import { getFormMetadata, createRequest, updateRequest } from '../requests/request.controller.js';
 // import { authenticateToken } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
