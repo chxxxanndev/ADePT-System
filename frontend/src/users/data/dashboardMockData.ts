@@ -83,13 +83,9 @@ export const navSections: NavSection[] = [
         label: 'Processing',
         items: [
             {
-                label: 'Payment and Verification',
+                label: 'Pending Payments', // Renamed for clarity
                 icon: 'documentProcessing',
-                subItems: [
-                    { label: 'Pending Payment', badge: 12, view: 'pending-payment' },
-                    { label: 'Pending Verification', badge: 4, view: 'pending-verification' },
-                    { label: 'OR Validation', view: 'or-validation' },
-                ],
+                view: 'pending-payment', // Direct link, no subItems
             },
         ],
     },
