@@ -13,6 +13,7 @@ import AccountRequest from '../pages/AccountRequest';
 import { StaffAccounts } from '../pages/StaffAccounts';
 import { RequestQueue } from '../pages/RequestQueue';
 import { AdminReports } from '../pages/AdminReports';
+import { AdminAuditLog } from '../pages/AdminAuditLog';
 
 // User Icon for Access Requests Header
 function ShieldUserIcon({ size = 18 }: { size?: number }) {
@@ -96,7 +97,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
            {/* Main Panel */}
             <main className="admin-dashboard-main">
                 {/* Header — hidden on views that render their own header */}
-                {activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && (
+                {activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && activeView !== 'audit-log' && (
                     <AdminHeader
                         user={user}
                         searchQuery={searchQuery}
@@ -171,6 +172,8 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                         <RequestQueue user={user} />
                     ) : activeView === 'reports-analytics' ? (
                         <AdminReports user={user} />
+                    ) : activeView === 'audit-log' ? (
+                        <AdminAuditLog user={user} />
                     ) : (
                         /* Placeholder views for submenu clicks */
                         <div className="admin-placeholder-view">
