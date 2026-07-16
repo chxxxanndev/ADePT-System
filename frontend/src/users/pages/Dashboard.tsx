@@ -11,8 +11,6 @@ import { LandholdingCertificateForm } from './request-processing/LandholdingCert
 import { NoLandholdingCertificateForm } from './request-processing/NoLandholdingCertificate/NoLandholdingCertificateForm';
 import { PendingPayment } from './PendingPayment';
 import { PaymentDetails } from './PaymentDetails';
-import { OrValidationPage } from './payment-flow/OrValidationPage';
-import { VoidAmendPage } from './payment-flow/VoidAmendPage';
 import { DocumentRequestDashboard } from './DocumentRequestDashboard';
 import Reports from './Reports';
 import { requestService } from '../services/requestService';
@@ -26,7 +24,6 @@ import type { User } from '../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../types/taxDeclaration';
 import type { AccountUser, AccountSettingsFormData } from '../types/accountSettings';
 import type { PendingPaymentRequest } from '../types/PendingPayment';
-import { pendingPaymentData } from '../data/PendingPaymentData';
 
 import {
     navSections,
@@ -39,7 +36,6 @@ import {
     quickActions
 } from '../data/dashboardMockData';
 
-// Views that live under "Request Processing" and require a completed entry form
 const REQUEST_PROCESSING_VIEWS = new Set([
     'tax-declaration',
     'certificate-land-holding',
@@ -49,7 +45,6 @@ const REQUEST_PROCESSING_VIEWS = new Set([
     'no-land-holding',
 ]);
 
-// Map view → human-readable label for the guard message
 const VIEW_LABELS: Record<string, string> = {
     'tax-declaration': 'Tax Declaration',
     'certificate-land-holding': 'Certificate of Land Holding',
@@ -69,21 +64,8 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     const [activeView, setActiveView] = useState('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-    /**
-     * Holds the completed Request Form Entry data.
-     * null  → entry not yet submitted (Request Processing views are gated).
-     * object → entry saved; Request Processing views are unlocked.
-     */
     const [completedEntryData, setCompletedEntryData] = useState<CompletedEntryData | null>(null);
-
-    /** Holds the row selected from Pending Payment, read by PaymentDetails. */
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
-    const [pendingPayments, setPendingPayments] = useState<PendingPaymentRequest[]>(() => pendingPaymentData);
-    const [validationQueue, setValidationQueue] = useState<PendingPaymentRequest[]>([]);
-    const [voidAmendQueue, setVoidAmendQueue] = useState<PendingPaymentRequest[]>([]);
-
-    /** Holds draft or prefilled data to pass to RequestFormEntry. */
     const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
 
     const handleSelectNewRequest = async (type: 'tax' | 'landholding' | 'nolandholding') => {
@@ -133,72 +115,27 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         setActiveView('document-request');
     };
 
-    /**
-     * .dashboard-main is the scrollable container (overflow-y: auto in dashboard.css).
-     * Every view renders as a child inside it, so scroll position persists across
-     * view switches unless we explicitly reset it here — this covers ALL pages,
-     * not just Dashboard/RequestFormEntry, since they all share this one container.
-     */
     useEffect(() => {
         const scrollContainer = document.querySelector('.dashboard-main');
         scrollContainer?.scrollTo(0, 0);
     }, [activeView]);
 
-    /**
-     * Called when RequestFormEntry successfully saves.
-     * Stores the entry data — this unlocks Request Processing views.
-     */
     const handleEntryComplete = (data: CompletedEntryData) => {
         setCompletedEntryData(data);
         setPrefilledRequestData(null);
     };
 
-    /**
-     * Called when user clicks "Proceed to Processing →" in the entry form.
-     * Navigates directly to the chosen processing view.
-     */
     const handleNavigateToProcessing = (view: string) => {
         setActiveView(view);
     };
 
-    /** Called when a row in PendingPayment is clicked. */
     const handleSelectPayment = (payment: PendingPaymentRequest) => {
         setSelectedPayment(payment);
         setActiveView('payment-details');
     };
 
-    const handleProceedToPayment = (payment: PendingPaymentRequest) => {
-        setPendingPayments((current) => current.filter((item) => item.controlNumber !== payment.controlNumber));
-        setValidationQueue((current) => [
-            { ...payment, status: 'Pending Validation' },
-            ...current,
-        ]);
-        setSelectedPayment({ ...payment, status: 'Pending Validation' });
-        setActiveView('or-validation');
-    };
-
-    const handleVoidPayment = (payment: PendingPaymentRequest) => {
-        setPendingPayments((current) => current.filter((item) => item.controlNumber !== payment.controlNumber));
-        setVoidAmendQueue((current) => [
-            { ...payment, status: 'Voided' },
-            ...current,
-        ]);
-        setSelectedPayment({ ...payment, status: 'Voided' });
-        setActiveView('void-amend');
-    };
-
-    const handleUpdateValidationQueue = (updatedPayment: PendingPaymentRequest) => {
-        setValidationQueue((current) => current.map((item) => item.controlNumber === updatedPayment.controlNumber ? updatedPayment : item));
-        if (selectedPayment?.controlNumber === updatedPayment.controlNumber) {
-            setSelectedPayment(updatedPayment);
-        }
-    };
-
     const handleAddAnother = () => {
         if (completedEntryData) {
-            // SETBACK 4 FIXED (Sticky Blindness): Keep names, but clear doc type AND location.
-            // SETBACK 2 FIXED (Ghost Records): We just put this in React State (prefilledRequestData), 
-            // we do NOT hit the database until they actually click "Proceed" or "Save Draft".
             setPrefilledRequestData({
                 declarantName: completedEntryData.declarantName,
                 requestedByName: completedEntryData.requestedByName,
@@ -208,14 +145,13 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                 actionTaken: completedEntryData.actionTaken || 'PENDING',
                 referenceNumber: `REF-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
                 documentTypeIds: [],
-                propertyLocation: '', // Force them to pick the location again
+                propertyLocation: '',
             });
             setCompletedEntryData(null);
             setActiveView('new-request');
         }
     };
 
-    // Defensive check: If user is missing, show nothing or a loader
     if (!user) return <div className="white-screen-fix">Loading Session...</div>;
 
     const handleNavigate = (view: string) => {
@@ -224,85 +160,24 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     };
 
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`;
-    const headerUser = {
-        name: fullName,
-        email: user.email || '',
-        role: user.role || 'Staff',
-        lastLogin: 'Today • 8:12 AM',
-    };
+    const headerUser = { name: fullName, email: user.email || '', role: user.role || 'Staff', lastLogin: 'Today • 8:12 AM' };
 
-    // Controls which views show their own in-card header (hides the dashboard header).
-    const hideHeader = activeView === 'new-request'
-        || activeView === 'request-form'
-        || activeView === 'tax-declaration'
-        || activeView === 'tax-dec'
-        || activeView === 'certificate-land-holding'
-        || activeView === 'land-holding'
-        || activeView === 'certificate-no-landholding'
-        || activeView === 'no-land-holding'
-        || activeView === 'account-settings'
-        || activeView === 'pending-payment'
-        || activeView === 'payment-details'
-        || activeView === 'or-validation'
-        || activeView === 'void-amend'
-        || activeView === 'document-request';
-
-    // Only the entry-form views route to RequestFormEntry.
+    const hideHeader = activeView === 'new-request' || activeView === 'request-form' || activeView === 'tax-declaration' || activeView === 'tax-dec' || activeView === 'certificate-land-holding' || activeView === 'land-holding' || activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' || activeView === 'account-settings' || activeView === 'pending-payment' || activeView === 'payment-details' || activeView === 'document-request';
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
 
-    // ── Adapter: map the app-wide `User` shape to what AccountSettings expects ──
-    const accountUser: AccountUser = {
-        id: user.id,
-        fullName: fullName.trim(),
-        username: user.username || user.email?.split('@')[0] || '',
-        email: user.email || '',
-        role: user.role || 'Staff',
-        avatarUrl: (user as any).avatarUrl,
-        lastPasswordChange: (user as any).lastPasswordChange,
-    };
-
-    // ── AccountSettings handlers ──
-    // TODO: replace these with real calls to your auth/user service
-    const handleAccountSave = async (data: AccountSettingsFormData) => {
-        console.log('TODO: wire up account save', data);
-    };
-
-    const handleUpdateEmail = () => {
-        console.log('TODO: open update-email flow');
-    };
-
-    const handleChangePassword = () => {
-        console.log('TODO: open change-password flow');
-    };
-
-    const handleChangePhoto = () => {
-        console.log('TODO: open photo upload flow');
-    };
-
-    const handleDisableAccount = async (disabled: boolean) => {
-        console.log('TODO: wire up disable-account toggle', disabled);
-    };
+    const accountUser: AccountUser = { id: user.id, fullName: fullName.trim(), username: user.username || user.email?.split('@')[0] || '', email: user.email || '', role: user.role || 'Staff', avatarUrl: (user as any).avatarUrl, lastPasswordChange: (user as any).lastPasswordChange };
+    const handleAccountSave = async (data: AccountSettingsFormData) => { console.log('TODO', data); };
+    const handleUpdateEmail = () => { console.log('TODO'); };
+    const handleChangePassword = () => { console.log('TODO'); };
+    const handleChangePhoto = () => { console.log('TODO'); };
+    const handleDisableAccount = async (disabled: boolean) => { console.log('TODO', disabled); };
 
     return (
         <div className="dashboard-page">
-            <Sidebar
-                sections={navSections}
-                activeView={activeView}
-                onNavigate={handleNavigate}
-                onLogout={onLogout}
-                mobileOpen={mobileMenuOpen}
-                collapsed={sidebarCollapsed}
-                onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
-            />
+            <Sidebar sections={navSections} activeView={activeView} onNavigate={handleNavigate} onLogout={onLogout} mobileOpen={mobileMenuOpen} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)} />
 
             <div className="dashboard-main">
-                {!hideHeader && (
-                    <DashboardHeader
-                        user={headerUser}
-                        userName={fullName}
-                        onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
-                    />
-                )}
+                {!hideHeader && <DashboardHeader user={headerUser} userName={fullName} onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)} />}
 
                 <div className="dashboard-content">
                     {activeView === 'dashboard' ? (
@@ -320,111 +195,56 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                             </div>
                         </>
                     ) : isRequestFormView ? (
-                        <RequestFormEntry
-                            user={user}
-                            onCancel={handleCancelEntry}
-                            onEntryComplete={handleEntryComplete}
-                            onNavigateToProcessing={handleNavigateToProcessing}
-                            prefilledRequestData={prefilledRequestData}
-                        />
+                        <RequestFormEntry user={user} onCancel={handleCancelEntry} onEntryComplete={handleEntryComplete} onNavigateToProcessing={handleNavigateToProcessing} prefilledRequestData={prefilledRequestData} />
                     ) : activeView === 'tax-declaration' || activeView === 'tax-dec' ? (
                         completedEntryData ? (
                             <TaxDeclarationForm
                                 user={user}
                                 entryData={completedEntryData}
                                 onBack={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')}
+                                onBackToDashboard={() => setActiveView('dashboard')} // Fallback
+                                onGoToPendingPayments={() => setActiveView('pending-payment')} // THIS TRIGGERS THE REDIRECT
                                 onAddAnother={handleAddAnother}
                             />
-                        ) : (
-                            <RequestGuard
-                                attemptedView="Tax Declaration"
-                                onGoToEntry={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')}
-                            />
-                        )
+                        ) : (<RequestGuard attemptedView="Tax Declaration" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
                     ) : activeView === 'certificate-land-holding' || activeView === 'land-holding' ? (
                         completedEntryData ? (
                             <LandholdingCertificateForm
                                 user={user}
                                 entryData={completedEntryData}
                                 onBack={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')}
-                                onAddAnother={handleAddAnother} /*  ADDED TO LANDHOLDING */
+                                onBackToDashboard={() => setActiveView('dashboard')} // Fallback
+                                onGoToPendingPayments={() => setActiveView('pending-payment')} // THIS TRIGGERS THE REDIRECT
+                                onAddAnother={handleAddAnother}
                             />
-                        ) : (
-                            <RequestGuard
-                                attemptedView="Certificate of Land Holding"
-                                onGoToEntry={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')}
-                            />
-                        )
+                        ) : (<RequestGuard attemptedView="Certificate of Land Holding" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
                     ) : activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' ? (
                         completedEntryData ? (
                             <NoLandholdingCertificateForm
                                 user={user}
                                 entryData={completedEntryData}
                                 onBack={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')}
-                                onAddAnother={handleAddAnother} /* ✅ ADDED TO NO-LANDHOLDING */
+                                onBackToDashboard={() => setActiveView('dashboard')} // Fallback
+                                onGoToPendingPayments={() => setActiveView('pending-payment')} // THIS TRIGGERS THE REDIRECT
+                                onAddAnother={handleAddAnother}
                             />
-                        ) : (
-                            <RequestGuard
-                                attemptedView="Certificate of No Landholding"
-                                onGoToEntry={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')}
-                            />
-                        )
-
+                        ) : (<RequestGuard attemptedView="Certificate of No Landholding" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
                     ) : activeView === 'document-request' ? (
-                        <DocumentRequestDashboard
-                            user={user}
-                            onSelectNewRequest={handleSelectNewRequest}
-                            onSelectDraft={handleSelectDraft}
-                            onSelectDocumentView={(view) => setActiveView(view)}
-                        />
-
+                        <DocumentRequestDashboard user={user} onSelectNewRequest={handleSelectNewRequest} onSelectDraft={handleSelectDraft} onSelectDocumentView={(view) => setActiveView(view)} />
                     ) : activeView === 'account-settings' ? (
-                        <AccountSettings
-                            user={accountUser}
-                            onSave={handleAccountSave}
-                            onUpdateEmail={handleUpdateEmail}
-                            onChangePassword={handleChangePassword}
-                            onChangePhoto={handleChangePhoto}
-                            onDisableAccount={handleDisableAccount}
-                        />
-
+                        <AccountSettings user={accountUser} onSave={handleAccountSave} onUpdateEmail={handleUpdateEmail} onChangePassword={handleChangePassword} onChangePhoto={handleChangePhoto} onDisableAccount={handleDisableAccount} />
                     ) : activeView === 'pending-payment' ? (
-                        <PendingPayment
-                            payments={pendingPayments}
-                            onSelectPayment={handleSelectPayment}
-                        />
-
+                        <PendingPayment onSelectPayment={handleSelectPayment} />
                     ) : activeView === 'payment-details' ? (
                         <PaymentDetails
                             payment={selectedPayment}
                             onBack={() => setActiveView('pending-payment')}
-                            onProceedToPayment={handleProceedToPayment}
-                            onVoidPayment={handleVoidPayment}
+                            onEditDocument={(controlNumber) => {
+                                if (selectedPayment?.documentType.toLowerCase().includes('landholding')) setActiveView('certificate-land-holding');
+                                else if (selectedPayment?.documentType.toLowerCase().includes('no landholding')) setActiveView('certificate-no-landholding');
+                                else setActiveView('tax-declaration');
+                            }}
                         />
-
-                    ) : activeView === 'or-validation' ? (
-                        <OrValidationPage
-                            documents={validationQueue}
-                            selectedDocument={selectedPayment}
-                            onBack={() => setActiveView('pending-payment')}
-                            onUpdateDocument={handleUpdateValidationQueue}
-                        />
-
-                    ) : activeView === 'void-amend' ? (
-                        <VoidAmendPage
-                            documents={voidAmendQueue}
-                            onBack={() => setActiveView('pending-payment')}
-                        />
-
-                    ) : activeView === 'reports' ? (
-                        <Reports />
-
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
                             <h2>{VIEW_LABELS[activeView] ?? activeView}</h2>

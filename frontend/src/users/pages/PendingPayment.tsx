@@ -1,157 +1,135 @@
-import { useState, useEffect, type KeyboardEvent } from 'react';
+import { useState, useEffect } from 'react';
 import type { PendingPaymentRequest } from '../types/PendingPayment';
 import { pendingPaymentData } from '../data/PendingPaymentData';
-import logoImg from '../../auth-folder/assets/logo.png';
+import { requestService } from '../services/requestService';
 import '../styles/PendingPayment.css';
 
-// ─────────────────────────────────────────────────────────────
-// Icons
-// ─────────────────────────────────────────────────────────────
-function PendingClockIcon() {
-    return (
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="8" stroke="#FFFCF9" strokeWidth="2" />
-            <path d="M12 8V12L14.5 14" stroke="#FFFCF9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M8 3.5L5 6" stroke="#FFFCF9" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-    );
+const SearchIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
+const ArchiveIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>;
+
+interface PendingPaymentProps { onSelectPayment: (payment: PendingPaymentRequest) => void; }
+
+function resolveDocTypeName(req: any): string {
+    if (req.documentType) return req.documentType;
+    const idStr = Array.isArray(req.documentTypeIds) ? req.documentTypeIds.join(' ').toLowerCase() : String(req.documentTypeIds || '').toLowerCase();
+    const ref = (req.referenceNumber || req.id || '').toLowerCase();
+    if (idStr.includes('dt3') || idStr.includes('landholding') || ref.includes('lh')) return 'Certificate of Landholding';
+    if (idStr.includes('dt4') || idStr.includes('nolandholding') || ref.includes('nlh')) return 'Certificate of No Landholding';
+    return 'Certified True Tax Declaration';
 }
 
-// Kept local for the same reason as PendingClockIcon — swap for a shared
-// icon from components/icons.tsx if one already exists there.
-function PendingUserIcon() {
-    return (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="8" r="3.4" stroke="#FFFFFF" strokeWidth="2" />
-            <path d="M5 19c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-    );
+function calculateFee(docType: string, customAmount?: number): number {
+    if (customAmount && customAmount > 0) return customAmount;
+    if (docType.includes('Landholding') && !docType.includes('No')) return 120.00;
+    if (docType.includes('No Landholding')) return 80.00;
+    return 40.00;
 }
 
-const STATUS_MODIFIER: Record<PendingPaymentRequest['status'], string> = {
-    'Awaiting Payment': 'pp-badge--awaiting',
-    Paid: 'pp-badge--paid',
-    Overdue: 'pp-badge--overdue',
-    'Pending Validation': 'pp-badge--awaiting',
-    Voided: 'pp-badge--overdue',
-};
-
-// ─────────────────────────────────────────────────────────────
-// Props
-// ─────────────────────────────────────────────────────────────
-interface PendingPaymentProps {
-    payments?: PendingPaymentRequest[];
-    onSelectPayment: (payment: PendingPaymentRequest) => void;
-    /** Display name shown in the page header. TODO: wire up to the logged-in user. */
-    userName?: string;
-    /** Date shown in the page header. TODO: wire up to a real formatted date. */
-    userDate?: string;
-}
-
-// ─────────────────────────────────────────────────────────────
-// Component
-// ─────────────────────────────────────────────────────────────
-export function PendingPayment({
-    payments: externalPayments,
-    onSelectPayment,
-    userName = 'Vicente Desoy',
-    userDate = 'July 10, 2026',
-}: PendingPaymentProps) {
+export function PendingPayment({ onSelectPayment }: PendingPaymentProps) {
     const [payments, setPayments] = useState<PendingPaymentRequest[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (externalPayments) {
-            setPayments(externalPayments);
-            return;
-        }
-        // Mock data for now -- swap for a real call once the endpoint exists, e.g.
-        // requestService.getPendingPayments().then(setPayments);
-        setPayments(pendingPaymentData);
-    }, [externalPayments]);
+        const fetchLivePayments = async () => {
+            try {
+                setLoading(true);
+                // 1. Fetch live requests from database (if available)
+                const rawRequests = await requestService.getRequests();
+                let mappedRequests: PendingPaymentRequest[] = [];
 
-    const handleRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, payment: PendingPaymentRequest) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            onSelectPayment(payment);
+                if (Array.isArray(rawRequests) && rawRequests.length > 0) {
+                    const pendingOnly = rawRequests.filter((req: any) => req.status === 'PENDING_PAYMENT' || req.actionTaken === 'PENDING');
+                    mappedRequests = pendingOnly.map((req: any) => {
+                        const docType = resolveDocTypeName(req);
+                        return { controlNumber: req.referenceNumber || req.id, declarantName: req.declarantName || req.requestedByName, documentType: docType, amountDue: calculateFee(docType, req.amountDue), dateRequested: req.requestDate ? req.requestDate.split('T')[0] : new Date().toISOString().split('T')[0], ...req };
+                    });
+                }
+
+                // 2. Fetch the newly created forms from the Local Cache (Frontend Prototype logic)
+                const localQueue = JSON.parse(localStorage.getItem('adept_live_queue') || '[]');
+
+                // 3. Merge them! (Cache on top)
+                const combined = [...localQueue, ...mappedRequests];
+
+                // Remove duplicates just in case
+                const uniquePayments = Array.from(new Map(combined.map(item => [item.controlNumber, item])).values());
+                setPayments(uniquePayments.length > 0 ? uniquePayments : pendingPaymentData);
+
+            } catch (error) {
+                // If backend fails completely, merge Cache with Mock Backup
+                const localQueue = JSON.parse(localStorage.getItem('adept_live_queue') || '[]');
+                setPayments([...localQueue, ...pendingPaymentData]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchLivePayments();
+    }, []);
+
+    const getAgingStyle = (dateStr: string) => {
+        if (!dateStr) return { bg: '#dcfce7', text: '#166534' };
+        const diffDays = Math.ceil(Math.abs(new Date().getTime() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 1) return { bg: '#dcfce7', text: '#166534' };
+        if (diffDays <= 2) return { bg: '#fef9c3', text: '#854d0e' };
+        return { bg: '#fee2e2', text: '#b91c1c' };
+    };
+
+    const handleArchive = async (e: React.MouseEvent, controlNumber: string, reqId?: string) => {
+        e.stopPropagation();
+        if (confirm(`Move Control No. "${controlNumber}" to Archive?\nUse this if the client abandoned the request.`)) {
+            try {
+                if (reqId) await requestService.deleteRequest(reqId);
+
+                // Remove from local cache so it doesn't come back on refresh!
+                const localQueue = JSON.parse(localStorage.getItem('adept_live_queue') || '[]');
+                const updatedLocal = localQueue.filter((p: any) => p.controlNumber !== controlNumber);
+                localStorage.setItem('adept_live_queue', JSON.stringify(updatedLocal));
+
+                setPayments(prev => prev.filter(p => p.controlNumber !== controlNumber));
+            } catch (error) { alert("Could not remove record from server."); }
         }
     };
 
+    const filteredPayments = payments.filter(p => p.controlNumber.toLowerCase().includes(searchQuery.toLowerCase()) || p.declarantName.toLowerCase().includes(searchQuery.toLowerCase()) || p.documentType.toLowerCase().includes(searchQuery.toLowerCase()));
+
     return (
         <div className="pp-page">
-            <div className="pp-header">
-                <div className="pp-header-brand">
-                    <div className="pp-header-logo">
-                        <img src={logoImg} alt="ADePT" />
-                    </div>
-                    <div className="pp-header-brand-text">
-                        <span className="pp-header-title">
-                            ASSESSOR<span className="pp-header-title-light">DESK</span>
-                        </span>
-                        <span className="pp-header-subtitle">Office Of The Provincial Assessor</span>
-                    </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div>
+                    <h2 style={{ fontSize: '1.5rem', color: '#29237a', margin: 0, fontWeight: 800 }}>Pending Payments Queue</h2>
+                    <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '0.88rem' }}>Live monitor of clients awaiting Treasurer payment release</p>
                 </div>
-
-                <div className="pp-header-profile">
-                    <span className="pp-header-profile-avatar">
-                        <PendingUserIcon />
-                    </span>
-                    <div className="pp-header-profile-info">
-                        <span className="pp-header-profile-name">{userName}</span>
-                        <span className="pp-header-profile-date">{userDate}</span>
-                    </div>
+                <div style={{ display: 'flex', background: '#fff', padding: '10px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', width: '320px', alignItems: 'center', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <SearchIcon />
+                    <input type="text" placeholder="Search Control No., Name, or Doc Type..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ border: 'none', outline: 'none', width: '100%', fontSize: '0.88rem' }} />
                 </div>
             </div>
 
-            <div className="pp-title">
-                <span className="pp-title-icon">
-                    <PendingClockIcon />
-                </span>
-                <h2>PENDING PAYMENT</h2>
-            </div>
-
-            <div className="pp-card">
-                <table className="pp-table">
-                    <thead>
+            <div className="pp-card" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                         <tr>
-                            <th>Control Number</th>
-                            <th>Declarant&apos;s Name</th>
-                            <th>Document Type</th>
-                            <th>Amount Due</th>
-                            <th>Date Requested</th>
-                            <th>Status</th>
+                            {['Control Number', 'Declarant Name', 'Document Type', 'Amount Due', 'Date Requested', 'Action'].map(h => <th key={h} style={{ padding: '14px 20px', color: '#475569', fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: h === 'Action' ? 'center' : 'left' }}>{h}</th>)}
                         </tr>
                     </thead>
                     <tbody>
-                        {payments.length === 0 ? (
-                            <tr>
-                                <td colSpan={6} className="pp-table-empty">
-                                    No pending payments at this time.
-                                </td>
-                            </tr>
-                        ) : (
-                            payments.map((payment) => (
-                                <tr
-                                    key={payment.controlNumber}
-                                    className="pp-row"
-                                    onClick={() => onSelectPayment(payment)}
-                                    onKeyDown={(event) => handleRowKeyDown(event, payment)}
-                                    tabIndex={0}
-                                    role="button"
-                                    aria-label={`View payment details for ${payment.declarantName}`}
-                                >
-                                    <td>{payment.controlNumber}</td>
-                                    <td>{payment.declarantName}</td>
-                                    <td>{payment.documentType}</td>
-                                    <td>{payment.amountDue} Php</td>
-                                    <td>{payment.dateRequested}</td>
-                                    <td>
-                                        <span className={`pp-badge ${STATUS_MODIFIER[payment.status] ?? 'pp-badge--awaiting'}`}>
-                                            {payment.status}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
+                        {loading ? <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>⏳ Fetching live encoded requests from server...</td></tr> :
+                            filteredPayments.length === 0 ? <tr><td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: '#94a3b8' }}><div style={{ fontSize: '1.2rem', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>No Pending Payments Found</div><span style={{ fontSize: '0.88rem' }}>When encoders submit new forms, they will instantly appear here.</span></td></tr> :
+                                filteredPayments.map((payment: any) => {
+                                    const aging = getAgingStyle(payment.dateRequested);
+                                    return (
+                                        <tr key={payment.controlNumber} onClick={() => onSelectPayment(payment)} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}>
+                                            <td style={{ padding: '16px 20px', fontWeight: 700, color: '#29237a', fontFamily: 'monospace', fontSize: '0.95rem' }}>{payment.controlNumber}</td>
+                                            <td style={{ padding: '16px 20px', color: '#1e293b', fontWeight: 600 }}>{payment.declarantName}</td>
+                                            <td style={{ padding: '16px 20px', color: '#475569', fontSize: '0.88rem' }}><span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1' }}>{payment.documentType}</span></td>
+                                            <td style={{ padding: '16px 20px', fontWeight: 800, color: '#059669', fontSize: '0.95rem' }}>₱{Number(payment.amountDue).toFixed(2)}</td>
+                                            <td style={{ padding: '16px 20px' }}><span style={{ background: aging.bg, color: aging.text, padding: '4px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700 }}>{payment.dateRequested}</span></td>
+                                            <td style={{ padding: '16px 20px', textAlign: 'center' }}><button onClick={(e) => handleArchive(e, payment.controlNumber, payment.id)} style={{ background: '#fee2e2', border: 'none', color: '#ef4444', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', fontWeight: 600 }} title="Archive abandoned request"><ArchiveIcon /> Archive</button></td>
+                                        </tr>
+                                    );
+                                })}
                     </tbody>
                 </table>
             </div>
