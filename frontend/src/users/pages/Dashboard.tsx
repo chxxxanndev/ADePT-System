@@ -194,6 +194,8 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 <QuickActions actions={quickActions} onSelect={setActiveView} />
                             </div>
                         </>
+                    ) : activeView === 'reports' ? (
+                        <Reports />
                     ) : isRequestFormView ? (
                         <RequestFormEntry user={user} onCancel={handleCancelEntry} onEntryComplete={handleEntryComplete} onNavigateToProcessing={handleNavigateToProcessing} prefilledRequestData={prefilledRequestData} />
                     ) : activeView === 'tax-declaration' || activeView === 'tax-dec' ? (
