@@ -24,6 +24,7 @@ import type { User } from '../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../types/taxDeclaration';
 import type { AccountUser, AccountSettingsFormData } from '../types/accountSettings';
 import type { PendingPaymentRequest } from '../types/PendingPayment';
+import { TransactionRegistry } from './TransactionRegistry';
 
 import {
     navSections,
@@ -162,7 +163,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`;
     const headerUser = { name: fullName, email: user.email || '', role: user.role || 'Staff', lastLogin: 'Today • 8:12 AM' };
 
-    const hideHeader = activeView === 'new-request' || activeView === 'request-form' || activeView === 'tax-declaration' || activeView === 'tax-dec' || activeView === 'certificate-land-holding' || activeView === 'land-holding' || activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' || activeView === 'account-settings' || activeView === 'pending-payment' || activeView === 'payment-details' || activeView === 'document-request' || activeView === 'reports';
+    const hideHeader = activeView === 'new-request' || activeView === 'request-form' || activeView === 'tax-declaration' || activeView === 'tax-dec' || activeView === 'certificate-land-holding' || activeView === 'land-holding' || activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' || activeView === 'account-settings' || activeView === 'pending-payment' || activeView === 'payment-details' || activeView === 'document-request' || activeView === 'reports'|| activeView === 'transaction-registry' ;
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
 
     const accountUser: AccountUser = { id: user.id, fullName: fullName.trim(), username: user.username || user.email?.split('@')[0] || '', email: user.email || '', role: user.role || 'Staff', avatarUrl: (user as any).avatarUrl, lastPasswordChange: (user as any).lastPasswordChange };
@@ -219,7 +220,13 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 onGoToPendingPayments={() => setActiveView('pending-payment')} // THIS TRIGGERS THE REDIRECT
                                 onAddAnother={handleAddAnother}
                             />
-                        ) : (<RequestGuard attemptedView="Certificate of Land Holding" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
+                        ) : (
+                            <RequestGuard
+                                attemptedView="Certificate of Land Holding"
+                                onGoToEntry={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                            />
+                        )
                     ) : activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' ? (
                         completedEntryData ? (
                             <NoLandholdingCertificateForm
@@ -247,6 +254,8 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 else setActiveView('tax-declaration');
                             }}
                         />
+                    ) : activeView === 'transaction-registry' ? (
+                        <TransactionRegistry />
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
                             <h2>{VIEW_LABELS[activeView] ?? activeView}</h2>

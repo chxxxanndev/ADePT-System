@@ -150,11 +150,11 @@ class RequestService {
         };
 
         if (formData.status) {
-        updatePayload.status = formData.status;
-            }
+            updatePayload.status = formData.status;
+        }
 
-            if (formData.releasingStaffId) updatePayload.released_by = formData.releasingStaffId;
-            if (formData.releaseDate) updatePayload.archive_returned_date = formData.releaseDate;
+        if (formData.releasingStaffId) updatePayload.released_by = formData.releasingStaffId;
+        if (formData.releaseDate) updatePayload.archive_returned_date = formData.releaseDate;
 
         if (formData.releasingStaffId) updatePayload.released_by = formData.releasingStaffId;
         if (formData.releaseDate) updatePayload.archive_returned_date = formData.releaseDate;
@@ -203,6 +203,37 @@ class RequestService {
         }
 
         return { ...request, skippedRemovals };
+    }
+
+    async getAllRequests() {
+        const { data: requests, error } = await supabase
+            .from('requests')
+            .select(`
+            *,
+            request_documents ( document_type_id, status )
+        `)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return requests ?? [];
+    }
+
+    async deleteRequest(requestId) {
+        const { data: existing, error: fetchError } = await supabase
+            .from('requests')
+            .select('id')
+            .eq('id', requestId)
+            .single();
+
+        if (fetchError || !existing) throw new Error('REQUEST_NOT_FOUND');
+
+        const { error: deleteError } = await supabase
+            .from('requests')
+            .delete()
+            .eq('id', requestId);
+
+        if (deleteError) throw deleteError;
+        return { id: requestId };
     }
 }
 

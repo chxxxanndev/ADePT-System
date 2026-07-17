@@ -5,6 +5,7 @@ import type { LandholdingFormData, LandholdingPropertyRow } from '../../../types
 import { EMPTY_LANDHOLDING_FORM, EMPTY_LANDHOLDING_ROW } from '../../../types/landholding';
 import { requestService } from '../../../services/requestService';
 import '../../../styles/LandholdingCertificate.css';
+import { landholdingService } from '../../../services/landholdingService';
 
 function ordinal(n: number): string {
     const s = ['th', 'st', 'nd', 'rd'];
@@ -70,7 +71,17 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onBackToDa
         setSaveError('');
         setSaving(true);
         try {
-            await new Promise((res) => setTimeout(res, 800)); // Mock API delay
+            // NEW: actually save the certificate to the backend
+            await landholdingService.saveCertificate({
+                requestId: entryData.requestId,
+                declarantName: form.declarantName,
+                ownershipType: form.ownershipType,
+                propertyRows: form.propertyRows,
+                dateGiven: form.dateGiven,
+                givenAt: form.givenAt,
+                purpose: form.purpose,
+                action,
+            }, user.id);
 
             if (action !== 'draft') {
                 await requestService.updateRequest(entryData.requestId, { ...entryData, status: 'PENDING_PAYMENT' });
@@ -78,7 +89,7 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onBackToDa
 
             setSaved(true);
             setTimeout(() => {
-                if (action === 'send_to_payment') onGoToPendingPayments(); // <--- CALL IT HERE
+                if (action === 'send_to_payment') onGoToPendingPayments();
                 else if (action === 'add_another') onAddAnother();
             }, 1500);
         } catch (err: any) {
