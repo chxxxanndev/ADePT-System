@@ -13,6 +13,8 @@ import { PendingPayment } from './PendingPayment';
 import { PaymentDetails } from './PaymentDetails';
 import { DocumentRequestDashboard } from './DocumentRequestDashboard';
 import Reports from './Reports';
+import CertifiedTrueCopy from './CertifiedTrueCopy';
+import ArchiveManagement from './ArchiveManagement';
 import { requestService } from '../services/requestService';
 import { RequestGuard } from '../components/RequestGuard';
 import { DashboardSummary } from '../components/StatCard';
@@ -165,7 +167,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`;
     const headerUser = { name: fullName, email: user.email || '', role: user.role || 'Staff', lastLogin: 'Today • 8:12 AM' };
 
-    const hideHeader = activeView === 'new-request' || activeView === 'request-form' || activeView === 'tax-declaration' || activeView === 'tax-dec' || activeView === 'certificate-land-holding' || activeView === 'land-holding' || activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' || activeView === 'account-settings' || activeView === 'pending-payment' || activeView === 'payment-details' || activeView === 'document-request' || activeView === 'reports'|| activeView === 'transaction-registry' ;
+    const hideHeader = activeView === 'new-request' || activeView === 'request-form' || activeView === 'tax-declaration' || activeView === 'tax-dec' || activeView === 'certificate-land-holding' || activeView === 'land-holding' || activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' || activeView === 'account-settings' || activeView === 'pending-payment' || activeView === 'payment-details' || activeView === 'document-request' || activeView === 'reports' || activeView === 'transaction-registry' || activeView === 'void-amend' || activeView === 'certified-true-copy' || activeView === 'archive-management';
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
 
     const accountUser: AccountUser = { id: user.id, fullName: fullName.trim(), username: user.username || user.email?.split('@')[0] || '', email: user.email || '', role: user.role || 'Staff', avatarUrl: (user as any).avatarUrl, lastPasswordChange: (user as any).lastPasswordChange };
@@ -199,6 +201,10 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                         </>
                     ) : activeView === 'reports' ? (
                         <Reports />
+                    ) : activeView === 'certified-true-copy' ? (
+                        <CertifiedTrueCopy />
+                    ) : activeView === 'archive-management' ? (
+                        <ArchiveManagement />
                     ) : isRequestFormView ? (
                         <RequestFormEntry user={user} onCancel={handleCancelEntry} onEntryComplete={handleEntryComplete} onNavigateToProcessing={handleNavigateToProcessing} prefilledRequestData={prefilledRequestData} />
                     ) : activeView === 'tax-declaration' || activeView === 'tax-dec' ? (
