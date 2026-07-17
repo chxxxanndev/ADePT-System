@@ -172,7 +172,13 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                     ) : activeView === 'reports-analytics' ? (
                         <AdminReports user={user} />
                     ) : activeView === 'audit-log' ? (
-                        <AdminAuditLog user={user} />
+                        <AdminAuditLog
+                            currentUser={{
+                                name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                                role: user.role || 'Staff',
+                                initials: `${(user.firstName || '')[0] || ''}${(user.lastName || '')[0] || ''}`.toUpperCase(),
+                            }}
+                        />
                     ) : activeView === 'settings' ? (
                         <AdminAccountSettings
                             user={user}
