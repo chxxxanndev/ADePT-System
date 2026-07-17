@@ -24,7 +24,7 @@ export function PendingPayment({ onSelectPayment }: any) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchLivePayments = async () => {
+        const fetchLivePayments = async () => {    
             try {
                 setLoading(true);
                 const rawRequests = await requestService.getRequests();
