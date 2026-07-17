@@ -4,7 +4,7 @@ export type PaymentDocumentKey = 'tax-declaration' | 'certificate-land-holding' 
 
 export interface PendingPaymentRequest {
     controlNumber: string;
-    declarantName: string;
+    declarant_name: string;
     documentType: string;
     amountDue: number;
     dateRequested: string;
@@ -16,7 +16,7 @@ export interface PendingPaymentRequest {
         ownerName?: string;
         propertyIndexNumber?: string;
         taxDeclarationNumber?: string;
-        declarantName?: string;
+        declarant_name?: string;
         ownershipType?: string;
         pronoun?: string;
         propertyCount?: string;

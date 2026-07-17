@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import type { User } from '../../../../auth-folder/types/auth';
-import type { CompletedEntryData } from '../../../types/taxDeclaration';
-import type { NoLandholdingFormData, PronounType, PropertyCountType } from '../../../types/noLandholding';
-import { EMPTY_NO_LANDHOLDING_FORM } from '../../../types/noLandholding';
-import { requestService } from '../../../services/requestService';
-import '../../../styles/LandholdingCertificate.css';
+import { noLandholdingService } from '../../../services/noLandholdingService';
+import type { CompletedEntryData } from '../../../../users/types/taxDeclaration';
+import type { NoLandholdingFormData, PronounType, PropertyCountType } from '../../../../users/types/noLandholding';
+import { EMPTY_NO_LANDHOLDING_FORM } from '../../../../users/types/noLandholding';
+import { requestService } from '../../../../users/services/requestService';
+import '../../../../users/styles/LandholdingCertificate.css';
 
 function ordinal(n: number): string {
     const s = ['th', 'st', 'nd', 'rd'];
@@ -46,7 +47,18 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onBackTo
         setSaveError('');
         setSaving(true);
         try {
-            await new Promise((res) => setTimeout(res, 800)); // Mock API delay
+            // REPLACE THE MOCK WITH THIS REAL API CALL:
+            await noLandholdingService.saveCertificate({
+                requestId: entryData.requestId,
+                declarantName: form.declarantName,
+                pronoun: form.pronoun,
+                propertyCount: form.propertyCount,
+                dateGiven: form.dateGiven,
+                givenAt: form.givenAt,
+                purpose: form.purpose,
+                printAsCtc,
+                action,
+            }, user.id);
 
             if (action !== 'draft') {
                 await requestService.updateRequest(entryData.requestId, { ...entryData, status: 'PENDING_PAYMENT' });
@@ -54,7 +66,7 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onBackTo
 
             setSaved(true);
             setTimeout(() => {
-                if (action === 'send_to_payment') onGoToPendingPayments(); // <--- CALL IT HERE
+                if (action === 'send_to_payment') onGoToPendingPayments();
                 else if (action === 'add_another') onAddAnother();
             }, 1500);
         } catch (err: any) {

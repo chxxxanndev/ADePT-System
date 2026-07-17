@@ -186,8 +186,8 @@ export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard,
                         <div className="td-section">
                             <div className="td-section-title">Location of Property</div>
                             <div className="td-location-strip">
-                                <div className="td-location-cell"><input id="td-barangay" className="td-input" placeholder="Barangay" value={form.barangay} onChange={(e) => set('barangay', e.target.value)} /><span className="td-location-sub">(Barangay)</span></div>
-                                <div className="td-location-cell"><input id="td-municipality" className="td-input" placeholder="Municipality" value={form.municipality} onChange={(e) => set('municipality', e.target.value)} /><span className="td-location-sub">(Municipality)</span></div>
+                                <div className="td-location-cell"><input id="td-barangay" className="td-input" placeholder="Barangay" value={form.barangayId} onChange={(e) => set('barangayId', e.target.value)} /><span className="td-location-sub">(Barangay)</span></div>
+                                <div className="td-location-cell"><input id="td-municipality" className="td-input" placeholder="Municipality" value={form.municipalityId} onChange={(e) => set('municipalityId', e.target.value)} /><span className="td-location-sub">(Municipality)</span></div>
                                 <div className="td-location-cell td-province-fixed"><input className="td-input" readOnly value="ZAMBOANGA DEL NORTE" /><span className="td-location-sub">(Province)</span></div>
                             </div>
                         </div>

@@ -22,13 +22,10 @@ export const requestService = {
         const response = await axios.get(`${API_BASE_URL}/metadata`);
         return response.data;
     },
-
-    // ADD THIS FUNCTION
     getRequests: async () => {
         const response = await axios.get(API_BASE_URL);
         return response.data;
     },
-
     submitRequest: async (formData: RequestFormData, staffAuthId: string) => {
         const response = await axios.post(API_BASE_URL, {
             ...formData,
@@ -36,13 +33,10 @@ export const requestService = {
         });
         return response.data;
     },
-
     updateRequest: async (id: string, formData: RequestFormData) => {
         const response = await axios.put(`${API_BASE_URL}/${id}`, formData);
         return response.data;
     },
-
-    // ADD THIS FUNCTION
     deleteRequest: async (id: string) => {
         const response = await axios.delete(`${API_BASE_URL}/${id}`);
         return response.data;

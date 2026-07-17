@@ -62,7 +62,7 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
                     </div>
                     <div>
                         <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Declarant Name</p>
-                        <h3 style={{ margin: 0, fontSize: '18px', color: '#1e293b' }}>{payment.declarantName}</h3>
+                        <h3 style={{ margin: 0, fontSize: '18px', color: '#1e293b' }}>{payment.declarant_name}</h3>
                     </div>
                     <div>
                         <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Document Type</p>
