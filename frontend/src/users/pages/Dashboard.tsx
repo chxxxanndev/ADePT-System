@@ -26,6 +26,7 @@ import type { AccountUser, AccountSettingsFormData } from '../types/accountSetti
 import type { PendingPaymentRequest } from '../types/PendingPayment';
 import { TransactionRegistry } from './TransactionRegistry';
 
+
 import {
     navSections,
     operationalSummary,
@@ -36,6 +37,7 @@ import {
     recentTransactions,
     quickActions
 } from '../data/dashboardMockData';
+import VoidAndAmend from './VoidAndAmend';
 
 const REQUEST_PROCESSING_VIEWS = new Set([
     'tax-declaration',
@@ -256,6 +258,8 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                         />
                     ) : activeView === 'transaction-registry' ? (
                         <TransactionRegistry />
+                    ) : activeView === 'void-amend' ? (
+                        <VoidAndAmend />
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
                             <h2>{VIEW_LABELS[activeView] ?? activeView}</h2>
