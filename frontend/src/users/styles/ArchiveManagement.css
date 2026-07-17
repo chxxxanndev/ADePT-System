@@ -1,0 +1,302 @@
+/* ==================================================================
+   ArchiveManagement.css
+   Styles for src/admin/pages/ArchiveManagement.tsx
+   Palette source: ADePT Official Design System
+   ================================================================== */
+
+.arc-page {
+  --color-primary: #29237a;
+  --color-secondary: #00bcd4;
+  --color-background: #fffcf9;
+  --color-text: #2c3338;
+  --color-muted: #8b8fa3;
+  --color-muted-light: #9aa0af;
+
+  --color-success: #4caf50;
+  --color-success-bg: #e8f5e9;
+  --color-error: #d32f2f;
+  --color-error-bg: #ffebee;
+  --color-archived: #607d8b;
+  --color-archived-bg: #eceff1;
+  --color-truecopy: #1976d2;
+  --color-truecopy-bg: #e3f2fd;
+
+  --glass-border: rgba(255, 255, 255, 0.35);
+  --input-focus-border: #00bcd4;
+  --row-divider: rgba(41, 35, 122, 0.06);
+  --table-header-bg: rgba(41, 35, 122, 0.05);
+  --card-shadow: rgba(41, 35, 122, 0.06);
+
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: inherit;
+}
+
+.arc-container {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---------- Header ---------- */
+
+.arc-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.arc-header-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-archived-bg);
+  color: var(--color-archived);
+  flex-shrink: 0;
+}
+
+.arc-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.arc-subtitle {
+  font-size: 14px;
+  color: var(--color-muted);
+  margin: 2px 0 0;
+}
+
+/* ---------- Filters ---------- */
+
+.arc-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.arc-search-field {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+}
+
+.arc-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted-light);
+  pointer-events: none;
+}
+
+.arc-search-input {
+  width: 100%;
+  padding: 9px 14px 9px 36px;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  background-color: #ffffff;
+  border: 1px solid var(--glass-border);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px var(--card-shadow);
+}
+
+.arc-search-input:focus {
+  border-color: var(--input-focus-border);
+}
+
+.arc-select-field {
+  position: relative;
+}
+
+.arc-select {
+  appearance: none;
+  padding: 9px 32px 9px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  background-color: #ffffff;
+  border: 1px solid var(--glass-border);
+  color: var(--color-text);
+  cursor: pointer;
+  box-shadow: 0 1px 2px var(--card-shadow);
+}
+
+.arc-select:focus {
+  border-color: var(--input-focus-border);
+}
+
+.arc-select-chevron {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted-light);
+  pointer-events: none;
+}
+
+/* ---------- Records card ---------- */
+
+.arc-card {
+  background-color: #ffffff;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 8px 24px;
+  box-shadow: 0 1px 3px var(--card-shadow);
+}
+
+.arc-row-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.arc-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-top: 1px solid var(--row-divider);
+}
+
+.arc-row:first-child {
+  border-top: none;
+}
+
+.arc-row-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.arc-row-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.arc-row-reference {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.arc-row-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+  margin: 0 0 3px;
+}
+
+.arc-row-reason {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.arc-row-meta {
+  font-size: 12px;
+  color: var(--color-muted-light);
+  margin: 4px 0 0;
+}
+
+.arc-empty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--color-muted-light);
+  font-size: 14px;
+}
+
+/* ---------- Document type tag ---------- */
+
+.arc-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.arc-tag--primary {
+  background-color: var(--table-header-bg);
+  color: var(--color-primary);
+}
+.arc-tag--success {
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+}
+.arc-tag--secondary {
+  background-color: rgba(0, 188, 212, 0.1);
+  color: var(--color-secondary);
+}
+.arc-tag--truecopy {
+  background-color: var(--color-truecopy-bg);
+  color: var(--color-truecopy);
+}
+
+/* ---------- Original status badge ---------- */
+
+.arc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.arc-badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background-color: currentColor;
+  flex-shrink: 0;
+}
+
+.arc-badge--released {
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.arc-badge--voided {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+/* ---------- Restore button ---------- */
+
+.arc-restore-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 500;
+  background-color: #ffffff;
+  border: 1px solid var(--color-secondary);
+  color: var(--color-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.arc-restore-btn:hover {
+  background-color: var(--color-secondary);
+  color: #ffffff;
+}
