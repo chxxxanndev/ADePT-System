@@ -5,6 +5,7 @@ import healthRoutes from './routes/health.routes.js';
 import requestRoutes from './modules/requests/request.routes.js';
 import taxDeclarationRoutes from './modules/taxDeclarations/taxDeclaration.routes.js';
 import landholdingRoutes from './modules/landholding/landholding.routes.js';
+import userRoutes from './modules/users/user.routes.js';
 
 const app = express();
 
@@ -18,5 +19,6 @@ app.use('/api/health', healthRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/tax-declarations', taxDeclarationRoutes);
 app.use('/api/landholding', landholdingRoutes);
+app.use('/api/users', userRoutes);
 
 export default app;

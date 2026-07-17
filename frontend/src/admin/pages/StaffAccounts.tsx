@@ -1,47 +1,30 @@
-import { useState } from 'react';
 import '../styles/StaffAccounts.css';
 import type { User } from '../../auth-folder/types/auth';
-
-interface StaffAccount {
-    id: string;
-    name: string;
-    role: string;
-    email: string;
-    status: 'active' | 'inactive';
-    dateAdded: string;
-}
-
-// TODO: replace with real data from a useStaffAccounts hook / API call,
-// mirroring the pattern used for accessRequests / requestQueue elsewhere.
-const mockStaffAccounts: StaffAccount[] = [
-    { id: '1', name: 'Maria Lopez', role: 'Records Officer', email: 'mary@gmail.com', status: 'active', dateAdded: '07-11-26' },
-    { id: '2', name: 'John Cruz', role: 'Assessment Clerk', email: 'johnny@gmail.com', status: 'inactive', dateAdded: '04-05-26' },
-    { id: '3', name: 'Anne Reyes', role: 'Assessment Clerk', email: 'unnie@gmail.com', status: 'inactive', dateAdded: '07-15-26' },
-    { id: '4', name: 'Carlo Gomez', role: 'Records Officer', email: 'olrac@gmail.com', status: 'active', dateAdded: '06-27-26' },
-];
+import { useStaffAccounts } from '../hooks/useStaffAccounts';
 
 interface StaffAccountsProps {
     user: User;
     onAddStaff?: () => void;
+    /** @deprecated Replaced by live toggle — kept for API compatibility */
     onManageStaff?: (staffId: string) => void;
 }
 
-export function StaffAccounts({ user, onAddStaff, onManageStaff }: StaffAccountsProps) {
-    const [staff] = useState<StaffAccount[]>(mockStaffAccounts);
-    const [searchQuery, setSearchQuery] = useState('');
+export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
+    const {
+        staff,
+        loading,
+        error,
+        searchQuery,
+        setSearchQuery,
+        toggleStatus,
+        updatingId,
+        refresh,
+    } = useStaffAccounts();
+
     const activeCount = staff.filter((s) => s.status === 'active').length;
 
-    const fullName = `${user.firstName || 'Mommy'} ${user.lastName || 'Dionisia'}`;
-    const initials = `${user.firstName?.[0] || 'M'}${user.lastName?.[0] || 'D'}`;
-
-    const filteredStaff = staff.filter((member) => {
-        const query = searchQuery.toLowerCase();
-        return (
-            member.name.toLowerCase().includes(query) ||
-            member.email.toLowerCase().includes(query) ||
-            member.role.toLowerCase().includes(query)
-        );
-    });
+    const fullName = `${user.firstName || 'Admin'} ${user.lastName || 'User'}`;
+    const initials = `${user.firstName?.[0] || 'A'}${user.lastName?.[0] || 'U'}`;
 
     return (
         <>
@@ -92,12 +75,44 @@ export function StaffAccounts({ user, onAddStaff, onManageStaff }: StaffAccounts
                 <div className="staff-accounts-header-row">
                     <div className="staff-accounts-title-group">
                         <h2 className="admin-card-title">Staff Accounts</h2>
-                        <span className="active-count-pill">{activeCount} Active</span>
+                        {!loading && <span className="active-count-pill">{activeCount} Active</span>}
                     </div>
-                    <button className="admin-add-btn" onClick={onAddStaff}>
-                        + Add Staff
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {/* Refresh button */}
+                        <button
+                            className="staff-manage-btn"
+                            onClick={refresh}
+                            disabled={loading}
+                            title="Refresh list"
+                        >
+                            ↻ Refresh
+                        </button>
+                        <button className="admin-add-btn" onClick={onAddStaff}>
+                            + Add Staff
+                        </button>
+                    </div>
                 </div>
+
+                {/* Error banner */}
+                {error && (
+                    <div style={{
+                        padding: '10px 14px',
+                        marginBottom: '12px',
+                        background: 'rgba(239,68,68,0.1)',
+                        border: '1px solid rgba(239,68,68,0.3)',
+                        borderRadius: '8px',
+                        color: '#ef4444',
+                        fontSize: '0.85rem',
+                    }}>
+                        {error} —{' '}
+                        <button
+                            onClick={refresh}
+                            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                            retry
+                        </button>
+                    </div>
+                )}
 
                 <div className="admin-table-container">
                     <table className="admin-table">
@@ -112,28 +127,65 @@ export function StaffAccounts({ user, onAddStaff, onManageStaff }: StaffAccounts
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredStaff.map((member) => (
-                                <tr key={member.id}>
-                                    <td><strong>{member.name}</strong></td>
-                                    <td>{member.email}</td>
-                                    <td>{member.role}</td>
-                                    <td>
-                                        <span className={`status-indicator ${member.status}`}>
-                                            <span className="status-dot" />
-                                            {member.status === 'active' ? 'Active' : 'Inactive'}
-                                        </span>
-                                    </td>
-                                    <td>{member.dateAdded}</td>
-                                    <td>
-                                        <button
-                                            className="staff-manage-btn"
-                                            onClick={() => onManageStaff?.(member.id)}
-                                        >
-                                            Manage
-                                        </button>
+                            {loading ? (
+                                /* Loading skeleton rows */
+                                Array.from({ length: 4 }).map((_, i) => (
+                                    <tr key={i}>
+                                        {Array.from({ length: 6 }).map((__, j) => (
+                                            <td key={j}>
+                                                <div style={{
+                                                    height: '14px',
+                                                    borderRadius: '6px',
+                                                    background: 'rgba(255,255,255,0.07)',
+                                                    animation: 'pulse 1.5s ease-in-out infinite',
+                                                    width: j === 5 ? '70px' : '100%',
+                                                }} />
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))
+                            ) : staff.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} style={{ textAlign: 'center', opacity: 0.5, padding: '24px' }}>
+                                        No staff members found.
                                     </td>
                                 </tr>
-                            ))}
+                            ) : (
+                                staff.map((member) => (
+                                    <tr key={member.id}>
+                                        <td><strong>{member.name}</strong></td>
+                                        <td>{member.email}</td>
+                                        <td>{member.role}</td>
+                                        <td>
+                                            <span className={`status-indicator ${member.status}`}>
+                                                <span className="status-dot" />
+                                                {member.status === 'active' ? 'Active' : member.status === 'pending' ? 'Pending' : 'Inactive'}
+                                            </span>
+                                        </td>
+                                        <td>{member.dateAdded}</td>
+                                        <td>
+                                            <button
+                                                className="staff-manage-btn"
+                                                disabled={updatingId === member.id || member.status === 'pending'}
+                                                onClick={() => toggleStatus(member.id)}
+                                                title={
+                                                    member.status === 'pending'
+                                                        ? 'Approve account via Account Requests first'
+                                                        : member.status === 'active'
+                                                        ? 'Deactivate this staff member'
+                                                        : 'Reactivate this staff member'
+                                                }
+                                            >
+                                                {updatingId === member.id
+                                                    ? 'Saving…'
+                                                    : member.status === 'active'
+                                                    ? 'Deactivate'
+                                                    : 'Activate'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
