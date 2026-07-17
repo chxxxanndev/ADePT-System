@@ -184,9 +184,8 @@ export default function AccountRequest() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`account-request-tab ${
-                  activeTab === tab.key ? "active" : ""
-                }`}
+                className={`account-request-tab ${activeTab === tab.key ? "active" : ""
+                  }`}
               >
                 {tab.label}
                 {tab.key === "pending" && counts.pending > 0 && (
