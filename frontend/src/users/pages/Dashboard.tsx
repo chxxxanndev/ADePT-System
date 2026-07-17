@@ -219,7 +219,13 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 onGoToPendingPayments={() => setActiveView('pending-payment')} // THIS TRIGGERS THE REDIRECT
                                 onAddAnother={handleAddAnother}
                             />
-                        ) : (<RequestGuard attemptedView="Certificate of Land Holding" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
+                        ) : (
+                            <RequestGuard
+                                attemptedView="Certificate of Land Holding"
+                                onGoToEntry={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                            />
+                        )
                     ) : activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' ? (
                         completedEntryData ? (
                             <NoLandholdingCertificateForm

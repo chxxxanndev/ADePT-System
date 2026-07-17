@@ -10,6 +10,33 @@ export const getFormMetadata = async (req, res) => {
     }
 };
 
+export const getAllRequests = async (req, res) => {
+    try {
+        const requests = await RequestService.getAllRequests();
+        res.status(200).json(requests);
+    } catch (error) {
+        console.error('Get All Requests Error:', error);
+        res.status(500).json({ error: error.message || 'Failed to fetch requests.' });
+    }
+};
+
+export const deleteRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ error: 'Missing request id.' });
+        }
+        const result = await RequestService.deleteRequest(id);
+        res.status(200).json({ message: 'Request deleted successfully', data: result });
+    } catch (error) {
+        console.error('Delete Request Error:', error);
+        if (error.message === 'REQUEST_NOT_FOUND') {
+            return res.status(404).json({ error: 'Request not found.' });
+        }
+        res.status(500).json({ error: error.message || 'Failed to delete request.' });
+    }
+};
+
 export const createRequest = async (req, res) => {
     try {
         const formData = req.body;
@@ -64,4 +91,6 @@ export const updateRequest = async (req, res) => {
         }
         res.status(500).json({ error: error.message || 'Failed to update request.' });
     }
+
+
 };
