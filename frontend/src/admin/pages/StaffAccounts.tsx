@@ -1,47 +1,33 @@
-import { useState } from 'react';
 import '../styles/StaffAccounts.css';
 import type { User } from '../../auth-folder/types/auth';
+import { useStaffAccounts } from '../hooks/useStaffAccounts';
 
-interface StaffAccount {
-    id: string;
-    name: string;
-    role: string;
-    email: string;
-    status: 'active' | 'inactive';
-    dateAdded: string;
-}
 
-// TODO: replace with real data from a useStaffAccounts hook / API call,
-// mirroring the pattern used for accessRequests / requestQueue elsewhere.
-const mockStaffAccounts: StaffAccount[] = [
-    { id: '1', name: 'Maria Lopez', role: 'Records Officer', email: 'mary@gmail.com', status: 'active', dateAdded: '07-11-26' },
-    { id: '2', name: 'John Cruz', role: 'Assessment Clerk', email: 'johnny@gmail.com', status: 'inactive', dateAdded: '04-05-26' },
-    { id: '3', name: 'Anne Reyes', role: 'Assessment Clerk', email: 'unnie@gmail.com', status: 'inactive', dateAdded: '07-15-26' },
-    { id: '4', name: 'Carlo Gomez', role: 'Records Officer', email: 'olrac@gmail.com', status: 'active', dateAdded: '06-27-26' },
-];
 
 interface StaffAccountsProps {
     user: User;
     onAddStaff?: () => void;
+    /** @deprecated Replaced by live toggle — kept for API compatibility */
     onManageStaff?: (staffId: string) => void;
 }
 
-export function StaffAccounts({ user, onAddStaff, onManageStaff }: StaffAccountsProps) {
-    const [staff] = useState<StaffAccount[]>(mockStaffAccounts);
-    const [searchQuery, setSearchQuery] = useState('');
+export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
+    const {
+        staff,
+        loading,
+        error,
+        searchQuery,
+        setSearchQuery,
+        toggleStatus,
+        updatingId,
+        refresh,
+    } = useStaffAccounts();
+
     const activeCount = staff.filter((s) => s.status === 'active').length;
 
-    const fullName = `${user.firstName || 'Mommy'} ${user.lastName || 'Dionisia'}`;
-    const initials = `${user.firstName?.[0] || 'M'}${user.lastName?.[0] || 'D'}`;
+    const fullName = `${user.firstName || 'Admin'} ${user.lastName || 'User'}`;
+    const initials = `${user.firstName?.[0] || 'A'}${user.lastName?.[0] || 'U'}`;
 
-    const filteredStaff = staff.filter((member) => {
-        const query = searchQuery.toLowerCase();
-        return (
-            member.name.toLowerCase().includes(query) ||
-            member.email.toLowerCase().includes(query) ||
-            member.role.toLowerCase().includes(query)
-        );
-    });
 
     return (
         <>
@@ -92,12 +78,46 @@ export function StaffAccounts({ user, onAddStaff, onManageStaff }: StaffAccounts
                 <div className="staff-accounts-header-row">
                     <div className="staff-accounts-title-group">
                         <h2 className="admin-card-title">Staff Accounts</h2>
-                        <span className="active-count-pill">{activeCount} Active</span>
+                        {!loading && <span className="active-count-pill">{activeCount} Active</span>}
                     </div>
-                    <button className="admin-add-btn" onClick={onAddStaff}>
-                        + Add Staff
-                    </button>
+
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {/* Refresh button */}
+                        <button
+                            className="staff-manage-btn"
+                            onClick={refresh}
+                            disabled={loading}
+                            title="Refresh list"
+                        >
+                            ↻ Refresh
+                        </button>
+                        <button className="admin-add-btn" onClick={onAddStaff}>
+                            + Add Staff
+                        </button>
+                    </div>
                 </div>
+
+                 {/* Error banner */}
+                {error && (
+                    <div style={{
+                        padding: '10px 14px',
+                        marginBottom: '12px',
+                        background: 'rgba(239,68,68,0.1)',
+                        border: '1px solid rgba(239,68,68,0.3)',
+                        borderRadius: '8px',
+                        color: '#ef4444',
+                        fontSize: '0.85rem',
+                    }}>
+                        {error} —{' '}
+                        <button
+                            onClick={refresh}
+                            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                            retry
+                        </button>
+                    </div>
+                )}
+
 
                 <div className="admin-table-container">
                     <table className="admin-table">

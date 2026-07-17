@@ -143,33 +143,15 @@ export default function AccountRequest() {
             </p>
           </div>
 
-          <div className="account-request-header-actions">
-            <div className="account-request-search-wrap">
-              <Search className="account-request-search-icon" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search records"
-                className="account-request-search-input"
-              />
+           <div className="account-request-user-chip">
+            <div className="account-request-user-avatar">
+              {(user.firstName?.[0] ?? 'A')}{(user.lastName?.[0] ?? 'U')}
             </div>
-
-            <button className="account-request-date-btn">
-              Today
-              <ChevronDown size={16} />
-            </button>
-
-            <button className="account-request-bell-btn">
-              <Bell size={16} />
-              <span className="account-request-bell-dot" />
-            </button>
-
-            <div className="account-request-user-chip">
-              <div className="account-request-user-avatar">VD</div>
-              <div>
-                <p className="account-request-user-name">Vicente Desoy</p>
-                <p className="account-request-user-role">Super admin</p>
-              </div>
+            <div>
+              <p className="account-request-user-name">{user.firstName} {user.lastName}</p>
+              <p className="account-request-user-role">
+                {user.role === 'SUPER_ADMIN' ? 'Super admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : 'Admin'}
+              </p>
             </div>
           </div>
         </div>
