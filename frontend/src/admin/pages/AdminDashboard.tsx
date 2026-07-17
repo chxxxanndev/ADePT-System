@@ -160,7 +160,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                             </div>
                         </div>
                     ) : activeView === 'account-request' ? (
-                        <AccountRequest />
+                        <AccountRequest user={user} />
                     ) : activeView === 'staff-accounts' ? (
                         <StaffAccounts
                             user={user}

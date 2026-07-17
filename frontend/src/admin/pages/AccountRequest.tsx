@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { Search, ChevronDown, Bell } from "lucide-react";
+import { SearchIcon } from "../components/icons";
 import "../styles/AccountRequest.css";
+import type { User } from "../../auth-folder/types/auth";
 
 // ---------- Types ----------
 type RequestStatus = "pending" | "approved" | "declined";
@@ -10,10 +11,10 @@ interface AccountRequestItem {
   id: string;
   applicantName: string;
   initials: string;
-  avatarColor: string; // css class, e.g. "avatar-rose"
+  avatarColor: string;
   email: string;
   requestedRole: string;
-  submitted: string; // display string, e.g. "Jul 14, 8:02 AM"
+  submitted: string;
   idDocument: IdDocStatus;
   status: RequestStatus;
 }
@@ -85,19 +86,30 @@ const TABS: { key: RequestStatus; label: string }[] = [
 
 function IdDocBadge({ status }: { status: IdDocStatus }) {
   if (status === "verified") {
-    return (
-      <span className="account-request-badge verified">Verified</span>
-    );
+    return <span className="account-request-badge verified">Verified</span>;
   }
   return (
     <span className="account-request-badge pending">Pending verification</span>
   );
 }
 
-export default function AccountRequest() {
+interface AccountRequestProps {
+  user: User;
+}
+
+export default function AccountRequest({ user }: AccountRequestProps) {
   const [activeTab, setActiveTab] = useState<RequestStatus>("pending");
   const [query, setQuery] = useState("");
   const [requests, setRequests] = useState<AccountRequestItem[]>(MOCK_REQUESTS);
+
+  const fullName = `${user.firstName || "Mommy"} ${user.lastName || "Dionisia"}`;
+  const initials = `${user.firstName?.[0] || "M"}${user.lastName?.[0] || "D"}`;
+  const roleLabel =
+    user.role === "SUPER_ADMIN"
+      ? "Super Admin"
+      : user.role === "OFFICE_STAFF"
+        ? "Office Staff"
+        : user.role || "Super Admin";
 
   const counts = useMemo(
     () => ({
@@ -124,7 +136,6 @@ export default function AccountRequest() {
 
   function handleDecision(id: string, decision: "approved" | "declined") {
     // TODO: replace with actual API call once endpoint is confirmed
-    // e.g. await api.patch(`/account-requests/${id}`, { status: decision })
     setRequests((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: decision } : r))
     );
@@ -132,48 +143,45 @@ export default function AccountRequest() {
 
   return (
     <div className="account-request-page">
-      {/* Dedicated header for this view */}
-      <header className="account-request-header">
-        <div className="account-request-header-row">
+      {/* Shared header pattern — matches Reports & other admin pages */}
+      <div className="rq-page-header">
+        <div className="rq-page-header-row">
           <div>
-            <h1 className="account-request-title">Account requests</h1>
-            <p className="account-request-subtitle">
+            <h1 className="rq-page-title">Account requests</h1>
+            <p className="rq-page-subtitle">
               Approve or decline new registrations before they can access the
               system.
             </p>
           </div>
 
-          <div className="account-request-header-actions">
-            <div className="account-request-search-wrap">
-              <Search className="account-request-search-icon" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search records"
-                className="account-request-search-input"
-              />
-            </div>
-
-            <button className="account-request-date-btn">
-              Today
-              <ChevronDown size={16} />
-            </button>
-
-            <button className="account-request-bell-btn">
-              <Bell size={16} />
-              <span className="account-request-bell-dot" />
-            </button>
-
-            <div className="account-request-user-chip">
-              <div className="account-request-user-avatar">VD</div>
-              <div>
-                <p className="account-request-user-name">Vicente Desoy</p>
-                <p className="account-request-user-role">Super admin</p>
+          <div className="admin-profile-widget">
+            <div className="profile-widget-avatar-container">{initials}</div>
+            <div className="profile-widget-info">
+              <span className="profile-widget-name">{fullName}</span>
+              <span className="profile-widget-email">
+                {user.email || "provincialassessor@gmail.com"}
+              </span>
+              <div className="profile-widget-meta">
+                <span className="profile-widget-role">{roleLabel}</span>
+                <span>Last Login : Today • 8:12 AM</span>
               </div>
             </div>
           </div>
         </div>
-      </header>
+
+        <div className="rq-search-wrapper">
+          <input
+            type="text"
+            className="rq-search-input"
+            placeholder="Search records"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <span className="rq-search-icon">
+            <SearchIcon size={16} />
+          </span>
+        </div>
+      </div>
 
       {/* Content */}
       <div className="account-request-content">
@@ -234,7 +242,9 @@ export default function AccountRequest() {
                   </td>
                   <td className="account-request-cell-muted">{r.email}</td>
                   <td>{r.requestedRole}</td>
-                  <td className="account-request-cell-muted">{r.submitted}</td>
+                  <td className="account-request-cell-muted">
+                    {r.submitted}
+                  </td>
                   <td>
                     <IdDocBadge status={r.idDocument} />
                   </td>
