@@ -95,7 +95,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                 setMobileOpen={setMobileMenuOpen}
             />
 
-           {/* Main Panel */}
+            {/* Main Panel */}
             <main className="admin-dashboard-main">
                 {/* Header — hidden on views that render their own header */}
                 {activeView !== 'account-request' && activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && activeView !== 'audit-log' && activeView !== 'settings' && (
@@ -112,26 +112,24 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                 <div className="admin-dashboard-content">
                     {activeView === 'overview' ? (
                         <div className="admin-overview-content">
-                            {/* Both stat sections share one box */}
-                            <div className="admin-stats-panel">
-                                {/* Access Requests cards */}
-                                <AdminStatsSection
-                                    title="Account Access Requests"
-                                    items={accessRequests}
-                                    sectionIcon={<ShieldUserIcon />}
-                                    onRefresh={refreshAccessRequests}
-                                    isRefreshing={refreshingAccessRequests}
-                                />
+                            {/* Both stat sections have their own boxes now, matching user dashboard */}
+                            {/* Access Requests cards */}
+                            <AdminStatsSection
+                                title="Account Access Requests"
+                                items={accessRequests}
+                                sectionIcon={<ShieldUserIcon />}
+                                onRefresh={refreshAccessRequests}
+                                isRefreshing={refreshingAccessRequests}
+                            />
 
-                                {/* Request Queue cards */}
-                                <AdminStatsSection
-                                    title="Document Request Queue"
-                                    items={requestQueue}
-                                    sectionIcon={<ChainLinkIcon />}
-                                    onRefresh={refreshQueue}
-                                    isRefreshing={refreshingQueue}
-                                />
-                            </div>
+                            {/* Request Queue cards */}
+                            <AdminStatsSection
+                                title="Document Request Queue"
+                                items={requestQueue}
+                                sectionIcon={<ChainLinkIcon />}
+                                onRefresh={refreshQueue}
+                                isRefreshing={refreshingQueue}
+                            />
 
                             {/* Split column grids */}
                             <div className="admin-grid-columns">
@@ -163,7 +161,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                         </div>
                     ) : activeView === 'account-request' ? (
                         <AccountRequest />
-                   ) : activeView === 'staff-accounts' ? (
+                    ) : activeView === 'staff-accounts' ? (
                         <StaffAccounts
                             user={user}
                             onAddStaff={() => console.log('TODO: open add-staff flow')}

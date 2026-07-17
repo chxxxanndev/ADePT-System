@@ -1,4 +1,14 @@
 import { useState } from 'react';
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    Cell,
+} from 'recharts';
 import '../styles/AdminReports.css';
 import { SearchIcon } from '../components/icons';
 import type { User } from '../../auth-folder/types/auth';
@@ -6,6 +16,7 @@ import type { User } from '../../auth-folder/types/auth';
 interface MonthlyRequest {
     month: string;
     count: number;
+    color: string;
 }
 
 interface DistributionSlice {
@@ -16,12 +27,12 @@ interface DistributionSlice {
 
 // TODO: replace with real data from a useAdminReports hook / API call
 const monthlyRequests: MonthlyRequest[] = [
-    { month: 'Feb', count: 210 },
-    { month: 'Mar', count: 180 },
-    { month: 'Apr', count: 240 },
-    { month: 'May', count: 300 },
-    { month: 'Jun', count: 260 },
-    { month: 'Jul', count: 140 },
+    { month: 'Feb', count: 210, color: '#29237a' },
+    { month: 'Mar', count: 180, color: '#00bcd4' },
+    { month: 'Apr', count: 240, color: '#29237a' },
+    { month: 'May', count: 300, color: '#00bcd4' },
+    { month: 'Jun', count: 260, color: '#29237a' },
+    { month: 'Jul', count: 140, color: '#00bcd4' },
 ];
 
 const totalDocuments = 8984;
@@ -34,7 +45,6 @@ const distribution: DistributionSlice[] = [
     { label: 'No landholding', percent: 22, color: '#F2994A' },
 ];
 
-// Build stroke-dasharray offsets for each donut segment
 function buildDonutSegments(slices: DistributionSlice[], radius: number) {
     const circumference = 2 * Math.PI * radius;
     let cumulative = 0;
@@ -50,6 +60,19 @@ function buildDonutSegments(slices: DistributionSlice[], radius: number) {
     });
 }
 
+function AdminBarTooltip({ active, payload }: any) {
+    if (!active || !payload || !payload.length) return null;
+    const item = payload[0];
+    return (
+        <div className="ar-chart-tooltip">
+            <div className="ar-chart-tooltip-label">{item.payload.month}</div>
+            <div style={{ color: item.payload.color }}>
+                {item.value.toLocaleString()} requests
+            </div>
+        </div>
+    );
+}
+
 interface AdminReportsProps {
     user: User;
 }
@@ -61,13 +84,12 @@ export function AdminReports({ user }: AdminReportsProps) {
     const initials = `${user.firstName?.[0] || 'M'}${user.lastName?.[0] || 'D'}`;
     const roleLabel = user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : user.role || 'Super Admin';
 
-    const maxCount = Math.max(...monthlyRequests.map((m) => m.count));
     const radius = 68;
     const segments = buildDonutSegments(distribution, radius);
 
     return (
         <div className="admin-reports-page">
-            {/* Page header — matches Request Queue's header pattern */}
+            {/* Page header */}
             <div className="rq-page-header">
                 <div className="rq-page-header-row">
                     <div>
@@ -90,7 +112,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                     </div>
                 </div>
 
-                {/* Search bar */}
                 <div className="rq-search-wrapper">
                     <input
                         type="text"
@@ -123,24 +144,57 @@ export function AdminReports({ user }: AdminReportsProps) {
 
             {/* Chart row */}
             <div className="ar-charts-row">
-                {/* Bar chart */}
+                {/* Bar chart — now recharts, styled like Transaction & Document Status Overview */}
                 <div className="admin-card ar-bar-card">
                     <div className="ar-bar-card-header">
                         <h2 className="admin-card-title">Requests by month</h2>
                         <button type="button" className="ar-export-btn">Export</button>
                     </div>
+                    <p className="ar-chart-description">
+                        Total document requests received per month
+                    </p>
 
-                    <div className="ar-bar-chart">
-                        {monthlyRequests.map((item, idx) => (
-                            <div className="ar-bar-column" key={item.month}>
-                                <span className="ar-bar-value">{item.count}</span>
-                                <div
-                                    className={`ar-bar ${idx % 2 === 0 ? 'ar-bar--navy' : 'ar-bar--teal'}`}
-                                    style={{ height: `${(item.count / maxCount) * 100}%` }}
+                    <div className="ar-chart-canvas">
+                        <ResponsiveContainer>
+                            <BarChart
+                                data={monthlyRequests}
+                                margin={{ top: 8, right: 8, left: -12, bottom: 8 }}
+                            >
+                                <CartesianGrid vertical={false} stroke="rgba(41,35,122,0.08)" />
+                                <XAxis
+                                    dataKey="month"
+                                    tick={{ fontSize: 11, fill: '#8b8fa3' }}
+                                    axisLine={{ stroke: 'rgba(41,35,122,0.12)' }}
+                                    tickLine={false}
+                                    interval={0}
                                 />
-                                <span className="ar-bar-label">{item.month}</span>
-                            </div>
-                        ))}
+                                <YAxis
+                                    tick={{ fontSize: 11, fill: '#8b8fa3' }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                />
+                                <Tooltip
+                                    content={<AdminBarTooltip />}
+                                    cursor={{ fill: 'rgba(41,35,122,0.04)' }}
+                                />
+                                <Bar dataKey="count" radius={[8, 8, 0, 0]} maxBarSize={56}>
+                                    {monthlyRequests.map((entry, i) => (
+                                        <Cell key={i} fill={entry.color} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    <div className="ar-chart-legend">
+                        <div className="ar-legend-item">
+                            <span className="ar-legend-dot" style={{ backgroundColor: '#29237a' }} />
+                            Navy months
+                        </div>
+                        <div className="ar-legend-item">
+                            <span className="ar-legend-dot" style={{ backgroundColor: '#00bcd4' }} />
+                            Teal months
+                        </div>
                     </div>
                 </div>
 
