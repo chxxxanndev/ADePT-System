@@ -1,0 +1,402 @@
+/* =========================================================
+   Settings View — built on ADePT design system tokens
+   Depends on tokens declared in dashboard.css (:root)
+   ========================================================= */
+
+.settings-page {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 760px;
+}
+
+.settings-heading {
+    margin-bottom: 8px;
+}
+
+.settings-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--db-primary);
+    letter-spacing: -0.3px;
+    margin: 0 0 4px;
+}
+
+.settings-subtitle {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--db-text-muted);
+    margin: 0;
+}
+
+/* Hero / identity card */
+.settings-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    margin: 20px 0 28px;
+    border-radius: var(--db-radius-lg);
+    background: linear-gradient(120deg, var(--db-primary) 0%, #4d3fc2 100%);
+    box-shadow: var(--db-shadow-card);
+}
+
+.settings-hero-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.settings-hero-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    font-size: 17px;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.settings-hero-info {
+    min-width: 0;
+}
+
+.settings-hero-name {
+    font-size: 15.5px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0 0 2px;
+}
+
+.settings-hero-meta {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.settings-hero-dot {
+    margin: 0 2px;
+}
+
+.settings-photo-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: none;
+    background-color: #ffffff;
+    color: var(--db-primary);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background-color 0.2s, transform 0.15s;
+}
+
+.settings-photo-btn:hover {
+    background-color: #f0f0f5;
+}
+
+.settings-photo-btn:active {
+    transform: scale(0.97);
+}
+
+/* Section headings */
+.settings-section-heading {
+    margin: 0 0 12px;
+}
+
+.settings-section-heading--tight {
+    margin-top: 28px;
+}
+
+.settings-section-heading h2 {
+    font-size: 19px;
+    font-weight: 800;
+    color: #1a1a1a;
+    letter-spacing: -0.2px;
+    margin: 0 0 4px;
+}
+
+.settings-section-heading p {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--db-text-muted);
+    margin: 0;
+}
+
+/* Form card */
+.settings-card {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 22px;
+    border-radius: var(--db-radius-lg);
+    background-color: var(--db-primary);
+    box-shadow: var(--db-shadow-card);
+}
+
+.settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.settings-field--last {
+    margin-bottom: 0;
+}
+
+.settings-field label {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.settings-field-hint {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
+    margin: 0;
+}
+
+.settings-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.settings-input-wrap input {
+    width: 100%;
+    padding: 11px 40px 11px 14px;
+    border-radius: var(--db-radius-sm);
+    border: 1px solid transparent;
+    background-color: rgba(255, 255, 255, 0.92);
+    color: var(--db-text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    outline: none;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.settings-input-wrap input::placeholder {
+    color: #9297a1;
+}
+
+.settings-input-wrap input:focus {
+    background-color: #ffffff;
+    border-color: var(--db-secondary);
+}
+
+.settings-input-wrap svg {
+    position: absolute;
+    right: 13px;
+    color: var(--db-text-muted);
+    pointer-events: none;
+}
+
+.settings-input-wrap--action input {
+    padding-right: 128px;
+}
+
+.settings-inline-btn {
+    position: absolute;
+    right: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: none;
+    background-color: var(--db-secondary);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s;
+}
+
+.settings-inline-btn:hover {
+    background-color: var(--db-secondary-hover);
+}
+
+/* Save / discard row */
+.settings-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin: 16px 0 0;
+}
+
+.settings-btn {
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background-color 0.2s, opacity 0.2s;
+}
+
+.settings-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.settings-btn--ghost {
+    background-color: #eceef4;
+    color: var(--db-slate);
+}
+
+.settings-btn--ghost:not(:disabled):hover {
+    background-color: #e2e4ee;
+}
+
+.settings-btn--primary {
+    background-color: var(--db-primary);
+    color: #ffffff;
+}
+
+.settings-btn--primary:not(:disabled):hover {
+    background-color: var(--db-primary-hover);
+}
+
+/* Account status */
+.settings-status-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-radius: var(--db-radius-lg);
+    background-color: var(--db-primary);
+    box-shadow: var(--db-shadow-card);
+    color: #ffffff;
+    font-size: 13.5px;
+    font-weight: 700;
+}
+
+.settings-toggle {
+    position: relative;
+    display: inline-block;
+    width: 42px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.settings-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+}
+
+.settings-toggle-track {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    transition: background-color 0.2s;
+}
+
+.settings-toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    transition: transform 0.2s;
+}
+
+.settings-toggle input:checked + .settings-toggle-track {
+    background-color: var(--db-secondary);
+}
+
+.settings-toggle input:checked + .settings-toggle-track .settings-toggle-thumb {
+    transform: translateX(18px);
+}
+
+/* Toast */
+.settings-toast {
+    position: sticky;
+    bottom: 16px;
+    align-self: center;
+    margin-top: 18px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    background-color: var(--db-slate);
+    color: #ffffff;
+    font-size: 12.5px;
+    font-weight: 600;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+@media (max-width: 640px) {
+    .settings-title {
+        font-size: 23px;
+    }
+
+    .settings-hero {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 16px;
+    }
+
+    .settings-photo-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .settings-card,
+    .settings-status-card {
+        padding: 16px;
+    }
+
+    .settings-input-wrap--action input {
+        padding-right: 14px;
+        padding-bottom: 44px;
+    }
+
+    .settings-inline-btn {
+        left: 6px;
+        right: 6px;
+        bottom: 6px;
+        top: auto;
+        text-align: center;
+    }
+
+    .settings-actions {
+        flex-direction: column-reverse;
+    }
+
+    .settings-btn {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+@media (max-width: 400px) {
+    .settings-hero-meta {
+        white-space: normal;
+    }
+}

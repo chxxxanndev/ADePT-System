@@ -1,0 +1,380 @@
+/* Document Request Dashboard Stylesheet - Horizontal Grid */
+
+.doc-req-container {
+    padding: 28px 32px 40px;
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    position: relative;
+    z-index: 1;
+}
+
+/* Header */
+.doc-req-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1.5px solid rgba(41, 35, 122, 0.09);
+    padding-bottom: 20px;
+}
+
+.doc-req-title-section h1 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--db-primary);
+    margin: 0 0 5px 0;
+    letter-spacing: -0.5px;
+}
+
+.doc-req-title-section p {
+    font-size: 0.9rem;
+    color: var(--db-text-muted);
+    margin: 0;
+}
+
+.doc-req-section-title {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: #29237a;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ── HORIZONTAL GRID ── */
+.doc-req-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+/* ── HORIZONTAL CARDS ── */
+.doc-req-card {
+    background: #ffffff;
+    border: 1.5px solid rgba(41, 35, 122, 0.08);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 14px rgba(41, 35, 122, 0.05);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 0.25s ease,
+        border-color 0.25s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: 100%;
+}
+
+/* Colored top accent bar */
+.doc-req-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    border-radius: 16px 16px 0 0;
+    transition: height 0.25s ease;
+}
+
+.doc-req-card.tax-dec::before {
+    background: linear-gradient(90deg, #29237a 0%, #3730a3 100%);
+}
+
+.doc-req-card.land-holding::before {
+    background: linear-gradient(90deg, #d97706 0%, #f59e0b 100%);
+}
+
+.doc-req-card.no-landholding::before {
+    background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+}
+
+.doc-req-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(41, 35, 122, 0.12);
+    border-color: rgba(41, 35, 122, 0.18);
+}
+
+.doc-req-card:hover::before {
+    height: 6px;
+}
+
+/* Card Top: Icon and Badge */
+.doc-req-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.doc-req-card-icon-container {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.doc-req-card.tax-dec .doc-req-card-icon-container {
+    background: rgba(41, 35, 122, 0.08);
+}
+
+.doc-req-card.land-holding .doc-req-card-icon-container {
+    background: rgba(217, 119, 6, 0.10);
+}
+
+.doc-req-card.no-landholding .doc-req-card-icon-container {
+    background: rgba(220, 38, 38, 0.08);
+}
+
+.doc-req-card-stat {
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.doc-req-card.tax-dec .doc-req-card-stat {
+    background: #e8eaff;
+    color: #29237a;
+}
+
+.doc-req-card.land-holding .doc-req-card-stat {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.doc-req-card.no-landholding .doc-req-card-stat {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+/* Card Content */
+.doc-req-card-body {
+    flex: 1;
+}
+
+.doc-req-card-body h3 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0 0 8px 0;
+    line-height: 1.2;
+}
+
+.doc-req-card-body p {
+    font-size: 0.85rem;
+    color: var(--db-text-muted);
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Card Action Bottom */
+.doc-req-card-action {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid rgba(41, 35, 122, 0.06);
+    transition: gap 0.2s ease;
+}
+
+.doc-req-card.tax-dec .doc-req-card-action {
+    color: #29237a;
+}
+
+.doc-req-card.land-holding .doc-req-card-action {
+    color: #b45309;
+}
+
+.doc-req-card.no-landholding .doc-req-card-action {
+    color: #b91c1c;
+}
+
+.doc-req-card:hover .doc-req-card-action {
+    gap: 10px;
+}
+
+/* ── DRAFTS SECTION ── */
+.doc-req-drafts-section {
+    background: #ffffff;
+    border: 1.5px solid rgba(41, 35, 122, 0.08);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 14px rgba(41, 35, 122, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.doc-req-drafts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.doc-req-drafts-header-title h2 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0 0 3px 0;
+}
+
+.doc-req-drafts-header-title p {
+    font-size: 0.85rem;
+    color: var(--db-text-muted);
+    margin: 0;
+}
+
+.doc-req-drafts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.doc-req-draft-row {
+    display: grid;
+    grid-template-columns: 1.2fr 2fr 1.5fr 2fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    background: #f8fafc;
+    border: 1.5px solid rgba(41, 35, 122, 0.05);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.doc-req-draft-row:hover {
+    background: #ffffff;
+    border-color: rgba(41, 35, 122, 0.15);
+    box-shadow: 0 4px 14px rgba(41, 35, 122, 0.07);
+    transform: translateX(4px);
+}
+
+.doc-req-draft-ref {
+    font-family: monospace;
+    font-weight: 700;
+    color: var(--db-primary);
+    font-size: 0.9rem;
+}
+
+.doc-req-draft-declarant {
+    font-size: 0.9rem;
+    color: #334155;
+    font-weight: 600;
+}
+
+.doc-req-draft-date {
+    font-size: 0.85rem;
+    color: var(--db-text-muted);
+}
+
+.doc-req-draft-docs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.doc-req-draft-doc-badge {
+    background: #eef2ff;
+    color: #3730a3;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    max-width: 160px;
+}
+
+.doc-req-draft-badge-status {
+    background: #fef9c3;
+    color: #854d0e;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 6px;
+    text-transform: uppercase;
+}
+
+.doc-req-empty-state {
+    padding: 40px;
+    text-align: center;
+    border: 2px dashed rgba(41, 35, 122, 0.10);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.doc-req-empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+}
+
+.doc-req-empty-state h3 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0 0 6px 0;
+}
+
+.doc-req-empty-state p {
+    font-size: 0.9rem;
+    color: var(--db-text-muted);
+    margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .doc-req-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .doc-req-container {
+        padding: 18px 16px;
+    }
+
+    .doc-req-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .doc-req-draft-row {
+        grid-template-columns: 1fr 1fr auto;
+    }
+
+    .doc-req-draft-date,
+    .doc-req-draft-docs {
+        display: none;
+    }
+}
+
+/* Draft Delete Button */
+.doc-req-draft-delete-btn {
+    padding: 6px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0.6;
+    transition: all 0.2s ease;
+}
+
+.doc-req-draft-delete-btn:hover {
+    opacity: 1;
+    background: #fee2e2;
+}

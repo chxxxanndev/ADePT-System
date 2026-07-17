@@ -1,0 +1,413 @@
+.aas-page {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding: 4px 0 20px;
+}
+
+/* Page heading */
+.aas-page-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.aas-page-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--admin-primary);
+    letter-spacing: -0.3px;
+    margin: 0;
+}
+
+.aas-page-subtitle {
+    font-size: 0.92rem;
+    color: var(--admin-text-muted);
+    font-weight: 400;
+}
+
+/* Profile banner */
+.aas-profile-banner {
+    background: linear-gradient(135deg, var(--admin-primary) 0%, #3730a3 100%);
+    border-radius: 14px;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    box-shadow: 0 6px 20px rgba(37, 33, 117, 0.18);
+}
+
+.aas-profile-identity {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.aas-avatar-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    color: var(--admin-primary);
+    font-weight: 800;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.aas-avatar-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.aas-profile-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.aas-profile-name {
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.aas-profile-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(199, 210, 254, 0.9);
+    font-size: 0.82rem;
+}
+
+.aas-profile-meta-dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: rgba(199, 210, 254, 0.7);
+    flex-shrink: 0;
+}
+
+.aas-role-chip {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    padding: 2px 10px;
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.aas-change-photo-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    color: var(--admin-primary);
+    border: none;
+    border-radius: 9px;
+    padding: 10px 18px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    white-space: nowrap;
+}
+
+.aas-change-photo-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+/* Section heading */
+.aas-section-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 14px;
+}
+
+.aas-section-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--admin-text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.aas-section-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    background: var(--admin-primary);
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.aas-section-subtitle {
+    font-size: 0.85rem;
+    color: var(--admin-text-muted);
+}
+
+/* Profile information card */
+.aas-info-card {
+    background: var(--admin-card-bg);
+    border: 1.5px solid var(--admin-card-border);
+    border-radius: 14px;
+    padding: 22px 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.aas-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.aas-field-label {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: #475569;
+    letter-spacing: 0.2px;
+}
+
+.aas-field-hint {
+    font-size: 0.76rem;
+    color: #94a3b8;
+    font-style: italic;
+    margin-top: -2px;
+}
+
+.aas-field-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.aas-input-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.aas-input {
+    width: 100%;
+    padding: 11px 40px 11px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    background: #f8fafc;
+    color: var(--admin-text-primary);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+}
+
+.aas-input::placeholder {
+    color: #b0b8c8;
+    font-style: italic;
+}
+
+.aas-input:focus {
+    outline: none;
+    border-color: var(--admin-primary);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(37, 33, 117, 0.10);
+}
+
+.aas-input[readonly] {
+    background: #f1f5f9;
+    color: #64748b;
+    cursor: default;
+    letter-spacing: 2px;
+    border-style: dashed;
+}
+
+.aas-input-edit-icon {
+    position: absolute;
+    right: 12px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+}
+
+.aas-inline-btn {
+    flex-shrink: 0;
+    background: var(--admin-primary);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 16px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+}
+
+.aas-inline-btn:hover {
+    background: var(--admin-primary-hover);
+}
+
+/* Card action row */
+.aas-card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: -6px;
+}
+
+.aas-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 20px;
+    border-radius: 9px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.aas-btn:hover {
+    transform: translateY(-1px);
+}
+
+.aas-btn:active {
+    transform: translateY(0);
+}
+
+.aas-btn-discard {
+    background: #f1f5f9;
+    border: 1.5px solid #cbd5e1;
+    color: #64748b;
+}
+
+.aas-btn-discard:hover {
+    background: #e2e8f0;
+}
+
+.aas-btn-save {
+    background: linear-gradient(135deg, var(--admin-primary) 0%, #4338ca 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(37, 33, 117, 0.30);
+}
+
+.aas-btn-save:hover {
+    box-shadow: 0 8px 20px rgba(37, 33, 117, 0.40);
+}
+
+.aas-btn-save:disabled,
+.aas-btn-discard:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Account status / danger zone */
+.aas-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--admin-card-bg);
+    border: 1.5px solid var(--admin-card-border);
+    border-radius: 12px;
+    padding: 16px 22px;
+}
+
+.aas-status-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--admin-text-primary);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.aas-status-label svg {
+    color: var(--admin-primary);
+}
+
+.aas-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: 46px;
+    height: 26px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    border: none;
+    cursor: pointer;
+    padding: 3px;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+}
+
+.aas-toggle.is-on {
+    background: var(--admin-error);
+}
+
+.aas-toggle-knob {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s ease;
+}
+
+.aas-toggle.is-on .aas-toggle-knob {
+    transform: translateX(20px);
+}
+
+.aas-status-warning {
+    margin-top: 10px;
+    font-size: 0.78rem;
+    color: #b91c1c;
+    background: var(--admin-error-bg);
+    border: 1px solid #fca5a5;
+    border-radius: 8px;
+    padding: 9px 14px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .aas-profile-banner,
+    .aas-status-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .aas-change-photo-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .aas-card-actions {
+        justify-content: stretch;
+    }
+
+    .aas-btn {
+        flex: 1;
+        justify-content: center;
+    }
+}

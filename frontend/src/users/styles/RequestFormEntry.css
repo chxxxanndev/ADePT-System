@@ -1,0 +1,505 @@
+/* =========================================================
+   RequestFormEntry.css — Request Form Entry
+   Matches the premium theme of Tax Declaration / Landholding forms
+   ========================================================= */
+
+.rfe-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    background: transparent;
+    padding: 0;
+    margin-left: -28px;
+    margin-right: -28px;
+    margin-top: -12px;
+}
+
+.rfe-page-inner {
+    flex: 1;
+    padding: 4px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* ── Main card ────────────────────────────────────────────── */
+.rfe-card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 6px 30px rgba(41, 35, 122, 0.10);
+    border: 1px solid rgba(41, 35, 122, 0.09);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Card header ──────────────────────────────────────────── */
+.rfe-card-header {
+    background: linear-gradient(135deg, #29237a 0%, #3730a3 100%);
+    padding: 22px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-shrink: 0;
+}
+
+.rfe-card-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.rfe-card-title {
+    color: #ffffff;
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    margin: 0;
+}
+
+.rfe-card-subtitle {
+    color: rgba(199, 210, 254, 0.9);
+    font-size: 0.92rem;
+    font-weight: 400;
+}
+
+.rfe-ref-chip {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    padding: 6px 16px;
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    backdrop-filter: blur(4px);
+}
+
+/* ── Form body ────────────────────────────────────────────── */
+.rfe-form-body {
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* ── Sections ─────────────────────────────────────────────── */
+.rfe-section {
+    margin-bottom: 28px;
+}
+
+.rfe-section-title {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: #29237a;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 2px solid #eef2ff;
+    padding-bottom: 7px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rfe-section-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    background: #29237a;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+/* ── Grid layouts ─────────────────────────────────────────── */
+.rfe-row {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.rfe-row-2 {
+    grid-template-columns: 1fr 1fr;
+}
+
+/* ── Field group ──────────────────────────────────────────── */
+.rfe-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.rfe-label {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: #475569;
+    letter-spacing: 0.2px;
+}
+
+/* ── Inputs (Matches TD EXACTLY) ──────────────────────────── */
+.rfe-input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.98rem;
+    font-family: inherit;
+    background: #f8fafc;
+    color: #1e293b;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+}
+
+.rfe-input:focus {
+    outline: none;
+    border-color: #29237a;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
+}
+
+.rfe-input::placeholder {
+    color: #b0b8c8;
+    font-style: italic;
+}
+
+/* ── Custom Selects (re-mapped to look like rfe-input) ────── */
+.custom-select {
+    position: relative;
+    width: 100%;
+}
+
+.custom-select-trigger {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.98rem;
+    color: #1e293b;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.custom-select-trigger:focus,
+.custom-select-trigger:active {
+    outline: none;
+    border-color: #29237a;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
+}
+
+.custom-select-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(41, 35, 122, 0.12);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 20;
+}
+
+.custom-select-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #1e293b;
+}
+
+.custom-select-option:hover {
+    background: #f8faff;
+    color: #29237a;
+}
+
+/* ── Toggle button pairs ─────────────────────────────────── */
+.toggle-pair {
+    display: flex;
+    gap: 12px;
+}
+
+.toggle-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 16px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    cursor: pointer;
+    font-weight: 700;
+    color: #64748b;
+    font-size: 0.9rem;
+    transition: all 0.15s ease;
+}
+
+.toggle-btn-active {
+    border-color: #29237a;
+    background: #eef2ff;
+    color: #29237a;
+}
+
+.toggle-checkbox {
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    background: #ffffff;
+    color: transparent;
+}
+
+.toggle-btn-active .toggle-checkbox {
+    border-color: #29237a;
+    background: #29237a;
+    color: #fff;
+}
+
+/* ── Footer ─────────────────────────────────────────────────── */
+.rfe-footer {
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    flex-shrink: 0;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.btn-proceed {
+    background: linear-gradient(135deg, #29237a 0%, #3730a3 100%);
+    color: #ffffff;
+    padding: 10px 24px;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(41, 35, 122, 0.30);
+    transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.btn-proceed:hover {
+    box-shadow: 0 6px 20px rgba(41, 35, 122, 0.40);
+    transform: translateY(-1px);
+}
+
+.btn-submit {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1.5px solid #e2e8f0;
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.btn-submit:hover:not(:disabled) {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+/* ── Warnings / Notice ─────────────────────────────────────── */
+.form-reuse-notice {
+    background: #fffbeb;
+    border: 1.5px solid #fde68a;
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 0.85rem;
+    color: #92400e;
+    margin: 0 32px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.form-reuse-notice strong {
+    font-weight: 800;
+    color: #78350f;
+}
+
+.warning-banner {
+    color: #b91c1c;
+    background: #fee2e2;
+    border: 1.5px solid #fca5a5;
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin: 0 32px 16px;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+/* Wrapper for input + clear button */
+.input-with-clear {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* Quick Clear (X) Button */
+.input-clear-btn {
+    position: absolute;
+    right: 8px;
+    background: #f1f5f9;
+    border: none;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    color: #64748b;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.input-clear-btn:hover {
+    background: #e2e8f0;
+    color: #ef4444;
+}
+
+/* Reset New Client Button */
+.btn-reset-form {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: background 0.2s;
+}
+
+.btn-reset-form:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Header icon ───────────────────────────────────────────── */
+.rfe-header-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.85);
+    flex-shrink: 0;
+}
+
+.rfe-header-icon svg {
+    width: 28px;
+    height: 28px;
+}
+
+/* ── Section title icons ───────────────────────────────────── */
+.rfe-section-title svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+/* ── Return / Archive box ──────────────────────────────────── */
+.rfe-return-archive-box {
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-top: 16px;
+}
+
+.rfe-return-archive-label {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 12px;
+}
+
+/* ── Signature block ───────────────────────────────────────── */
+.rfe-signature-block {
+    text-align: center;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1.5px solid #e2e8f0;
+}
+
+.rfe-signature-name {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #1e293b;
+    letter-spacing: 0.3px;
+}
+
+.rfe-signature-title {
+    font-size: 0.82rem;
+    color: #64748b;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+/* ── Template controls ─────────────────────────────────────── */
+.rfe-template-controls {
+    display: flex;
+    gap: 10px;
+    padding: 0 32px 16px;
+}
+
+.rfe-btn-template {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1.5px solid #e2e8f0;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.rfe-btn-template:hover {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+
+/* ── Native select (for SingleSelectDropdown) ──────────────── */
+.native-select {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.98rem;
+    font-family: inherit;
+    background: #f8fafc;
+    color: #1e293b;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+    appearance: auto;
+    cursor: pointer;
+}
+
+.native-select:focus {
+    outline: none;
+    border-color: #29237a;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
+}

@@ -1,0 +1,350 @@
+/* AccountRequest.css */
+
+.account-request-page {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  background-color: #f8fafc;
+}
+
+/* Header */
+.account-request-header {
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  padding: 24px 32px 20px;
+}
+
+.account-request-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.account-request-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.account-request-subtitle {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.account-request-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Search input */
+.account-request-search-wrap {
+  position: relative;
+}
+
+.account-request-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+  width: 16px;
+  height: 16px;
+}
+
+.account-request-search-input {
+  width: 224px;
+  border-radius: 9999px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  padding: 8px 16px 8px 36px;
+  font-size: 14px;
+  color: #334155;
+  outline: none;
+}
+
+.account-request-search-input::placeholder {
+  color: #94a3b8;
+}
+
+.account-request-search-input:focus {
+  border-color: #a5b4fc;
+  box-shadow: 0 0 0 3px rgba(199, 210, 254, 0.5);
+}
+
+/* Date filter button */
+.account-request-date-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 9999px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.account-request-date-btn:hover {
+  background-color: #f8fafc;
+}
+
+/* Notification bell */
+.account-request-bell-btn {
+  position: relative;
+  border-radius: 9999px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.account-request-bell-btn:hover {
+  background-color: #f8fafc;
+}
+
+.account-request-bell-dot {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  height: 8px;
+  width: 8px;
+  border-radius: 9999px;
+  background-color: #f43f5e;
+}
+
+/* User chip */
+.account-request-user-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 9999px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  padding: 4px 12px 4px 4px;
+}
+
+.account-request-user-avatar {
+  display: flex;
+  height: 32px;
+  width: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background-color: #3730a3;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.account-request-user-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.account-request-user-role {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.2;
+}
+
+/* Content */
+.account-request-content {
+  flex: 1;
+  overflow: auto;
+  padding: 32px;
+}
+
+.account-request-card {
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+}
+
+/* Tabs */
+.account-request-tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 16px 24px 0;
+}
+
+.account-request-tab {
+  position: relative;
+  padding-bottom: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #94a3b8;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.account-request-tab:hover {
+  color: #475569;
+}
+
+.account-request-tab.active {
+  color: #4f46e5;
+}
+
+.account-request-tab-indicator {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  border-radius: 9999px;
+  background-color: #4f46e5;
+}
+
+/* Table */
+.account-request-table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+}
+
+.account-request-table thead tr {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+
+.account-request-table th {
+  padding: 12px 24px;
+  font-weight: 500;
+}
+
+.account-request-table td {
+  padding: 16px 24px;
+}
+
+.account-request-table tbody tr {
+  border-top: 1px solid #f1f5f9;
+  font-size: 14px;
+  color: #334155;
+}
+
+.account-request-empty-row {
+  padding: 40px 24px;
+  text-align: center;
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+/* Applicant cell */
+.account-request-applicant {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-request-applicant-avatar {
+  display: flex;
+  height: 32px;
+  width: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.account-request-applicant-name {
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.account-request-cell-muted {
+  color: #64748b;
+}
+
+/* ID document badge */
+.account-request-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.account-request-badge.verified {
+  background-color: #f0f9ff;
+  color: #0284c7;
+}
+
+.account-request-badge.pending {
+  background-color: #fffbeb;
+  color: #d97706;
+}
+
+/* Action buttons */
+.account-request-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.account-request-btn {
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+}
+
+.account-request-btn.approve {
+  background-color: #ecfdf5;
+  color: #059669;
+}
+
+.account-request-btn.approve:hover {
+  background-color: #d1fae5;
+}
+
+.account-request-btn.decline {
+  background-color: #fff1f2;
+  color: #f43f5e;
+}
+
+.account-request-btn.decline:hover {
+  background-color: #ffe4e6;
+}
+
+.account-request-status-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.account-request-status-label.approved {
+  color: #059669;
+}
+
+.account-request-status-label.declined {
+  color: #f43f5e;
+}
+
+/* Footer note */
+.account-request-footer-note {
+  border-top: 1px solid #f1f5f9;
+  background-color: #f8fafc;
+  padding: 16px 24px;
+}
+
+.account-request-footer-note p {
+  font-size: 12px;
+  color: #64748b;
+}

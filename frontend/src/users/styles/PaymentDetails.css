@@ -1,0 +1,93 @@
+.pd-page {
+    background-color: #FFFCF9;
+    min-height: 100%;
+    padding: 8px 4px 32px;
+    display: flex;
+    justify-content: center;
+}
+
+.pd-card {
+    width: 100%;
+    max-width: 520px;
+    background-color: #FFFFFF;
+    border: 1px solid #E3E0FA;
+    border-radius: 16px;
+    padding: 28px 32px 32px;
+    box-shadow: 0 6px 20px rgba(43, 42, 110, 0.06);
+    height: fit-content;
+}
+
+.pd-back-btn {
+    border: none;
+    background: none;
+    color: #2B2A6E;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0 0 20px;
+    cursor: pointer;
+}
+
+.pd-back-btn:hover {
+    text-decoration: underline;
+}
+
+.pd-title {
+    margin: 0 0 20px;
+    font-size: 22px;
+    font-weight: 800;
+    color: #16161F;
+}
+
+.pd-list {
+    margin: 0 0 24px;
+}
+
+.pd-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid #EEECFB;
+}
+
+.pd-row dt {
+    font-size: 13px;
+    color: #6B6875;
+}
+
+.pd-row dd {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #16161F;
+    text-align: right;
+}
+
+.pd-row--total {
+    border-bottom: none;
+    padding-top: 16px;
+}
+
+.pd-row--total dt,
+.pd-row--total dd {
+    font-size: 16px;
+    font-weight: 800;
+    color: #2B2A6E;
+}
+
+.pd-pay-btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    background-color: #2B2A6E;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.pd-pay-btn:hover {
+    background-color: #232265;
+}

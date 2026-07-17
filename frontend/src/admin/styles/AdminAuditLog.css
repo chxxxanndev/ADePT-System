@@ -1,0 +1,48 @@
+.admin-audit-log-page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.aal-card {
+    padding: 24px;
+}
+
+.aal-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.aal-filter-wrapper {
+    position: relative;
+}
+
+.aal-filter-select {
+    appearance: none;
+    padding: 8px 32px 8px 14px;
+    border: 1px solid rgba(37, 33, 117, 0.12);
+    border-radius: 8px;
+    background: #FFFFFF;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--admin-text-primary);
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+}
+
+.aal-filter-select:focus {
+    outline: none;
+    border-color: var(--admin-secondary);
+}
+
+.aal-empty-state {
+    text-align: center;
+    padding: 32px 0;
+    font-size: 14px;
+    color: var(--admin-text-muted);
+}

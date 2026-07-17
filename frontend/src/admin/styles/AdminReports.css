@@ -1,0 +1,149 @@
+.admin-reports-page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* ===== Stat Cards ===== */
+.ar-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.ar-stat-card {
+    border-radius: 16px;
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ar-stat-card--plain {
+    background: #FFFFFF;
+    border: 1px solid var(--admin-card-border);
+    box-shadow: 0 4px 14px rgba(41, 35, 122, 0.04);
+}
+
+.ar-stat-card--green {
+    background: var(--stat-green-bg);
+}
+
+.ar-stat-card--gold {
+    background: var(--stat-gold-bg);
+}
+
+.ar-stat-label {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--admin-text-primary);
+    opacity: 0.75;
+}
+
+.ar-stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--admin-text-primary);
+}
+
+/* ===== Charts Row ===== */
+.ar-charts-row {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 20px;
+}
+
+/* Bar chart card */
+.ar-bar-card {
+    padding: 22px;
+}
+
+.ar-bar-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+.ar-export-btn {
+    padding: 8px 16px;
+    border: 1px solid rgba(37, 33, 117, 0.15);
+    border-radius: 8px;
+    background: #FFFFFF;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-primary);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.ar-export-btn:hover {
+    background-color: rgba(37, 33, 117, 0.06);
+}
+
+.ar-bar-chart {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    height: 200px;
+}
+
+.ar-bar-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    gap: 6px;
+}
+
+.ar-bar-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--admin-text-muted);
+}
+
+.ar-bar {
+    width: 32px;
+    border-radius: 8px 8px 0 0;
+    transition: height 0.4s ease;
+}
+
+.ar-bar--navy {
+    background-color: var(--admin-primary);
+}
+
+.ar-bar--teal {
+    background-color: var(--admin-secondary);
+}
+
+.ar-bar-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--admin-text-muted);
+    margin-top: 4px;
+}
+
+/* Donut chart card */
+.ar-donut-card {
+    padding: 22px;
+}
+
+.ar-donut-title {
+    align-self: flex-start;
+    margin-bottom: 4px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1024px) {
+    .ar-stats-row {
+        grid-template-columns: 1fr;
+    }
+
+    .ar-charts-row {
+        grid-template-columns: 1fr;
+    }
+}

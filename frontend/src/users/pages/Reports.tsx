@@ -34,9 +34,6 @@ import {
   transactionManagement,
   declarantRecords,
   type DeclarantStatus,
-  type DeclarantRecord,
-  type DocumentTypeMetric,
-  type SimpleMetric,
 } from "../data/reportsMockData";
 
 type Period = "daily" | "weekly" | "monthly";
@@ -166,15 +163,15 @@ export default function Reports() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | DeclarantStatus>("All");
 
-  const taxDeclaration = documentTypeBreakdown.find((d: DocumentTypeMetric) => d.id === "tax-declaration")!;
-  const landHolding = documentTypeBreakdown.find((d: DocumentTypeMetric) => d.id === "land-holding")!;
-  const noLandHolding = documentTypeBreakdown.find((d: DocumentTypeMetric) => d.id === "no-land-holding")!;
+  const taxDeclaration = documentTypeBreakdown.find((d) => d.id === "tax-declaration")!;
+  const landHolding = documentTypeBreakdown.find((d) => d.id === "land-holding")!;
+  const noLandHolding = documentTypeBreakdown.find((d) => d.id === "no-land-holding")!;
 
-  const pendingPayment = processingQueue.find((p: SimpleMetric) => p.id === "pending-payment")!;
-  const pendingVerification = processingQueue.find((p: SimpleMetric) => p.id === "pending-verification")!;
+  const pendingPayment = processingQueue.find((p) => p.id === "pending-payment")!;
+  const pendingVerification = processingQueue.find((p) => p.id === "pending-verification")!;
 
   const filteredDeclarants = useMemo(() => {
-    return declarantRecords.filter((d: DeclarantRecord) => {
+    return declarantRecords.filter((d) => {
       const matchesSearch =
         search.trim() === "" ||
         d.declarantName.toLowerCase().includes(search.toLowerCase()) ||
@@ -276,7 +273,6 @@ export default function Reports() {
         <div className="chart-card">
           <div className="chart-header">
             <h2 className="chart-title">Transaction &amp; Document Status Overview</h2>
-            <span className="chart-period">{PERIOD_LABEL[period]}</span>
           </div>
           <p className="chart-description">
             Transaction registry, certified true copies, void &amp; amended, and
@@ -306,7 +302,7 @@ export default function Reports() {
                   cursor={{ fill: "rgba(41,35,122,0.04)" }}
                 />
                 <Bar dataKey="count" radius={[8, 8, 0, 0]} maxBarSize={56}>
-                  {transactionManagement.map((entry: SimpleMetric, i: number) => (
+                  {transactionManagement.map((entry, i) => (
                     <Cell key={i} fill={entry.color} />
                   ))}
                 </Bar>
@@ -314,7 +310,7 @@ export default function Reports() {
             </ResponsiveContainer>
           </div>
           <div className="chart-legend">
-            {transactionManagement.map((r: SimpleMetric) => (
+            {transactionManagement.map((r) => (
               <div key={r.id} className="legend-item">
                 <span className="legend-dot" style={{ backgroundColor: r.color }} />
                 {r.label}
@@ -379,7 +375,7 @@ export default function Reports() {
                 </tr>
               </thead>
               <tbody>
-                {filteredDeclarants.map((d: DeclarantRecord, idx: number) => (
+                {filteredDeclarants.map((d, idx) => (
                   <tr key={d.reference} className={idx % 2 !== 0 ? "row-alt" : ""}>
                     <td className="cell-reference">#{d.reference}</td>
                     <td>
