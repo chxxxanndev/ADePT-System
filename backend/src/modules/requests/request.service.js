@@ -38,6 +38,9 @@ class RequestService {
                 requested_by_name: formData.requestedByName,
                 reference_number: uniqueRef,
                 authorization_required: formData.authRequired,
+                // THIS LINE REGISTERS THE PURPOSE
+                purpose_id: formData.purposeId || null,
+                purpose_other_text: formData.purposeOtherText || null, 
                 action_taken: formData.actionTaken || 'PENDING',
                 encoded_by: staff.id,
                 status: formData.status || 'DRAFT' 
@@ -68,16 +71,26 @@ class RequestService {
     }
 
     async updateRequest(id, formData) {
-        // Robust update logic: handles both snake_case and camelCase
+        // Robust update logic: handles status, names, and PURPOSE
         const updateData = {};
+        
         if (formData.status) updateData.status = formData.status;
+        
         if (formData.declarantName || formData.declarant_name) {
             updateData.declarant_name = formData.declarantName || formData.declarant_name;
         }
+        
         if (formData.requestedByName || formData.requested_by_name) {
             updateData.requested_by_name = formData.requestedByName || formData.requested_by_name;
         }
-        if (formData.action_taken) updateData.action_taken = formData.action_taken;
+
+        // FIX: ADDED PURPOSE UPDATING HERE
+        if (formData.purposeId) updateData.purpose_id = formData.purposeId;
+        if (formData.purposeOtherText !== undefined) updateData.purpose_other_text = formData.purposeOtherText;
+        
+        if (formData.action_taken || formData.actionTaken) {
+            updateData.action_taken = formData.actionTaken || formData.action_taken;
+        }
 
         const { data, error } = await supabase
             .from('requests')
