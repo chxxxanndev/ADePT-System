@@ -46,11 +46,7 @@ export function RequestFormEntry({
         staff: any[];
         propertyLocations: { id: string; name: string }[];
     }>({
-<<<<<<< HEAD
         docTypes: [],
-=======
-        docTypes:[],
->>>>>>> main
         purposes: [],
         staff: [],
         propertyLocations: [],
