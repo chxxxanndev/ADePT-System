@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import '../styles/dashboard.css';
-import '../styles/accountSettings.css'
 import { Sidebar } from '../components/Sidebar';
 import { DashboardHeader, WelcomeBanner } from '../components/DashboardHeader';
 import { DashboardFooter } from '../components/DashboardFooter';

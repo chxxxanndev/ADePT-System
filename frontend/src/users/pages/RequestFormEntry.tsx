@@ -293,6 +293,42 @@ const DOCUMENT_TYPE_VIEW_MAP: Record<string, string> = {
     'Certificate of No Landholding': 'certificate-no-landholding',
 };
 
+// Ensure these keys match the IDs we just put in the database!
+const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
+    'ctc-latest-tax-dec': 'tax-declaration',
+    'ctc-old-tax-dec': 'tax-declaration',
+    'cert-property': 'certificate-land-holding',
+    'cert-no-property': 'certificate-no-landholding',
+};
+
+// Reference number prefix per document view — drives the live REF/TD/LH/NLH
+// preview shown in the header chip before the request is actually saved.
+const VIEW_PREFIX_MAP: Record<string, string> = {
+    'tax-declaration': 'TD',
+    'certificate-land-holding': 'LH',
+    'certificate-no-landholding': 'NLH',
+};
+
+// Reason/Purpose is a fixed set of 3 choices, not a Supabase-backed table —
+// hardcoded here rather than fetched via requestService.getMetadata().
+const PURPOSE_OPTIONS: { id: string; name: string; code: string }[] = [
+    { id: 'settling-tax-obligation', name: 'For Settling of Tax Obligation', code: 'TAX_OBLIGATION' },
+    { id: 'court-legal-purposes', name: 'For Court and other legal purposes', code: 'COURT_LEGAL' },
+    { id: 'others', name: 'Others', code: 'OTHERS' },
+];
+
+// Matches the "Others" purpose option regardless of whether the backend
+// sends a `code` field, so the free-text input swaps in reliably. Checks
+// for an exact name of "Others" so "Court and other legal purposes"
+// doesn't get mistaken for it.
+function isOthersPurpose(purposeId: string, purposes: any[]): boolean {
+    const p = purposes.find((p) => p.id === purposeId);
+    if (!p) return false;
+    if (p.code === 'OTHERS') return true;
+    const name = (p.name || p.label || '').trim().toLowerCase();
+    return name === 'others';
+}
+
 export function RequestFormEntry({
     user,
     onCancel,
@@ -308,7 +344,7 @@ export function RequestFormEntry({
         propertyLocations: { id: string; name: string }[];
     }>({
         docTypes:[],
-        purposes: [],
+        purposes: PURPOSE_OPTIONS,
         staff: [],
         propertyLocations: [],
     });
@@ -380,7 +416,9 @@ export function RequestFormEntry({
                             Array.isArray(data.docTypes) && data.docTypes.length > 0
                                 ? data.docTypes
                                 : DEFAULT_DOCUMENT_TYPES,
-                        purposes: Array.isArray(data.purposes) ? data.purposes : [],
+                        // Reason/Purpose is fixed and not stored in Supabase —
+                        // always use PURPOSE_OPTIONS, ignore data.purposes.
+                        purposes: PURPOSE_OPTIONS,
                         staff: Array.isArray((data as any).staff) ? (data as any).staff : [],
                         propertyLocations,
                     });
@@ -395,13 +433,33 @@ export function RequestFormEntry({
         };
     }, []);
 
-    // Ensure these keys match the IDs we just put in the database!
-const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
-    'ctc-latest-tax-dec': 'tax-declaration',
-    'ctc-old-tax-dec': 'tax-declaration',
-    'cert-property': 'certificate-land-holding',
-    'cert-no-property': 'certificate-no-landholding',
-};
+    // Live preview of the reference number — updates the moment a document
+    // type is picked (TD- / LH- / NLH- / REF-), before the record is
+    // actually saved. Once the request has a real DB id, we stop touching
+    // it and let the saved reference_number from Supabase take over.
+    useEffect(() => {
+        if (formData.id) return;
+
+        if (formData.documentTypeIds.length === 0) {
+            setFormData((prev) => ({
+                ...prev,
+                referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
+            }));
+            return;
+        }
+
+        const selectedId = formData.documentTypeIds[0];
+        const selectedDoc = metadata.docTypes.find((d) => d.id === selectedId);
+        const view = selectedDoc
+            ? DOCUMENT_TYPE_ID_VIEW_MAP[selectedDoc.id] || DOCUMENT_TYPE_VIEW_MAP[selectedDoc.name]
+            : undefined;
+        const prefix = (view && VIEW_PREFIX_MAP[view]) || 'REF';
+
+        setFormData((prev) => ({
+            ...prev,
+            referenceNumber: `${prefix}-${new Date().getFullYear()}-XXXX`,
+        }));
+    }, [formData.documentTypeIds, formData.id, metadata.docTypes]);
 
     const handleProceedToDocument = async () => {
         if (!formData.declarantName || !formData.requestedByName || !formData.requestDate || formData.documentTypeIds.length === 0) {
@@ -416,16 +474,6 @@ const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
 
         if (selectedDoc) {
             view = DOCUMENT_TYPE_ID_VIEW_MAP[selectedDoc.id] || DOCUMENT_TYPE_VIEW_MAP[selectedDoc.name];
-            if (!view) {
-                const nameLower = selectedDoc.name.toLowerCase();
-                if (nameLower.includes('tax declaration') || nameLower.includes('tax dec')) {
-                    view = 'tax-declaration';
-                } else if (nameLower.includes('no landholding') || nameLower.includes('no property')) {
-                    view = 'certificate-no-landholding';
-                } else if (nameLower.includes('landholding') || nameLower.includes('property')) {
-                    view = 'certificate-land-holding';
-                }
-            }
         }
 
         if (!view) {
@@ -447,21 +495,22 @@ const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
                 savedRequest = res.data || res;
             }
 
-            // Capture real ID and snake_case reference_number from Supabase response
-            const actualRequestId = savedRequest?.id || formData.id;
-            const actualReferenceNumber = savedRequest?.reference_number || savedRequest?.referenceNumber || formData.referenceNumber;
+            // 1. CAPTURE REAL-TIME VALUES FROM DATABASE RESPONSE
+            // Note: Supabase returns snake_case field 'reference_number'
+            const actualId = savedRequest?.id;
+            const actualRef = savedRequest?.reference_number;
 
-            // 1. Update local form state for real-time header chip update
+            // 2. Update local state so the Header Chip changes from REF-XXXX to real ID
             setFormData(prev => ({
                 ...prev,
-                id: actualRequestId,
-                referenceNumber: actualReferenceNumber
+                id: actualId,
+                referenceNumber: actualRef
             }));
 
-            // 2. Pass real database values to the Document Form
+            // 3. Pass these real values to the next Document Form (Tax Dec / LH / NLH)
             onEntryComplete({
-                requestId: actualRequestId,
-                referenceNumber: actualReferenceNumber,
+                requestId: actualId,
+                referenceNumber: actualRef,
                 declarantName: formData.declarantName,
                 requestedByName: formData.requestedByName,
                 requestDate: formData.requestDate,
@@ -472,6 +521,7 @@ const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
                 propertyLocation: formData.propertyLocation,
             });
 
+            // 4. Navigate to the next page
             setTimeout(() => onNavigateToProcessing(view as string), 0);
         } catch (err: any) {
             console.error('Failed to save request:', err);
@@ -662,30 +712,40 @@ const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
 
                             <div className="rfe-field" style={{ marginTop: 14 }}>
                                     <label className="rfe-label">Reason / Purpose</label>
-                                    <SingleSelectDropdown
-                                        options={metadata.purposes}
-                                        value={formData.purposeId}
-                                        onChange={(val) =>
-                                            setFormData({ ...formData, purposeId: val, purposeOtherText: '' })
-                                        }
-                                        placeholder="Select Reason / Purpose..."
-                                    />
-                                </div>
-
-                                {metadata.purposes.find((p) => p.id === formData.purposeId)?.code === 'OTHERS' && (
-                                    <div className="rfe-field" style={{ marginTop: 14 }}>
-                                        <label className="rfe-label">Please specify</label>
-                                        <input
-                                            className="rfe-input"
-                                            type="text"
-                                            placeholder="Specify your reason..."
-                                            value={formData.purposeOtherText}
-                                            onChange={(e) =>
-                                                setFormData({ ...formData, purposeOtherText: e.target.value })
+                                    {isOthersPurpose(formData.purposeId, metadata.purposes) ? (
+                                        <div className="input-with-clear">
+                                            <input
+                                                className="rfe-input"
+                                                type="text"
+                                                autoFocus
+                                                placeholder="Type purpose here..."
+                                                value={formData.purposeOtherText}
+                                                onChange={(e) =>
+                                                    setFormData({ ...formData, purposeOtherText: e.target.value })
+                                                }
+                                            />
+                                            <button
+                                                type="button"
+                                                className="input-clear-btn"
+                                                title="Choose a different reason"
+                                                onClick={() =>
+                                                    setFormData({ ...formData, purposeId: '', purposeOtherText: '' })
+                                                }
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <SingleSelectDropdown
+                                            options={metadata.purposes}
+                                            value={formData.purposeId}
+                                            onChange={(val) =>
+                                                setFormData({ ...formData, purposeId: val, purposeOtherText: '' })
                                             }
+                                            placeholder="Select Reason / Purpose..."
                                         />
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
 
                         <div className="rfe-section">
