@@ -38,12 +38,24 @@ export function PendingPayment({ onSelectPayment }: PendingPaymentProps) {
                 const rawRequests = await requestService.getRequests();
                 let mappedRequests: PendingPaymentRequest[] = [];
 
-                if (Array.isArray(rawRequests) && rawRequests.length > 0) {
-                    const pendingOnly = rawRequests.filter((req: any) => req.status === 'PENDING_PAYMENT' || req.actionTaken === 'PENDING');
-                    mappedRequests = pendingOnly.map((req: any) => {
-                        const docType = resolveDocTypeName(req);
-                        return { controlNumber: req.referenceNumber || req.id, declarantName: req.declarantName || req.requestedByName, documentType: docType, amountDue: calculateFee(docType, req.amountDue), dateRequested: req.requestDate ? req.requestDate.split('T')[0] : new Date().toISOString().split('T')[0], ...req };
-                    });
+                if (Array.isArray(rawRequests)) {
+                    const mapped = rawRequests
+                        .filter((r: any) => r.status === 'PENDING_PAYMENT' || r.action_taken === 'PENDING')
+                        .map((req: any) => ({
+                            id: req.id,
+                            refNumber: req.reference_number || "REF-PENDING",
+                            controlNumber: req.reference_number || "REF-PENDING",
+                            declarant: req.declarant_name || 'N/A',
+                            declarant_name: req.declarant_name || 'N/A',
+                            docType: resolveDocTypeName(req),
+                            documentType: resolveDocTypeName(req),
+                            amount: 40.00,
+                            amountDue: 40.00,
+                            date: req.request_date || 'N/A',
+                            dateRequested: req.request_date || 'N/A',
+                            status: req.status || 'PENDING_PAYMENT'
+                        }));
+                    setPayments(mapped);
                 }
 
                 // 2. Fetch the newly created forms from the Local Cache (Frontend Prototype logic)
