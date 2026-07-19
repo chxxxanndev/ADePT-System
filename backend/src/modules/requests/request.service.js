@@ -86,6 +86,23 @@ class RequestService {
         return data;
     }
 
+    async releaseRequest(id, paymentData) {
+    const { data, error } = await supabase
+        .from('requests')
+        .update({
+            or_number: paymentData.orNumber,
+            authorized_signatory: paymentData.signatory,
+            status: 'PAID', // This removes them from the Pending Queue
+            payment_date: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
     async deleteRequest(id) {
         await supabase.from('requests').delete().eq('id', id);
         return { id };

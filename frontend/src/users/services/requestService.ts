@@ -34,6 +34,10 @@ export const requestService = {
         const response = await axios.put(`${API_BASE_URL}/${id}`, formData);
         return response.data;
     },
+    releaseRequest: async (id: string, paymentData: { orNumber: string; signatory: string }) => {
+    const response = await axios.post(`${API_BASE_URL}/${id}/release`, paymentData);
+    return response.data;
+},
     deleteRequest: async (id: string) => {
         const response = await axios.delete(`${API_BASE_URL}/${id}`);
         return response.data;
