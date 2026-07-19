@@ -48,13 +48,21 @@ export function PendingPayment({ onSelectPayment }: any) {
         fetchLivePayments();
     }, []);
 
-    const handleArchive = async (e: any, refNo: string, uuid: string) => {
-        e.stopPropagation();
-        if (confirm(`Archive Reference No. "${refNo}"?`)) {
-            await requestService.deleteRequest(uuid);
+const handleArchive = async (e: React.MouseEvent, refNo: string, uuid: string) => {
+    e.stopPropagation();
+    if (confirm(`Move Reference No. "${refNo}" to Archive?`)) {
+        try {
+            // Logic Change: Update status to ARCHIVED instead of deleting
+            await requestService.updateRequest(uuid, { status: 'ARCHIVED' });
+            
+            // Remove from current UI list
             setPayments(prev => prev.filter(p => p.id !== uuid));
+            alert("Record moved to Archive Management.");
+        } catch (error) {
+            alert("Failed to archive record.");
         }
-    };
+    }
+};
 
     const filtered = payments.filter(p =>
         p.refNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
