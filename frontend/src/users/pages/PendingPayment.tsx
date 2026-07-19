@@ -20,46 +20,38 @@ export function PendingPayment({ onSelectPayment }: any) {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchLivePayments = async () => {    
-            try {
-                setLoading(true);
-                const rawRequests = await requestService.getRequests();
-
-                if (Array.isArray(rawRequests)) {
-                    const mapped = rawRequests
-                        .filter((r: any) => r.status === 'PENDING_PAYMENT' || r.action_taken === 'PENDING')
-                        .map((req: any) => ({
-                            id: req.id,
-                            refNumber: req.reference_number || "REF-PENDING",
-                            declarant: req.declarant_name || 'N/A',
-                            docType: resolveDocTypeName(req),
-                            amount: 40.00,
-                            date: req.request_date || 'N/A'
-                        }));
-                    setPayments(mapped);
-                }
-            } catch (error) { console.error("Error:", error); }
-            finally { setLoading(false); }
-        };
-        fetchLivePayments();
-    }, []);
-
-const handleArchive = async (e: React.MouseEvent, refNo: string, uuid: string) => {
-    e.stopPropagation();
-    if (confirm(`Move Reference No. "${refNo}" to Archive?`)) {
+    const fetchLivePayments = async () => {    
         try {
-            // Logic Change: Update status to ARCHIVED instead of deleting
-            await requestService.updateRequest(uuid, { status: 'ARCHIVED' });
-            
-            // Remove from current UI list
-            setPayments(prev => prev.filter(p => p.id !== uuid));
-            alert("Record moved to Archive Management.");
-        } catch (error) {
-            alert("Failed to archive record.");
+            setLoading(true);
+            const rawRequests = await requestService.getRequests();
+            if (Array.isArray(rawRequests)) {
+                const mapped = rawRequests
+                    // BUG FIX: Strictly filter by status so ARCHIVED items stay hidden
+                    .filter((r: any) => r.status === 'PENDING_PAYMENT')
+                    .map((req: any) => ({
+                        id: req.id,
+                        referenceNumber: req.reference_number || "REF-PENDING",
+                        declarant_name: req.declarant_name || 'N/A',
+                        documentType: resolveDocTypeName(req),
+                        amountDue: 40.00,
+                        dateRequested: req.request_date || 'N/A'
+                    }));
+                setPayments(mapped);
+            }
+        } finally { setLoading(false); }
+    };
+
+    useEffect(() => { fetchLivePayments(); }, []);
+
+    const handleArchive = async (e: React.MouseEvent, refNo: string, uuid: string) => {
+        e.stopPropagation();
+        if (confirm(`Archive Reference No. "${refNo}"?`)) {
+            try {
+                await requestService.updateRequest(uuid, { status: 'ARCHIVED' });
+                setPayments(prev => prev.filter(p => p.id !== uuid));
+            } catch (error) { alert("Archive failed."); }
         }
-    }
-};
+    };
 
     const filtered = payments.filter(p =>
         p.referenceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||

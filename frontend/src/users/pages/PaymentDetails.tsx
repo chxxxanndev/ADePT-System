@@ -1,12 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { PendingPaymentRequest } from '../types/PendingPayment';
-import { taxDeclarationService } from '../services/taxDeclarationService';
-import { landholdingService } from '../services/landholdingService';
-import { noLandholdingService } from '../services/noLandholdingService';
 import { requestService } from '../services/requestService';
 
 interface PaymentDetailsProps {
-    payment: PendingPaymentRequest;
+    payment: any | null; // Set to any to accept standardized mapping from the Queue
     onBack: () => void;
     onEditDocument: (referenceNumber: string) => void;
 }
@@ -17,35 +14,6 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
     const [isVerified, setIsVerified] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [showSharedWarning, setShowSharedWarning] = useState(false);
-    const [formData, setFormData] = useState<any>(null);
-    const [loading, setLoading] = useState(false);
-    const [showPrintPreview, setShowPrintPreview] = useState(false);
-
-    useEffect(() => {
-        if (!payment) return;
-        const fetchFormPreview = async () => {
-            setLoading(true);
-            try {
-                const controlNo = payment.controlNumber || payment.refNumber || '';
-                const reqId = payment.id;
-                if (controlNo.startsWith('NLH')) {
-                    const res = await noLandholdingService.getByRequestId(reqId);
-                    setFormData(res);
-                } else if (controlNo.startsWith('LH')) {
-                    const res = await landholdingService.getByRequestId(reqId);
-                    setFormData(res);
-                } else {
-                    const res = await taxDeclarationService.getByRequestId(reqId);
-                    setFormData(res?.data || res);
-                }
-            } catch (err) {
-                console.error("Error fetching form details for preview:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchFormPreview();
-    }, [payment]);
 
     if (!payment) return <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Payment data missing.</div>;
 
@@ -85,266 +53,6 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
         } finally {
             setIsSaving(false);
         }
-    };
-
-    const isNlh = (payment.controlNumber || payment.refNumber || '').startsWith('NLH');
-    const isLh = (payment.controlNumber || payment.refNumber || '').startsWith('LH');
-
-    // Mapped Form Data fields handling both camelCase and snake_case
-    const declarantName = formData?.declarant_name || formData?.declarantName || payment.declarant_name || payment.declarant || '';
-    const dateGiven = formData?.date_given || formData?.dateGiven || '';
-    const givenAt = formData?.given_at || formData?.givenAt || '';
-    const purpose = formData?.purpose || '';
-
-    // Render Preview Section
-    const renderFormPreview = () => {
-        if (loading) return <div style={{ padding: '20px', color: '#64748b' }}>Loading exact form details...</div>;
-        if (!formData) return <div style={{ padding: '20px', color: '#94a3b8', fontStyle: 'italic' }}>No entry form details available.</div>;
-
-        if (isNlh) {
-            const pronoun = formData.pronoun || 'His';
-            const count = formData.property_count || formData.propertyCount || 'singular';
-            return (
-                <div style={{ background: '#FAF9FF', border: '1px solid #E3E0FA', borderRadius: '12px', padding: '20px', marginTop: '20px' }}>
-                    <h3 style={{ color: '#2B2A6E', margin: '0 0 12px 0', fontSize: '16px' }}>Certificate Form Preview</h3>
-                    <div style={{ fontStyle: 'italic', color: '#475569', lineHeight: '1.6', padding: '12px', borderLeft: '3px solid #2B2A6E', background: '#fff' }}>
-                        <p>This is to certify that according to the records of this office, <strong>{declarantName}</strong> has no landholding registered for taxation purposes.</p>
-                        <p><strong>Pronoun:</strong> {pronoun} | <strong>Property Count:</strong> {count}</p>
-                        <p><strong>Purpose:</strong> {purpose || 'N/A'}</p>
-                        <p><strong>Given Date:</strong> {dateGiven} | <strong>Given At:</strong> {givenAt}</p>
-                    </div>
-                </div>
-            );
-        }
-
-        if (isLh) {
-            const ownershipType = formData.ownership_type || formData.ownershipType || 'single';
-            const propertyRows = formData.encoded_landholding_property_rows || formData._propertyRows || formData.propertyRows || [];
-            return (
-                <div style={{ background: '#FAF9FF', border: '1px solid #E3E0FA', borderRadius: '12px', padding: '20px', marginTop: '20px' }}>
-                    <h3 style={{ color: '#2B2A6E', margin: '0 0 12px 0', fontSize: '16px' }}>Certificate Form Preview</h3>
-                    <div style={{ color: '#475569', lineHeight: '1.6', padding: '12px', borderLeft: '3px solid #2B2A6E', background: '#fff', marginBottom: '12px' }}>
-                        <p><strong>Ownership Type:</strong> {ownershipType}</p>
-                        <p><strong>Purpose:</strong> {purpose || 'N/A'}</p>
-                        <p><strong>Given Date:</strong> {dateGiven} | <strong>Given At:</strong> {givenAt}</p>
-                    </div>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                        <thead>
-                            <tr style={{ background: '#EEF2FF', textAlign: 'left' }}>
-                                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>TD/ARP No.</th>
-                                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>Location</th>
-                                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>Lot No.</th>
-                                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>Title No.</th>
-                                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>Area</th>
-                                <th style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>Assessed Value</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {propertyRows.map((row: any, i: number) => (
-                                <tr key={i}>
-                                    <td style={{ padding: '8px', border: '1px solid #e2e8f0' }}>{row.td_arp_number || row.tdArpNumber}</td>
-                                    <td style={{ padding: '8px', border: '1px solid #e2e8f0' }}>{row.location_of_property || row.locationOfProperty}</td>
-                                    <td style={{ padding: '8px', border: '1px solid #e2e8f0' }}>{row.lot_number || row.lotNumber}</td>
-                                    <td style={{ padding: '8px', border: '1px solid #e2e8f0' }}>{row.title_number || row.titleNumber}</td>
-                                    <td style={{ padding: '8px', border: '1px solid #e2e8f0' }}>{row.area}</td>
-                                    <td style={{ padding: '8px', border: '1px solid #e2e8f0', textAlign: 'right' }}>₱{Number(row.assessed_value || row.assessedValue || 0).toFixed(2)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            );
-        }
-
-        // Default: Tax Declaration Preview
-        const arpNo = formData.tax_declaration_number || formData.taxDeclarationNumber || '';
-        const pin = formData.property_identification_number || formData.propertyIndexNumber || '';
-        const adminName = formData.administrator_name || formData.administratorName || '';
-        const effectivityYear = formData.effectivity_year || formData.effectivityYear || '';
-        const assessmentRows = formData.encoded_assessment_rows || formData._assessmentRows || formData.assessmentRows || [];
-        const totalMarketValue = formData.total_market_value || formData.totalMarketValue || 0;
-        const totalAssessedValue = formData.total_assessed_value || formData.totalAssessedValue || 0;
-        const amountInWords = formData.amount_in_words || formData.amountInWords || '';
-
-        return (
-            <div style={{ background: '#FAF9FF', border: '1px solid #E3E0FA', borderRadius: '12px', padding: '20px', marginTop: '20px' }}>
-                <h3 style={{ color: '#2B2A6E', margin: '0 0 12px 0', fontSize: '16px' }}>Tax Declaration Form Preview</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px', color: '#475569', background: '#fff', padding: '12px', borderLeft: '3px solid #2B2A6E', borderRadius: '4px', marginBottom: '12px' }}>
-                    <div><strong>ARP No:</strong> {arpNo}</div>
-                    <div><strong>PIN:</strong> {pin}</div>
-                    <div><strong>Owner:</strong> {declarantName}</div>
-                    <div><strong>Admin:</strong> {adminName || 'None'}</div>
-                    <div><strong>Effectivity Year:</strong> {effectivityYear}</div>
-                    <div><strong>Taxability:</strong> {formData.taxability || 'TAXABLE'}</div>
-                </div>
-                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}><strong>Boundaries:</strong> North: {formData.boundary_north || formData.boundaryNorth || 'N/A'} | South: {formData.boundary_south || formData.boundarySouth || 'N/A'} | East: {formData.boundary_east || formData.boundaryEast || 'N/A'} | West: {formData.boundary_west || formData.boundaryWest || 'N/A'}</div>
-
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                    <thead>
-                        <tr style={{ background: '#EEF2FF', textAlign: 'left' }}>
-                            <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>Kind of Property</th>
-                            <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>Classification</th>
-                            <th style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>Market Value</th>
-                            <th style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>Ass. Level</th>
-                            <th style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>Assessed Value</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {assessmentRows.map((row: any, i: number) => (
-                            <tr key={i}>
-                                <td style={{ padding: '8px', border: '1px solid #e2e8f0' }}>{row.kind_of_property || row.kindOfProperty || 'Land'}</td>
-                                <td style={{ padding: '8px', border: '1px solid #e2e8f0' }}>{row.classification_id || row.classificationId || 'Residential'}</td>
-                                <td style={{ padding: '8px', border: '1px solid #e2e8f0', textAlign: 'right' }}>₱{Number(row.market_value || row.marketValue || 0).toFixed(2)}</td>
-                                <td style={{ padding: '8px', border: '1px solid #e2e8f0', textAlign: 'right' }}>{row.assessment_level || row.assessmentLevel || 0}%</td>
-                                <td style={{ padding: '8px', border: '1px solid #e2e8f0', textAlign: 'right' }}>₱{Number(row.assessed_value || row.assessedValue || 0).toFixed(2)}</td>
-                            </tr>
-                        ))}
-                        <tr style={{ fontWeight: 'bold', background: '#f8fafc' }}>
-                            <td colSpan={2} style={{ padding: '8px', border: '1px solid #cbd5e1' }}>TOTALS</td>
-                            <td style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₱{Number(totalMarketValue).toFixed(2)}</td>
-                            <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}></td>
-                            <td style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₱{Number(totalAssessedValue).toFixed(2)}</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div style={{ marginTop: '10px', fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}><strong>Amount in Words:</strong> {amountInWords}</div>
-            </div>
-        );
-    };
-
-    // Print-Ready Document Output Layout
-    const renderPrintReadyDocument = () => {
-        if (!formData) return null;
-
-        const appSignatory = signatory || "ENGR. VICENTE P. DESOY";
-
-        return (
-            <div className="print-ready-document" style={{ background: '#fff', color: '#000', padding: '40px', fontFamily: 'serif', lineHeight: '1.6' }}>
-                <div style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '2px solid #000', paddingBottom: '10px' }}>
-                    <div style={{ textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Republic of the Philippines</div>
-                    <div style={{ fontWeight: 'bold', fontSize: '16px', textTransform: 'uppercase' }}>Office of the Provincial Assessor</div>
-                    <div style={{ fontSize: '12px' }}>Province of Zamboanga del Norte</div>
-                </div>
-
-                {isNlh && (
-                    <div>
-                        <h2 style={{ textAlign: 'center', textTransform: 'uppercase', marginBottom: '40px', fontSize: '20px', letterSpacing: '2px' }}>Certification</h2>
-                        <p style={{ textIndent: '50px', fontSize: '16px', textAlign: 'justify', marginBottom: '20px' }}>
-                            <strong>TO WHOM IT MAY CONCERN:</strong>
-                        </p>
-                        <p style={{ textIndent: '50px', fontSize: '16px', textAlign: 'justify', marginBottom: '20px' }}>
-                            THIS IS TO CERTIFY that according to the records of this office, <strong>{declarantName.toUpperCase()}</strong> has no real property/landholding registered in his/her name for taxation purposes in the Province of Zamboanga del Norte.
-                        </p>
-                        <p style={{ textIndent: '50px', fontSize: '16px', textAlign: 'justify', marginBottom: '40px' }}>
-                            This certification is issued upon the request of the above-named party for <strong>{purpose.toUpperCase() || 'LEGAL PURPOSES'}</strong>.
-                        </p>
-                        <p style={{ fontSize: '16px', marginBottom: '60px' }}>
-                            Given this {dateGiven || new Date().toLocaleDateString()} at {givenAt || 'Dipolog City, Philippines'}.
-                        </p>
-                    </div>
-                )}
-
-                {isLh && (
-                    <div>
-                        <h2 style={{ textAlign: 'center', textTransform: 'uppercase', marginBottom: '30px', fontSize: '20px', letterSpacing: '2px' }}>Certification of Landholding</h2>
-                        <p style={{ textIndent: '50px', fontSize: '16px', textAlign: 'justify', marginBottom: '20px' }}>
-                            <strong>TO WHOM IT MAY CONCERN:</strong>
-                        </p>
-                        <p style={{ textIndent: '50px', fontSize: '16px', textAlign: 'justify', marginBottom: '20px' }}>
-                            THIS IS TO CERTIFY that according to the records of this office, <strong>{declarantName.toUpperCase()}</strong> has the following real property/landholding registered for taxation purposes in the Province of Zamboanga del Norte:
-                        </p>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', marginBottom: '30px' }}>
-                            <thead>
-                                <tr style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', textAlign: 'left' }}>
-                                    <th style={{ padding: '6px' }}>TD/ARP Number</th>
-                                    <th style={{ padding: '6px' }}>Location</th>
-                                    <th style={{ padding: '6px' }}>Lot No.</th>
-                                    <th style={{ padding: '6px' }}>Title No.</th>
-                                    <th style={{ padding: '6px' }}>Area</th>
-                                    <th style={{ padding: '6px', textAlign: 'right' }}>Assessed Value</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {(formData.encoded_landholding_property_rows || formData._propertyRows || formData.propertyRows || []).map((row: any, i: number) => (
-                                    <tr key={i} style={{ borderBottom: '1px dashed #ccc' }}>
-                                        <td style={{ padding: '6px' }}>{row.td_arp_number || row.tdArpNumber}</td>
-                                        <td style={{ padding: '6px' }}>{row.location_of_property || row.locationOfProperty}</td>
-                                        <td style={{ padding: '6px' }}>{row.lot_number || row.lotNumber}</td>
-                                        <td style={{ padding: '6px' }}>{row.title_number || row.titleNumber}</td>
-                                        <td style={{ padding: '6px' }}>{row.area}</td>
-                                        <td style={{ padding: '6px', textAlign: 'right' }}>₱{Number(row.assessed_value || row.assessedValue || 0).toFixed(2)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        <p style={{ textIndent: '50px', fontSize: '16px', textAlign: 'justify', marginBottom: '40px' }}>
-                            This certification is issued for <strong>{purpose.toUpperCase() || 'LEGAL PURPOSES'}</strong>.
-                        </p>
-                        <p style={{ fontSize: '16px', marginBottom: '60px' }}>
-                            Given this {dateGiven || new Date().toLocaleDateString()} at {givenAt || 'Dipolog City, Philippines'}.
-                        </p>
-                    </div>
-                )}
-
-                {!isNlh && !isLh && (
-                    <div>
-                        <h2 style={{ textAlign: 'center', textTransform: 'uppercase', marginBottom: '20px', fontSize: '18px' }}>Declaration of Real Property</h2>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '14px', marginBottom: '20px', border: '1px solid #000', padding: '15px' }}>
-                            <div><strong>ARP Number:</strong> {formData.tax_declaration_number || formData.taxDeclarationNumber}</div>
-                            <div><strong>PIN:</strong> {formData.property_identification_number || formData.propertyIndexNumber}</div>
-                            <div><strong>Owner Name:</strong> {declarantName.toUpperCase()}</div>
-                            <div><strong>Address:</strong> {formData.owner_address || formData.ownerAddress || 'N/A'}</div>
-                            <div><strong>Taxability:</strong> {formData.taxability || 'TAXABLE'}</div>
-                            <div><strong>Effectivity Year:</strong> {formData.effectivity_year || formData.effectivityYear}</div>
-                        </div>
-
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', marginBottom: '25px' }}>
-                            <thead>
-                                <tr style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', textAlign: 'left' }}>
-                                    <th style={{ padding: '6px' }}>Property Kind</th>
-                                    <th style={{ padding: '6px' }}>Classification</th>
-                                    <th style={{ padding: '6px', textAlign: 'right' }}>Market Value</th>
-                                    <th style={{ padding: '6px', textAlign: 'right' }}>Ass. Level</th>
-                                    <th style={{ padding: '6px', textAlign: 'right' }}>Assessed Value</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {(formData.encoded_assessment_rows || formData._assessmentRows || formData.assessmentRows || []).map((row: any, i: number) => (
-                                    <tr key={i} style={{ borderBottom: '1px dashed #ccc' }}>
-                                        <td style={{ padding: '6px' }}>{row.kind_of_property || row.kindOfProperty || 'Land'}</td>
-                                        <td style={{ padding: '6px' }}>{row.classification_id || row.classificationId || 'Residential'}</td>
-                                        <td style={{ padding: '6px', textAlign: 'right' }}>₱{Number(row.market_value || row.marketValue || 0).toFixed(2)}</td>
-                                        <td style={{ padding: '6px', textAlign: 'right' }}>{row.assessment_level || row.assessmentLevel || 0}%</td>
-                                        <td style={{ padding: '6px', textAlign: 'right' }}>₱{Number(row.assessed_value || row.assessedValue || 0).toFixed(2)}</td>
-                                    </tr>
-                                ))}
-                                <tr style={{ borderTop: '1px solid #000', fontWeight: 'bold' }}>
-                                    <td colSpan={2} style={{ padding: '6px' }}>TOTALS:</td>
-                                    <td style={{ padding: '6px', textAlign: 'right' }}>₱{Number(formData.total_market_value || formData.totalMarketValue || 0).toFixed(2)}</td>
-                                    <td></td>
-                                    <td style={{ padding: '6px', textAlign: 'right' }}>₱{Number(formData.total_assessed_value || formData.totalAssessedValue || 0).toFixed(2)}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <p style={{ fontSize: '14px', fontStyle: 'italic', marginBottom: '40px' }}>
-                            <strong>Amount in Words:</strong> {formData.amount_in_words || formData.amountInWords}
-                        </p>
-                    </div>
-                )}
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '60px' }}>
-                    <div style={{ fontSize: '12px' }}>
-                        <div><strong>Official Receipt No:</strong> {orNumber || 'N/A'}</div>
-                        <div><strong>Amount Paid:</strong> ₱{payment.amountDue.toFixed(2)}</div>
-                        <div><strong>Date Paid:</strong> {new Date().toLocaleDateString()}</div>
-                    </div>
-                    <div style={{ textAlign: 'center', width: '250px' }}>
-                        <div style={{ textDecoration: 'underline', fontWeight: 'bold' }}>{appSignatory}</div>
-                        <div style={{ fontSize: '12px', color: '#555' }}>Authorized Representative</div>
-                    </div>
-                </div>
-            </div>
-        );
     };
 
     return (
@@ -462,29 +170,11 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
                                 >
                                     {isSaving ? 'Saving...' : '🖨️ Mark Paid & Print Document'}
                                 </button>
-                            </div>
-                        )}
-                    </div>
-
-                    <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'flex-end' }}>
-                        {!isVerified ? (
-                            <button
-                                onClick={handleVerify}
-                                style={{ background: 'linear-gradient(135deg, #29237a 0%, #3730a3 100%)', color: '#fff', border: 'none', padding: '14px 28px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px', boxShadow: '0 4px 12px rgba(41,35,122,0.2)' }}
-                            >
-                                Verify O.R. & Unlock Printing
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => setShowPrintPreview(true)}
-                                style={{ background: '#10b981', color: '#fff', border: 'none', padding: '14px 28px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px', boxShadow: '0 4px 12px rgba(16,185,129,0.2)' }}
-                            >
-                                📄 Generate Print-Ready Document
-                            </button>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 }
