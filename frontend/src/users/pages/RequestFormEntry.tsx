@@ -46,7 +46,11 @@ export function RequestFormEntry({
         staff: any[];
         propertyLocations: { id: string; name: string }[];
     }>({
+<<<<<<< HEAD
         docTypes: [],
+=======
+        docTypes:[],
+>>>>>>> main
         purposes: [],
         staff: [],
         propertyLocations: [],
@@ -131,20 +135,54 @@ export function RequestFormEntry({
         setValidationError('');
 
         const selectedId = formData.documentTypeIds[0];
-        const view = DOCUMENT_TYPE_ID_VIEW_MAP[selectedId] || 'tax-declaration';
+        const selectedDoc = metadata.docTypes.find((d) => d.id === selectedId);
+        let view: string | undefined;
+
+        if (selectedDoc) {
+            view = DOCUMENT_TYPE_ID_VIEW_MAP[selectedDoc.id] || DOCUMENT_TYPE_VIEW_MAP[selectedDoc.name];
+            if (!view) {
+                const nameLower = selectedDoc.name.toLowerCase();
+                if (nameLower.includes('tax declaration') || nameLower.includes('tax dec')) {
+                    view = 'tax-declaration';
+                } else if (nameLower.includes('no landholding') || nameLower.includes('no property')) {
+                    view = 'certificate-no-landholding';
+                } else if (nameLower.includes('landholding') || nameLower.includes('property')) {
+                    view = 'certificate-land-holding';
+                }
+            }
+        }
+
+        if (!view) {
+            alert(`No document page is set up yet for "${selectedDoc?.name ?? 'this document type'}".`);
+            return;
+        }
 
         setSubmitting(true);
         try {
-            // ALWAYS Submit new to generate a unique ID per document (per your requirement)
-            const res = await requestService.submitRequest({ ...formData, status: 'PENDING_PAYMENT' }, user.id);
-            const savedRequest = res.data || res;
+            let savedRequest;
+            // Force status to DRAFT so it doesn't appear in Pending Payments yet
+            const requestPayload = { ...formData, status: 'DRAFT' };
 
-            // Real-time Update: Replace the UI placeholder with the real DB code
-            const dbRef = savedRequest.reference_number;
-            const dbId = savedRequest.id;
+            if (formData.id) {
+                const res = await requestService.updateRequest(formData.id, requestPayload);
+                savedRequest = res.data || res;
+            } else {
+                const res = await requestService.submitRequest(requestPayload, user.id);
+                savedRequest = res.data || res;
+            }
 
-            setFormData(prev => ({ ...prev, id: dbId, referenceNumber: dbRef }));
+            // Capture real ID and snake_case reference_number from Supabase response
+            const actualRequestId = savedRequest?.id || formData.id;
+            const actualReferenceNumber = savedRequest?.reference_number || savedRequest?.referenceNumber || formData.referenceNumber;
 
+            // 1. Update local form state for real-time header chip update
+            setFormData(prev => ({
+                ...prev,
+                id: actualRequestId,
+                referenceNumber: actualReferenceNumber
+            }));
+
+            // 2. Pass real database values to the Document Form
             onEntryComplete({
                 requestId: dbId,
                 referenceNumber: dbRef,

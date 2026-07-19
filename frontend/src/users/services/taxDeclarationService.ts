@@ -29,8 +29,8 @@ export const taxDeclarationService = {
             administratorTin:             formData.administratorTin,
             administratorTelephone:       formData.administratorTelephone,
             propertyStreet:               formData.propertyStreet,
-            barangay:                     formData.barangay,
-            municipality:                 formData.municipality,
+            barangayId:                     formData.barangayId,
+            municipalityId:                 formData.municipalityId,
             octTctNumber:                 formData.octTctNumber,
             surveyNumber:                 formData.surveyNumber,
             lotNumber:                    formData.lotNumber,
@@ -48,6 +48,7 @@ export const taxDeclarationService = {
             notes:                        formData.notes,
             assessmentRows: formData.assessmentRows.map((row, idx) => ({
                 rowOrder:           idx,
+                kindOfProperty:     row.kindOfProperty || null,   // ← added
                 classificationId:   row.classificationId || null,
                 actualUseId:        row.actualUseId || null,
                 actualUseOtherText: row.actualUseOtherText || null,

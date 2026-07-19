@@ -3,17 +3,19 @@ import type { PendingPaymentRequest } from '../types/PendingPayment';
 import { taxDeclarationService } from '../services/taxDeclarationService';
 import { landholdingService } from '../services/landholdingService';
 import { noLandholdingService } from '../services/noLandholdingService';
+import { requestService } from '../services/requestService';
 
 interface PaymentDetailsProps {
-    payment: PendingPaymentRequest | null;
+    payment: PendingPaymentRequest;
     onBack: () => void;
-    onEditDocument: (controlNumber: string) => void;
+    onEditDocument: (referenceNumber: string) => void;
 }
 
 export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetailsProps) {
     const [orNumber, setOrNumber] = useState('');
     const [signatory, setSignatory] = useState('');
     const [isVerified, setIsVerified] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [showSharedWarning, setShowSharedWarning] = useState(false);
     const [formData, setFormData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
@@ -45,14 +47,20 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
         fetchFormPreview();
     }, [payment]);
 
-    if (!payment) return <div style={{ padding: '40px' }}>Payment data missing.</div>;
+    if (!payment) return <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Payment data missing.</div>;
+
+    // We adjust these variables here to match exactly what your PendingPayment.tsx sends:
+    const displayRef = payment.refNumber;
+    const displayName = payment.declarant;
+    const displayDoc = payment.docType;
+    const displayAmount = payment.amount;
 
     const handleVerify = () => {
         if (!orNumber || !signatory) return alert("O.R. Number and Signatory are required.");
 
         // SETBACK 1 LOGIC: The "Shared Receipt" Bulk Payment Collision
-        const isDuplicateInDatabase = orNumber === "12345";
 
+        const isDuplicateInDatabase = orNumber === "12345";
         if (isDuplicateInDatabase && !showSharedWarning) {
             setShowSharedWarning(true);
             return;
@@ -62,10 +70,21 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
         setShowSharedWarning(false);
     };
 
-    const handlePrint = () => {
-        window.print();
-        alert(`Document ${payment.controlNumber} marked as RELEASED.`);
-        onBack(); // Go back to the queue
+    const handlePrint = async () => {
+        if (!orNumber || !signatory) return alert("Enter O.R. and Signatory");
+
+        setIsSaving(true);
+        try {
+            // payment.id is still used for the DB call
+            await requestService.releaseRequest(payment.id, { orNumber, signatory });
+            window.print();
+            alert(`Document ${displayRef} marked as RELEASED.`);
+            onBack();
+        } catch (err) {
+            alert("Failed to save payment details.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const isNlh = (payment.controlNumber || payment.refNumber || '').startsWith('NLH');
@@ -403,6 +422,9 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
                             <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Calculated Fee</p>
                             <h2 style={{ margin: 0, color: '#059669', fontSize: '24px' }}>₱{payment.amountDue.toFixed(2)}</h2>
                         </div>
+                        <span className="td-ref-chip" style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', padding: '8px 16px', borderRadius: '99px', fontWeight: 700, fontFamily: 'monospace', border: '1px solid rgba(255,255,255,0.3)' }}>
+                            {displayRef}
+                        </span>
                     </div>
 
                     {/* Exact Form Preview Area */}

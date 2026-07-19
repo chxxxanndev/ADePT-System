@@ -113,15 +113,17 @@
 .admin-dashboard-content {
     display: flex;
     flex-direction: column;
-    gap: 32px;
-    padding: 24px clamp(16px, 3vw, 32px) 0;
-    margin-bottom: 32px;
+    padding: 12px 28px 32px;
     flex: 1;
+    max-width: 1360px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
 }
 
 /* --- SIDEBAR STYLING --- */
 .admin-sidebar {
-    width: 260px;
+    width: 264px;
     height: 100%;
     background: var(--admin-sidebar-bg);
     border-right: none;
@@ -137,7 +139,7 @@
 }
 
 .admin-sidebar.collapsed {
-    width: 80px;
+    width: 72px;
 }
 
 /* Sidebar Brand / Header */
@@ -157,8 +159,8 @@
 }
 
 .sidebar-brand-logo {
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
     object-fit: contain;
     border-radius: 50%;
     background: #ffffff;
@@ -167,10 +169,10 @@
 }
 
 .sidebar-brand-title {
-    font-size: 20px;
+    font-size: 35px;
     font-weight: 800;
     color: #ffffff;
-    letter-spacing: 0.5px;
+    letter-spacing: -0.3px;
     white-space: nowrap;
     opacity: 1;
     transition: opacity 0.2s ease;
@@ -203,20 +205,19 @@
 .sidebar-navigation {
     flex: 1;
     overflow-y: auto;
-    padding: 20px 12px;
+    padding: 4px 14px 14px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 4px;
 }
 
 .sidebar-section-header {
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 700;
-    color: var(--admin-sidebar-text-muted);
-    letter-spacing: 1.5px;
-    margin-bottom: 8px;
-    padding-left: 12px;
+    letter-spacing: 1.4px;
     text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+    padding: 4px 10px 8px;
 }
 
 .admin-sidebar.collapsed .sidebar-section-header {
@@ -226,7 +227,13 @@
 .sidebar-item-container {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
+    padding: 10px 0 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-item-container:last-child {
+    border-bottom: none;
 }
 
 .sidebar-item-btn {
@@ -234,27 +241,29 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 14px;
+    padding: 9px 10px;
     border: none;
     background: none;
     border-radius: 8px;
-    color: var(--admin-sidebar-text);
+    color: rgba(255, 255, 255, 0.85);
     font-family: inherit;
-    font-size: 14.5px;
-    font-weight: 600;
+    font-size: 13.5px;
+    font-weight: 550;
     cursor: pointer;
     transition: all 0.2s ease;
     text-align: left;
 }
 
 .sidebar-item-btn:hover {
-    background-color: var(--admin-sidebar-hover-bg);
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
 }
 
 .sidebar-item-btn.active {
-    background-color: var(--admin-sidebar-active-bg);
-    color: #ffffff;
-    box-shadow: none;
+    background-color: #ffffff;
+    color: var(--admin-primary);
+    font-weight: 700;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
 .sidebar-item-left {
@@ -326,30 +335,30 @@
 
 /* Sidebar Logout Footer */
 .sidebar-footer {
-    padding: 16px 12px;
-    border-top: 1px solid var(--admin-sidebar-border);
+    padding: 0;
+    border-top: none;
 }
 
 .sidebar-logout-btn {
-    width: 100%;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
+    gap: 10px;
+    width: calc(100% - 28px);
+    margin: 0 14px 16px;
+    padding: 14px 10px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     background: none;
     border: none;
-    border-radius: 8px;
     color: rgba(255, 255, 255, 0.85);
     font-family: inherit;
-    font-size: 14.5px;
-    font-weight: 600;
+    font-size: 13.5px;
+    font-weight: 550;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: color 0.2s;
     text-align: left;
 }
 
 .sidebar-logout-btn:hover {
-    background-color: rgba(255, 255, 255, 0.1);
     color: #ffffff;
 }
 
@@ -383,9 +392,9 @@
    background-clip; for a true per-letter palette, wrap each character in a
    <span> inside AdminHeader.tsx and drop the gradient below) */
 .header-dashboard-title {
-    font-size: 32px;
-    font-weight: 850;
-    letter-spacing: -1px;
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
     text-transform: uppercase;
     display: flex;
     gap: 2px;
@@ -406,7 +415,7 @@
 .header-dashboard-subtitle {
     font-size: 14.5px;
     color: var(--admin-text-muted);
-    font-weight: 500;
+    font-weight: 550;
 }
 
 .header-dashboard-subtitle strong {
@@ -780,21 +789,22 @@
 /* Wraps Account Access Requests + Document Request Queue together in one box */
 .admin-stats-panel {
     background: var(--admin-card-bg);
-    border: 1px solid var(--admin-card-border);
-    box-shadow: 0 6px 20px var(--admin-card-shadow);
-    border-radius: 20px;
-    padding: 24px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
     display: flex;
     flex-direction: column;
-    gap: 28px;
+    gap: 24px;
 }
 
 .admin-section-title-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 18px;
-    font-weight: 750;
+    font-size: 18.5px;
+    font-weight: 800;
     color: var(--admin-text-primary);
     padding-top: 30px;
 }
@@ -846,7 +856,7 @@
 
 .admin-stat-card-value {
     font-size: 32px;
-    font-weight: 800;
+    font-weight: 850;
     color: var(--admin-text-primary);
     line-height: 1.1;
 }
@@ -1462,12 +1472,10 @@
 .dashboard-footer {
     display: flex;
     flex-direction: column;
-    gap: 16px;
     background-color: var(--admin-sidebar-bg);
-    color: rgba(255, 255, 255, 0.7);
-    padding: 24px clamp(16px, 3vw, 32px);
-    margin-top: 24px;
-    font-size: 13px;
+    color: #ffffff;
+    padding: 24px 28px;
+    margin-top: auto;
 }
 
 .dashboard-footer-top {
@@ -1547,15 +1555,15 @@
 
 .footer-copyright {
     text-align: center;
-    font-size: 12px;
-    border-top: 1px dashed rgba(255, 255, 255, 0.15);
-    padding-top: 14px;
-    font-weight: 500;
+    font-size: 10.5px;
     color: rgba(255, 255, 255, 0.55);
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* --- RESPONSIVE STYLES --- */
-@media (max-width: 1024px) {
+@media (max-width: 1100px) {
     .admin-stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -1632,6 +1640,7 @@
         text-align: left;
     }
 }
+
 .sidebar-brand-wrapper {
     display: flex;
     align-items: center;

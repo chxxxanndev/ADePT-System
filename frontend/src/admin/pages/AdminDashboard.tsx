@@ -12,6 +12,9 @@ import type { User } from '../../auth-folder/types/auth';
 import AccountRequest from '../pages/AccountRequest';
 import { StaffAccounts } from '../pages/StaffAccounts';
 import { RequestQueue } from '../pages/RequestQueue';
+import { AdminReports } from '../pages/AdminReports';
+import { AdminAuditLog } from '../pages/AdminAuditLog';
+import { AdminAccountSettings } from '../pages/AdminAccountSettings';
 
 // User Icon for Access Requests Header
 function ShieldUserIcon({ size = 18 }: { size?: number }) {
@@ -92,10 +95,10 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                 setMobileOpen={setMobileMenuOpen}
             />
 
-           {/* Main Panel */}
+            {/* Main Panel */}
             <main className="admin-dashboard-main">
-                {/* Header — hidden on Staff Accounts, which has its own search bar */}
-                {activeView !== 'staff-accounts' && activeView !== 'request-queue' && (
+                {/* Header — hidden on views that render their own header */}
+                {activeView !== 'account-request' && activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && activeView !== 'audit-log' && activeView !== 'settings' && (
                     <AdminHeader
                         user={user}
                         searchQuery={searchQuery}
@@ -109,26 +112,24 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                 <div className="admin-dashboard-content">
                     {activeView === 'overview' ? (
                         <div className="admin-overview-content">
-                            {/* Both stat sections share one box */}
-                            <div className="admin-stats-panel">
-                                {/* Access Requests cards */}
-                                <AdminStatsSection
-                                    title="Account Access Requests"
-                                    items={accessRequests}
-                                    sectionIcon={<ShieldUserIcon />}
-                                    onRefresh={refreshAccessRequests}
-                                    isRefreshing={refreshingAccessRequests}
-                                />
+                            {/* Both stat sections have their own boxes now, matching user dashboard */}
+                            {/* Access Requests cards */}
+                            <AdminStatsSection
+                                title="Account Access Requests"
+                                items={accessRequests}
+                                sectionIcon={<ShieldUserIcon />}
+                                onRefresh={refreshAccessRequests}
+                                isRefreshing={refreshingAccessRequests}
+                            />
 
-                                {/* Request Queue cards */}
-                                <AdminStatsSection
-                                    title="Document Request Queue"
-                                    items={requestQueue}
-                                    sectionIcon={<ChainLinkIcon />}
-                                    onRefresh={refreshQueue}
-                                    isRefreshing={refreshingQueue}
-                                />
-                            </div>
+                            {/* Request Queue cards */}
+                            <AdminStatsSection
+                                title="Document Request Queue"
+                                items={requestQueue}
+                                sectionIcon={<ChainLinkIcon />}
+                                onRefresh={refreshQueue}
+                                isRefreshing={refreshingQueue}
+                            />
 
                             {/* Split column grids */}
                             <div className="admin-grid-columns">
@@ -160,7 +161,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                         </div>
                     ) : activeView === 'account-request' ? (
                         <AccountRequest />
-                   ) : activeView === 'staff-accounts' ? (
+                    ) : activeView === 'staff-accounts' ? (
                         <StaffAccounts
                             user={user}
                             onAddStaff={() => console.log('TODO: open add-staff flow')}
@@ -168,6 +169,25 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                         />
                     ) : activeView === 'request-queue' ? (
                         <RequestQueue user={user} />
+                    ) : activeView === 'reports-analytics' ? (
+                        <AdminReports user={user} />
+                    ) : activeView === 'audit-log' ? (
+                        <AdminAuditLog
+                            currentUser={{
+                                name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                                role: user.role || 'Staff',
+                                initials: `${(user.firstName || '')[0] || ''}${(user.lastName || '')[0] || ''}`.toUpperCase(),
+                            }}
+                        />
+                    ) : activeView === 'settings' ? (
+                        <AdminAccountSettings
+                            user={user}
+                            onSave={(data) => console.log('TODO: save admin account settings', data)}
+                            onUpdateEmail={() => console.log('TODO: update email')}
+                            onChangePassword={() => console.log('TODO: change password')}
+                            onChangePhoto={() => console.log('TODO: change photo')}
+                            onDisableAccount={(disabled) => console.log('TODO: disable account', disabled)}
+                        />
                     ) : (
                         /* Placeholder views for submenu clicks */
                         <div className="admin-placeholder-view">

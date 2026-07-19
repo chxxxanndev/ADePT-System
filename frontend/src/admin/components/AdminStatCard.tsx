@@ -74,7 +74,7 @@ export function AdminStatsSection({
     isRefreshing
 }: AdminStatsSectionProps) {
     return (
-        <section className="admin-stats-section">
+        <section className="admin-stats-panel">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div className="admin-section-title-row">
                     <span className="admin-section-title-icon">{sectionIcon}</span>

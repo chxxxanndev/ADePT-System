@@ -40,8 +40,8 @@ export interface TaxDeclarationFormData {
 
     // — Location —
     propertyStreet: string;
-    barangay: string;                // free text (until barangay lookup connected)
-    municipality: string;            // free text
+    barangayId: string;                // free text (until barangay lookup connected)
+    municipalityId: string;            // free text
     province: string;                // fixed: Zamboanga del Norte
 
     // — Land Reference —
@@ -125,8 +125,8 @@ export const EMPTY_TAX_DECLARATION = (): TaxDeclarationFormData => ({
     administratorTin: '',
     administratorTelephone: '',
     propertyStreet: '',
-    barangay: '',
-    municipality: '',
+    barangayId: '',
+    municipalityId: '',
     province: 'Zamboanga del Norte',
     octTctNumber: '',
     surveyNumber: '',

@@ -6,9 +6,12 @@ export interface PendingPaymentRequest {
     id: string;
     controlNumber: string;
     declarant_name: string;
+<<<<<<< HEAD
     declarant?: string;
     declarantName?: string;
     refNumber?: string;
+=======
+>>>>>>> main
     documentType: string;
     amountDue: number;
     dateRequested: string;
