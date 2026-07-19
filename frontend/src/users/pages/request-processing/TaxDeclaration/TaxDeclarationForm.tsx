@@ -104,30 +104,38 @@ export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard,
     const removeRow = (id: string) => setForm((prev) => ({ ...prev, assessmentRows: prev.assessmentRows.filter((r) => r.id !== id), }));
 
     // PHASE 1 LOGIC: Send to Payment
-    const handleSave = async (action: 'draft' | 'send_to_payment' | 'add_another') => {
-        if (!form.taxDeclarationNumber) return setSaveError('Assessment of Real Property No. is required.');
-        if (!form.ownerName) return setSaveError('Owner Name is required.');
-        setSaveError('');
-        setSaving(true);
-        try {
-            await taxDeclarationService.save({ ...form, taxability: form.taxability }, entryData.requestId, user.id);
+    // Inside TaxDeclarationForm Component
 
-            // Generate status update if not a draft
-            if (action !== 'draft') {
-                await requestService.updateRequest(entryData.requestId, { ...entryData, status: 'PENDING_PAYMENT' });
-            }
+const handleSave = async (action: 'draft' | 'send_to_payment' | 'add_another') => {
+    if (!form.taxDeclarationNumber || !form.ownerName) {
+        return setSaveError('Assessment No. and Owner Name are required.');
+    }
+    setSaveError('');
+    setSaving(true);
+    
+    try {
+        // 1. Save the actual Tax Dec details to encoded_tax_declarations
+        await taxDeclarationService.save(form, entryData.requestId, user.id);
 
-            setSaved(true);
-            setTimeout(() => {
-                if (action === 'send_to_payment') onGoToPendingPayments(); // <--- CALL IT HERE
-                else if (action === 'add_another') onAddAnother();
-            }, 1500);
-        } catch (err: any) {
-            setSaveError(err?.response?.data?.error || 'Failed to save. Please try again.');
-        } finally {
-            setSaving(false);
+        // 2. If "Send to Payment" is clicked, update the Parent Request status
+        if (action === 'send_to_payment' || action === 'add_another') {
+            await requestService.updateRequest(entryData.requestId, {
+                ...entryData,
+                status: 'PENDING_PAYMENT' // This makes it visible to the Treasurer
+            });
         }
-    };
+
+        setSaved(true);
+        setTimeout(() => {
+            if (action === 'send_to_payment') onGoToPendingPayments();
+            else if (action === 'add_another') onAddAnother(); // This will trigger the RequestFormEntry again
+        }, 1500);
+    } catch (err: any) {
+        setSaveError('Failed to save. Check database connection.');
+    } finally {
+        setSaving(false);
+    }
+};
 
     return (
         <div className="td-page">

@@ -47,16 +47,32 @@ class RequestService {
     }
 
     // Get All: Resolves names for both Queue AND Drafts
+    // backend/src/modules/requests/request.service.js
+
     async getRequests() {
-        const { data: requests, error: reqErr } = await supabase.from('requests').select('*').order('created_at', { ascending: false });
-        if (reqErr) throw reqErr;
+        try {
+            // STEP A: Fetch requests (Header data)
+            const { data: requests, error: reqErr } = await supabase
+                .from('requests')
+                .select('*')
+                .order('created_at', { ascending: false });
 
-        const { data: docLinks } = await supabase.from('request_documents').select('request_id, document_types(name)');
+            if (reqErr) throw reqErr;
 
-        return (requests || []).map(r => ({
-            ...r,
-            request_documents: (docLinks || []).filter(d => d.request_id === r.id)
-        }));
+            // STEP B: Fetch associated document names via the link we just made in SQL
+            const { data: docLinks } = await supabase
+                .from('request_documents')
+                .select('request_id, document_types(name)');
+
+            // STEP C: Merge them so Frontend sees "documentType: 'Certificate of Landholding'"
+            return (requests || []).map(r => ({
+                ...r,
+                request_documents: (docLinks || []).filter(d => d.request_id === r.id)
+            }));
+        } catch (err) {
+            console.error('getRequests failed:', err.message);
+            return [];
+        }
     }
 
     async updateRequest(id, formData) {

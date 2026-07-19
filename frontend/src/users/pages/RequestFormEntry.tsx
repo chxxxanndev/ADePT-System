@@ -307,7 +307,7 @@ export function RequestFormEntry({
         staff: any[];
         propertyLocations: { id: string; name: string }[];
     }>({
-        docTypes: DEFAULT_DOCUMENT_TYPES,
+        docTypes:[],
         purposes: [],
         staff: [],
         propertyLocations: [],
@@ -395,12 +395,13 @@ export function RequestFormEntry({
         };
     }, []);
 
-    const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
-        'dt1': 'tax-declaration',
-        'dt2': 'tax-declaration',
-        'dt3': 'certificate-land-holding',
-        'dt4': 'certificate-no-landholding',
-    };
+    // Ensure these keys match the IDs we just put in the database!
+const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
+    'ctc-latest-tax-dec': 'tax-declaration',
+    'ctc-old-tax-dec': 'tax-declaration',
+    'cert-property': 'certificate-land-holding',
+    'cert-no-property': 'certificate-no-landholding',
+};
 
     const handleProceedToDocument = async () => {
         if (!formData.declarantName || !formData.requestedByName || !formData.requestDate || formData.documentTypeIds.length === 0) {
@@ -412,6 +413,7 @@ export function RequestFormEntry({
         const selectedId = formData.documentTypeIds[0];
         const selectedDoc = metadata.docTypes.find((d) => d.id === selectedId);
         let view: string | undefined;
+
         if (selectedDoc) {
             view = DOCUMENT_TYPE_ID_VIEW_MAP[selectedDoc.id] || DOCUMENT_TYPE_VIEW_MAP[selectedDoc.name];
             if (!view) {
@@ -425,6 +427,7 @@ export function RequestFormEntry({
                 }
             }
         }
+
         if (!view) {
             alert(`No document page is set up yet for "${selectedDoc?.name ?? 'this document type'}".`);
             return;
@@ -433,23 +436,29 @@ export function RequestFormEntry({
         setSubmitting(true);
         try {
             let savedRequest;
+            // Force status to DRAFT so it doesn't appear in Pending Payments yet
+            const requestPayload = { ...formData, status: 'DRAFT' };
+
             if (formData.id) {
-                const res = await requestService.updateRequest(formData.id, formData);
+                const res = await requestService.updateRequest(formData.id, requestPayload);
                 savedRequest = res.data || res;
             } else {
-                const res = await requestService.submitRequest(formData, user.id);
+                const res = await requestService.submitRequest(requestPayload, user.id);
                 savedRequest = res.data || res;
             }
 
-            const actualRequestId = savedRequest?.id || formData.id || formData.referenceNumber;
-            const actualReferenceNumber = savedRequest?.control_number || savedRequest?.referenceNumber || formData.referenceNumber;
+            // Capture real ID and snake_case reference_number from Supabase response
+            const actualRequestId = savedRequest?.id || formData.id;
+            const actualReferenceNumber = savedRequest?.reference_number || savedRequest?.referenceNumber || formData.referenceNumber;
 
+            // 1. Update local form state for real-time header chip update
             setFormData(prev => ({
                 ...prev,
                 id: actualRequestId,
                 referenceNumber: actualReferenceNumber
             }));
 
+            // 2. Pass real database values to the Document Form
             onEntryComplete({
                 requestId: actualRequestId,
                 referenceNumber: actualReferenceNumber,
