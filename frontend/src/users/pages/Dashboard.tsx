@@ -67,7 +67,9 @@ interface DashboardProps {
 }
 
 export function Dashboard({ user, onLogout }: DashboardProps) {
-    const [activeView, setActiveView] = useState('dashboard');
+    const [activeView, setActiveView] = useState<string>(
+        () => sessionStorage.getItem('adept-active-view') || 'dashboard'
+    );
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [completedEntryData, setCompletedEntryData] = useState<CompletedEntryData | null>(null);
@@ -124,6 +126,10 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     useEffect(() => {
         const scrollContainer = document.querySelector('.dashboard-main');
         scrollContainer?.scrollTo(0, 0);
+    }, [activeView]);
+
+    useEffect(() => {
+        sessionStorage.setItem('adept-active-view', activeView);
     }, [activeView]);
 
     const handleEntryComplete = (data: CompletedEntryData) => {
