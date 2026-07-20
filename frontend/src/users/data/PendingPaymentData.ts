@@ -4,7 +4,9 @@ import type { PendingPaymentRequest } from '../types/PendingPayment';
 // real API (see requestService.ts / taxDeclarationService.ts).
 export const pendingPaymentData: PendingPaymentRequest[] = [
     {
+        id: 'pending-payment-td-001',
         controlNumber: 'TD-2026-001',
+        declarant_name: 'Juan Dela Cruz',
         declarantName: 'Juan Dela Cruz',
         documentType: 'Certified True Tax Declaration',
         amountDue: 40,
@@ -20,7 +22,9 @@ export const pendingPaymentData: PendingPaymentRequest[] = [
         },
     },
     {
+        id: 'pending-payment-lh-020',
         controlNumber: 'LH-2026-020',
+        declarant_name: 'Juana Dela Cruz',
         declarantName: 'Juana Dela Cruz',
         documentType: 'Certificate of Property/Land Holding',
         amountDue: 120,
@@ -40,7 +44,9 @@ export const pendingPaymentData: PendingPaymentRequest[] = [
         },
     },
     {
+        id: 'pending-payment-nlh-025',
         controlNumber: 'NLH-2026-025',
+        declarant_name: 'Jose Dela Cruz',
         declarantName: 'Jose Dela Cruz',
         documentType: 'Certificate of No Property/No Land Holding',
         amountDue: 80,

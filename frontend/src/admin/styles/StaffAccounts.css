@@ -220,16 +220,135 @@
     padding: 6px 16px;
     border: none;
     border-radius: 6px;
-    background: #DDF3E4;
-    color: #1E9E5A;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.15s ease;
 }
 
-.staff-manage-btn:hover {
+.staff-manage-btn.activate {
+    background: #DDF3E4;
+    color: #1E9E5A;
+}
+
+.staff-manage-btn.activate:hover {
     background: #C9EFDA;
+}
+
+.staff-manage-btn.deactivate {
+    background: #FDE8E8;
+    color: #DC2626;
+}
+
+.staff-manage-btn.deactivate:hover {
+    background: #FCD7D7;
+}
+
+/* ===== Add Staff Modal ===== */
+.staff-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+}
+
+.staff-modal-card {
+    width: min(640px, 100%);
+    background: #FFFFFF;
+    border-radius: 14px;
+    box-shadow: 0 20px 55px rgba(15, 23, 42, 0.2);
+    padding: 24px;
+}
+
+.staff-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.staff-modal-header h3 {
+    margin: 0 0 4px;
+    color: #1F2333;
+}
+
+.staff-modal-header p {
+    margin: 0;
+    color: #6B6F80;
+    font-size: 0.95rem;
+}
+
+.staff-modal-close {
+    border: none;
+    background: transparent;
+    font-size: 1.4rem;
+    color: #6B6F80;
+    cursor: pointer;
+}
+
+.staff-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.staff-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.staff-modal-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.95rem;
+    color: #374151;
+    font-weight: 600;
+}
+
+.staff-modal-form input,
+.staff-modal-form select {
+    padding: 10px 12px;
+    border: 1px solid #D7DAE5;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: #1F2333;
+}
+
+.staff-modal-form input:focus,
+.staff-modal-form select:focus {
+    outline: none;
+    border-color: #3D2E7C;
+    box-shadow: 0 0 0 3px rgba(61, 46, 124, 0.1);
+}
+
+.staff-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.staff-form-error {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.1);
+    color: #b91c1c;
+    font-size: 0.9rem;
+}
+
+.staff-form-success {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+    font-size: 0.9rem;
 }
 
 /* ===== Responsive ===== */
@@ -259,5 +378,13 @@
     .admin-table td {
         border: none;
         padding: 6px 0;
+    }
+
+    .staff-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .staff-modal-actions {
+        flex-direction: column-reverse;
     }
 }

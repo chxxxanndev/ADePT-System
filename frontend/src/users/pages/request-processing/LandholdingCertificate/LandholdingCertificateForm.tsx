@@ -23,12 +23,6 @@ function formatCertDate(isoDate: string): { day: string; month: string; year: st
     };
 }
 
-function formatPeso(val: string): string {
-    const num = parseFloat(val);
-    if (isNaN(num)) return val;
-    return num.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
 interface LandholdingCertificateFormProps {
     user: User;
     entryData: CompletedEntryData;
@@ -52,7 +46,7 @@ function PropertyRowItem({ row, onUpdate, onRemove, canRemove }: { row: Landhold
     );
 }
 
-export function LandholdingCertificateForm({ user, entryData, onBack, onBackToDashboard, onAddAnother, onGoToPendingPayments }: LandholdingCertificateFormProps) {
+export function LandholdingCertificateForm({ user, entryData, onBack, onBackToDashboard: _onBackToDashboard, onAddAnother, onGoToPendingPayments }: LandholdingCertificateFormProps) {
     const [form, setForm] = useState<LandholdingFormData>(() => ({ ...EMPTY_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '', }));
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);

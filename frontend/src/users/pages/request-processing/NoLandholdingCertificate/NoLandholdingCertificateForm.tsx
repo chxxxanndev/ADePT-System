@@ -32,7 +32,7 @@ interface NoLandholdingCertificateFormProps {
     onGoToPendingPayments: () => void;
 }
 
-export function NoLandholdingCertificateForm({ user, entryData, onBack, onBackToDashboard, onAddAnother, onGoToPendingPayments }: NoLandholdingCertificateFormProps) {
+export function NoLandholdingCertificateForm({ user, entryData, onBack, onBackToDashboard: _onBackToDashboard, onAddAnother, onGoToPendingPayments }: NoLandholdingCertificateFormProps) {
     const [form, setForm] = useState<NoLandholdingFormData>(() => ({ ...EMPTY_NO_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '', }));
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);

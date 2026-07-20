@@ -64,7 +64,7 @@ function AssessmentRowItem({ row, onUpdate, onRemove, canRemove, classificationO
     );
 }
 
-export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard, onAddAnother, onGoToPendingPayments }: TaxDeclarationFormProps) {
+export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard: _onBackToDashboard, onAddAnother, onGoToPendingPayments }: TaxDeclarationFormProps) {
     const [form, setForm] = useState<TaxDeclarationFormData>(() => ({ ...EMPTY_TAX_DECLARATION(), ownerName: entryData.declarantName || '', }));
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
