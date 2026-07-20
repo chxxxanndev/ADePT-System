@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Search, ChevronDown, Bell } from "lucide-react";
 import "../styles/AccountRequest.css";
 
 // ---------- Types ----------
@@ -94,10 +93,19 @@ function IdDocBadge({ status }: { status: IdDocStatus }) {
   );
 }
 
-export default function AccountRequest() {
+interface AccountRequestProps {
+  user?: {
+    firstName?: string;
+    lastName?: string;
+    role?: string;
+  };
+}
+
+export default function AccountRequest({ user }: AccountRequestProps) {
   const [activeTab, setActiveTab] = useState<RequestStatus>("pending");
-  const [query, setQuery] = useState("");
+  const [query] = useState("");
   const [requests, setRequests] = useState<AccountRequestItem[]>(MOCK_REQUESTS);
+  const safeUser = user ?? { firstName: "Admin", lastName: "User", role: "SUPER_ADMIN" };
 
   const counts = useMemo(
     () => ({
@@ -145,12 +153,12 @@ export default function AccountRequest() {
 
            <div className="account-request-user-chip">
             <div className="account-request-user-avatar">
-              {(user.firstName?.[0] ?? 'A')}{(user.lastName?.[0] ?? 'U')}
+              {(safeUser.firstName?.[0] ?? 'A')}{(safeUser.lastName?.[0] ?? 'U')}
             </div>
             <div>
-              <p className="account-request-user-name">{user.firstName} {user.lastName}</p>
+              <p className="account-request-user-name">{safeUser.firstName} {safeUser.lastName}</p>
               <p className="account-request-user-role">
-                {user.role === 'SUPER_ADMIN' ? 'Super admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : 'Admin'}
+                {safeUser.role === 'SUPER_ADMIN' ? 'Super admin' : safeUser.role === 'OFFICE_STAFF' ? 'Office Staff' : 'Admin'}
               </p>
             </div>
           </div>
