@@ -132,32 +132,72 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredStaff.map((member) => (
-                                <tr key={member.id}>
-                                    <td><strong>{member.name}</strong></td>
-                                    <td>{member.email}</td>
-                                    <td>{member.role}</td>
-                                    <td>
-                                        <span className={`status-indicator ${member.status}`}>
-                                            <span className="status-dot" />
-                                            {member.status === 'active' ? 'Active' : 'Inactive'}
-                                        </span>
+                            {loading ? (
+                                /* Loading skeleton rows */
+                                Array.from({ length: 4 }).map((_, i) => (
+                                    <tr key={i}>
+                                        {Array.from({ length: 6 }).map((__, j) => (
+                                            <td key={j}>
+                                                <div style={{
+                                                    height: '14px',
+                                                    borderRadius: '6px',
+                                                    background: 'rgba(255,255,255,0.07)',
+                                                    animation: 'pulse 1.5s ease-in-out infinite',
+                                                    width: j === 5 ? '70px' : '100%',
+                                                }} />
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))
+                            ) : staff.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} style={{ textAlign: 'center', opacity: 0.5, padding: '24px' }}>
+                                        No staff members found.
                                     </td>
-                                    <td>{member.dateAdded}</td>
-                                    <td>
-                                        <button
-                                            className="staff-manage-btn"
-                                            onClick={() => onManageStaff?.(member.id)}
-                                        >
-                                            Manage
-                                        </button>
-                                    </td>
+                                   
                                 </tr>
-                            ))}
+     
+                             ) : (
+                                staff.map((member) => (
+                                    <tr key={member.id}>
+                                        <td><strong>{member.name}</strong></td>
+                                        <td>{member.email}</td>
+                                        <td>{member.role}</td>
+                                        <td>
+                                            <span className={`status-indicator ${member.status}`}>
+                                                <span className="status-dot" />
+                                                {member.status === 'active' ? 'Active' : member.status === 'pending' ? 'Pending' : 'Inactive'}
+                                            </span>
+                                        </td>
+                                        <td>{member.dateAdded}</td>
+                                        <td>
+                                            <button
+                                                className="staff-manage-btn"
+                                                disabled={updatingId === member.id || member.status === 'pending'}
+                                                onClick={() => toggleStatus(member.id)}
+                                                title={
+                                                    member.status === 'pending'
+                                                        ? 'Approve account via Account Requests first'
+                                                        : member.status === 'active'
+                                                        ? 'Deactivate this staff member'
+                                                        : 'Reactivate this staff member'
+                                                }
+                                            >
+                                                {updatingId === member.id
+                                                    ? 'Saving…'
+                                                    : member.status === 'active'
+                                                    ? 'Deactivate'
+                                                    : 'Activate'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
             </div>
         </>
     );
+
 }

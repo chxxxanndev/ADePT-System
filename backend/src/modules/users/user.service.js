@@ -17,7 +17,7 @@ const MOCK_STAFF = [
         last_name: 'Cruz',
         email: 'johnny@gmail.com',
         username: 'jcruz',
-        account_status: 'INACTIVE',
+        account_status: 'DISABLED',
         created_at: '2026-04-05T00:00:00Z',
         roles: { code: 'OFFICE_STAFF' },
     },
@@ -27,7 +27,7 @@ const MOCK_STAFF = [
         last_name: 'Reyes',
         email: 'unnie@gmail.com',
         username: 'areyes',
-        account_status: 'INACTIVE',
+        account_status: 'DISABLED',
         created_at: '2026-07-15T00:00:00Z',
         roles: { code: 'OFFICE_STAFF' },
     },
@@ -65,19 +65,28 @@ class UserService {
      * @param {string} staffId  UUID from the staff table.
      * @param {'ACTIVE'|'INACTIVE'} newStatus
      */
-    async updateStaffStatus(staffId, newStatus) {
-        if (!['ACTIVE', 'INACTIVE'].includes(newStatus)) {
-            throw new Error('Invalid status. Must be ACTIVE or INACTIVE.');
+    async updateStaffStatus(staffId, newStatus, reason) {
+        if (!['ACTIVE', 'DISABLED'].includes(newStatus)) {
+            throw new Error('Invalid status. Must be ACTIVE or DISABLED.');
         }
+
+        const normalizedReason = newStatus === 'DISABLED'
+            ? (reason?.trim() || 'Account disabled by administrator.')
+            : null;
+
         if (useMock || !supabase) {
             const member = MOCK_STAFF.find((s) => s.id === staffId);
             if (!member) throw new Error('Staff member not found.');
             member.account_status = newStatus;
+            member.disable_reason = normalizedReason;
             return member;
         }
         const { data, error } = await supabase
             .from('staff')
-            .update({ account_status: newStatus })
+            .update({
+                account_status: newStatus,
+                disable_reason: normalizedReason,
+            })
             .eq('id', staffId)
             .is('deleted_at', null)
             .select('id, first_name, last_name, email, username, account_status, created_at, roles(code)')

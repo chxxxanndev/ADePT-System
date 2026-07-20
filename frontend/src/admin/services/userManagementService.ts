@@ -6,7 +6,7 @@ export interface StaffMember {
     last_name: string;
     email: string;
     username: string;
-    account_status: 'ACTIVE' | 'INACTIVE' | 'PENDING_APPROVAL';
+    account_status: 'ACTIVE' | 'DISABLED' | 'PENDING_APPROVAL' | 'REJECTED';
     created_at: string;
     roles: { code: string } | null;
 }
@@ -30,12 +30,13 @@ export async function fetchAllStaff(): Promise<StaffMember[]> {
  */
 export async function updateStaffStatus(
     staffId: string,
-    status: 'ACTIVE' | 'INACTIVE'
+    status: 'ACTIVE' | 'DISABLED',
+    reason?: string
 ): Promise<StaffMember> {
     const res = await fetch(`${API_BASE_URL}/staff/${staffId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, reason }),
     });
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));

@@ -1,109 +1,86 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
-    fetchAllStaff,
-    updateStaffStatus,
-    type StaffMember,
-} from '../services/userManagementService';
-// ─── UI-facing shape ──────────────────────────────────────────────────────────
-export interface StaffRow {
-    id: string;
-    name: string;
-    role: string;
-    email: string;
-    status: 'active' | 'inactive' | 'pending';
-    dateAdded: string;
-    /** Keep original account_status for toggling */
-    account_status: StaffMember['account_status'];
-}
-function formatDate(iso: string): string {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: '2-digit',
-    });
-}
-function toRoleLabel(code: string | undefined): string {
-    switch (code) {
-        case 'SUPER_ADMIN':  return 'Super Admin';
-        case 'OFFICE_STAFF': return 'Records Officer';
-        default:             return code ?? 'Staff';
-    }
-}
-function mapToRow(member: StaffMember): StaffRow {
-    const statusMap: Record<StaffMember['account_status'], StaffRow['status']> = {
-        ACTIVE:           'active',
-        INACTIVE:         'inactive',
-        PENDING_APPROVAL: 'pending',
+    accessRequestsMock,
+    requestQueueMock,
+    transactionsMock,
+    staffPerformanceMock,
+    activitiesMock,
+} from '../data/dashboardMockData';
+
+// Simulated network delay for refresh actions so the spinning state is visible.
+const REFRESH_DELAY_MS = 700;
+
+export function useAdminDashboard() {
+    // Navigation / layout state
+    const [activeView, setActiveView] = useState('overview');
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    // Header controls
+    const [searchQuery, setSearchQuery] = useState('');
+    const [dateFilter] = useState('Today');
+
+    // Data states — swap these setters for real API responses when ready
+    const [accessRequests] = useState(accessRequestsMock);
+    const [requestQueue] = useState(requestQueueMock);
+    const [transactions] = useState(transactionsMock);
+    const [staffPerformance] = useState(staffPerformanceMock);
+    const [activities] = useState(activitiesMock);
+
+    // Per-section refresh indicators
+    const [refreshingTransactions, setRefreshingTransactions] = useState(false);
+    const [refreshingPerformance, setRefreshingPerformance] = useState(false);
+    const [refreshingDistribution, setRefreshingDistribution] = useState(false);
+    const [refreshingAccessRequests, setRefreshingAccessRequests] = useState(false);
+    const [refreshingQueue, setRefreshingQueue] = useState(false);
+
+    const withSpinner = (
+        setter: (value: boolean) => void,
+        action?: () => void
+    ) => {
+        setter(true);
+        window.setTimeout(() => {
+            action?.();
+            setter(false);
+        }, REFRESH_DELAY_MS);
     };
+
+    const refreshTransactions = () => withSpinner(setRefreshingTransactions);
+    const refreshPerformance = () => withSpinner(setRefreshingPerformance);
+    const refreshDistribution = () => withSpinner(setRefreshingDistribution);
+    const refreshAccessRequests = () => withSpinner(setRefreshingAccessRequests);
+    const refreshQueue = () => withSpinner(setRefreshingQueue);
+
     return {
-        id:             member.id,
-        name:           `${member.first_name} ${member.last_name}`,
-        role:           toRoleLabel(member.roles?.code),
-        email:          member.email,
-        status:         statusMap[member.account_status] ?? 'inactive',
-        dateAdded:      formatDate(member.created_at),
-        account_status: member.account_status,
-    };
-}
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-export function useStaffAccounts() {
-    const [staff, setStaff]               = useState<StaffRow[]>([]);
-    const [loading, setLoading]           = useState(true);
-    const [error, setError]               = useState<string | null>(null);
-    const [searchQuery, setSearchQuery]   = useState('');
-    const [updatingId, setUpdatingId]     = useState<string | null>(null);
-    // ── Initial fetch ────────────────────────────────────────────────────────
-    const loadStaff = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const data = await fetchAllStaff();
-            setStaff(data.map(mapToRow));
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Failed to load staff.');
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-    useEffect(() => { loadStaff(); }, [loadStaff]);
-    // ── Toggle active / inactive ─────────────────────────────────────────────
-    const toggleStatus = useCallback(async (staffId: string) => {
-        const member = staff.find((s) => s.id === staffId);
-        if (!member) return;
-        const nextStatus: 'ACTIVE' | 'INACTIVE' =
-            member.account_status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-        setUpdatingId(staffId);
-        try {
-            const updated = await updateStaffStatus(staffId, nextStatus);
-            setStaff((prev) =>
-                prev.map((s) => (s.id === staffId ? mapToRow(updated) : s))
-            );
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Failed to update status.');
-        } finally {
-            setUpdatingId(null);
-        }
-    }, [staff]);
-    // ── Derived: filtered list ───────────────────────────────────────────────
-    const filteredStaff = staff.filter((member) => {
-        const q = searchQuery.toLowerCase();
-        return (
-            !q ||
-            member.name.toLowerCase().includes(q) ||
-            member.email.toLowerCase().includes(q) ||
-            member.role.toLowerCase().includes(q)
-        );
-    });
-    return {
-        staff: filteredStaff,
-        loading,
-        error,
+        activeView,
+        setActiveView,
+        sidebarCollapsed,
+        setSidebarCollapsed,
+        mobileMenuOpen,
+        setMobileMenuOpen,
         searchQuery,
         setSearchQuery,
-        toggleStatus,
-        updatingId,
-        refresh: loadStaff,
+        dateFilter,
+
+        // Data states
+        accessRequests,
+        requestQueue,
+        transactions,
+        staffPerformance,
+        activities,
+
+        // Refresh indicators
+        refreshingTransactions,
+        refreshingPerformance,
+        refreshingDistribution,
+        refreshingAccessRequests,
+        refreshingQueue,
+
+        // Handlers
+        refreshTransactions,
+        refreshPerformance,
+        refreshDistribution,
+        refreshAccessRequests,
+        refreshQueue,
     };
 }

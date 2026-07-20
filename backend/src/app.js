@@ -21,6 +21,6 @@ app.use('/api/requests', requestRoutes);
 app.use('/api/tax-declarations', taxDeclarationRoutes);
 app.use('/api/landholding', landholdingRoutes);
 app.use('/api/nolandholding', noLandholdingRoutes);
-
+app.use('/api/users', userRoutes);
 
 export default app;
