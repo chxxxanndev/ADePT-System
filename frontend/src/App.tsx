@@ -1,14 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { View } from './auth-folder/types/auth';
 import { useAuth } from './users/hooks/useAuth';
 import { AuthBanner } from './users/components/AuthBanner';
 import { LoginForm } from './auth-folder/LoginForm';
 import { SignupForm } from './auth-folder/SignupForm';
 import { ForgotPasswordForm } from './auth-folder/ForgotPasswordForm';
+import { ResetPasswordForm } from './auth-folder/ResetPasswordForm';
 import { Dashboard } from './users/pages/Dashboard';
 import { AdminDashboard } from './admin/pages/AdminDashboard';
-
-// 1. ADD THIS IMPORT
 import { CartProvider } from './users/hooks/TransactionCartContext';
 
 function App() {
@@ -22,7 +21,11 @@ function App() {
   };
 
   const navigateTo = (newView: View) => setView(newView);
-
+  useEffect(() => {
+  if (window.location.pathname === '/reset-password') {
+    setView('resetPassword');
+  }
+}, []);
   // 2. WRAP THE LOGGED-IN RETURNS
   if (currentUser) {
     const isAdmin = currentUser.role === 'SUPER_ADMIN';
@@ -60,9 +63,13 @@ function App() {
               prefillUsername={handleSignupSuccess}
             />
             <ForgotPasswordForm
-              active={view === 'forgot'}
+              active={view === 'forgotPassword'}
               loading={loading}
               onForgotPassword={forgotPassword}
+              navigateTo={navigateTo}
+            />
+            <ResetPasswordForm
+              active={view === 'resetPassword'}
               navigateTo={navigateTo}
             />
           </div>

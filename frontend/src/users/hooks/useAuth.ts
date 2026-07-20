@@ -144,19 +144,33 @@ export function useAuth() {
         }
     };
 
-    const forgotPassword = async (_email: string): Promise<{ success: boolean; message: string }> => {
-        setLoading(true);
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                setLoading(false);
-                resolve({
-                    success: true,
-                    message: 'Password reset instructions have been sent to your email.',
-                });
-            }, 800);
-        });
-    };
-
+    const forgotPassword = async (email: string): Promise<{ success: boolean; message: string }> => {
+    setLoading(true);
+    try {
+        if (backendHealthy) {
+            const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+            const data = await res.json();
+            return { success: data.success, message: data.message };
+        } else {
+            return await new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve({
+                        success: true,
+                        message: 'Password reset instructions have been sent (Standalone Demo Mode).',
+                    });
+                }, 800);
+            });
+        }
+    } catch {
+        return { success: false, message: 'Network error. Failed to reach auth server.' };
+    } finally {
+        setLoading(false);
+    }
+};
     const logout = () => {
         localStorage.removeItem('adept_user');
         localStorage.removeItem('adept_token');
