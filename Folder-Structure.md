@@ -14,11 +14,19 @@ backend/
 └── package.json
 
 frontend/
+├── dist/
 ├── node modules/
 ├── public/
 ├── src/
-│   ├── assets/             
-│   ├── components/ 
+│   ├── admin/
+│   │   ├── components/
+│   │   ├── data/
+│   │   ├── hooks/
+│   │   ├── pages/
+│   │   ├── styles/
+|   |
+│   ├── auth-folder/
+│   ├── users/
 │   │   ├── AlertBanner.tsx
 │   │   ├── AnalyticsOverview.tsx
 │   │   ├── AuthBanner.tsx

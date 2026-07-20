@@ -36,3 +36,21 @@ export const login = async (req, res) => {
     res.status(401).json({ error: error.message });
   }
 };
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
+
+    const result = await AuthService.forgotPassword(email);
+    res.status(200).json({ success: true, message: result.message });
+  } catch (error) {
+    console.error('Forgot password error:', error.message);
+    res.status(200).json({
+      success: true,
+      message: "If an account with that email exists, password reset instructions have been sent."
+    });
+  }
+};

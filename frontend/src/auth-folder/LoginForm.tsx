@@ -77,7 +77,7 @@ export function LoginForm({ active, loading, onLogin, navigateTo, initialUsernam
                     <PasswordInput id="password" value={password} onChange={setPassword} placeholder="Enter your password" />
                 </div>
 
-                <span className="forgot-password-link" onClick={() => navigateTo('forgot')}>
+                <span className="forgot-password-link" onClick={() => navigateTo('forgotPassword')}>
                     Forgot Password?
                 </span>
 
