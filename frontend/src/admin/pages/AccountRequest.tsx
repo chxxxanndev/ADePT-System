@@ -158,19 +158,13 @@ export default function AccountRequest({ user }: AccountRequestProps) {
             </p>
           </div>
 
-          <div className="admin-profile-widget">
-            <div className="profile-widget-avatar-container">
+          <div className="admin-profile-widget audit-user-chip">
+            <div className="profile-widget-avatar-container audit-user-avatar">
               {(safeUser.firstName?.[0] ?? 'A')}{(safeUser.lastName?.[0] ?? 'U')}
             </div>
-            <div className="profile-widget-info">
-              <span className="profile-widget-name">{`${safeUser.firstName || 'Admin'} ${safeUser.lastName || 'User'}`}</span>
-              <span className="profile-widget-email">{safeUser.email || 'provincialassessor@gmail.com'}</span>
-              <div className="profile-widget-meta">
-                <span className="profile-widget-role">
-                  {safeUser.role === 'SUPER_ADMIN' ? 'Super Admin' : safeUser.role === 'OFFICE_STAFF' ? 'Office Staff' : safeUser.role || 'Admin'}
-                </span>
-                <span>Last Login : Today • 8:12 AM</span>
-              </div>
+            <div className="profile-widget-info audit-user-info">
+              <span className="profile-widget-name audit-user-name">Engr. Vicente Desoy</span>
+              <span className="profile-widget-role">SUPER_ADMIN</span>
             </div>
           </div>
         </div>
