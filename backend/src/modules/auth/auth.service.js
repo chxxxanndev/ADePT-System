@@ -1,10 +1,7 @@
-import { supabase, useMock } from '../../config/supabase.js';
-import { mockUsers } from '../../database/mockData.js';
+import { supabase } from '../../config/supabase.js';  
 
 class AuthService {
   // src/services/auth.service.js
-
-    // src/services/auth.service.js
 
 async registerUser({ firstName, lastName, email, username, password }) {
   // 1. Create the user in Supabase Auth (This handles the password)
@@ -50,8 +47,6 @@ async registerUser({ firstName, lastName, email, username, password }) {
     user: { email, firstName, username }
   };
 }
-
-    // src/services/auth.service.js
 
 // src/services/auth.service.js
 
@@ -99,6 +94,21 @@ async loginUser({ username, password }) {
             status: staffMember.account_status
         }
     };
+}
+
+async forgotPassword(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: 'http://localhost:5173/reset-password'
+  });
+
+  if (error) {
+  console.error('Forgot password error:', error.message);
+  throw error;
+}
+
+  return {
+    message: "If an account with that email exists, password reset instructions have been sent."
+  };
 }
 }
 
