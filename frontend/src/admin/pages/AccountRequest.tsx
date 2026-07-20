@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "../styles/StaffAccounts.css";
 import "../styles/AccountRequest.css";
+import { addAdminAuditEntry } from '../services/auditLogService';
 
 // ---------- Types ----------
 type RequestStatus = "pending" | "approved" | "declined";
@@ -8,6 +9,7 @@ type RequestStatus = "pending" | "approved" | "declined";
 interface AccountRequestItem {
   id: string;
   applicantName: string;
+  username: string;
   initials: string;
   avatarColor: string; // css class, e.g. "avatar-rose"
   email: string;
@@ -42,6 +44,7 @@ function toAccountRequestItem(payload: any): AccountRequestItem {
   return {
     id: payload.id,
     applicantName: fullName || payload.username || payload.email,
+    username: payload.username || payload.email?.split('@')[0] || '—',
     initials,
     avatarColor: ['avatar-rose', 'avatar-amber', 'avatar-sky', 'avatar-emerald', 'avatar-violet'][Math.abs((payload.id || '').length) % 5],
     email: payload.email,
@@ -109,6 +112,7 @@ export default function AccountRequest({ user }: AccountRequestProps) {
         if (!q) return true;
         return (
           r.applicantName.toLowerCase().includes(q) ||
+          r.username.toLowerCase().includes(q) ||
           r.email.toLowerCase().includes(q) ||
           r.requestedRole.toLowerCase().includes(q)
         );
@@ -116,6 +120,8 @@ export default function AccountRequest({ user }: AccountRequestProps) {
   }, [requests, activeTab, query]);
 
   async function handleDecision(id: string, decision: "approved" | "declined") {
+    const applicant = requests.find((request) => request.id === id);
+
     try {
       const normalizedDecision = decision === 'declined' ? 'rejected' : decision;
       const res = await fetch(`${API_BASE_URL}/account-requests/${id}/decision`, {
@@ -128,6 +134,12 @@ export default function AccountRequest({ user }: AccountRequestProps) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || 'Unable to complete the decision.');
       }
+
+      addAdminAuditEntry({
+        type: decision === 'approved' ? 'approval' : 'decline',
+        actor: 'Super Admin',
+        description: `${decision === 'approved' ? 'approved' : 'declined'} account request — ${applicant?.applicantName || 'an applicant'}`,
+      });
 
       await loadRequests();
     } catch {
@@ -146,19 +158,13 @@ export default function AccountRequest({ user }: AccountRequestProps) {
             </p>
           </div>
 
-          <div className="admin-profile-widget">
-            <div className="profile-widget-avatar-container">
+          <div className="admin-profile-widget audit-user-chip">
+            <div className="profile-widget-avatar-container audit-user-avatar">
               {(safeUser.firstName?.[0] ?? 'A')}{(safeUser.lastName?.[0] ?? 'U')}
             </div>
-            <div className="profile-widget-info">
-              <span className="profile-widget-name">{`${safeUser.firstName || 'Admin'} ${safeUser.lastName || 'User'}`}</span>
-              <span className="profile-widget-email">{safeUser.email || 'provincialassessor@gmail.com'}</span>
-              <div className="profile-widget-meta">
-                <span className="profile-widget-role">
-                  {safeUser.role === 'SUPER_ADMIN' ? 'Super Admin' : safeUser.role === 'OFFICE_STAFF' ? 'Office Staff' : safeUser.role || 'Admin'}
-                </span>
-                <span>Last Login : Today • 8:12 AM</span>
-              </div>
+            <div className="profile-widget-info audit-user-info">
+              <span className="profile-widget-name audit-user-name">Engr. Vicente Desoy</span>
+              <span className="profile-widget-role">SUPER_ADMIN</span>
             </div>
           </div>
         </div>
@@ -223,6 +229,7 @@ export default function AccountRequest({ user }: AccountRequestProps) {
             <thead>
               <tr>
                 <th>Applicant</th>
+                <th>Username</th>
                 <th>Email</th>
                 <th>Requested role</th>
                 <th>Submitted</th>
@@ -258,6 +265,7 @@ export default function AccountRequest({ user }: AccountRequestProps) {
                       </span>
                     </div>
                   </td>
+                  <td className="account-request-cell-muted">{r.username}</td>
                   <td className="account-request-cell-muted">{r.email}</td>
                   <td>{r.requestedRole}</td>
                   <td className="account-request-cell-muted">{r.submitted}</td>

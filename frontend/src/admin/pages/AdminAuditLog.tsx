@@ -10,13 +10,15 @@ import {
   LogOut,
 } from "lucide-react";
 import "../styles/AdminAuditLog.css";
+import { clearStoredAuditEntries, getStoredAuditEntries, type AuditLogEntry as StoredAuditLogEntry } from '../services/auditLogService';
+import { fetchAllStaff, type StaffMember } from '../services/userManagementService';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 type AuditActionType = "approval" | "decline" | "system" | "login" | "logout";
 
-interface AuditLogEntry {
+interface AuditLogEntry extends StoredAuditLogEntry {
   id: string;
   type: AuditActionType;
   actor: string;
@@ -47,144 +49,6 @@ interface CurrentUser {
 interface AuditLogProps {
   currentUser?: CurrentUser;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Mock data — inlined here for now.                                  */
-/*  TODO: replace with real data from a useAuditLog hook / API +       */
-/*  WebSocket subscription once a backend endpoint exists. If this     */
-/*  file grows, consider moving these two arrays back out to a         */
-/*  ../data/auditLogMockData.ts file and importing them instead.       */
-/* ------------------------------------------------------------------ */
-const initialAuditEntries: AuditLogEntry[] = [
-  {
-    id: "log-001",
-    type: "approval",
-    actor: "Vicente Desoy",
-    description: "approved staff account — John Cruz",
-    date: "Today",
-    time: "8:40 AM",
-  },
-  {
-    id: "log-002",
-    type: "login",
-    actor: "John Cruz",
-    description: "logged in",
-    date: "Today",
-    time: "8:41 AM",
-  },
-  {
-    id: "log-003",
-    type: "approval",
-    actor: "Vicente Desoy",
-    description: "approved tax declaration 2026-ADR",
-    date: "Today",
-    time: "8:12 AM",
-  },
-  {
-    id: "log-004",
-    type: "login",
-    actor: "Maria Lopez",
-    description: "logged in",
-    date: "Today",
-    time: "7:58 AM",
-  },
-  {
-    id: "log-005",
-    type: "decline",
-    actor: "Vicente Desoy",
-    description: "declined a registration request — Liza Tan",
-    date: "Today",
-    time: "7:55 AM",
-  },
-  {
-    id: "log-006",
-    type: "logout",
-    actor: "Anne Reyes",
-    description: "logged out",
-    date: "Yesterday",
-    time: "6:10 PM",
-  },
-  {
-    id: "log-007",
-    type: "decline",
-    actor: "Vicente Desoy",
-    description: "disapproved landholding request 2027-ADR",
-    date: "Yesterday",
-    time: "5:02 PM",
-  },
-  {
-    id: "log-008",
-    type: "login",
-    actor: "Dennis Cruz",
-    description: "logged in",
-    date: "Yesterday",
-    time: "3:47 PM",
-  },
-  {
-    id: "log-009",
-    type: "system",
-    actor: "System",
-    description: "Carlo Gomez marked inactive after 90 days",
-    date: "Yesterday",
-    time: "2:30 PM",
-  },
-  {
-    id: "log-010",
-    type: "logout",
-    actor: "John Cruz",
-    description: "logged out",
-    date: "Yesterday",
-    time: "1:15 PM",
-  },
-];
-
-const initialStaffPresence: StaffPresence[] = [
-  {
-    id: "staff-001",
-    name: "John Cruz",
-    role: "Records Officer",
-    initials: "JC",
-    avatarColor: "#29237A",
-    online: true,
-    lastSeen: "Just now",
-  },
-  {
-    id: "staff-002",
-    name: "Maria Lopez",
-    role: "Front Desk Staff",
-    initials: "ML",
-    avatarColor: "#00BCD4",
-    online: true,
-    lastSeen: "Just now",
-  },
-  {
-    id: "staff-003",
-    name: "Anne Reyes",
-    role: "Assessment Staff",
-    initials: "AR",
-    avatarColor: "#1976D2",
-    online: false,
-    lastSeen: "Yesterday, 6:10 PM",
-  },
-  {
-    id: "staff-004",
-    name: "Dennis Cruz",
-    role: "Encoder",
-    initials: "DC",
-    avatarColor: "#4CAF50",
-    online: true,
-    lastSeen: "Just now",
-  },
-  {
-    id: "staff-005",
-    name: "Ana Marquez",
-    role: "Encoder",
-    initials: "AM",
-    avatarColor: "#607D8B",
-    online: false,
-    lastSeen: "Today, 11:20 AM",
-  },
-];
 
 const DEFAULT_USER: CurrentUser = {
   name: "Vicente Desoy",
@@ -265,8 +129,9 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("Today");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("All activity");
-  const [entries] = useState<AuditLogEntry[]>(initialAuditEntries);
-  const [staffPresence, setStaffPresence] = useState<StaffPresence[]>(initialStaffPresence);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [entries, setEntries] = useState<AuditLogEntry[]>(() => getStoredAuditEntries());
+  const [staffPresence, setStaffPresence] = useState<StaffPresence[]>([]);
 
   // ---- Simulated real-time presence updates ----
   // Replace this interval with a WebSocket/SSE subscription or a short poll
@@ -286,7 +151,51 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
         })
       );
     }, 5000);
-    return () => clearInterval(interval);
+
+    const loadStaffPresence = async () => {
+      try {
+        const staffMembers = await fetchAllStaff();
+        const nextStaffPresence = staffMembers.map((member: StaffMember, index: number) => {
+          const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim();
+          const initials = fullName
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0])
+            .join('')
+            .toUpperCase() || 'ST';
+          const role = member.roles?.code === 'SUPER_ADMIN'
+            ? 'Super Admin'
+            : member.roles?.code === 'OFFICE_STAFF'
+              ? 'Office Staff'
+              : 'Staff';
+
+          return {
+            id: member.id,
+            name: fullName || member.username || member.email,
+            role,
+            initials,
+            avatarColor: ['#29237A', '#00BCD4', '#1976D2', '#4CAF50', '#607D8B'][index % 5],
+            online: member.account_status === 'ACTIVE',
+            lastSeen: member.account_status === 'ACTIVE' ? 'Just now' : 'Offline',
+          } satisfies StaffPresence;
+        });
+        setStaffPresence(nextStaffPresence);
+      } catch {
+        setStaffPresence([]);
+      }
+    };
+
+    const handleAuditUpdate = () => {
+      setEntries(getStoredAuditEntries());
+    };
+
+    void loadStaffPresence();
+    window.addEventListener('admin-audit-log:updated', handleAuditUpdate);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('admin-audit-log:updated', handleAuditUpdate);
+    };
   }, []);
 
   const filteredEntries = useMemo(() => {
@@ -341,6 +250,13 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
               </select>
               <ChevronDown size={14} className="audit-select-chevron" />
             </div>
+            <button
+              className="audit-filter-btn"
+              onClick={() => setShowFilterMenu((prev) => !prev)}
+              type="button"
+            >
+              Filter
+            </button>
             <button className="audit-notif-btn" aria-label="Notifications">
               <Bell size={18} />
               <span className="audit-notif-dot" />
@@ -354,6 +270,18 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
             </div>
           </div>
         </div>
+
+        {showFilterMenu && (
+          <div className="audit-filter-menu">
+            <button className="audit-filter-chip" onClick={() => { setActivityFilter('All activity'); setShowFilterMenu(false); }} type="button">All activity</button>
+            <button className="audit-filter-chip" onClick={() => { setActivityFilter('Approvals'); setShowFilterMenu(false); }} type="button">Approvals</button>
+            <button className="audit-filter-chip" onClick={() => { setActivityFilter('Declines'); setShowFilterMenu(false); }} type="button">Declines</button>
+            <button className="audit-filter-chip" onClick={() => { setActivityFilter('System'); setShowFilterMenu(false); }} type="button">System</button>
+            <button className="audit-filter-chip" onClick={() => { setActivityFilter('Logins'); setShowFilterMenu(false); }} type="button">Logins</button>
+            <button className="audit-filter-chip" onClick={() => { setActivityFilter('Logouts'); setShowFilterMenu(false); }} type="button">Logouts</button>
+            <button className="audit-filter-chip audit-filter-chip--danger" onClick={() => { clearStoredAuditEntries(); setEntries([]); setShowFilterMenu(false); }} type="button">Clear audit entries</button>
+          </div>
+        )}
 
         {/* Main content */}
         <div className="audit-content-grid">

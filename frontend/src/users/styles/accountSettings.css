@@ -499,3 +499,195 @@
         align-items: flex-start;
     }
 }
+
+/* ── Toast ─────────────────────────────────────────────────── */
+.as-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 11px 20px;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    z-index: 1100;
+}
+
+/* ── Change Password modal ────────────────────────────────── */
+.as-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 20, 43, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 1000;
+}
+
+.as-modal {
+    width: 100%;
+    max-width: 420px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.as-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.as-modal-header h3 {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0;
+}
+
+.as-modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.as-modal-close:hover {
+    background-color: #f1f5f9;
+}
+
+.as-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px;
+}
+
+.as-modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.as-modal-field label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.as-modal-field input {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
+    background-color: #f8fafc;
+    color: #1e293b;
+    font-family: inherit;
+    font-size: 0.9rem;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease;
+}
+
+.as-modal-field input:focus {
+    border-color: #29237a;
+    background-color: #ffffff;
+}
+
+.as-modal-error {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background-color: #fee2e2;
+    color: #b91c1c;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.as-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid #e2e8f0;
+}
+
+@media (max-width: 640px) {
+    .as-modal-actions {
+        flex-direction: column-reverse;
+    }
+    .as-modal-actions .as-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+/* ── Locked / edit-toggle fields ──────────────────────────── */
+.as-input--editable-lock[readonly] {
+    letter-spacing: normal;
+    border-style: solid;
+    cursor: default;
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.as-input-edit-btn {
+    position: absolute;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    padding: 5px;
+    color: #94a3b8;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.as-input-edit-btn:hover {
+    color: #29237a;
+    background-color: #eef2ff;
+}
+
+.as-input-edit-btn.is-active {
+    color: #1e9e5a;
+}
+
+/* ── Email edit mode: Cancel + Send Verification button group ── */
+.as-inline-btn-group {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.as-inline-btn--ghost {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.as-inline-btn--ghost:hover {
+    background: #e2e8f0;
+}
+
+@media (max-width: 640px) {
+    .as-inline-btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+}
