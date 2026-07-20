@@ -4,7 +4,7 @@ import { noLandholdingService } from '../../../services/noLandholdingService';
 import type { CompletedEntryData } from '../../../../users/types/taxDeclaration';
 import type { NoLandholdingFormData, PronounType, PropertyCountType } from '../../../../users/types/noLandholding';
 import { EMPTY_NO_LANDHOLDING_FORM } from '../../../../users/types/noLandholding';
-import { requestService } from '../../../../users/services/requestService';
+import { useCart } from '../../../../users/hooks/TransactionCartContext';
 import '../../../../users/styles/LandholdingCertificate.css';
 
 function ordinal(n: number): string {
@@ -27,13 +27,13 @@ interface NoLandholdingCertificateFormProps {
     user: User;
     entryData: CompletedEntryData;
     onBack: () => void;
-    onBackToDashboard: () => void;
     onAddAnother: () => void;
-    onGoToPendingPayments: () => void;
+    onGoToSummary: () => void;
 }
 
-export function NoLandholdingCertificateForm({ user, entryData, onBack, onBackToDashboard, onAddAnother, onGoToPendingPayments }: NoLandholdingCertificateFormProps) {
+export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAnother, onGoToSummary }: NoLandholdingCertificateFormProps) {
     const [form, setForm] = useState<NoLandholdingFormData>(() => ({ ...EMPTY_NO_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '', }));
+    const { addItem } = useCart();
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
@@ -41,8 +41,8 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onBackTo
 
     const set = <K extends keyof NoLandholdingFormData>(field: K, value: NoLandholdingFormData[K]) => setForm((prev) => ({ ...prev, [field]: value }));
 
-    // PHASE 1 LOGIC: Send to Payment & Return to Dashboard
-    const handleSave = async (action: 'draft' | 'send_to_payment' | 'add_another') => {
+    // Support review action
+    const handleSave = async (action: 'draft' | 'review' | 'add_another') => {
         if (!form.declarantName.trim()) return setSaveError('Declarant / Owner Name is required.');
         setSaveError('');
         setSaving(true);
@@ -57,16 +57,20 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onBackTo
                 givenAt: form.givenAt,
                 purpose: form.purpose,
                 printAsCtc,
-                action,
+                action: action === 'draft' ? 'draft' : 'send_to_payment',
             }, user.id);
 
             if (action !== 'draft') {
-                await requestService.updateRequest(entryData.requestId, { ...entryData, status: 'PENDING_PAYMENT' });
+                addItem({
+                    id: Math.random().toString(),
+                    documentType: 'Certificate of No Landholding',
+                    fee: 40.00
+                });
             }
 
             setSaved(true);
             setTimeout(() => {
-                if (action === 'send_to_payment') onGoToPendingPayments();
+                if (action === 'review') onGoToSummary();
                 else if (action === 'add_another') onAddAnother();
             }, 1500);
         } catch (err: any) {
@@ -155,7 +159,7 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onBackTo
 
                     </div>
 
-                    {/* ── Footer actions (Phase 1 Logic) ── */}
+                    {/* ── Footer actions ── */}
                     <div className="lh-footer">
                         <div className="lh-footer-left">
                             <button type="button" id="nlh-btn-back" className="lh-btn lh-btn-back" onClick={onBack}>← Back</button>
@@ -164,11 +168,11 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onBackTo
                             <button type="button" className="lh-btn lh-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>
                                 {saving ? <span className="lh-spinner" /> : '💾'} Save Draft
                             </button>
-                            <button type="button" className="lh-btn lh-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving}>
-                                {saving ? <span className="lh-spinner" /> : '➕'} Send & Add Another
+                            <button type="button" className="lh-btn lh-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving} style={{ backgroundColor: '#10b981', color: 'white' }}>
+                                {saving ? <span className="lh-spinner" /> : '➕'} Save & Add Another
                             </button>
-                            <button type="button" className="lh-btn lh-btn-submit" onClick={() => handleSave('send_to_payment')} disabled={saving}>
-                                {saving ? <span className="lh-spinner" /> : '💳'} Send to Payment
+                            <button type="button" className="lh-btn lh-btn-submit" onClick={() => handleSave('review')} disabled={saving}>
+                                {saving ? <span className="lh-spinner" /> : '📋'} Review Transaction
                             </button>
                         </div>
                     </div>

@@ -4,8 +4,10 @@ import type { CompletedEntryData, TaxDeclarationFormData, AssessmentRow } from '
 import { EMPTY_TAX_DECLARATION, EMPTY_ASSESSMENT_ROW } from '../../../types/taxDeclaration';
 import { taxDeclarationService } from '../../../services/taxDeclarationService';
 import { requestService } from '../../../services/requestService';
+import { useCart } from '../../../hooks/TransactionCartContext';
 import '../../../styles/TaxDeclaration.css';
 
+// 1. RESTORED HELPER FUNCTIONS
 function numberToWords(num: number): string {
     if (!num || isNaN(num)) return '';
     const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -26,15 +28,8 @@ function numberToWords(num: number): string {
     return result + ' Only.';
 }
 
-function formatPeso(val: number): string { return val.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-
-interface TaxDeclarationFormProps {
-    user: User;
-    entryData: CompletedEntryData;
-    onBack: () => void;
-    onBackToDashboard: () => void;
-    onAddAnother: () => void;
-    onGoToPendingPayments: () => void;
+function formatPeso(val: number): string {
+    return val.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function AssessmentRowItem({ row, onUpdate, onRemove, canRemove, classificationOptions, propertyTypeOptions }: { row: AssessmentRow; onUpdate: (id: string, field: keyof AssessmentRow, value: string) => void; onRemove: (id: string) => void; canRemove: boolean; classificationOptions: { id: string; label: string; code: string }[]; propertyTypeOptions: { id: string; label: string; code: string }[]; }) {
@@ -64,12 +59,39 @@ function AssessmentRowItem({ row, onUpdate, onRemove, canRemove, classificationO
     );
 }
 
-export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard, onAddAnother, onGoToPendingPayments }: TaxDeclarationFormProps) {
-    const [form, setForm] = useState<TaxDeclarationFormData>(() => ({ ...EMPTY_TAX_DECLARATION(), ownerName: entryData.declarantName || '', }));
+// 2. UPDATED PROPS (Removed unused onBackToDashboard to fix yellow warning)
+interface TaxDeclarationFormProps {
+    user: User;
+    entryData: CompletedEntryData;
+    onBack: () => void;
+    onAddAnother: () => void;
+    onGoToSummary: () => void;
+}
+
+export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGoToSummary }: TaxDeclarationFormProps) {
+    // Safety check: If entryData isn't here yet, show a loading message instead of a blank white screen
+    if (!entryData) {
+        return (
+            <div className="td-page">
+                <div className="td-card" style={{ padding: '40px', textAlign: 'center' }}>
+                    <div className="td-spinner"></div>
+                    <p>Loading request details...</p>
+                    <button onClick={onBack}>Return to Dashboard</button>
+                </div>
+            </div>
+        );
+    }
+
+    const [form, setForm] = useState<TaxDeclarationFormData>(() => ({
+        ...EMPTY_TAX_DECLARATION(),
+        ownerName: entryData?.declarantName || '', // Added ?. safety
+    }));
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
     const [metadata, setMetadata] = useState<{ classifications: { id: string; label: string; code: string }[]; propertyTypes: { id: string; label: string; code: string }[]; }>({ classifications: [], propertyTypes: [], });
+
+    const { addItem } = useCart();
 
     useEffect(() => {
         let isMounted = true;
@@ -79,18 +101,13 @@ export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard,
                 if (isMounted && data) {
                     setMetadata({ classifications: Array.isArray(data.classifications) ? data.classifications : [], propertyTypes: Array.isArray(data.propertyTypes) ? data.propertyTypes : [], });
                 }
-            } catch (err) { console.error('Failed to fetch tax declaration metadata', err); }
+            } catch (err) { console.error('Failed to fetch meta', err); }
         };
-        fetchMeta();
-        return () => { isMounted = false; };
+        fetchMeta(); return () => { isMounted = false; };
     }, []);
 
-    const classificationOptions = metadata.classifications.length > 0 ? metadata.classifications : [
-        { id: 'AGRICULTURAL', label: 'Agricultural', code: 'AGRICULTURAL' }, { id: 'RESIDENTIAL', label: 'Residential', code: 'RESIDENTIAL' }, { id: 'COMMERCIAL', label: 'Commercial', code: 'COMMERCIAL' }, { id: 'INDUSTRIAL', label: 'Industrial', code: 'INDUSTRIAL' }, { id: 'SPECIAL', label: 'Special', code: 'SPECIAL' }
-    ];
-    const propertyTypeOptions = metadata.propertyTypes.length > 0 ? metadata.propertyTypes : [
-        { id: 'LAND', label: 'Land', code: 'LAND' }, { id: 'BUILDING', label: 'Building', code: 'BUILDING' }, { id: 'MACHINERY', label: 'Machinery', code: 'MACHINERY' }, { id: 'OTHERS', label: 'Others', code: 'OTHERS' }
-    ];
+    const classificationOptions = metadata.classifications.length > 0 ? metadata.classifications : [{ id: 'AGRICULTURAL', label: 'Agricultural', code: 'AGRICULTURAL' }, { id: 'RESIDENTIAL', label: 'Residential', code: 'RESIDENTIAL' }];
+    const propertyTypeOptions = metadata.propertyTypes.length > 0 ? metadata.propertyTypes : [{ id: 'LAND', label: 'Land', code: 'LAND' }, { id: 'BUILDING', label: 'Building', code: 'BUILDING' }];
 
     const totalMarketValue = form.assessmentRows.reduce((sum, r) => sum + (parseFloat(r.marketValue) || 0), 0);
     const totalAssessedValue = form.assessmentRows.reduce((sum, r) => { const mv = parseFloat(r.marketValue) || 0; const al = parseFloat(r.assessmentLevel) || 0; return sum + (mv * al) / 100; }, 0);
@@ -101,41 +118,31 @@ export function TaxDeclarationForm({ user, entryData, onBack, onBackToDashboard,
     const set = (field: keyof TaxDeclarationFormData, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
     const updateRow = useCallback((id: string, field: keyof AssessmentRow, value: string) => { setForm((prev) => ({ ...prev, assessmentRows: prev.assessmentRows.map((r) => r.id === id ? { ...r, [field]: value } : r), })); }, []);
     const addRow = () => setForm((prev) => ({ ...prev, assessmentRows: [...prev.assessmentRows, EMPTY_ASSESSMENT_ROW()] }));
-    const removeRow = (id: string) => setForm((prev) => ({ ...prev, assessmentRows: prev.assessmentRows.filter((r) => r.id !== id), }));
 
-    // PHASE 1 LOGIC: Send to Payment
-    // Inside TaxDeclarationForm Component
+    // 3. FIXED SYNTAX ERROR HERE
+    const removeRow = (id: string) => setForm((prev) => ({ ...prev, assessmentRows: prev.assessmentRows.filter((r) => r.id !== id) }));
 
-const handleSave = async (action: 'draft' | 'send_to_payment' | 'add_another') => {
-    if (!form.taxDeclarationNumber || !form.ownerName) {
-        return setSaveError('Assessment No. and Owner Name are required.');
-    }
-    setSaveError('');
-    setSaving(true);
-    
-    try {
-        // 1. Save the actual Tax Dec details to encoded_tax_declarations
-        await taxDeclarationService.save(form, entryData.requestId, user.id);
+    const handleSave = async (action: 'draft' | 'review' | 'add_another') => {
+        if (!form.taxDeclarationNumber || !form.ownerName) return setSaveError('Assessment No. and Owner Name are required.');
+        setSaveError(''); setSaving(true);
+        try {
+            await taxDeclarationService.save(form, entryData.requestId, user.id);
 
-        // 2. If "Send to Payment" is clicked, update the Parent Request status
-        if (action === 'send_to_payment' || action === 'add_another') {
-            await requestService.updateRequest(entryData.requestId, {
-                ...entryData,
-                status: 'PENDING_PAYMENT' // This makes it visible to the Treasurer
-            });
-        }
+            if (action !== 'draft') {
+                addItem({
+                    id: Math.random().toString(),
+                    documentType: 'Tax Declaration',
+                    fee: 40.00
+                });
+            }
 
-        setSaved(true);
-        setTimeout(() => {
-            if (action === 'send_to_payment') onGoToPendingPayments();
-            else if (action === 'add_another') onAddAnother(); // This will trigger the RequestFormEntry again
-        }, 1500);
-    } catch (err: any) {
-        setSaveError('Failed to save. Check database connection.');
-    } finally {
-        setSaving(false);
-    }
-};
+            setSaved(true);
+            setTimeout(() => {
+                if (action === 'review') onGoToSummary();
+                else if (action === 'add_another') onAddAnother();
+            }, 1500);
+        } catch (err: any) { setSaveError('Failed to save. Check database connection.'); } finally { setSaving(false); }
+    };
 
     return (
         <div className="td-page">
@@ -164,20 +171,13 @@ const handleSave = async (action: 'draft' | 'send_to_payment' | 'add_another') =
 
                     <div className="td-doc-header">
                         <div className="td-doc-header-row">
-                            <div className="td-doc-header-field">
-                                <label>Assessment of Real Property No.:</label>
-                                <input id="td-arp-no" className="td-input" placeholder="e.g. 21-0004-00082" value={form.taxDeclarationNumber} onChange={(e) => set('taxDeclarationNumber', e.target.value)} />
-                            </div>
-                            <div className="td-doc-header-field">
-                                <label>Property Index No.:</label>
-                                <input id="td-pin" className="td-input" placeholder="e.g. 050-21-0004-002-30" value={form.propertyIndexNumber} onChange={(e) => set('propertyIndexNumber', e.target.value)} />
-                            </div>
+                            <div className="td-doc-header-field"><label>Assessment of Real Property No.:</label><input id="td-arp-no" className="td-input" placeholder="e.g. 21-0004-00082" value={form.taxDeclarationNumber} onChange={(e) => set('taxDeclarationNumber', e.target.value)} /></div>
+                            <div className="td-doc-header-field"><label>Property Index No.:</label><input id="td-pin" className="td-input" placeholder="e.g. 050-21-0004-002-30" value={form.propertyIndexNumber} onChange={(e) => set('propertyIndexNumber', e.target.value)} /></div>
                         </div>
                         <div className="td-doc-title">Declaration of Real Property</div>
                     </div>
 
                     <div className="td-form-body">
-                        {/* ══ SECTION 1: Owner Information ══ */}
                         <div className="td-section">
                             <div className="td-section-title">Owner Information</div>
                             <div className="td-row td-row-2">
@@ -190,7 +190,6 @@ const handleSave = async (action: 'draft' | 'send_to_payment' | 'add_another') =
                             </div>
                         </div>
 
-                        {/* ══ SECTION 2: Location of Property ══ */}
                         <div className="td-section">
                             <div className="td-section-title">Location of Property</div>
                             <div className="td-location-strip">
@@ -200,7 +199,6 @@ const handleSave = async (action: 'draft' | 'send_to_payment' | 'add_another') =
                             </div>
                         </div>
 
-                        {/* ══ SECTION 3: Land Reference Numbers ══ */}
                         <div className="td-section">
                             <div className="td-section-title">Land Reference Numbers</div>
                             <div className="td-row td-row-4">
@@ -211,7 +209,6 @@ const handleSave = async (action: 'draft' | 'send_to_payment' | 'add_another') =
                             </div>
                         </div>
 
-                        {/* ══ SECTION 4: Boundaries ══ */}
                         <div className="td-section">
                             <div className="td-section-title">Boundaries</div>
                             <div className="td-boundaries-box">
@@ -225,23 +222,13 @@ const handleSave = async (action: 'draft' | 'send_to_payment' | 'add_another') =
                             </div>
                         </div>
 
-                        {/* ══ SECTION 5: Kind of Property & Valuation ══ */}
                         <div className="td-assessment-section">
-                            <div className="td-table-header-bar">
-                                <span>Kind of Property &amp; Valuation</span>
-                                <button type="button" className="td-add-row-btn" onClick={addRow}>+ Add Row</button>
-                            </div>
+                            <div className="td-table-header-bar"><span>Kind of Property &amp; Valuation</span><button type="button" className="td-add-row-btn" onClick={addRow}>+ Add Row</button></div>
                             <div style={{ overflowX: 'auto' }}>
                                 <table className="td-assessment-table">
                                     <thead>
                                         <tr>
-                                            <th style={{ minWidth: 140 }}>Kind of Property</th>
-                                            <th style={{ minWidth: 160 }}>Classification</th>
-                                            <th className="td-th-right" style={{ minWidth: 120 }}>Market Value (₱)</th>
-                                            <th className="td-th-right" style={{ minWidth: 100 }}>Assess. Level (%)</th>
-                                            <th className="td-th-right" style={{ minWidth: 120 }}>Assessed Value (₱)</th>
-                                            <th style={{ minWidth: 90 }}>Area</th>
-                                            <th style={{ width: 40 }}></th>
+                                            <th style={{ minWidth: 140 }}>Kind of Property</th><th style={{ minWidth: 160 }}>Classification</th><th className="td-th-right" style={{ minWidth: 120 }}>Market Value (₱)</th><th className="td-th-right" style={{ minWidth: 100 }}>Assess. Level (%)</th><th className="td-th-right" style={{ minWidth: 120 }}>Assessed Value (₱)</th><th style={{ minWidth: 90 }}>Area</th><th style={{ width: 40 }}></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -270,7 +257,6 @@ const handleSave = async (action: 'draft' | 'send_to_payment' | 'add_another') =
                             </div>
                         </div>
 
-                        {/* ══ SECTION 6: Tax Effectivity & ARP Cancellation ══ */}
                         <div className="td-section">
                             <div className="td-section-title">Tax Effectivity &amp; Cancellation</div>
                             <div className="td-row td-row-2">
@@ -279,30 +265,15 @@ const handleSave = async (action: 'draft' | 'send_to_payment' | 'add_another') =
                             </div>
                             <div className="td-field"><label className="td-label">Memoranda</label><textarea id="td-memoranda" className="td-input" rows={3} placeholder="e.g. Revised Under Provincial Ordinance No. ZN-19-183…" value={form.memoranda} onChange={(e) => set('memoranda', e.target.value)} /></div>
                         </div>
+                        <div className="td-important-notice"><strong>IMPORTANT:</strong> This declaration is issued only in connection with real property taxation and the valuation indicated herein is based on a schedule of market values prepared for the purpose. It should <em>not</em> be considered as title to the property.</div>
+                    </div>
 
-                        <div className="td-important-notice">
-                            <strong>IMPORTANT:</strong> This declaration is issued only in connection with real property taxation
-                            and the valuation indicated herein is based on a schedule of market values prepared for the purpose.
-                            It should <em>not</em> be considered as title to the property.
-                        </div>
-
-                    </div>{/* end td-form-body */}
-
-                    {/* ── Footer actions (Phase 1 Logic) ── */}
                     <div className="td-footer">
-                        <div className="td-footer-left">
-                            <button type="button" className="td-btn td-btn-back" onClick={onBack}>← Back</button>
-                        </div>
+                        <div className="td-footer-left"><button type="button" className="td-btn td-btn-back" onClick={onBack}>← Back</button></div>
                         <div className="td-footer-right">
-                            <button type="button" className="td-btn td-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>
-                                {saving ? <span className="td-spinner" /> : '💾'} Save Draft
-                            </button>
-                            <button type="button" className="td-btn td-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving}>
-                                {saving ? <span className="td-spinner" /> : '➕'} Send & Add Another
-                            </button>
-                            <button type="button" className="td-btn td-btn-submit" onClick={() => handleSave('send_to_payment')} disabled={saving}>
-                                {saving ? <span className="td-spinner" /> : '💳'} Send to Payment
-                            </button>
+                            <button type="button" className="td-btn td-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>{saving ? <span className="td-spinner" /> : '💾'} Save Draft</button>
+                            <button type="button" className="td-btn td-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving} style={{ backgroundColor: '#10b981', color: 'white' }}>{saving ? <span className="td-spinner" /> : '➕'} Save & Add Another Doc</button>
+                            <button type="button" className="td-btn td-btn-submit" onClick={() => handleSave('review')} disabled={saving}>{saving ? <span className="td-spinner" /> : '📋'} Review Transaction</button>
                         </div>
                     </div>
 

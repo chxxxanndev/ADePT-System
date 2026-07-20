@@ -8,6 +8,9 @@ import { ForgotPasswordForm } from './auth-folder/ForgotPasswordForm';
 import { Dashboard } from './users/pages/Dashboard';
 import { AdminDashboard } from './admin/pages/AdminDashboard';
 
+// 1. ADD THIS IMPORT
+import { CartProvider } from './users/hooks/TransactionCartContext';
+
 function App() {
   const [view, setView] = useState<View>('login');
   const [prefilledUsername, setPrefilledUsername] = useState('');
@@ -20,43 +23,52 @@ function App() {
 
   const navigateTo = (newView: View) => setView(newView);
 
+  // 2. WRAP THE LOGGED-IN RETURNS
   if (currentUser) {
     const isAdmin = currentUser.role === 'SUPER_ADMIN';
-    if (isAdmin) {
-      return <AdminDashboard user={currentUser} onLogout={logout} />;
-    }
-    return <Dashboard user={currentUser} backendHealthy={backendHealthy} onLogout={logout} />;
+    return (
+      <CartProvider>
+        {isAdmin ? (
+          <AdminDashboard user={currentUser} onLogout={logout} />
+        ) : (
+          <Dashboard user={currentUser} backendHealthy={backendHealthy} onLogout={logout} />
+        )}
+      </CartProvider>
+    );
   }
 
+  // 3. WRAP THE LOGGED-OUT RETURN
   return (
-    <div className={`auth-container${view === 'signup' ? ' signup-mode' : ''}`}>
-      <AuthBanner view={view} />
+    <CartProvider>
+      <div className={`auth-container${view === 'signup' ? ' signup-mode' : ''}`}>
+        <AuthBanner view={view} />
 
-      <div className="auth-form-container">
-        <div className="form-content-area">
-          <LoginForm
-            active={view === 'login'}
-            loading={loading}
-            onLogin={login}
-            navigateTo={navigateTo}
-            initialUsername={prefilledUsername}
-          />
-          <SignupForm
-            active={view === 'signup'}
-            loading={loading}
-            onSignUp={signUp}
-            navigateTo={navigateTo}
-            prefillUsername={handleSignupSuccess}
-          />
-          <ForgotPasswordForm
-            active={view === 'forgot'}
-            loading={loading}
-            onForgotPassword={forgotPassword}
-            navigateTo={navigateTo}
-          />
+        <div className="auth-form-container">
+          <div className="form-content-area">
+            <LoginForm
+              active={view === 'login'}
+              loading={loading}
+              onLogin={login}
+              navigateTo={navigateTo}
+              initialUsername={prefilledUsername}
+            />
+            <SignupForm
+              active={view === 'signup'}
+              loading={loading}
+              onSignUp={signUp}
+              navigateTo={navigateTo}
+              prefillUsername={handleSignupSuccess}
+            />
+            <ForgotPasswordForm
+              active={view === 'forgot'}
+              loading={loading}
+              onForgotPassword={forgotPassword}
+              navigateTo={navigateTo}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </CartProvider>
   );
 }
 

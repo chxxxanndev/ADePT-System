@@ -26,6 +26,8 @@ import type { CompletedEntryData } from '../types/taxDeclaration';
 import type { AccountUser, AccountSettingsFormData } from '../types/accountSettings';
 import type { PendingPaymentRequest } from '../types/PendingPayment';
 import { TransactionRegistry } from './TransactionRegistry';
+import { TransactionSummary } from './request-processing/TransactionSummary';
+
 
 
 import {
@@ -166,7 +168,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`;
     const headerUser = { name: fullName, email: user.email || '', role: user.role || 'Staff', lastLogin: 'Today • 8:12 AM' };
 
-    const hideHeader = activeView === 'new-request' || activeView === 'request-form' || activeView === 'tax-declaration' || activeView === 'tax-dec' || activeView === 'certificate-land-holding' || activeView === 'land-holding' || activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' || activeView === 'account-settings' || activeView === 'pending-payment' || activeView === 'payment-details' || activeView === 'document-request' || activeView === 'reports' || activeView === 'transaction-registry' || activeView === 'void-amend' || activeView === 'certified-true-copy' || activeView === 'archive-management';
+    const hideHeader = activeView === 'new-request' || activeView === 'request-form' || activeView === 'tax-declaration' || activeView === 'tax-dec' || activeView === 'certificate-land-holding' || activeView === 'land-holding' || activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' || activeView === 'account-settings' || activeView === 'pending-payment' || activeView === 'payment-details' || activeView === 'document-request' || activeView === 'reports' || activeView === 'transaction-registry' || activeView === 'void-amend' || activeView === 'certified-true-copy' || activeView === 'archive-management' || activeView === 'transaction-summary';
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
 
     const accountUser: AccountUser = { id: user.id, fullName: fullName.trim(), username: user.username || user.email?.split('@')[0] || '', email: user.email || '', role: user.role || 'Staff', avatarUrl: (user as any).avatarUrl, lastPasswordChange: (user as any).lastPasswordChange };
@@ -212,8 +214,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 user={user}
                                 entryData={completedEntryData}
                                 onBack={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')} // Fallback
-                                onGoToPendingPayments={() => setActiveView('pending-payment')} // THIS TRIGGERS THE REDIRECT
+                                onGoToSummary={() => setActiveView('transaction-summary')}
                                 onAddAnother={handleAddAnother}
                             />
                         ) : (<RequestGuard attemptedView="Tax Declaration" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
@@ -223,8 +224,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 user={user}
                                 entryData={completedEntryData}
                                 onBack={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')} // Fallback
-                                onGoToPendingPayments={() => setActiveView('pending-payment')} // THIS TRIGGERS THE REDIRECT
+                                onGoToSummary={() => setActiveView('transaction-summary')}
                                 onAddAnother={handleAddAnother}
                             />
                         ) : (
@@ -240,13 +240,20 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 user={user}
                                 entryData={completedEntryData}
                                 onBack={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')} // Fallback
-                                onGoToPendingPayments={() => setActiveView('pending-payment')} // THIS TRIGGERS THE REDIRECT
+                                onGoToSummary={() => setActiveView('transaction-summary')}
                                 onAddAnother={handleAddAnother}
                             />
                         ) : (<RequestGuard attemptedView="Certificate of No Landholding" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
                     ) : activeView === 'document-request' ? (
                         <DocumentRequestDashboard user={user} onSelectNewRequest={handleSelectNewRequest} onSelectDraft={handleSelectDraft} onSelectDocumentView={(view) => setActiveView(view)} />
+                    ) : activeView === 'transaction-summary' ? (
+                        completedEntryData ? (
+                            <TransactionSummary
+                                entryData={completedEntryData}
+                                onBackToForms={() => setActiveView('new-request')}
+                                onProceedToQueue={() => setActiveView('pending-payment')}
+                            />
+                        ) : (<RequestGuard attemptedView="Transaction Summary" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
                     ) : activeView === 'account-settings' ? (
                         <AccountSettings user={accountUser} onSave={handleAccountSave} onUpdateEmail={handleUpdateEmail} onChangePassword={handleChangePassword} onChangePhoto={handleChangePhoto} onDisableAccount={handleDisableAccount} />
                     ) : activeView === 'pending-payment' ? (

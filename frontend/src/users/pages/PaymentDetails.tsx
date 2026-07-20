@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import type { PendingPaymentRequest } from '../types/PendingPayment';   
 import { requestService } from '../services/requestService';
 
 interface PaymentDetailsProps {
