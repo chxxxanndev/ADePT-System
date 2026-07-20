@@ -4,6 +4,7 @@ import {
     updateStaffStatus,
     type StaffMember,
 } from '../services/userManagementService';
+import { addAdminAuditEntry } from '../services/auditLogService';
 // ─── UI-facing shape ──────────────────────────────────────────────────────────
 export interface StaffRow {
     id: string;
@@ -27,7 +28,7 @@ function formatDate(iso: string): string {
 function toRoleLabel(code: string | undefined): string {
     switch (code) {
         case 'SUPER_ADMIN':  return 'Super Admin';
-        case 'OFFICE_STAFF': return 'Records Officer';
+        case 'OFFICE_STAFF': return 'Office Staff';
         default:             return code ?? 'Staff';
     }
 }
@@ -84,6 +85,11 @@ export function useStaffAccounts() {
                 nextStatus,
                 nextStatus === 'DISABLED' ? 'Account disabled by administrator.' : undefined
             );
+            addAdminAuditEntry({
+                type: nextStatus === 'ACTIVE' ? 'approval' : 'decline',
+                actor: 'Super Admin',
+                description: `${nextStatus === 'ACTIVE' ? 'activated' : 'deactivated'} staff account — ${member.name}`,
+            });
             setStaff((prev) =>
                 prev.map((s) => (s.id === staffId ? mapToRow(updated) : s))
             );
