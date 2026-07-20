@@ -355,6 +355,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                             className="btn-proceed"
                             onClick={handleProceedToDocument}
                             disabled={isSavingDraft || isProceeding}
+
                         >
                             {isProceeding ? 'Processing…' : 'Proceed to Document →'}
                         </button>
