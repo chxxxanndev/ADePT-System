@@ -3,6 +3,7 @@ import '../styles/StaffAccounts.css';
 import type { User } from '../../auth-folder/types/auth';
 import { useStaffAccounts } from '../hooks/useStaffAccounts';
 import { createStaffAccount } from '../services/userManagementService';
+import { addAdminAuditEntry } from '../services/auditLogService';
 
 
 
@@ -37,6 +38,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [formSuccess, setFormSuccess] = useState<string | null>(null);
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'pending'>('all');
 
     const activeCount = staff.filter((s) => s.status === 'active').length;
 
@@ -51,6 +53,11 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
 
         try {
             await createStaffAccount(form);
+            addAdminAuditEntry({
+                type: 'approval',
+                actor: 'Super Admin',
+                description: `created staff account — ${form.username}`,
+            });
             setFormSuccess('Staff account created successfully.');
             setForm({
                 firstName: '',
@@ -122,6 +129,19 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                     </div>
 
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: '#cbd5e1' }}>
+                            <span>Filter</span>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive' | 'pending')}
+                                style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', background: '#ffffff', color: '#0f172a', padding: '6px 10px' }}
+                            >
+                                <option value="all">All</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                        </label>
                         {/* Refresh button */}
                         <button
                             className="staff-manage-btn"
@@ -204,7 +224,9 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 </tr>
      
                              ) : (
-                                staff.map((member) => (
+                                staff
+                                    .filter((member) => statusFilter === 'all' || member.status === statusFilter)
+                                    .map((member) => (
                                     <tr key={member.id}>
                                         <td><strong>{member.name}</strong></td>
                                         <td>{member.username}</td>

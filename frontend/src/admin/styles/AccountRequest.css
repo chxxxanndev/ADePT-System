@@ -71,7 +71,7 @@
 
 .account-request-table {
   width: 100%;
-  text-align: left;
+  text-align: center;
   border-collapse: collapse;
 }
 
@@ -86,6 +86,7 @@
 .account-request-table th {
   padding: 12px 24px;
   font-weight: 700;
+  text-align: center;
   border-bottom: 1px solid #EDEEF3;
 }
 
@@ -93,6 +94,7 @@
   padding: 14px 24px;
   font-size: 14px;
   color: #33364A;
+  text-align: center;
 }
 
 .account-request-table tbody tr {
@@ -110,14 +112,18 @@
   color: #8A8DA0;
 }
 
-/* Applicant cell */
+/* Applicant cell — avatar is floated so it doesn't skew the centered name */
 .account-request-applicant {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  min-height: 32px;
 }
 
 .account-request-applicant-avatar {
+  position: absolute;
+  left: 0;
   display: flex;
   height: 32px;
   width: 32px;
@@ -132,6 +138,7 @@
 .account-request-applicant-name {
   font-weight: 600;
   color: #1F2333;
+  text-align: center;
 }
 
 .account-request-cell-muted {
@@ -162,6 +169,7 @@
 .account-request-actions {
   display: flex;
   gap: 8px;
+  justify-content: center;
 }
 
 .account-request-btn {
