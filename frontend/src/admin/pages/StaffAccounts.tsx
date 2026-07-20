@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import '../styles/StaffAccounts.css';
 import type { User } from '../../auth-folder/types/auth';
 import { useStaffAccounts } from '../hooks/useStaffAccounts';
+import { createStaffAccount } from '../services/userManagementService';
 
 
 
@@ -23,10 +25,48 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         refresh,
     } = useStaffAccounts();
 
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [form, setForm] = useState({
+        firstName: '',
+        lastName: '',
+        email: '',
+        username: '',
+        password: '',
+        roleCode: 'OFFICE_STAFF',
+    });
+    const [submitting, setSubmitting] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
+    const [formSuccess, setFormSuccess] = useState<string | null>(null);
+
     const activeCount = staff.filter((s) => s.status === 'active').length;
 
     const fullName = `${user.firstName || 'Admin'} ${user.lastName || 'User'}`;
     const initials = `${user.firstName?.[0] || 'A'}${user.lastName?.[0] || 'U'}`;
+
+    const handleAddStaff = async (event: React.FormEvent) => {
+        event.preventDefault();
+        setSubmitting(true);
+        setFormError(null);
+        setFormSuccess(null);
+
+        try {
+            await createStaffAccount(form);
+            setFormSuccess('Staff account created successfully.');
+            setForm({
+                firstName: '',
+                lastName: '',
+                email: '',
+                username: '',
+                password: '',
+                roleCode: 'OFFICE_STAFF',
+            });
+            await refresh();
+        } catch (err: unknown) {
+            setFormError(err instanceof Error ? err.message : 'Failed to create staff account.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
 
     return (
@@ -91,7 +131,12 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                         >
                             ↻ Refresh
                         </button>
-                        <button className="admin-add-btn" onClick={onAddStaff}>
+                        <button className="admin-add-btn" onClick={() => {
+                            if (onAddStaff) {
+                                onAddStaff();
+                            }
+                            setShowAddModal(true);
+                        }}>
                             + Add Staff
                         </button>
                     </div>
@@ -124,6 +169,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                         <thead>
                             <tr>
                                 <th>Name</th>
+                                <th>Username</th>
                                 <th>Email</th>
                                 <th>Role</th>
                                 <th>Status</th>
@@ -136,7 +182,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 /* Loading skeleton rows */
                                 Array.from({ length: 4 }).map((_, i) => (
                                     <tr key={i}>
-                                        {Array.from({ length: 6 }).map((__, j) => (
+                                        {Array.from({ length: 7 }).map((__, j) => (
                                             <td key={j}>
                                                 <div style={{
                                                     height: '14px',
@@ -151,7 +197,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 ))
                             ) : staff.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} style={{ textAlign: 'center', opacity: 0.5, padding: '24px' }}>
+                                    <td colSpan={7} style={{ textAlign: 'center', opacity: 0.5, padding: '24px' }}>
                                         No staff members found.
                                     </td>
                                    
@@ -161,6 +207,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 staff.map((member) => (
                                     <tr key={member.id}>
                                         <td><strong>{member.name}</strong></td>
+                                        <td>{member.username}</td>
                                         <td>{member.email}</td>
                                         <td>{member.role}</td>
                                         <td>
@@ -172,7 +219,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                         <td>{member.dateAdded}</td>
                                         <td>
                                             <button
-                                                className="staff-manage-btn"
+                                                className={`staff-manage-btn ${member.status === 'active' ? 'deactivate' : 'activate'}`}
                                                 disabled={updatingId === member.id || member.status === 'pending'}
                                                 onClick={() => toggleStatus(member.id)}
                                                 title={
@@ -197,6 +244,63 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                     </table>
                 </div>
             </div>
+
+            {showAddModal && (
+                <div className="staff-modal-backdrop" onClick={() => setShowAddModal(false)}>
+                    <div className="staff-modal-card" onClick={(event) => event.stopPropagation()}>
+                        <div className="staff-modal-header">
+                            <div>
+                                <h3>Add New Staff</h3>
+                                <p>Create a new staff account and assign access.</p>
+                            </div>
+                            <button className="staff-modal-close" onClick={() => setShowAddModal(false)}>
+                                ×
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleAddStaff} className="staff-modal-form">
+                            {formError && <div className="staff-form-error">{formError}</div>}
+                            {formSuccess && <div className="staff-form-success">{formSuccess}</div>}
+
+                            <div className="staff-form-grid">
+                                <label>
+                                    First name
+                                    <input required value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
+                                </label>
+                                <label>
+                                    Last name
+                                    <input required value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+                                </label>
+                                <label>
+                                    Email
+                                    <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                                </label>
+                                <label>
+                                    Username
+                                    <input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+                                </label>
+                                <label>
+                                    Password
+                                    <input type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                                </label>
+                                <label>
+                                    Role
+                                    <input value="Office Staff" readOnly />
+                                </label>
+                            </div>
+
+                            <div className="staff-modal-actions">
+                                <button type="button" className="staff-manage-btn" onClick={() => setShowAddModal(false)}>
+                                    Cancel
+                                </button>
+                                <button type="submit" className="admin-add-btn" disabled={submitting}>
+                                    {submitting ? 'Creating…' : 'Create Staff'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </>
     );
 

@@ -21,7 +21,8 @@ interface ArchivedRecord {
   declarantName: string;
   documentType: DocumentType;
   archivedDate: string;
-  archivedBy: string; 
+  archivedTime: string;
+  archivedBy: string;
   reasonType: ArchiveReason;
   reasonDetail: string;
 }
@@ -34,7 +35,7 @@ const DOC_TYPE_CLASS: Record<DocumentType, string> = {
   "Certificate of Land Holding": "arc-tag--success",
   "No-Landholding Certificate": "arc-tag--secondary",
   "Certified True Copy": "arc-tag--truecopy",
-  "General Document": "arc-tag--primary"
+  "General Document": "arc-tag--general",
 };
 
 /* ------------------------------------------------------------------ */
@@ -46,25 +47,40 @@ const DOC_TYPE_CLASS: Record<DocumentType, string> = {
  * Uses the Database Joined name first, fallbacks to Reference Number Prefix.
  */
 function resolveArchiveDocName(req: any): DocumentType {
-    // 1. Try to find the name in the joined request_documents array
-    if (req.request_documents && req.request_documents.length > 0) {
-        // Note: Check the nesting specifically based on your backend merge logic
-        const name = req.request_documents[0].document_types?.name || "";
-        
-        if (name.includes("Tax Declaration")) return "Tax Declaration";
-        if (name.includes("No Landholding")) return "No-Landholding Certificate";
-        if (name.includes("Landholding")) return "Certificate of Land Holding";
-        if (name.includes("Old Tax") || name.includes("True Copy")) return "Certified True Copy";
-    }
+  // 1. Try to find the name in the joined request_documents array
+  if (req.request_documents && req.request_documents.length > 0) {
+    // Note: Check the nesting specifically based on your backend merge logic
+    const name = req.request_documents[0].document_types?.name || "";
 
-    // 2. Fallback: Use the Reference Number Prefix (The most reliable source)
-    const ref = req.reference_number || "";
-    if (ref.startsWith('TD')) return "Tax Declaration";
-    if (ref.startsWith('NLH')) return "No-Landholding Certificate";
-    if (ref.startsWith('LH')) return "Certificate of Land Holding";
-    if (ref.startsWith('CTC')) return "Certified True Copy";
+    if (name.includes("Tax Declaration")) return "Tax Declaration";
+    if (name.includes("No Landholding")) return "No-Landholding Certificate";
+    if (name.includes("Landholding")) return "Certificate of Land Holding";
+    if (name.includes("Old Tax") || name.includes("True Copy")) return "Certified True Copy";
+  }
 
-    return "General Document";
+  // 2. Fallback: Use the Reference Number Prefix (The most reliable source)
+  const ref = req.reference_number || "";
+  if (ref.startsWith("TD")) return "Tax Declaration";
+  if (ref.startsWith("NLH")) return "No-Landholding Certificate";
+  if (ref.startsWith("LH")) return "Certificate of Land Holding";
+  if (ref.startsWith("CTC")) return "Certified True Copy";
+
+  return "General Document";
+}
+
+/**
+ * Resolves who archived the document. Checks a few likely backend field
+ * names first (adjust these to match your actual schema once known),
+ * falling back to a generic placeholder if none are present.
+ */
+function resolveArchivedBy(req: any): string {
+  return (
+    req.archived_by_name ||
+    req.archived_by?.full_name ||
+    req.updated_by_name ||
+    req.staff_name ||
+    "Staff"
+  );
 }
 
 function DocTypeTag({ type }: { type: DocumentType }) {
@@ -85,24 +101,32 @@ export default function ArchiveManagement() {
     try {
       setLoading(true);
       const rawRequests = await requestService.getRequests();
-      
+
       if (Array.isArray(rawRequests)) {
         const archivedOnly = rawRequests
-          .filter((r: any) => r.status === 'ARCHIVED')
-          .map((r: any) => ({
-            id: r.id,
-            reference: r.reference_number || "N/A",
-            declarantName: r.declarant_name || "Anonymous",
-            documentType: resolveArchiveDocName(r), // Uses the robust helper
-            archivedDate: new Date(r.updated_at).toLocaleDateString('en-GB', { 
-                day: '2-digit', 
-                month: 'short', 
-                year: 'numeric' 
-            }),
-            archivedBy: "Staff", 
-            reasonType: "Manual" as ArchiveReason,
-            reasonDetail: "Manually moved from queue."
-          }));
+          .filter((r: any) => r.status === "ARCHIVED")
+          .map((r: any) => {
+            const updatedAt = new Date(r.updated_at);
+            return {
+              id: r.id,
+              reference: r.reference_number || "N/A",
+              declarantName: r.declarant_name || "Anonymous",
+              documentType: resolveArchiveDocName(r), // Uses the robust helper
+              archivedDate: updatedAt.toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              }),
+              archivedTime: updatedAt.toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              }),
+              archivedBy: resolveArchivedBy(r),
+              reasonType: "Manual" as ArchiveReason,
+              reasonDetail: "Manually moved from queue.",
+            };
+          });
         setRecords(archivedOnly);
       }
     } catch (error) {
@@ -118,12 +142,12 @@ export default function ArchiveManagement() {
 
   const handleRestore = async (id: string, ref: string) => {
     if (confirm(`Restore Reference #${ref} to the Pending Payments queue?`)) {
-        try {
-            await requestService.updateRequest(id, { status: 'PENDING_PAYMENT' });
-            setRecords((prev) => prev.filter((r) => r.id !== id));
-        } catch (err) {
-            alert("Failed to restore document.");
-        }
+      try {
+        await requestService.updateRequest(id, { status: "PENDING_PAYMENT" });
+        setRecords((prev) => prev.filter((r) => r.id !== id));
+      } catch (err) {
+        alert("Failed to restore document.");
+      }
     }
   };
 
@@ -149,9 +173,7 @@ export default function ArchiveManagement() {
           </div>
           <div>
             <h1 className="arc-title">Archive Management</h1>
-            <p className="arc-subtitle">
-              Archived records across all document types.
-            </p>
+            <p className="arc-subtitle">Archived records across all document types.</p>
           </div>
         </div>
 
@@ -176,6 +198,7 @@ export default function ArchiveManagement() {
               <option value="Certificate of Land Holding">Certificate of Land Holding</option>
               <option value="No-Landholding Certificate">No-Landholding Certificate</option>
               <option value="Certified True Copy">Certified True Copy</option>
+              <option value="General Document">General Document</option>
             </select>
             <ChevronDown size={14} className="arc-select-chevron" />
           </div>
@@ -194,32 +217,55 @@ export default function ArchiveManagement() {
         </div>
 
         <div className="arc-card">
-          <div className="arc-row-list">
-            {loading ? (
-                <div className="arc-empty">⏳ Loading archives...</div>
-            ) : filteredRecords.length === 0 ? (
-                <div className="arc-empty">No archived records found.</div>
-            ) : (
-                filteredRecords.map((record) => (
-                    <div className="arc-row" key={record.id}>
-                        <div className="arc-row-body">
-                            <div className="arc-row-top">
-                                <span className="arc-row-reference">#{record.reference}</span>
-                                <DocTypeTag type={record.documentType} />
-                            </div>
-                            <p className="arc-row-name">{record.declarantName}</p>
-                            <p className="arc-row-reason">{record.reasonDetail}</p>
-                            <p className="arc-row-meta">
-                                Archived on {record.archivedDate}
-                            </p>
-                        </div>
-                        <button className="arc-restore-btn" onClick={() => handleRestore(record.id, record.reference)}>
-                            <RotateCcw size={14} />
-                            Restore
+          <div className="arc-table-scroll">
+            <table className="arc-table">
+              <thead>
+                <tr>
+                  <th>Control Number</th>
+                  <th>Declarant</th>
+                  <th>Document Type</th>
+                  <th>Reason</th>
+                  <th>Archived By</th>
+                  <th>Date &amp; Time</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr className="arc-empty-row">
+                    <td colSpan={7}>⏳ Loading archives...</td>
+                  </tr>
+                ) : filteredRecords.length === 0 ? (
+                  <tr className="arc-empty-row">
+                    <td colSpan={7}>No archived records found.</td>
+                  </tr>
+                ) : (
+                  filteredRecords.map((record, idx) => (
+                    <tr key={record.id} className={idx % 2 !== 0 ? "arc-row-alt" : ""}>
+                      <td className="arc-cell-reference">#{record.reference}</td>
+                      <td className="arc-cell-name">{record.declarantName}</td>
+                      <td>
+                        <DocTypeTag type={record.documentType} />
+                      </td>
+                      <td className="arc-cell-muted">{record.reasonDetail}</td>
+                      <td className="arc-cell-muted">{record.archivedBy}</td>
+                      <td className="arc-cell-muted">
+                        {record.archivedDate}, {record.archivedTime}
+                      </td>
+                      <td>
+                        <button
+                          className="arc-restore-btn"
+                          onClick={() => handleRestore(record.id, record.reference)}
+                        >
+                          <RotateCcw size={14} />
+                          Restore
                         </button>
-                    </div>
-                ))
-            )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

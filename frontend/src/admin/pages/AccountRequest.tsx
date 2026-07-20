@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import "../styles/StaffAccounts.css";
 import "../styles/AccountRequest.css";
 
 // ---------- Types ----------
 type RequestStatus = "pending" | "approved" | "declined";
-type IdDocStatus = "verified" | "pending_verification";
 
 interface AccountRequestItem {
   id: string;
@@ -13,68 +13,43 @@ interface AccountRequestItem {
   email: string;
   requestedRole: string;
   submitted: string; // display string, e.g. "Jul 14, 8:02 AM"
-  idDocument: IdDocStatus;
   status: RequestStatus;
 }
 
-// ---------- Mock data (swap for API data once endpoint is confirmed) ----------
-const MOCK_REQUESTS: AccountRequestItem[] = [
-  {
-    id: "req-001",
-    applicantName: "Rosario Dalisay",
-    initials: "RD",
-    avatarColor: "avatar-rose",
-    email: "r.dalisay@zamboangadelnorte.gov.ph",
-    requestedRole: "Staff — Records officer",
-    submitted: "Jul 14, 8:02 AM",
-    idDocument: "verified",
-    status: "pending",
-  },
-  {
-    id: "req-002",
-    applicantName: "Edgar Mendoza",
-    initials: "EM",
-    avatarColor: "avatar-amber",
-    email: "e.mendoza@zamboangadelnorte.gov.ph",
-    requestedRole: "Staff — Assessment clerk",
-    submitted: "Jul 14, 7:41 AM",
-    idDocument: "verified",
-    status: "pending",
-  },
-  {
-    id: "req-003",
-    applicantName: "Liza Tan",
-    initials: "LT",
-    avatarColor: "avatar-sky",
-    email: "l.tan@gmail.com",
-    requestedRole: "Citizen access",
-    submitted: "Jul 13, 4:18 PM",
-    idDocument: "pending_verification",
-    status: "pending",
-  },
-  {
-    id: "req-004",
-    applicantName: "Marco Villaruz",
-    initials: "MV",
-    avatarColor: "avatar-emerald",
-    email: "m.villaruz@zamboangadelnorte.gov.ph",
-    requestedRole: "Staff — Records officer",
-    submitted: "Jul 10, 9:15 AM",
-    idDocument: "verified",
-    status: "approved",
-  },
-  {
-    id: "req-005",
-    applicantName: "Grace Uy",
-    initials: "GU",
-    avatarColor: "avatar-violet",
-    email: "grace.uy@yahoo.com",
-    requestedRole: "Citizen access",
-    submitted: "Jul 8, 2:30 PM",
-    idDocument: "pending_verification",
-    status: "declined",
-  },
-];
+const API_BASE_URL = 'http://localhost:5000/api/users';
+
+function formatSubmitted(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function toAccountRequestItem(payload: any): AccountRequestItem {
+  const fullName = payload.applicantName || `${payload.first_name || ''} ${payload.last_name || ''}`.trim();
+  const initials = (fullName || payload.email || 'U')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part: string) => part[0])
+    .join('')
+    .toUpperCase() || 'U';
+
+  return {
+    id: payload.id,
+    applicantName: fullName || payload.username || payload.email,
+    initials,
+    avatarColor: ['avatar-rose', 'avatar-amber', 'avatar-sky', 'avatar-emerald', 'avatar-violet'][Math.abs((payload.id || '').length) % 5],
+    email: payload.email,
+    requestedRole: payload.requestedRole || 'Office Staff',
+    submitted: formatSubmitted(payload.submitted || payload.created_at || new Date().toISOString()),
+    status: payload.status === 'approved' ? 'approved' : payload.status === 'declined' ? 'declined' : 'pending',
+  };
+}
 
 const TABS: { key: RequestStatus; label: string }[] = [
   { key: "pending", label: "Pending" },
@@ -82,30 +57,40 @@ const TABS: { key: RequestStatus; label: string }[] = [
   { key: "declined", label: "Declined" },
 ];
 
-function IdDocBadge({ status }: { status: IdDocStatus }) {
-  if (status === "verified") {
-    return (
-      <span className="account-request-badge verified">Verified</span>
-    );
-  }
-  return (
-    <span className="account-request-badge pending">Pending verification</span>
-  );
-}
-
 interface AccountRequestProps {
   user?: {
     firstName?: string;
     lastName?: string;
+    email?: string;
     role?: string;
   };
 }
 
 export default function AccountRequest({ user }: AccountRequestProps) {
   const [activeTab, setActiveTab] = useState<RequestStatus>("pending");
-  const [query] = useState("");
-  const [requests, setRequests] = useState<AccountRequestItem[]>(MOCK_REQUESTS);
-  const safeUser = user ?? { firstName: "Admin", lastName: "User", role: "SUPER_ADMIN" };
+  const [query, setQuery] = useState("");
+  const [requests, setRequests] = useState<AccountRequestItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const safeUser = user ?? { firstName: "Admin", lastName: "User", email: "provincialassessor@gmail.com", role: "SUPER_ADMIN" };
+
+  const loadRequests = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE_URL}/account-requests`);
+      if (!res.ok) throw new Error('Unable to load account requests.');
+      const data = await res.json();
+      const nextRequests = (data.requests || []).map(toAccountRequestItem);
+      setRequests(nextRequests);
+    } catch {
+      setRequests([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRequests();
+  }, []);
 
   const counts = useMemo(
     () => ({
@@ -130,45 +115,90 @@ export default function AccountRequest({ user }: AccountRequestProps) {
       });
   }, [requests, activeTab, query]);
 
-  function handleDecision(id: string, decision: "approved" | "declined") {
-    // TODO: replace with actual API call once endpoint is confirmed
-    // e.g. await api.patch(`/account-requests/${id}`, { status: decision })
-    setRequests((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: decision } : r))
-    );
+  async function handleDecision(id: string, decision: "approved" | "declined") {
+    try {
+      const normalizedDecision = decision === 'declined' ? 'rejected' : decision;
+      const res = await fetch(`${API_BASE_URL}/account-requests/${id}/decision`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision: normalizedDecision, reason: decision === 'approved' ? 'Approved by super admin.' : 'Rejected by super admin.' }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Unable to complete the decision.');
+      }
+
+      await loadRequests();
+    } catch {
+      setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status: decision } : r)));
+    }
   }
 
   return (
     <div className="account-request-page">
-      {/* Dedicated header for this view */}
-      <header className="account-request-header">
-        <div className="account-request-header-row">
+      <div className="staff-page-header">
+        <div className="staff-page-header-row">
           <div>
-            <h1 className="account-request-title">Account requests</h1>
-            <p className="account-request-subtitle">
-              Approve or decline new registrations before they can access the
-              system.
+            <h1 className="staff-page-title">Account Requests</h1>
+            <p className="staff-page-subtitle">
+              Review new registrations and decide who can access the system.
             </p>
           </div>
 
-           <div className="account-request-user-chip">
-            <div className="account-request-user-avatar">
+          <div className="admin-profile-widget">
+            <div className="profile-widget-avatar-container">
               {(safeUser.firstName?.[0] ?? 'A')}{(safeUser.lastName?.[0] ?? 'U')}
             </div>
-            <div>
-              <p className="account-request-user-name">{safeUser.firstName} {safeUser.lastName}</p>
-              <p className="account-request-user-role">
-                {safeUser.role === 'SUPER_ADMIN' ? 'Super admin' : safeUser.role === 'OFFICE_STAFF' ? 'Office Staff' : 'Admin'}
-              </p>
+            <div className="profile-widget-info">
+              <span className="profile-widget-name">{`${safeUser.firstName || 'Admin'} ${safeUser.lastName || 'User'}`}</span>
+              <span className="profile-widget-email">{safeUser.email || 'provincialassessor@gmail.com'}</span>
+              <div className="profile-widget-meta">
+                <span className="profile-widget-role">
+                  {safeUser.role === 'SUPER_ADMIN' ? 'Super Admin' : safeUser.role === 'OFFICE_STAFF' ? 'Office Staff' : safeUser.role || 'Admin'}
+                </span>
+                <span>Last Login : Today • 8:12 AM</span>
+              </div>
             </div>
           </div>
         </div>
-      </header>
 
-      {/* Content */}
+        <div className="admin-search-bar">
+          <input
+            type="text"
+            className="admin-search-input"
+            placeholder="Search applicants"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <span className="admin-search-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </span>
+        </div>
+      </div>
+
       <div className="account-request-content">
-        <div className="account-request-card">
-          {/* Tabs */}
+        <div className="admin-card staff-accounts-card account-request-card">
+          <div className="staff-accounts-header-row account-request-card-header">
+            <div className="staff-accounts-title-group">
+              <h2 className="admin-card-title">Account Requests</h2>
+              {!loading && <span className="active-count-pill">{counts.pending} Pending</span>}
+            </div>
+
+            <div className="account-request-card-actions">
+              <button
+                onClick={() => loadRequests()}
+                className="staff-manage-btn"
+                disabled={loading}
+              >
+                ↻ Refresh
+              </button>
+            </div>
+          </div>
+
           <div className="account-request-tabs">
             {TABS.map((tab) => (
               <button
@@ -196,12 +226,18 @@ export default function AccountRequest({ user }: AccountRequestProps) {
                 <th>Email</th>
                 <th>Requested role</th>
                 <th>Submitted</th>
-                <th>ID document</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && (
+              {loading && (
+                <tr>
+                  <td colSpan={6} className="account-request-empty-row">
+                    Loading requests...
+                  </td>
+                </tr>
+              )}
+              {!loading && filtered.length === 0 && (
                 <tr>
                   <td colSpan={6} className="account-request-empty-row">
                     No {activeTab} requests to show.
@@ -225,9 +261,6 @@ export default function AccountRequest({ user }: AccountRequestProps) {
                   <td className="account-request-cell-muted">{r.email}</td>
                   <td>{r.requestedRole}</td>
                   <td className="account-request-cell-muted">{r.submitted}</td>
-                  <td>
-                    <IdDocBadge status={r.idDocument} />
-                  </td>
                   <td>
                     {r.status === "pending" ? (
                       <div className="account-request-actions">

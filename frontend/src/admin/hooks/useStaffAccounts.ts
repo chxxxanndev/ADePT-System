@@ -8,6 +8,7 @@ import {
 export interface StaffRow {
     id: string;
     name: string;
+    username: string;
     role: string;
     email: string;
     status: 'active' | 'inactive' | 'pending';
@@ -40,6 +41,7 @@ function mapToRow(member: StaffMember): StaffRow {
      return {
         id:             member.id,
         name:           `${member.first_name} ${member.last_name}`,
+        username:       member.username || '—',
         role:           toRoleLabel(member.roles?.code),
         email:          member.email,
         status:         statusMap[member.account_status] ?? 'inactive',
@@ -97,6 +99,7 @@ export function useStaffAccounts() {
         return (
             !q ||
             member.name.toLowerCase().includes(q) ||
+            member.username.toLowerCase().includes(q) ||
             member.email.toLowerCase().includes(q) ||
             member.role.toLowerCase().includes(q)
         );

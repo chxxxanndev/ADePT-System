@@ -15,17 +15,18 @@ interface VoidAmendRecord {
   actionType: ActionType;
   detail: string; // reason for void, or description of what changed for amended
   actionedBy: string;
-  date: string; // 'Today', 'Yesterday', or explicit date label
-  time: string; // '9:10 AM'
+  actionedAt: string; // ISO date-time string, e.g. "2026-07-20T09:10:00"
 }
 
 type ActionFilter = "All actions" | "Void" | "Amended";
-type TimeRange = "Today" | "This Week" | "This Month" | "All Time";
+type TimeRange = "Today" | "Yesterday" | "This Week" | "This Month" | "All Time";
 
 /* ------------------------------------------------------------------ */
 /*  Mock data — inlined here for now.                                  */
 /*  TODO: replace with real data from a useVoidAndAmend hook / API     */
 /*  once a backend endpoint exists (e.g. GET /api/void-amend?range=…). */
+/*  actionedAt is a real ISO timestamp so the table can show an actual */
+/*  calendar date instead of relative labels like "Today"/"Yesterday". */
 /* ------------------------------------------------------------------ */
 const records: VoidAmendRecord[] = [
   {
@@ -36,8 +37,7 @@ const records: VoidAmendRecord[] = [
     actionType: "void",
     detail: "Duplicate filing under the same reference period",
     actionedBy: "Vicente Desoy",
-    date: "Today",
-    time: "9:10 AM",
+    actionedAt: "2026-07-20T09:10:00",
   },
   {
     id: "va-002",
@@ -47,8 +47,7 @@ const records: VoidAmendRecord[] = [
     actionType: "amended",
     detail: "Corrected property boundary description",
     actionedBy: "John Cruz",
-    date: "Today",
-    time: "8:45 AM",
+    actionedAt: "2026-07-20T08:45:00",
   },
   {
     id: "va-003",
@@ -58,8 +57,7 @@ const records: VoidAmendRecord[] = [
     actionType: "void",
     detail: "Declarant withdrew request before release",
     actionedBy: "Maria Lopez",
-    date: "Yesterday",
-    time: "4:30 PM",
+    actionedAt: "2026-07-19T16:30:00",
   },
   {
     id: "va-004",
@@ -69,8 +67,7 @@ const records: VoidAmendRecord[] = [
     actionType: "amended",
     detail: "Updated declarant civil status on record",
     actionedBy: "Dennis Cruz",
-    date: "Yesterday",
-    time: "2:05 PM",
+    actionedAt: "2026-07-19T14:05:00",
   },
   {
     id: "va-005",
@@ -80,8 +77,7 @@ const records: VoidAmendRecord[] = [
     actionType: "void",
     detail: "Incorrect declarant name entered at encoding",
     actionedBy: "Ana Marquez",
-    date: "Yesterday",
-    time: "11:20 AM",
+    actionedAt: "2026-07-19T11:20:00",
   },
   {
     id: "va-006",
@@ -91,8 +87,7 @@ const records: VoidAmendRecord[] = [
     actionType: "amended",
     detail: "Corrected total assessed land area",
     actionedBy: "Vicente Desoy",
-    date: "This Week",
-    time: "3:15 PM",
+    actionedAt: "2026-07-16T15:15:00",
   },
   {
     id: "va-007",
@@ -102,8 +97,7 @@ const records: VoidAmendRecord[] = [
     actionType: "void",
     detail: "Payment reversed, request cancelled",
     actionedBy: "Maria Lopez",
-    date: "This Week",
-    time: "10:02 AM",
+    actionedAt: "2026-07-15T10:02:00",
   },
   {
     id: "va-008",
@@ -113,8 +107,27 @@ const records: VoidAmendRecord[] = [
     actionType: "amended",
     detail: "Updated property location details",
     actionedBy: "John Cruz",
-    date: "This Week",
-    time: "9:40 AM",
+    actionedAt: "2026-07-14T09:40:00",
+  },
+  {
+    id: "va-009",
+    reference: "TD-2026-07023",
+    declarantName: "Priya Shah",
+    documentType: "Tax Declaration",
+    actionType: "void",
+    detail: "Assessment period expired before payment",
+    actionedBy: "Ana Marquez",
+    actionedAt: "2026-06-28T13:50:00",
+  },
+  {
+    id: "va-010",
+    reference: "LH-2026-03390",
+    declarantName: "Miguel Santos",
+    documentType: "Certificate of Land Holding",
+    actionType: "amended",
+    detail: "Updated declarant contact information",
+    actionedBy: "Dennis Cruz",
+    actionedAt: "2026-06-10T10:35:00",
   },
 ];
 
@@ -123,6 +136,73 @@ const ACTION_FILTER_TO_TYPE: Record<ActionFilter, ActionType | null> = {
   Void: "void",
   Amended: "amended",
 };
+
+/* ------------------------------------------------------------------ */
+/*  Date helpers                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Formats an ISO date-time string into a real, readable calendar date
+ * and time, e.g. "20 Jul 2026, 9:10 AM" — instead of a relative label.
+ */
+function formatDateTime(isoString: string): string {
+  const date = new Date(isoString);
+  const datePart = date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  const timePart = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${datePart}, ${timePart}`;
+}
+
+/**
+ * TODO: once wired to a real backend, "now" should just be `new Date()`.
+ * It's pulled out as a constant here so the mock data above (dated around
+ * mid-to-late July 2026) falls into predictable Today/Yesterday/This Week
+ * buckets for demo purposes.
+ */
+const NOW = new Date("2026-07-20T12:00:00");
+
+function isSameCalendarDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function matchesTimeRange(isoString: string, range: TimeRange): boolean {
+  if (range === "All Time") return true;
+
+  const actionedDate = new Date(isoString);
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const dayDiff = Math.floor(
+    (new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate()).getTime() -
+      new Date(actionedDate.getFullYear(), actionedDate.getMonth(), actionedDate.getDate()).getTime()) /
+      msPerDay
+  );
+
+  switch (range) {
+    case "Today":
+      return isSameCalendarDay(actionedDate, NOW);
+    case "Yesterday":
+      return dayDiff === 1;
+    case "This Week":
+      return dayDiff >= 0 && dayDiff <= 6;
+    case "This Month":
+      return (
+        actionedDate.getFullYear() === NOW.getFullYear() &&
+        actionedDate.getMonth() === NOW.getMonth()
+      );
+    default:
+      return true;
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /*  Small building blocks                                             */
@@ -137,28 +217,6 @@ function ActionBadge({ actionType }: { actionType: ActionType }) {
   );
 }
 
-function VoidAmendRow({ record }: { record: VoidAmendRecord }) {
-  const isVoid = record.actionType === "void";
-  return (
-    <div className="va-row">
-      <ActionBadge actionType={record.actionType} />
-      <div className="va-row-body">
-        <p className="va-row-title">
-          <span className="va-row-reference">{record.reference}</span> — {record.declarantName},{" "}
-          {record.documentType}
-        </p>
-        <p className="va-row-detail">
-          {isVoid ? "Reason: " : "Change: "}
-          {record.detail}
-        </p>
-        <p className="va-row-meta">
-          Actioned by {record.actionedBy} · {record.date}, {record.time}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /*  Page component                                                    */
 /* ------------------------------------------------------------------ */
@@ -169,17 +227,19 @@ export default function VoidAndAmend() {
 
   const filteredRecords = useMemo(() => {
     const typeFilter = ACTION_FILTER_TO_TYPE[actionFilter];
-    return records.filter((record) => {
-      const matchesType = typeFilter === null || record.actionType === typeFilter;
-      const matchesSearch =
-        search.trim() === "" ||
-        record.reference.toLowerCase().includes(search.toLowerCase()) ||
-        record.declarantName.toLowerCase().includes(search.toLowerCase()) ||
-        record.documentType.toLowerCase().includes(search.toLowerCase()) ||
-        record.detail.toLowerCase().includes(search.toLowerCase());
-      const matchesTimeRange = timeRange === "All Time" || record.date === timeRange;
-      return matchesType && matchesSearch && matchesTimeRange;
-    });
+    return records
+      .filter((record) => {
+        const matchesType = typeFilter === null || record.actionType === typeFilter;
+        const matchesSearch =
+          search.trim() === "" ||
+          record.reference.toLowerCase().includes(search.toLowerCase()) ||
+          record.declarantName.toLowerCase().includes(search.toLowerCase()) ||
+          record.documentType.toLowerCase().includes(search.toLowerCase()) ||
+          record.detail.toLowerCase().includes(search.toLowerCase());
+        const matchesTime = matchesTimeRange(record.actionedAt, timeRange);
+        return matchesType && matchesSearch && matchesTime;
+      })
+      .sort((a, b) => new Date(b.actionedAt).getTime() - new Date(a.actionedAt).getTime());
   }, [search, actionFilter, timeRange]);
 
   return (
@@ -228,24 +288,53 @@ export default function VoidAndAmend() {
               <option>Today</option>
               <option>Yesterday</option>
               <option>This Week</option>
+              <option>This Month</option>
             </select>
             <ChevronDown size={14} className="va-select-chevron" />
           </div>
         </div>
 
-        {/* Records list */}
+        {/* Table */}
         <div className="va-card">
-          <div className="va-row-list">
-            {filteredRecords.map((record) => (
-              <VoidAmendRow key={record.id} record={record} />
-            ))}
-            {filteredRecords.length === 0 && (
-              <div className="va-empty">No records match your search or filter.</div>
-            )}
+          <div className="va-table-scroll">
+            <table className="va-table">
+              <thead>
+                <tr>
+                  <th>Reference No.</th>
+                  <th>Declarant</th>
+                  <th>Document Type</th>
+                  <th>Action</th>
+                  <th>Reason / Change</th>
+                  <th>Actioned By</th>
+                  <th>Date &amp; Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRecords.map((record, idx) => (
+                  <tr key={record.id} className={idx % 2 !== 0 ? "va-row-alt" : ""}>
+                    <td className="va-cell-reference">#{record.reference}</td>
+                    <td className="va-cell-name">{record.declarantName}</td>
+                    <td className="va-cell-muted">{record.documentType}</td>
+                    <td>
+                      <ActionBadge actionType={record.actionType} />
+                    </td>
+                    <td className="va-cell-muted">{record.detail}</td>
+                    <td className="va-cell-muted">{record.actionedBy}</td>
+                    <td className="va-cell-muted va-cell-nowrap">
+                      {formatDateTime(record.actionedAt)}
+                    </td>
+                  </tr>
+                ))}
+                {filteredRecords.length === 0 && (
+                  <tr className="va-empty-row">
+                    <td colSpan={7}>No records match your search or filter.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
     </div>
   );
 }
-// single default export already provided above

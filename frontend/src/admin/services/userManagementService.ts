@@ -23,6 +23,29 @@ export async function fetchAllStaff(): Promise<StaffMember[]> {
     const data = await res.json();
     return data.staff as StaffMember[];
 }
+
+export interface CreateStaffPayload {
+    firstName: string;
+    lastName: string;
+    email: string;
+    username: string;
+    password: string;
+    roleCode?: string;
+}
+
+export async function createStaffAccount(payload: CreateStaffPayload): Promise<StaffMember> {
+    const res = await fetch(`${API_BASE_URL}/staff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Failed to create staff account (${res.status})`);
+    }
+    const data = await res.json();
+    return data.staff as StaffMember;
+}
 /**
  * Toggles a staff member's account status.
  * @param staffId  The staff row UUID.
