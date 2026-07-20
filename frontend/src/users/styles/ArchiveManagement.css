@@ -1,6 +1,6 @@
 /* ==================================================================
    ArchiveManagement.css
-   Styles for src/admin/pages/ArchiveManagement.tsx
+   Styles for src/users/pages/ArchiveManagement.tsx
    Palette source: ADePT Official Design System
    ================================================================== */
 
@@ -20,10 +20,13 @@
   --color-archived-bg: #eceff1;
   --color-truecopy: #1976d2;
   --color-truecopy-bg: #e3f2fd;
+  --color-general: #7c6fe8;
+  --color-general-bg: #ede9fd;
 
   --glass-border: rgba(255, 255, 255, 0.35);
   --input-focus-border: #00bcd4;
   --row-divider: rgba(41, 35, 122, 0.06);
+  --row-alt-bg: rgba(41, 35, 122, 0.015);
   --table-header-bg: rgba(41, 35, 122, 0.05);
   --card-shadow: rgba(41, 35, 122, 0.06);
 
@@ -35,7 +38,7 @@
 }
 
 .arc-container {
-  max-width: 1024px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 32px 24px;
   display: flex;
@@ -87,7 +90,7 @@
 .arc-search-field {
   position: relative;
   flex: 1;
-  min-width: 220px;
+  min-width: 240px;
 }
 
 .arc-search-icon {
@@ -145,77 +148,80 @@
   pointer-events: none;
 }
 
-/* ---------- Records card ---------- */
+/* ---------- Table card ---------- */
 
 .arc-card {
   background-color: #ffffff;
   border: 1px solid var(--glass-border);
   border-radius: 16px;
-  padding: 8px 24px;
+  overflow: hidden;
   box-shadow: 0 1px 3px var(--card-shadow);
 }
 
-.arc-row-list {
-  display: flex;
-  flex-direction: column;
+.arc-table-scroll {
+  overflow-x: auto;
 }
 
-.arc-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 0;
+.arc-table {
+  width: 100%;
+  font-size: 14px;
+  border-collapse: collapse;
+}
+
+.arc-table thead tr {
+  background-color: var(--table-header-bg);
+}
+
+.arc-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--color-muted);
+  padding: 12px 16px;
+  white-space: nowrap;
+}
+
+.arc-table th:first-child,
+.arc-table td:first-child {
+  padding-left: 24px;
+}
+
+.arc-table th:last-child,
+.arc-table td:last-child {
+  padding-right: 24px;
+}
+
+.arc-table tbody tr {
   border-top: 1px solid var(--row-divider);
 }
 
-.arc-row:first-child {
-  border-top: none;
+.arc-table tbody tr.arc-row-alt {
+  background-color: var(--row-alt-bg);
 }
 
-.arc-row-body {
-  flex: 1;
-  min-width: 0;
+.arc-table td {
+  padding: 12px 16px;
+  vertical-align: middle;
 }
 
-.arc-row-top {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.arc-row-reference {
-  font-size: 14px;
+.arc-cell-reference {
   font-weight: 600;
   color: var(--color-secondary);
+  white-space: nowrap;
 }
 
-.arc-row-name {
-  font-size: 14px;
+.arc-cell-name {
   font-weight: 500;
   color: var(--color-text);
-  margin: 0 0 3px;
 }
 
-.arc-row-reason {
-  font-size: 13px;
+.arc-cell-muted {
   color: var(--color-muted);
-  margin: 0;
-  line-height: 1.4;
 }
 
-.arc-row-meta {
-  font-size: 12px;
-  color: var(--color-muted-light);
-  margin: 4px 0 0;
-}
-
-.arc-empty {
-  padding: 40px 0;
+.arc-empty-row td {
+  padding: 40px 24px;
   text-align: center;
   color: var(--color-muted-light);
-  font-size: 14px;
 }
 
 /* ---------- Document type tag ---------- */
@@ -223,9 +229,9 @@
 .arc-tag {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 9999px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -246,36 +252,9 @@
   background-color: var(--color-truecopy-bg);
   color: var(--color-truecopy);
 }
-
-/* ---------- Original status badge ---------- */
-
-.arc-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: 9999px;
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.arc-badge-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 9999px;
-  background-color: currentColor;
-  flex-shrink: 0;
-}
-
-.arc-badge--released {
-  background-color: var(--color-success-bg);
-  color: var(--color-success);
-}
-
-.arc-badge--voided {
-  background-color: var(--color-error-bg);
-  color: var(--color-error);
+.arc-tag--general {
+  background-color: var(--color-general-bg);
+  color: var(--color-general);
 }
 
 /* ---------- Restore button ---------- */
@@ -284,7 +263,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 7px 14px;
   border-radius: 9999px;
   font-size: 13px;
   font-weight: 500;
@@ -292,7 +271,7 @@
   border: 1px solid var(--color-secondary);
   color: var(--color-secondary);
   cursor: pointer;
-  flex-shrink: 0;
+  white-space: nowrap;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 

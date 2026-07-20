@@ -1,6 +1,6 @@
 /* ==================================================================
    VoidAndAmend.css
-   Styles for src/admin/pages/VoidAndAmend.tsx
+   Styles for src/users/pages/VoidAndAmend.tsx
    Palette source: ADePT Official Design System
    ================================================================== */
 
@@ -21,6 +21,8 @@
   --glass-border: rgba(255, 255, 255, 0.35);
   --input-focus-border: #00bcd4;
   --row-divider: rgba(41, 35, 122, 0.06);
+  --row-alt-bg: rgba(41, 35, 122, 0.015);
+  --table-header-bg: rgba(41, 35, 122, 0.05);
   --card-shadow: rgba(41, 35, 122, 0.06);
 
   min-height: 100vh;
@@ -31,7 +33,7 @@
 }
 
 .va-container {
-  max-width: 1024px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 32px 24px;
   display: flex;
@@ -129,68 +131,85 @@
   pointer-events: none;
 }
 
-/* ---------- Records card ---------- */
+/* ---------- Table card ---------- */
 
 .va-card {
   background-color: #ffffff;
   border: 1px solid var(--glass-border);
   border-radius: 16px;
-  padding: 8px 24px;
+  overflow: hidden;
   box-shadow: 0 1px 3px var(--card-shadow);
 }
 
-.va-row-list {
-  display: flex;
-  flex-direction: column;
+.va-table-scroll {
+  overflow-x: auto;
 }
 
-.va-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 16px 0;
+.va-table {
+  width: 100%;
+  font-size: 14px;
+  border-collapse: collapse;
+}
+
+.va-table thead tr {
+  background-color: var(--table-header-bg);
+}
+
+.va-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--color-muted);
+  padding: 12px 16px;
+  white-space: nowrap;
+}
+
+.va-table th:first-child,
+.va-table td:first-child {
+  padding-left: 24px;
+}
+
+.va-table th:last-child,
+.va-table td:last-child {
+  padding-right: 24px;
+}
+
+.va-table tbody tr {
   border-top: 1px solid var(--row-divider);
 }
 
-.va-row:first-child {
-  border-top: none;
+.va-table tbody tr.va-row-alt {
+  background-color: var(--row-alt-bg);
 }
 
-.va-row-body {
-  flex: 1;
-  min-width: 0;
+.va-table td {
+  padding: 12px 16px;
+  vertical-align: middle;
 }
 
-.va-row-title {
-  font-size: 14px;
-  color: var(--color-text);
-  margin: 0;
-  line-height: 1.4;
-}
-
-.va-row-reference {
+.va-cell-reference {
   font-weight: 600;
   color: var(--color-secondary);
+  white-space: nowrap;
 }
 
-.va-row-detail {
-  font-size: 13px;
+.va-cell-name {
+  font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.va-cell-muted {
   color: var(--color-muted);
-  margin: 3px 0 0;
-  line-height: 1.4;
 }
 
-.va-row-meta {
-  font-size: 12px;
-  color: var(--color-muted-light);
-  margin: 4px 0 0;
+.va-cell-nowrap {
+  white-space: nowrap;
 }
 
-.va-empty {
-  padding: 40px 0;
+.va-empty-row td {
+  padding: 40px 24px;
   text-align: center;
   color: var(--color-muted-light);
-  font-size: 14px;
 }
 
 /* ---------- Action badge ---------- */
@@ -204,8 +223,6 @@
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
-  flex-shrink: 0;
-  margin-top: 1px;
 }
 
 .va-badge--void {
