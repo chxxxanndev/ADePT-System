@@ -246,7 +246,6 @@
 .nav-item:active,
 .sidebar-toggle-btn:active,
 .sidebar-logout:active {
-    background-color: #ffffff;
     color: var(--db-primary);
 }
 
