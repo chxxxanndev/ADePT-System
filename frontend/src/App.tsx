@@ -14,7 +14,7 @@ function App() {
   const [view, setView] = useState<View>('login');
   const [prefilledUsername, setPrefilledUsername] = useState('');
 
-  const { currentUser, backendHealthy, loading, login, signUp, forgotPassword, logout } = useAuth();
+  const { currentUser, backendHealthy, loading, login, updateCurrentUser, reactivateAccount, signUp, forgotPassword, logout } = useAuth();
 
   const handleSignupSuccess = (username: string) => {
     setPrefilledUsername(username);
@@ -34,7 +34,7 @@ function App() {
         {isAdmin ? (
           <AdminDashboard user={currentUser} onLogout={logout} />
         ) : (
-          <Dashboard user={currentUser} backendHealthy={backendHealthy} onLogout={logout} />
+          <Dashboard user={currentUser} backendHealthy={backendHealthy} onLogout={logout} onUserUpdate={updateCurrentUser} />
         )}
       </CartProvider>
     );
@@ -52,6 +52,7 @@ function App() {
               active={view === 'login'}
               loading={loading}
               onLogin={login}
+              onReactivate={reactivateAccount}
               navigateTo={navigateTo}
               initialUsername={prefilledUsername}
             />

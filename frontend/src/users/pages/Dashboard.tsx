@@ -24,6 +24,7 @@ import { QuickActions } from '../components/QuickActions';
 import type { User } from '../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../types/taxDeclaration';
 import type { AccountUser, AccountSettingsFormData } from '../types/accountSettings';
+import { accountService } from '../services/accountService';
 import type { PendingPaymentRequest } from '../types/PendingPayment';
 import { TransactionRegistry } from './TransactionRegistry';
 import { TransactionSummary } from './request-processing/TransactionSummary';
@@ -63,10 +64,11 @@ const VIEW_LABELS: Record<string, string> = {
 interface DashboardProps {
     user: User;
     onLogout: () => void;
+    onUserUpdate: (patch: Partial<User>) => void;
     backendHealthy?: boolean | null;
 }
 
-export function Dashboard({ user, onLogout }: DashboardProps) {
+export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     const [activeView, setActiveView] = useState<string>(
         () => sessionStorage.getItem('adept-active-view') || 'dashboard'
     );
@@ -184,11 +186,40 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
 
     const accountUser: AccountUser = { id: user.id, fullName: fullName.trim(), username: user.username || user.email?.split('@')[0] || '', email: user.email || '', role: user.role || 'Staff', avatarUrl: (user as any).avatarUrl, lastPasswordChange: (user as any).lastPasswordChange };
-    const handleAccountSave = async (data: AccountSettingsFormData) => { console.log('TODO', data); };
-    const handleUpdateEmail = () => { console.log('TODO'); };
-    const handleChangePassword = () => { console.log('TODO'); };
-    const handleChangePhoto = () => { console.log('TODO'); };
-    const handleDisableAccount = async (disabled: boolean) => { console.log('TODO', disabled); };
+
+    const handleAccountSave = async (data: AccountSettingsFormData) => {
+        const result = await accountService.updateProfile(data.fullName, data.username);
+        onUserUpdate({
+            firstName: result.data.first_name,
+            lastName: result.data.last_name,
+            username: result.data.username,
+        });
+    };
+
+    const handleUpdateEmail = async (newEmail: string) => {
+        await accountService.updateEmail(newEmail);
+        onUserUpdate({ email: newEmail });
+    };
+
+    const handleChangePassword = async (currentPassword: string, newPassword: string) => {
+        await accountService.changePassword(currentPassword, newPassword);
+    };
+
+    const handleChangePhoto = async (file: File): Promise<string> => {
+        const avatarUrl = await accountService.uploadPhoto(file);
+        onUserUpdate({ avatarUrl } as Partial<User>);
+        return avatarUrl;
+    };
+
+    const handleDisableAccount = async (disabled: boolean) => {
+        await accountService.setAccountStatus(disabled);
+        if (disabled) {
+            // Their session is still technically valid (we don't ban at the Auth
+            // level), but from a UX standpoint they should be logged out now —
+            // next login will trigger the reactivation prompt if within 7 days.
+            onLogout();
+        }
+    };
 
     return (
         <div className="dashboard-page">

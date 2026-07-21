@@ -48,10 +48,12 @@ export function useAuth() {
         checkHealth();
     }, []);
 
+    // ── In useAuth.ts, replace the `login` function with this, and add `reactivateAccount` ──
+
     const login = async (
         username: string,
         password: string
-    ): Promise<{ success: boolean; message: string }> => {
+    ): Promise<{ success: boolean; message: string; reactivatable?: boolean; daysRemaining?: number }> => {
         setLoading(true);
         try {
             if (backendHealthy) {
@@ -61,6 +63,18 @@ export function useAuth() {
                     body: JSON.stringify({ username, password }),
                 });
                 const data = await res.json();
+
+                if (data.reactivatable) {
+                    // Correct credentials, but the account was disabled within the
+                    // last 7 days. Let the LoginForm show the confirmation prompt.
+                    return {
+                        success: false,
+                        reactivatable: true,
+                        daysRemaining: data.daysRemaining,
+                        message: data.message,
+                    };
+                }
+
                 if (res.ok) {
                     localStorage.setItem('adept_token', data.token);
                     localStorage.setItem('adept_user', JSON.stringify(data.user));
@@ -69,6 +83,7 @@ export function useAuth() {
                 }
                 return { success: false, message: data.error || 'Invalid credentials.' };
             } else {
+                // ...unchanged mock-mode branch stays as-is
                 return await new Promise((resolve) => {
                     setTimeout(() => {
                         const userIndex = mockDb.findIndex(
@@ -95,6 +110,43 @@ export function useAuth() {
                     }, 600);
                 });
             }
+        } catch {
+            return { success: false, message: 'Network error. Failed to reach auth server.' };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const updateCurrentUser = (patch: Partial<User>) => {
+        setCurrentUser((prev) => {
+            if (!prev) return prev;
+            const updated = { ...prev, ...patch };
+            localStorage.setItem('adept_user', JSON.stringify(updated));
+            return updated;
+        });
+    };
+
+    // New: called after the user confirms the "log in again?" prompt.
+    const reactivateAccount = async (
+        username: string,
+        password: string
+    ): Promise<{ success: boolean; message: string }> => {
+        setLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/auth/reactivate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                localStorage.setItem('adept_token', data.token);
+                localStorage.setItem('adept_user', JSON.stringify(data.user));
+                setCurrentUser(data.user);
+                return { success: true, message: data.message || 'Account reactivated.' };
+            }
+            return { success: false, message: data.error || 'Failed to reactivate account.' };
         } catch {
             return { success: false, message: 'Network error. Failed to reach auth server.' };
         } finally {
@@ -145,32 +197,32 @@ export function useAuth() {
     };
 
     const forgotPassword = async (email: string): Promise<{ success: boolean; message: string }> => {
-    setLoading(true);
-    try {
-        if (backendHealthy) {
-            const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email }),
-            });
-            const data = await res.json();
-            return { success: data.success, message: data.message };
-        } else {
-            return await new Promise((resolve) => {
-                setTimeout(() => {
-                    resolve({
-                        success: true,
-                        message: 'Password reset instructions have been sent (Standalone Demo Mode).',
-                    });
-                }, 800);
-            });
+        setLoading(true);
+        try {
+            if (backendHealthy) {
+                const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                });
+                const data = await res.json();
+                return { success: data.success, message: data.message };
+            } else {
+                return await new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve({
+                            success: true,
+                            message: 'Password reset instructions have been sent (Standalone Demo Mode).',
+                        });
+                    }, 800);
+                });
+            }
+        } catch {
+            return { success: false, message: 'Network error. Failed to reach auth server.' };
+        } finally {
+            setLoading(false);
         }
-    } catch {
-        return { success: false, message: 'Network error. Failed to reach auth server.' };
-    } finally {
-        setLoading(false);
-    }
-};
+    };
     const logout = () => {
         localStorage.removeItem('adept_user');
         localStorage.removeItem('adept_token');
@@ -179,9 +231,11 @@ export function useAuth() {
 
     return {
         currentUser,
+        updateCurrentUser,
         backendHealthy,
         loading,
         login,
+        reactivateAccount,
         signUp,
         forgotPassword,
         logout,

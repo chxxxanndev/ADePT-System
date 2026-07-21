@@ -33,7 +33,31 @@ export const login = async (req, res) => {
     const result = await AuthService.loginUser({ username, password });
     res.status(200).json({ message: 'Login successful.', ...result });
   } catch (error) {
+    // Special case: correct credentials, but the account is disabled and
+    // still within the 7-day reactivation window. Not a hard failure —
+    // the frontend uses this to show the "log in again?" confirmation.
+    if (error.reactivatable) {
+      return res.status(200).json({
+        reactivatable: true,
+        daysRemaining: error.daysRemaining,
+        message: error.message,
+      });
+    }
     res.status(401).json({ error: error.message });
+  }
+};
+
+export const reactivate = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required.' });
+    }
+
+    const result = await AuthService.reactivateAccount({ username, password });
+    res.status(200).json({ message: 'Account reactivated. Welcome back!', ...result });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 };
 

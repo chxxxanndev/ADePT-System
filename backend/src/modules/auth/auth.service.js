@@ -1,115 +1,161 @@
-import { supabase } from '../../config/supabase.js';  
+import { supabase } from '../../config/supabase.js';
+
+const REACTIVATION_WINDOW_DAYS = 7;
 
 class AuthService {
-  // src/services/auth.service.js
-
-async registerUser({ firstName, lastName, email, username, password }) {
-  // 1. Create the user in Supabase Auth (This handles the password)
-  
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { 
-        first_name: firstName, 
-        last_name: lastName, 
-        display_username: username 
+  async registerUser({ firstName, lastName, email, username, password }) {
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { first_name: firstName, last_name: lastName, display_username: username }
       }
-    }
-  });
+    });
+    if (authError) throw authError;
 
-  if (authError) throw authError;
+    const { data: roleData } = await supabase
+      .from('roles').select('id').eq('code', 'OFFICE_STAFF').single();
 
-  // 2. Get the Role ID for 'OFFICE_STAFF'
-  const { data: roleData } = await supabase
-    .from('roles')
-    .select('id')
-    .eq('code', 'OFFICE_STAFF')
-    .single();
+    const { error: staffError } = await supabase
+      .from('staff')
+      .insert([{
+        auth_user_id: authData.user.id,
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        username: username,
+        role_id: roleData.id,
+        account_status: 'PENDING_APPROVAL'
+      }]);
+    if (staffError) throw staffError;
 
-  // 3. Create the record in our new 'staff' table
-  const { error: staffError } = await supabase
-    .from('staff')
-    .insert([{
-      auth_user_id: authData.user.id,
-      first_name: firstName,
-      last_name: lastName,
-      email: email,
-      username: username, // Matching the UI
-      role_id: roleData.id,
-      account_status: 'PENDING_APPROVAL'
-    }]);
+    return { message: "Registration successful! Data is now in Supabase.", user: { email, firstName, username } };
+  }
 
-  if (staffError) throw staffError;
-
-  return {
-    message: "Registration successful! Data is now in Supabase.",
-    user: { email, firstName, username }
-  };
-}
-
-// src/services/auth.service.js
-
-async loginUser({ username, password }) {
+  async loginUser({ username, password }) {
     let email = username;
 
     if (!username.includes('@')) {
-        const { data: profile } = await supabase
-            .from('staff')
-            .select('email')
-            .ilike('username', username)
-            .single();
-        
-        if (profile) email = profile.email;
-        else throw new Error("Username not found.");
+      const { data: profile } = await supabase.from('staff').select('email').ilike('username', username).single();
+      if (profile) email = profile.email;
+      else throw new Error("Username not found.");
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
-    // 1. UPDATED THIS LINE: Added first_name, last_name, and username to the select
     const { data: staffMember, error: staffError } = await supabase
-        .from('staff')
-        .select('first_name, last_name, username, account_status, roles(code)')
-        .eq('auth_user_id', data.user.id)
-        .single();
+      .from('staff')
+      .select('first_name, last_name, username, account_status, disabled_at, roles(code)')
+      .eq('auth_user_id', data.user.id)
+      .single();
 
-    if (staffError || !staffMember) throw new Error("Staff profile not found.");
-
-    if (staffMember.account_status !== 'ACTIVE') {
-        await supabase.auth.signOut();
-        throw new Error(`Access Denied. Your account is ${staffMember.account_status.replace('_', ' ')}.`);
+    if (staffError || !staffMember) {
+      await supabase.auth.signOut();
+      throw new Error("Staff profile not found.");
     }
 
-    // 2. UPDATED THIS RETURN: Map the database fields to the names your frontend expects
+    if (staffMember.account_status === 'DISABLED') {
+      await supabase.auth.signOut();
+
+      const disabledAt = staffMember.disabled_at ? new Date(staffMember.disabled_at) : null;
+      const daysSinceDisabled = disabledAt ? (Date.now() - disabledAt.getTime()) / (1000 * 60 * 60 * 24) : Infinity;
+
+      if (daysSinceDisabled <= REACTIVATION_WINDOW_DAYS) {
+        const daysRemaining = Math.max(0, Math.ceil(REACTIVATION_WINDOW_DAYS - daysSinceDisabled));
+        const err = new Error('Account is disabled but eligible for reactivation.');
+        err.reactivatable = true;
+        err.daysRemaining = daysRemaining;
+        throw err;
+      }
+
+      throw new Error('Access Denied. Your account was disabled more than 7 days ago. Please contact an administrator.');
+    }
+
+    if (staffMember.account_status !== 'ACTIVE') {
+      await supabase.auth.signOut();
+      throw new Error(`Access Denied. Your account is ${staffMember.account_status.replace('_', ' ')}.`);
+    }
+
     return {
-        token: data.session?.access_token,
-        user: {
-            id: data.user.id,
-            email: data.user.email,
-            firstName: staffMember.first_name, // Map first_name -> firstName
-            lastName: staffMember.last_name,   // Map last_name -> lastName
-            username: staffMember.username,
-            role: staffMember.roles?.code,
-            status: staffMember.account_status
-        }
+      token: data.session?.access_token,
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        firstName: staffMember.first_name,
+        lastName: staffMember.last_name,
+        username: staffMember.username,
+        role: staffMember.roles?.code,
+        status: staffMember.account_status
+      }
     };
-}
+  }
 
-async forgotPassword(email) {
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: 'http://localhost:5173/reset-password'
-  });
+  async reactivateAccount({ username, password }) {
+    let email = username;
 
-  if (error) {
-  console.error('Forgot password error:', error.message);
-  throw error;
-}
+    if (!username.includes('@')) {
+      const { data: profile } = await supabase.from('staff').select('email').ilike('username', username).single();
+      if (profile) email = profile.email;
+      else throw new Error("Username not found.");
+    }
 
-  return {
-    message: "If an account with that email exists, password reset instructions have been sent."
-  };
-}
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+
+    const { data: staffMember, error: staffError } = await supabase
+      .from('staff')
+      .select('first_name, last_name, username, account_status, disabled_at, roles(code)')
+      .eq('auth_user_id', data.user.id)
+      .single();
+
+    if (staffError || !staffMember) {
+      await supabase.auth.signOut();
+      throw new Error("Staff profile not found.");
+    }
+
+    if (staffMember.account_status !== 'DISABLED') {
+      throw new Error('This account is not currently disabled.');
+    }
+
+    const disabledAt = staffMember.disabled_at ? new Date(staffMember.disabled_at) : null;
+    const daysSinceDisabled = disabledAt ? (Date.now() - disabledAt.getTime()) / (1000 * 60 * 60 * 24) : Infinity;
+
+    if (daysSinceDisabled > REACTIVATION_WINDOW_DAYS) {
+      await supabase.auth.signOut();
+      throw new Error('The 7-day reactivation window has expired. Please contact an administrator.');
+    }
+
+    const { error: updateError } = await supabase
+      .from('staff')
+      .update({ account_status: 'ACTIVE', disabled_at: null, disabled_by: null, disable_reason: null })
+      .eq('auth_user_id', data.user.id);
+    if (updateError) throw updateError;
+
+    return {
+      token: data.session?.access_token,
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        firstName: staffMember.first_name,
+        lastName: staffMember.last_name,
+        username: staffMember.username,
+        role: staffMember.roles?.code,
+        status: 'ACTIVE'
+      }
+    };
+  }
+
+  async forgotPassword(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'http://localhost:5173/reset-password'
+    });
+    if (error) {
+      console.error('Forgot password error:', error.message);
+      throw error;
+    }
+    return { message: "If an account with that email exists, password reset instructions have been sent." };
+  }
 }
 
 export default new AuthService();

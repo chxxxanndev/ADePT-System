@@ -6,19 +6,32 @@ import { LockDisclaimer } from './components/LockDisclaimer';
 import sealImg from './assets/seal.png';
 import logoImg from './assets/logo.png';
 
+interface LoginResult {
+    success: boolean;
+    message: string;
+    reactivatable?: boolean;
+    daysRemaining?: number;
+}
+
 interface LoginFormProps {
     active: boolean;
     loading: boolean;
-    onLogin: (username: string, password: string) => Promise<{ success: boolean; message: string }>;
+    onLogin: (username: string, password: string) => Promise<LoginResult>;
+    onReactivate: (username: string, password: string) => Promise<{ success: boolean; message: string }>;
     navigateTo: (view: View) => void;
     initialUsername?: string;
 }
 
-export function LoginForm({ active, loading, onLogin, navigateTo, initialUsername }: LoginFormProps) {
+export function LoginForm({ active, loading, onLogin, onReactivate, navigateTo, initialUsername }: LoginFormProps) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+    // Reactivation confirmation prompt
+    const [showReactivatePrompt, setShowReactivatePrompt] = useState(false);
+    const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
+    const [reactivating, setReactivating] = useState(false);
 
     useEffect(() => {
         if (initialUsername) setUsername(initialUsername);
@@ -34,11 +47,39 @@ export function LoginForm({ active, loading, onLogin, navigateTo, initialUsernam
         setSuccessMsg(null);
 
         const result = await onLogin(username, password);
+
+        if (result.reactivatable) {
+            setDaysRemaining(result.daysRemaining ?? null);
+            setShowReactivatePrompt(true);
+            return;
+        }
+
         if (result.success) {
             setSuccessMsg(result.message);
         } else {
             setErrorMsg(result.message);
         }
+    };
+
+    const handleConfirmReactivate = async () => {
+        setReactivating(true);
+        try {
+            const result = await onReactivate(username, password);
+            if (result.success) {
+                setSuccessMsg(result.message);
+                setShowReactivatePrompt(false);
+            } else {
+                setErrorMsg(result.message);
+                setShowReactivatePrompt(false);
+            }
+        } finally {
+            setReactivating(false);
+        }
+    };
+
+    const handleCancelReactivate = () => {
+        setShowReactivatePrompt(false);
+        setErrorMsg('Sign-in cancelled. Your account remains disabled.');
     };
 
     return (
@@ -94,6 +135,39 @@ export function LoginForm({ active, loading, onLogin, navigateTo, initialUsernam
             </form>
 
             <LockDisclaimer />
+
+            {showReactivatePrompt && (
+                <div className="as-modal-overlay" onClick={handleCancelReactivate}>
+                    <div
+                        className="as-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="reactivate-modal-title"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="as-modal-header">
+                            <h3 id="reactivate-modal-title">Account Disabled</h3>
+                        </div>
+
+                        <div className="as-modal-body">
+                            <p>
+                                This account was disabled
+                                {daysRemaining !== null && ` (${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left to reactivate)`}.
+                                {' '}Are you sure you want to log in again? Doing so will cancel the account disable.
+                            </p>
+                        </div>
+
+                        <div className="as-modal-actions">
+                            <button type="button" className="as-btn as-btn-discard" onClick={handleCancelReactivate} disabled={reactivating}>
+                                Cancel
+                            </button>
+                            <button type="button" className="as-btn as-btn-save" onClick={handleConfirmReactivate} disabled={reactivating}>
+                                {reactivating ? 'Reactivating…' : 'Yes, Log In'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
