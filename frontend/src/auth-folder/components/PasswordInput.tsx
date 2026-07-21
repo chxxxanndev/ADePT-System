@@ -24,7 +24,7 @@ export function PasswordInput({
     return (
         <div className="input-wrapper">
             <input
-                type={show ? 'text' : 'password'}
+                type={show ? 'text' : 'password'} 
                 id={id}
                 className="form-input"
                 placeholder={placeholder || '••••••••••••••••'}

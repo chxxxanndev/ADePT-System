@@ -39,12 +39,12 @@ class AccountService {
 
         const { error: uploadError } = await supabaseAdmin.storage
             .from(AVATAR_BUCKET)
-            .upload(path, file.buffer, { contentType: file.mimetype, upsert: true });
+            .upload(path, file.buffer, { contentType: file.mimetype, upsert: true, cacheControl: '3600' });
 
         if (uploadError) throw new Error(uploadError.message);
 
         const { data: publicUrlData } = supabaseAdmin.storage.from(AVATAR_BUCKET).getPublicUrl(path);
-        const avatarUrl = publicUrlData.publicUrl;
+        const avatarUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
 
         const { error: dbError } = await supabaseAdmin
             .from('staff')

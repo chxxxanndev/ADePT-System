@@ -1,4 +1,5 @@
 import { supabase } from '../../config/supabase.js';
+import { supabaseAdmin } from '../../config/supabaseAdmin.js';
 
 const REACTIVATION_WINDOW_DAYS = 7;
 
@@ -46,7 +47,7 @@ class AuthService {
 
     const { data: staffMember, error: staffError } = await supabase
       .from('staff')
-      .select('first_name, last_name, username, account_status, disabled_at, roles(code)')
+      .select('first_name, last_name, username, account_status, disabled_at, avatar_url, roles(code)')
       .eq('auth_user_id', data.user.id)
       .single();
 
@@ -86,7 +87,8 @@ class AuthService {
         lastName: staffMember.last_name,
         username: staffMember.username,
         role: staffMember.roles?.code,
-        status: staffMember.account_status
+        status: staffMember.account_status,
+        avatarUrl: staffMember.avatar_url,
       }
     };
   }
@@ -105,7 +107,7 @@ class AuthService {
 
     const { data: staffMember, error: staffError } = await supabase
       .from('staff')
-      .select('first_name, last_name, username, account_status, disabled_at, roles(code)')
+      .select('first_name, last_name, username, account_status, disabled_at, avatar_url, roles(code)')
       .eq('auth_user_id', data.user.id)
       .single();
 
@@ -126,11 +128,17 @@ class AuthService {
       throw new Error('The 7-day reactivation window has expired. Please contact an administrator.');
     }
 
-    const { error: updateError } = await supabase
+    const { data: reactivated, error: updateError } = await supabaseAdmin
       .from('staff')
       .update({ account_status: 'ACTIVE', disabled_at: null, disabled_by: null, disable_reason: null })
-      .eq('auth_user_id', data.user.id);
+      .eq('auth_user_id', data.user.id)
+      .select('account_status')
+      .maybeSingle();
+
     if (updateError) throw updateError;
+    if (!reactivated || reactivated.account_status !== 'ACTIVE') {
+      throw new Error('Reactivation did not apply — no matching staff record was updated.');
+    }
 
     return {
       token: data.session?.access_token,
@@ -141,7 +149,8 @@ class AuthService {
         lastName: staffMember.last_name,
         username: staffMember.username,
         role: staffMember.roles?.code,
-        status: 'ACTIVE'
+        status: reactivated.account_status,
+        avatarUrl: staffMember.avatar_url,
       }
     };
   }

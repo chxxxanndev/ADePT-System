@@ -212,14 +212,19 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     };
 
     const handleDisableAccount = async (disabled: boolean) => {
+    try {
         await accountService.setAccountStatus(disabled);
+        
         if (disabled) {
-            // Their session is still technically valid (we don't ban at the Auth
-            // level), but from a UX standpoint they should be logged out now —
-            // next login will trigger the reactivation prompt if within 7 days.
-            onLogout();
+            setTimeout(() => {
+                onLogout();
+            }, 500);
         }
-    };
+    } catch (err) {
+        console.error("Failed to update account status", err);
+        throw err; // Re-throw so AccountSettings knows the API failed
+    }
+};
 
     return (
         <div className="dashboard-page">

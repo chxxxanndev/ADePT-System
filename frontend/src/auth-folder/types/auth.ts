@@ -6,6 +6,7 @@ export interface User {
     lastName: string;
     role?: string;       // Added this (optional)
     status?: string;
+    avatarUrl?: string;
 }
 
 export interface MockUser {
