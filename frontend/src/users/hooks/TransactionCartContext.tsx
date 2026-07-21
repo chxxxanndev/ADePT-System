@@ -2,7 +2,8 @@ import { createContext, useContext, useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 
 export interface CartItem {
-    id: string;
+    id: string;              // CHANGE: This will now be the actual DB requestId
+    referenceNumber: string; // ADDED: Track the specific reference number
     documentType: string;
     fee: number;
 }

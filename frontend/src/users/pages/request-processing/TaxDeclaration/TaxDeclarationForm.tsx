@@ -128,10 +128,12 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
         try {
             await taxDeclarationService.save(form, entryData.requestId, user.id);
 
+            // Replace the old addItem logic:
             if (action !== 'draft') {
                 addItem({
-                    id: Math.random().toString(),
-                    documentType: 'Tax Declaration',
+                    id: entryData.requestId,                  // FIX: Use real DB ID instead of Math.random()
+                    referenceNumber: entryData.referenceNumber, // FIX: Pass the ref number
+                    documentType: 'Tax Declaration', // (Change string based on the form)
                     fee: 40.00
                 });
             }

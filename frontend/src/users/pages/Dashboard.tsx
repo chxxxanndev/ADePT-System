@@ -148,6 +148,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
     const handleAddAnother = () => {
         if (completedEntryData) {
+            // Copy the client data, but strip away the IDs so it creates a NEW database row
             setPrefilledRequestData({
                 declarantName: completedEntryData.declarantName,
                 requestedByName: completedEntryData.requestedByName,
@@ -155,10 +156,15 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                 purposeId: completedEntryData.purposeId,
                 authRequired: completedEntryData.authRequired,
                 actionTaken: completedEntryData.actionTaken || 'PENDING',
-                referenceNumber: `REF-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+                propertyLocation: completedEntryData.propertyLocation, // FIX: Keep property location!
+
+                // Explicitly clear IDs and selections
+                id: undefined,
+                requestId: undefined,
                 documentTypeIds: [],
-                propertyLocation: '',
+                referenceNumber: `REF-${new Date().getFullYear()}-XXXX`, // Let the entry form auto-generate the correct prefix
             });
+            // Clear completed data and go back to entry
             setCompletedEntryData(null);
             setActiveView('new-request');
         }
@@ -256,7 +262,8 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                         completedEntryData ? (
                             <TransactionSummary
                                 entryData={completedEntryData}
-                                onBackToForms={() => setActiveView('new-request')}
+                                // CRUCIAL FIX: Use handleAddAnother so it remembers the client name!
+                                onBackToForms={handleAddAnother}
                                 onProceedToQueue={() => setActiveView('pending-payment')}
                             />
                         ) : (<RequestGuard attemptedView="Transaction Summary" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)

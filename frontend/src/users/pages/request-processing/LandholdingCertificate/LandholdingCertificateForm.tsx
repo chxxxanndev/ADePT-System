@@ -80,10 +80,12 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
                 action: action === 'draft' ? 'draft' : 'send_to_payment',
             }, user.id);
 
+            // Replace the old addItem logic:
             if (action !== 'draft') {
                 addItem({
-                    id: Math.random().toString(),
-                    documentType: 'Certificate of Landholding',
+                    id: entryData.requestId,                  // FIX: Use real DB ID instead of Math.random()
+                    referenceNumber: entryData.referenceNumber, // FIX: Pass the ref number
+                    documentType: 'Certificate of Landholding', // (Change string based on the form)
                     fee: 40.00
                 });
             }

@@ -114,9 +114,15 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     useEffect(() => {
         if (prefilledRequestData) {
             setFormData((prev) => ({
-                ...prev, ...prefilledRequestData,
-                id: prefilledRequestData.id || prefilledRequestData.requestId || prev.id,
-                referenceNumber: prefilledRequestData.referenceNumber || prefilledRequestData.control_number || prev.referenceNumber,
+                ...prev,
+                ...prefilledRequestData,
+
+                // CRUCIAL: Remove "|| prev.id". If parent sets it to undefined, force it to be undefined!
+                id: prefilledRequestData.id || prefilledRequestData.requestId || undefined,
+
+                // CRUCIAL: Remove "|| prev.referenceNumber". 
+                referenceNumber: prefilledRequestData.referenceNumber || prefilledRequestData.control_number || `REF-${new Date().getFullYear()}-0000`,
+
                 declarantName: prefilledRequestData.declarantName || prefilledRequestData.declarant_name || '',
                 requestedByName: prefilledRequestData.requestedByName || prefilledRequestData.requested_by_name || '',
                 requestDate: prefilledRequestData.requestDate || prefilledRequestData.request_date || new Date().toISOString().split('T')[0],
