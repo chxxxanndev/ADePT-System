@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { View } from './auth-folder/types/auth';
 import { useAuth } from './users/hooks/useAuth';
-import { AuthBanner } from './users/components/AuthBanner';
+import { AuthBanner } from './auth-folder/components/AuthBanner';
 import { LoginForm } from './auth-folder/LoginForm';
 import { SignupForm } from './auth-folder/SignupForm';
 import { ForgotPasswordForm } from './auth-folder/ForgotPasswordForm';
@@ -22,10 +22,10 @@ function App() {
 
   const navigateTo = (newView: View) => setView(newView);
   useEffect(() => {
-  if (window.location.pathname === '/reset-password') {
-    setView('resetPassword');
-  }
-}, []);
+    if (window.location.pathname === '/reset-password') {
+      setView('resetPassword');
+    }
+  }, []);
   // 2. WRAP THE LOGGED-IN RETURNS
   if (currentUser) {
     const isAdmin = currentUser.role === 'SUPER_ADMIN';

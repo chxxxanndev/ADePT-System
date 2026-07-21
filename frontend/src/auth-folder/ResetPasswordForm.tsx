@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { View } from './types/auth';
+import { PasswordInput } from './components/PasswordInput';
 import { AlertBanner } from './components/AlertBanner';
 import { LockDisclaimer } from './components/LockDisclaimer';
 import { supabase } from './services/supabaseClient';
@@ -81,13 +82,11 @@ export function ResetPasswordForm({ active, navigateTo }: ResetPasswordFormProps
             <form className="auth-form" onSubmit={handleSubmit}>
                 <div className="form-group">
                     <label className="form-label" htmlFor="newPassword">New Password</label>
-                    <input
-                        type="password"
+                    <PasswordInput
                         id="newPassword"
-                        className="form-input"
-                        placeholder="Enter new password"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={setPassword}
+                        placeholder="Enter new password"
                         disabled={!sessionReady}
                         autoComplete="new-password"
                         required
@@ -96,13 +95,11 @@ export function ResetPasswordForm({ active, navigateTo }: ResetPasswordFormProps
 
                 <div className="form-group">
                     <label className="form-label" htmlFor="confirmPassword">Confirm Password</label>
-                    <input
-                        type="password"
+                    <PasswordInput
                         id="confirmPassword"
-                        className="form-input"
-                        placeholder="Re-enter new password"
                         value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        onChange={setConfirmPassword}
+                        placeholder="Re-enter new password"
                         disabled={!sessionReady}
                         autoComplete="new-password"
                         required

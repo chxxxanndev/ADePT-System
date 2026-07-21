@@ -1,13 +1,5 @@
 
-import type {
-    StatCardData,
-    TransactionRow,
-    WeeklyTrendPoint,
-    DocumentDistributionSlice,
-    QuickActionItem,
-    NavSection,
-    UserProfile,
-} from '../types/dashboard';
+import type { StatCardData, TransactionRow, WeeklyTrendPoint, DocumentDistributionSlice, QuickActionItem, NavSection, UserProfile, } from '../types/dashboard';
 
 export const currentUser: UserProfile = {
     name: 'Vicente Deosy',
@@ -56,7 +48,7 @@ export const recentTransactions: TransactionRow[] = [
 
 export const quickActions: QuickActionItem[] = [
     { id: 'qa-new', title: 'New Request', description: 'Start a new document request', icon: 'newRequest', view: 'new-request' },
-    { id: 'qa-pending', title: 'Pending Processing', description: 'Continue requests awaiting completion', icon: 'pending', view: 'request-processing' },
+    { id: 'qa-pending', title: 'Pending Payment', description: 'Continue requests awaiting completion', icon: 'pending', view: 'pending-payment' },
     { id: 'qa-search', title: 'Search Transactions', description: 'Locate existing records', icon: 'search', view: 'transaction-registry' },
     { id: 'qa-archive', title: 'Archive Management', description: 'Restore archived requests', icon: 'archive', view: 'archive-management' },
     { id: 'qa-reports', title: 'Reports & Analytics', description: 'Generate reports and summaries', icon: 'reports', view: 'reports' },

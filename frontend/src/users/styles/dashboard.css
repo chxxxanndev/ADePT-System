@@ -258,7 +258,6 @@
 .nav-item:active,
 .sidebar-toggle-btn:active,
 .sidebar-logout:active {
-    background-color: #ffffff;
     color: var(--db-primary);
 }
 
@@ -317,8 +316,8 @@
     gap: 10px;
     width: calc(100% - 28px);
     margin: 0 14px 16px;
-    padding: 14px 10px 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 10px 8px 16px;
+    border-radius: 7px;
     background: none;
     border: none;
     color: rgba(255, 255, 255, 0.85);
@@ -332,6 +331,7 @@
 
 .sidebar-logout:hover {
     color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.08);
 }
 
 /* --- COLLAPSED STATE LOGIC --- */
