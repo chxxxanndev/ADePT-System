@@ -66,7 +66,9 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
                     id: entryData.requestId,                  // FIX: Use real DB ID instead of Math.random()
                     referenceNumber: entryData.referenceNumber, // FIX: Pass the ref number
                     documentType: 'Certificate of No Landholding', // (Change string based on the form)
-                    fee: 40.00
+                    fee: 40.00,
+                    declarantName: entryData.declarantName,
+                    requestedByName: entryData.requestedByName,
                 });
             }
 

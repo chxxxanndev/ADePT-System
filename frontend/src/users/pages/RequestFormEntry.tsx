@@ -339,9 +339,8 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                     <div className="form-reuse-notice">
                         <div className="form-reuse-notice-icon">💡</div>
                         <div className="form-reuse-notice-text">
-                            <strong>Active Client Session.</strong> Client details are saved for this transaction.
-                            You can generate multiple document types for {formData.declarantName || 'this client'}
-                            by clicking "Save & Add Another" on the next screen.
+                            <strong>Active Session (Requested by: {formData.requestedByName || 'Client'}):</strong> Common details are saved to speed up typing.
+                            You can add multiple documents for <strong>different declarants</strong> under this same transaction by clicking <strong>"Save & Add Another"</strong> or <strong>"Add Another Document"</strong> on the next screens.
                         </div>
                     </div>
 

@@ -6,6 +6,8 @@ export interface CartItem {
     referenceNumber: string; // ADDED: Track the specific reference number
     documentType: string;
     fee: number;
+    declarantName: string;
+    requestedByName: string;
 }
 
 interface CartContextType {

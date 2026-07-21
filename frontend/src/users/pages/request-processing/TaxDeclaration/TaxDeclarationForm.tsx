@@ -134,7 +134,9 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
                     id: entryData.requestId,                  // FIX: Use real DB ID instead of Math.random()
                     referenceNumber: entryData.referenceNumber, // FIX: Pass the ref number
                     documentType: 'Tax Declaration', // (Change string based on the form)
-                    fee: 40.00
+                    fee: 40.00,
+                    declarantName: entryData.declarantName,
+                    requestedByName: entryData.requestedByName,
                 });
             }
 
