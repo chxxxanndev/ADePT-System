@@ -1,93 +1,342 @@
+/* ==========================================================================
+   Payment Verification Page Styles (PaymentDetails.css)
+   ========================================================================== */
+
 .pd-page {
-    background-color: #FFFCF9;
-    min-height: 100%;
-    padding: 8px 4px 32px;
-    display: flex;
-    justify-content: center;
-}
-
-.pd-card {
     width: 100%;
-    max-width: 520px;
-    background-color: #FFFFFF;
-    border: 1px solid #E3E0FA;
-    border-radius: 16px;
-    padding: 28px 32px 32px;
-    box-shadow: 0 6px 20px rgba(43, 42, 110, 0.06);
-    height: fit-content;
-}
-
-.pd-back-btn {
-    border: none;
-    background: none;
-    color: #2B2A6E;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 0 0 20px;
-    cursor: pointer;
-}
-
-.pd-back-btn:hover {
-    text-decoration: underline;
-}
-
-.pd-title {
-    margin: 0 0 20px;
-    font-size: 22px;
-    font-weight: 800;
-    color: #16161F;
-}
-
-.pd-list {
-    margin: 0 0 24px;
-}
-
-.pd-row {
+    max-width: 1100px;
+    margin: 0 auto;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     gap: 16px;
-    padding: 12px 0;
-    border-bottom: 1px solid #EEECFB;
+    min-width: 0;
 }
 
-.pd-row dt {
-    font-size: 13px;
-    color: #6B6875;
+.pd-panel {
+    background-color: var(--db-glass-card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: var(--db-radius-lg);
+    box-shadow: var(--db-shadow-card);
+    overflow: hidden;
 }
 
-.pd-row dd {
-    margin: 0;
-    font-size: 13.5px;
-    font-weight: 600;
-    color: #16161F;
-    text-align: right;
+/* --- Header Banner with Back Button --- */
+.pd-header-banner {
+    background: linear-gradient(135deg, var(--db-primary) 0%, #3b3498 100%);
+    padding: 24px 32px;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 18px;
 }
 
-.pd-row--total {
-    border-bottom: none;
-    padding-top: 16px;
-}
-
-.pd-row--total dt,
-.pd-row--total dd {
-    font-size: 16px;
-    font-weight: 800;
-    color: #2B2A6E;
-}
-
-.pd-pay-btn {
-    width: 100%;
-    padding: 14px;
-    border: none;
-    border-radius: 10px;
-    background-color: #2B2A6E;
-    color: #FFFFFF;
-    font-size: 14px;
-    font-weight: 700;
+.pd-header-back-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    font-size: 18px;
+    font-weight: bold;
+    transition: background 0.2s ease, transform 0.1s ease;
+    flex-shrink: 0;
 }
 
-.pd-pay-btn:hover {
-    background-color: #232265;
+.pd-header-back-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(-2px);
+}
+
+.pd-header-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.pd-header-title {
+    margin: 0 0 3px;
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.pd-header-subtitle {
+    opacity: 0.85;
+    font-size: 0.85rem;
+}
+
+.pd-body {
+    padding: 32px;
+}
+
+/* --- Split Layout Grid --- */
+.pd-split-layout {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 32px;
+    align-items: start;
+}
+
+/* --- Feedback Banners --- */
+.pd-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 13px 16px;
+    border-radius: var(--db-radius-sm);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 24px;
+}
+
+.pd-banner--error {
+    background-color: var(--db-badge-red-bg);
+    color: var(--db-badge-red-text);
+}
+
+.pd-banner--success {
+    background-color: var(--db-badge-green-bg);
+    color: var(--db-badge-green-text);
+}
+
+/* --- Left Column: Documents Table --- */
+.pd-section-label {
+    font-size: 0.82rem;
+    color: var(--db-primary);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 16px;
+}
+
+.pd-doc-table-wrap {
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: var(--db-radius-md);
+    overflow: hidden;
+}
+
+.pd-doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.pd-doc-table thead {
+    background-color: var(--db-table-header);
+}
+
+.pd-doc-table th {
+    padding: 12px 16px;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--db-primary);
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.pd-doc-table td {
+    padding: 14px 16px;
+    font-size: 0.85rem;
+    border-top: 1px solid var(--db-glass-border-alt);
+    vertical-align: middle;
+}
+
+.pd-doc-ref {
+    font-weight: 700;
+    font-family: 'SFMono-Regular', 'Courier New', monospace;
+    color: var(--db-primary);
+}
+
+.pd-doc-declarant {
+    font-weight: 600;
+    color: var(--db-slate);
+}
+
+.pd-doc-type {
+    color: var(--db-text-muted);
+}
+
+.pd-doc-fee {
+    font-weight: 700;
+    color: var(--db-success);
+    text-align: right;
+    white-space: nowrap;
+}
+
+.pd-total-row {
+    text-align: right;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 2px dashed var(--db-glass-border-alt);
+}
+
+.pd-total-label {
+    font-size: 0.78rem;
+    color: var(--db-text-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.pd-total-value {
+    font-size: 1.8rem;
+    color: var(--db-primary);
+    font-weight: 900;
+}
+
+/* --- Right Column: Receipt Form Card --- */
+.pd-receipt-card {
+    background-color: rgba(41, 35, 122, 0.03);
+    padding: 28px;
+    border-radius: var(--db-radius-lg);
+    border: 1px solid var(--db-glass-border-alt);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.pd-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pd-field-label {
+    font-weight: 700;
+    color: var(--db-slate);
+    font-size: 13px;
+}
+
+.pd-field-input,
+.pd-field-select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px solid var(--db-glass-border-alt);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    background-color: #ffffff;
+    color: var(--db-slate);
+    font-family: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+}
+
+.pd-field-input:focus,
+.pd-field-select:focus {
+    outline: none;
+    border-color: var(--db-primary);
+    box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.15);
+}
+
+.pd-field-input.pd-field-invalid {
+    border-color: var(--db-error);
+}
+
+.pd-field-input:disabled,
+.pd-field-select:disabled {
+    background-color: #f1f5f9;
+    color: var(--db-text-muted);
+    cursor: not-allowed;
+}
+
+.pd-field-error {
+    display: block;
+    color: var(--db-error);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* --- Form Actions --- */
+.pd-actions-row {
+    margin-top: 10px;
+}
+
+.pd-verified-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.pd-btn {
+    border: none;
+    padding: 14px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 800;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.18s ease;
+    width: 100%;
+}
+
+.pd-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.pd-btn--verify {
+    background-color: var(--db-primary);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(41, 35, 122, 0.2);
+}
+
+.pd-btn--verify:hover:not(:disabled) {
+    background-color: var(--db-primary-hover);
+}
+
+.pd-btn--print {
+    background-color: var(--db-success);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.25);
+}
+
+.pd-btn--print:hover:not(:disabled) {
+    background-color: #3d8b40;
+}
+
+.pd-btn--edit-verify {
+    background: transparent;
+    border: 1px solid var(--db-glass-border-alt);
+    color: var(--db-text-muted);
+}
+
+.pd-btn--edit-verify:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+    color: var(--db-primary);
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 880px) {
+    .pd-split-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .pd-header-banner {
+        padding: 20px;
+    }
+
+    .pd-body {
+        padding: 20px;
+    }
+
+    .pd-doc-table {
+        min-width: 500px;
+    }
+
+    .pd-doc-table-wrap {
+        overflow-x: auto;
+    }
 }
