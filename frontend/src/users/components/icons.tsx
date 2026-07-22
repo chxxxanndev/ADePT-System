@@ -1,5 +1,3 @@
-// Lightweight inline SVG icon set for the dashboard.
-// Kept dependency-free (no lucide-react requirement) so these drop into any React project as-is.
 
 interface IconProps {
     size?: number;
@@ -220,6 +218,20 @@ export function ShieldIcon({ size = 14 }: { size?: number }) {
                 d="M12 3L19 6V11C19 15.5 16 18.8 12 20C8 18.8 5 15.5 5 11V6L12 3Z"
                 stroke="currentColor"
                 strokeWidth="1.7"
+                strokeLinejoin="round"
+            />
+        </svg>
+    );
+}
+
+export function CloseIcon({ size = 18 }: { size?: number }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+                d="M18 6L6 18M6 6L18 18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
                 strokeLinejoin="round"
             />
         </svg>
