@@ -38,7 +38,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [formSuccess, setFormSuccess] = useState<string | null>(null);
-    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'pending'>('all');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
     const activeCount = staff.filter((s) => s.status === 'active').length;
 
@@ -126,13 +126,12 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                             <span>Filter</span>
                             <select
                                 value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive' | 'pending')}
+                                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
                                 style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', background: '#ffffff', color: '#0f172a', padding: '6px 10px' }}
                             >
                                 <option value="all">All</option>
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
-                                <option value="pending">Pending</option>
                             </select>
                         </label>
                         {/* Refresh button */}
@@ -238,9 +237,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                 disabled={updatingId === member.id || member.status === 'pending'}
                                                 onClick={() => toggleStatus(member.id)}
                                                 title={
-                                                    member.status === 'pending'
-                                                        ? 'Approve account via Account Requests first'
-                                                        : member.status === 'active'
+                                                    member.status === 'active'
                                                         ? 'Deactivate this staff member'
                                                         : 'Reactivate this staff member'
                                                 }

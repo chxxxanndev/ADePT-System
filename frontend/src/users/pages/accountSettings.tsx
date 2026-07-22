@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import type { AccountUser, AccountSettingsFormData } from '../types/accountSettings';
-import { CameraIcon, EditPencilIcon, ShieldIcon } from '../components/icons';
+import { CameraIcon, ShieldIcon,CloseIcon } from '../components/icons';
 import { PasswordInput } from '../../auth-folder/components/PasswordInput';
 import '../styles/accountSettings.css';
 
@@ -17,12 +17,6 @@ function getInitials(fullName: string): string {
     return fullName.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('');
 }
 
-const CloseIcon = () => (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-);
-
 export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword, onChangePhoto, onDisableAccount }: AccountSettingsProps) {
     // --- 1. STAGED PROFILE STATE (Requires Save Changes button) ---
     const [form, setForm] = useState({ fullName: user.fullName, username: user.username });
@@ -35,7 +29,7 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
     const [emailDraft, setEmailDraft] = useState(user.email);
     const [isEditingEmail, setIsEditingEmail] = useState(false);
     const [emailSubmitting, setEmailSubmitting] = useState(false);
-    const [accountDisabled, setAccountDisabled] = useState(user.status === 'disabled');
+    const [accountDisabled, setAccountDisabled] = useState(user.status === 'DISABLED'); 
     const [togglingStatus, setTogglingStatus] = useState(false);
 
     // --- 3. MODAL & UI STATES ---
