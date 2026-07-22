@@ -1,12 +1,9 @@
 import { useState } from 'react';
+import { pdf } from '@react-pdf/renderer'; 
 import { requestService } from '../services/requestService';
+import { taxDeclarationService } from '../services/taxDeclarationService'; 
+import { TaxDeclarationPDF } from '../components/templates/TaxDeclarationPDF'; 
 import '../styles/PaymentDetails.css';
-
-// ==========================================
-// 1. IMPORT YOUR TEAMMATE'S PDF UTILITY HERE
-// ==========================================
-// Example:
-// import { generateOfficialDocumentPDF } from '../templates/pdfGenerator';
 
 interface PaymentDetailsProps {
     payment: any | null;
@@ -39,18 +36,10 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
     const documents = payment.documents || [];
     const currency = (n: number) => `\u20B1 ${n.toFixed(2)}`;
 
-    // Format date nicely for the template, i uncomment ra if ma integrate na ang pdf templates
-    // const today = new Date();
-    // const formattedDate = today.toLocaleDateString('en-US', {
-    //     month: 'long',
-    //     day: 'numeric',
-    //     year: 'numeric'
-    // });
-
     const handleVerify = () => {
         const errors: { orNumber?: string; signatory?: string } = {};
-        if (!orNumber.trim()) errors.orNumber = 'Enter the O.R. number printed on the Treasurer receipt.';
-        if (!signatory) errors.signatory = 'Select the authorized signatory for verification.';
+        if (!orNumber.trim()) errors.orNumber = 'Enter the Treasurer O.R. number.';
+        if (!signatory) errors.signatory = 'Select an authorized signatory.';
         setFieldErrors(errors);
 
         if (Object.keys(errors).length > 0) {
@@ -61,42 +50,77 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
         setIsVerified(true);
     };
 
-    // ==========================================
-    // 2. CONNECT AND TRIGGER THE PDF GENERATION
-    // ==========================================
+    /**
+     * MAIN PDF GENERATION LOGIC
+     * 1. Updates database status
+     * 2. Fetches "True Results" (Hydration) for Tax Declarations
+     * 3. Programmatically generates and downloads PDFs
+     */
     const handleGeneratePDF = async () => {
         setIsSaving(true);
         setBanner(null);
+        
         try {
-            // A. Update database: Mark status as Paid/Verified with O.R. Info
+            // A. Update database: Mark all documents as Released
             await Promise.all(documents.map((doc: any) =>
                 requestService.releaseRequest(doc.id, { orNumber, signatory })
             ));
 
-            setBanner({ type: 'success', text: `Verification saved. Generating document PDF...` });
+            setBanner({ type: 'success', text: `Saving verification... Generating ${documents.length} document(s).` });
 
-            // B. Call teammate's template function to generate and download/print the PDF
-            // Pass all form values directly to their generator
-            /* 
-            await generateOfficialDocumentPDF({
-                requesterName,
-                orNumber,
-                signatory,
-                totalAmount,
-                documents,
-                verificationDate: formattedDate
-            });
-            */
+            // B. Sequential PDF Generation Loop
+            for (const doc of documents) {
+                let finalData = doc;
+                
+                // HYDRATION: If it's a Tax Dec, we need boundaries/rows from the database
+                if (doc.documentType.toLowerCase().includes('tax declaration')) {
+                    try {
+                        const trueRecord = await taxDeclarationService.getTaxDeclaration(doc.id);
+                        if (trueRecord) finalData = trueRecord;
+                    } catch (fetchErr) {
+                        console.error(`Could not hydrate document ${doc.referenceNumber}`, fetchErr);
+                        // Falls back to summary data if hydration fails
+                    }
+                }
 
-            // Temporary native feedback until your teammate's import is fully uncommented:
-            console.log("PDF generated with data:", { orNumber, signatory, requesterName, documents });
+                // 1. Create the React-PDF instance
+                const docInstance = (
+                    <TaxDeclarationPDF 
+                        data={finalData} 
+                        orNumber={orNumber} 
+                        signatory={signatory} 
+                    />
+                );
 
+                // 2. Generate the Blob (in-browser)
+                const blob = await pdf(docInstance).toBlob();
+                
+                // 3. Create a temporary hidden link to trigger the download
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                
+                // Filename: DeclarantName_DocType.pdf
+                const safeName = (finalData.ownerName || requesterName).replace(/[^a-z0-9]/gi, '_');
+                link.download = `${safeName}_${doc.referenceNumber}.pdf`;
+                
+                document.body.appendChild(link);
+                link.click();
+                
+                // 4. Cleanup to prevent memory leaks
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+
+            // Success feedback and return to queue
+            setBanner({ type: 'success', text: 'Documents generated successfully. Returning to queue...' });
             setTimeout(() => {
-                onBack(); // Return to queue list after processing
-            }, 1200);
+                onBack(); 
+            }, 2000);
 
         } catch (err) {
-            setBanner({ type: 'error', text: 'Could not save verification. Please check your connection and try again.' });
+            console.error("PDF Generation Error:", err);
+            setBanner({ type: 'error', text: 'An error occurred during generation. Please try again.' });
         } finally {
             setIsSaving(false);
         }
@@ -106,38 +130,30 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
         <div className="pd-page page-transition">
             <div className="pd-panel">
 
-                {/* --- Header Banner --- */}
                 <div className="pd-header-banner">
-                    <button onClick={onBack} className="pd-header-back-btn" title="Back to Queue">
-                        &larr;
-                    </button>
+                    <button onClick={onBack} className="pd-header-back-btn" title="Back to Queue">&larr;</button>
                     <div className="pd-header-text">
                         <h2 className="pd-header-title">Payment Verification</h2>
                         <span className="pd-header-subtitle">
-                            Verify the Treasurer's O.R. and prepare documents for <strong>{requesterName}</strong>
+                            Prepare documents for <strong>{requesterName}</strong>
                         </span>
                     </div>
                 </div>
 
                 <div className="pd-body">
-                    {banner && (
-                        <div className={`pd-banner pd-banner--${banner.type}`}>
-                            {banner.text}
-                        </div>
-                    )}
+                    {banner && <div className={`pd-banner pd-banner--${banner.type}`}>{banner.text}</div>}
 
                     <div className="pd-split-layout">
-
-                        {/* --- LEFT COLUMN: REQUEST DATA --- */}
+                        {/* LEFT COLUMN: DOCUMENT LIST */}
                         <div className="pd-col-left">
                             <div className="pd-section-label">Selected Documents ({documents.length})</div>
                             <div className="pd-doc-table-wrap">
                                 <table className="pd-doc-table">
                                     <thead>
                                         <tr>
-                                            <th>Reference No.</th>
-                                            <th>Declarant (Owner)</th>
-                                            <th>Document Type</th>
+                                            <th>Ref. No</th>
+                                            <th>Owner</th>
+                                            <th>Type</th>
                                             <th style={{ textAlign: 'right' }}>Fee</th>
                                         </tr>
                                     </thead>
@@ -153,29 +169,26 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
                                     </tbody>
                                 </table>
                             </div>
-
                             <div className="pd-total-row">
-                                <div className="pd-total-label">Expected Payment Amount</div>
+                                <div className="pd-total-label">Total Payment Due</div>
                                 <div className="pd-total-value">{currency(totalAmount)}</div>
                             </div>
                         </div>
 
-                        {/* --- RIGHT COLUMN: ENTRY FORM --- */}
+                        {/* RIGHT COLUMN: VERIFICATION FORM */}
                         <div className="pd-col-right">
                             <div className="pd-receipt-card">
-                                <div className="pd-section-label">Treasurer O.R. Details</div>
+                                <div className="pd-section-label">Treasurer Receipt Details</div>
 
                                 <div className="pd-form-group">
-                                    <label className="pd-field-label" htmlFor="pd-or-number">Official Receipt (O.R.) Number</label>
+                                    <label className="pd-field-label">Official Receipt (O.R.) Number</label>
                                     <input
-                                        id="pd-or-number"
                                         type="text"
-                                        placeholder="e.g. OR-1234567"
+                                        placeholder="e.g. 1234567"
                                         value={orNumber}
                                         onChange={(e) => {
                                             setOrNumber(e.target.value);
                                             setIsVerified(false);
-                                            setFieldErrors(prev => ({ ...prev, orNumber: undefined }));
                                         }}
                                         disabled={isVerified}
                                         className={`pd-field-input${fieldErrors.orNumber ? ' pd-field-invalid' : ''}`}
@@ -184,43 +197,35 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
                                 </div>
 
                                 <div className="pd-form-group">
-                                    <label className="pd-field-label" htmlFor="pd-signatory">Authorized Signatory</label>
+                                    <label className="pd-field-label">Authorized Signatory</label>
                                     <select
-                                        id="pd-signatory"
                                         value={signatory}
-                                        onChange={(e) => {
-                                            setSignatory(e.target.value);
-                                            setFieldErrors(prev => ({ ...prev, signatory: undefined }));
-                                        }}
+                                        onChange={(e) => setSignatory(e.target.value)}
                                         disabled={isVerified}
                                         className="pd-field-select"
                                     >
                                         <option value="">-- Select Signatory --</option>
                                         <option value="ENGR. VICENTE P. DESOY">ENGR. VICENTE P. DESOY</option>
-                                        <option value="ELVIRA T. ENAO">ELVIRA T. ENAO</option>
+                                        <option value="ELVIRA T. ENAO, REA">ELVIRA T. ENAO, REA</option>
+                                        <option value="CHINA CHAN-OLARIO, RN, REA">CHINA CHAN-OLARIO, RN, REA</option>
                                     </select>
                                     {fieldErrors.signatory && <span className="pd-field-error">{fieldErrors.signatory}</span>}
                                 </div>
 
                                 <div className="pd-actions-row">
                                     {!isVerified ? (
-                                        <button onClick={handleVerify} className="pd-btn pd-btn--verify">
-                                            Verify Receipt
-                                        </button>
+                                        <button onClick={handleVerify} className="pd-btn pd-btn--verify">Verify Receipt</button>
                                     ) : (
                                         <div className="pd-verified-actions">
-                                            <button onClick={() => setIsVerified(false)} className="pd-btn pd-btn--edit-verify">
-                                                Edit details
-                                            </button>
+                                            <button onClick={() => setIsVerified(false)} className="pd-btn pd-btn--edit-verify">Edit</button>
                                             <button onClick={handleGeneratePDF} disabled={isSaving} className="pd-btn pd-btn--print">
-                                                {isSaving ? 'Processing...' : `Confirm & Generate PDF`}
+                                                {isSaving ? 'Processing...' : `Release & Download PDF`}
                                             </button>
                                         </div>
                                     )}
                                 </div>
                             </div>
                         </div>
-
                     </div>
                 </div>
             </div>
