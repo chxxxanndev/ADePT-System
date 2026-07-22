@@ -317,6 +317,156 @@
     color: var(--db-primary);
 }
 
+/* ==========================================================================
+   NEW STYLES: OVERRIDE BADGE, TEXTAREA & DUPLICATE WARNING MODAL
+   ========================================================================== */
+
+/* --- Shared Receipt Warning Badge inside Card --- */
+.pd-override-badge-card {
+    background-color: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: var(--db-radius-md);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.82rem;
+}
+
+.pd-override-badge-header {
+    font-weight: 800;
+    color: #b78103;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pd-override-badge-body {
+    color: #5d4037;
+    line-height: 1.4;
+}
+
+/* --- Justification Textarea --- */
+.pd-field-textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px solid var(--db-glass-border-alt);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    background-color: #ffffff;
+    color: var(--db-slate);
+    font-family: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.pd-field-textarea:focus {
+    outline: none;
+    border-color: var(--db-primary);
+    box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.15);
+}
+
+.pd-field-textarea.pd-field-invalid {
+    border-color: var(--db-error);
+}
+
+/* --- Modal Overlay & Dialog --- */
+.pd-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.pd-modal {
+    background: #ffffff;
+    border-radius: var(--db-radius-lg);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    width: 100%;
+    max-width: 520px;
+    overflow: hidden;
+    animation: pdModalScale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pdModalScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.pd-modal-header {
+    background-color: #fff3e0;
+    border-bottom: 1px solid #ffe0b2;
+    padding: 18px 24px;
+}
+
+.pd-modal-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #e65100;
+}
+
+.pd-modal-body {
+    padding: 24px;
+    font-size: 0.9rem;
+    color: var(--db-slate);
+    line-height: 1.5;
+}
+
+.pd-modal-subtext {
+    margin-top: 8px;
+    font-size: 0.82rem;
+    color: var(--db-text-muted);
+}
+
+.pd-modal-footer {
+    padding: 16px 24px;
+    background-color: #f8fafc;
+    border-top: 1px solid var(--db-glass-border-alt);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* --- Modal Action Buttons --- */
+.pd-btn--secondary {
+    background-color: #e2e8f0;
+    color: #334155;
+    width: auto;
+}
+
+.pd-btn--secondary:hover {
+    background-color: #cbd5e1;
+}
+
+.pd-btn--warning {
+    background-color: #e65100;
+    color: #ffffff;
+    width: auto;
+    box-shadow: 0 4px 12px rgba(230, 81, 0, 0.25);
+}
+
+.pd-btn--warning:hover {
+    background-color: #bf360c;
+}
+
 /* --- Responsive Adjustments --- */
 @media (max-width: 880px) {
     .pd-split-layout {

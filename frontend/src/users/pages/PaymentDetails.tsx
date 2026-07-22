@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { pdf } from '@react-pdf/renderer'; 
+import { pdf } from '@react-pdf/renderer';
 import { requestService } from '../services/requestService';
-import { taxDeclarationService } from '../services/taxDeclarationService'; 
-import { TaxDeclarationPDF } from '../components/templates/TaxDeclarationPDF'; 
+import { taxDeclarationService } from '../services/taxDeclarationService';
+import { TaxDeclarationPDF } from '../components/templates/TaxDeclarationPDF';
 import '../styles/PaymentDetails.css';
 
 interface PaymentDetailsProps {
@@ -15,9 +15,17 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
     const [orNumber, setOrNumber] = useState('');
     const [signatory, setSignatory] = useState('');
     const [isVerified, setIsVerified] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<{ orNumber?: string; signatory?: string }>({});
     const [banner, setBanner] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+
+    // --- OVERRIDE / DUPLICATE O.R. STATES ---
+    const [showOverrideModal, setShowOverrideModal] = useState(false);
+    const [isOverridden, setIsOverridden] = useState(false);
+    const [justification, setJustification] = useState('');
+    const [justificationError, setJustificationError] = useState('');
+    const [existingRequestInfo, setExistingRequestInfo] = useState<{ referenceNumber?: string; declarantName?: string } | null>(null);
 
     if (!payment) {
         return (
@@ -36,7 +44,10 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
     const documents = payment.documents || [];
     const currency = (n: number) => `\u20B1 ${n.toFixed(2)}`;
 
-    const handleVerify = () => {
+    /**
+     * VERIFY O.R. FLOWCHART LOGIC
+     */
+    const handleVerify = async () => {
         const errors: { orNumber?: string; signatory?: string } = {};
         if (!orNumber.trim()) errors.orNumber = 'Enter the Treasurer O.R. number.';
         if (!signatory) errors.signatory = 'Select an authorized signatory.';
@@ -46,24 +57,77 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
             setBanner({ type: 'error', text: 'Please complete the verification details.' });
             return;
         }
+
         setBanner(null);
+        setIsVerifying(true);
+
+        try {
+            // Use groupId to exclude the current active group from the duplication check
+            const mainRequestId = payment.groupId || payment.id;
+
+            // Check O.R. Uniqueness via Backend Service
+            const res = await requestService.checkOrUniqueness(orNumber.trim(), mainRequestId);
+
+            if (res && res.isUnique === false) {
+                // Duplicate O.R. -> Show Manual Override Modal
+                setExistingRequestInfo(res.existingRequest || null);
+                setShowOverrideModal(true);
+            } else {
+                // Unique O.R. -> Verified directly
+                setIsVerified(true);
+                setIsOverridden(false);
+                setJustification('');
+                setBanner({ type: 'success', text: 'Official Receipt verified as unique.' });
+            }
+        } catch (err: any) {
+            console.error("Error during O.R. verification:", err);
+            setShowOverrideModal(true);
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    /**
+     * CONFIRM MANUAL OVERRIDE
+     */
+    const handleConfirmOverride = () => {
+        if (!justification.trim()) {
+            setJustificationError('Please provide a justification for using a shared/duplicate O.R.');
+            return;
+        }
+
+        setJustificationError('');
+        setShowOverrideModal(false);
+        setIsOverridden(true);
         setIsVerified(true);
+        setBanner({
+            type: 'success',
+            text: 'O.R. Number verified via Manual Override (Shared Receipt).'
+        });
+    };
+
+    const handleEditVerify = () => {
+        setIsVerified(false);
+        setIsOverridden(false);
+        setBanner(null);
     };
 
     /**
      * MAIN PDF GENERATION LOGIC
-     * 1. Updates database status
-     * 2. Fetches "True Results" (Hydration) for Tax Declarations
-     * 3. Programmatically generates and downloads PDFs
      */
     const handleGeneratePDF = async () => {
         setIsSaving(true);
         setBanner(null);
-        
+
         try {
-            // A. Update database: Mark all documents as Released
+            // A. Update database for ALL documents in this grouped payment
             await Promise.all(documents.map((doc: any) =>
-                requestService.releaseRequest(doc.id, { orNumber, signatory })
+                requestService.releaseRequest(doc.id, {
+                    orNumber: orNumber.trim(),
+                    signatory,
+                    isOverridden,
+                    justification: isOverridden ? justification : undefined
+                })
             ));
 
             setBanner({ type: 'success', text: `Saving verification... Generating ${documents.length} document(s).` });
@@ -71,56 +135,50 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
             // B. Sequential PDF Generation Loop
             for (const doc of documents) {
                 let finalData = doc;
-                
-                // HYDRATION: If it's a Tax Dec, we need boundaries/rows from the database
-                if (doc.documentType.toLowerCase().includes('tax declaration')) {
+
+                if (doc.documentType?.toLowerCase().includes('tax declaration')) {
                     try {
                         const trueRecord = await taxDeclarationService.getTaxDeclaration(doc.id);
                         if (trueRecord) finalData = trueRecord;
                     } catch (fetchErr) {
                         console.error(`Could not hydrate document ${doc.referenceNumber}`, fetchErr);
-                        // Falls back to summary data if hydration fails
                     }
                 }
 
-                // 1. Create the React-PDF instance
                 const docInstance = (
-                    <TaxDeclarationPDF 
-                        data={finalData} 
-                        orNumber={orNumber} 
-                        signatory={signatory} 
+                    <TaxDeclarationPDF
+                        data={finalData}
+                        orNumber={orNumber}
+                        signatory={signatory}
                     />
                 );
 
-                // 2. Generate the Blob (in-browser)
                 const blob = await pdf(docInstance).toBlob();
-                
-                // 3. Create a temporary hidden link to trigger the download
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
-                
-                // Filename: DeclarantName_DocType.pdf
+
                 const safeName = (finalData.ownerName || requesterName).replace(/[^a-z0-9]/gi, '_');
                 link.download = `${safeName}_${doc.referenceNumber}.pdf`;
-                
+
                 document.body.appendChild(link);
                 link.click();
-                
-                // 4. Cleanup to prevent memory leaks
+
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
             }
 
-            // Success feedback and return to queue
-            setBanner({ type: 'success', text: 'Documents generated successfully. Returning to queue...' });
+            setBanner({ type: 'success', text: 'Documents generated & payment recorded successfully. Returning to queue...' });
             setTimeout(() => {
-                onBack(); 
+                onBack();
             }, 2000);
 
-        } catch (err) {
+        } catch (err: any) {
             console.error("PDF Generation Error:", err);
-            setBanner({ type: 'error', text: 'An error occurred during generation. Please try again.' });
+            setBanner({
+                type: 'error',
+                text: err?.response?.data?.error || err?.message || 'An error occurred during generation. Please try again.'
+            });
         } finally {
             setIsSaving(false);
         }
@@ -180,6 +238,17 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
                             <div className="pd-receipt-card">
                                 <div className="pd-section-label">Treasurer Receipt Details</div>
 
+                                {isVerified && isOverridden && (
+                                    <div className="pd-override-badge-card">
+                                        <div className="pd-override-badge-header">
+                                            <span>⚠️ Shared Receipt (Manual Override)</span>
+                                        </div>
+                                        <div className="pd-override-badge-body">
+                                            <strong>Justification:</strong> {justification}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="pd-form-group">
                                     <label className="pd-field-label">Official Receipt (O.R.) Number</label>
                                     <input
@@ -189,6 +258,7 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
                                         onChange={(e) => {
                                             setOrNumber(e.target.value);
                                             setIsVerified(false);
+                                            setIsOverridden(false);
                                         }}
                                         disabled={isVerified}
                                         className={`pd-field-input${fieldErrors.orNumber ? ' pd-field-invalid' : ''}`}
@@ -214,10 +284,16 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
 
                                 <div className="pd-actions-row">
                                     {!isVerified ? (
-                                        <button onClick={handleVerify} className="pd-btn pd-btn--verify">Verify Receipt</button>
+                                        <button
+                                            onClick={handleVerify}
+                                            disabled={isVerifying}
+                                            className="pd-btn pd-btn--verify"
+                                        >
+                                            {isVerifying ? 'Verifying Receipt...' : 'Verify Receipt'}
+                                        </button>
                                     ) : (
                                         <div className="pd-verified-actions">
-                                            <button onClick={() => setIsVerified(false)} className="pd-btn pd-btn--edit-verify">Edit</button>
+                                            <button onClick={handleEditVerify} className="pd-btn pd-btn--edit-verify">Edit</button>
                                             <button onClick={handleGeneratePDF} disabled={isSaving} className="pd-btn pd-btn--print">
                                                 {isSaving ? 'Processing...' : `Release & Download PDF`}
                                             </button>
@@ -229,6 +305,58 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
                     </div>
                 </div>
             </div>
+
+            {/* --- MANUAL OVERRIDE / SHARED RECEIPT MODAL --- */}
+            {showOverrideModal && (
+                <div className="pd-modal-overlay">
+                    <div className="pd-modal">
+                        <div className="pd-modal-header">
+                            <h3>⚠️ Duplicate / Shared Receipt Detected</h3>
+                        </div>
+                        <div className="pd-modal-body">
+                            <p>
+                                Official Receipt <strong>#{orNumber}</strong> is already recorded in the system
+                                {existingRequestInfo?.referenceNumber && ` (Ref: ${existingRequestInfo.referenceNumber} - ${existingRequestInfo.declarantName})`}.
+                            </p>
+                            <p className="pd-modal-subtext">
+                                If this is a typographical error, please cancel and update the O.R. number. If this is a valid <strong>shared receipt</strong> (e.g., family request or consolidated payment), enter a justification below to proceed with a <strong>Manual Override</strong>.
+                            </p>
+
+                            <div className="pd-form-group" style={{ marginTop: '16px' }}>
+                                <label className="pd-field-label">Override Justification *</label>
+                                <textarea
+                                    className={`pd-field-textarea${justificationError ? ' pd-field-invalid' : ''}`}
+                                    placeholder="e.g., Shared O.R. issued for husband and wife landholding certificates."
+                                    rows={3}
+                                    value={justification}
+                                    onChange={(e) => {
+                                        setJustification(e.target.value);
+                                        setJustificationError('');
+                                    }}
+                                />
+                                {justificationError && <span className="pd-field-error">{justificationError}</span>}
+                            </div>
+                        </div>
+                        <div className="pd-modal-footer">
+                            <button
+                                onClick={() => {
+                                    setShowOverrideModal(false);
+                                    setJustificationError('');
+                                }}
+                                className="pd-btn pd-btn--secondary"
+                            >
+                                Cancel & Fix O.R.
+                            </button>
+                            <button
+                                onClick={handleConfirmOverride}
+                                className="pd-btn pd-btn--warning"
+                            >
+                                Confirm Manual Override
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

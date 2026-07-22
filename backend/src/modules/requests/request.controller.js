@@ -9,7 +9,6 @@ export const getFormMetadata = async (req, res) => {
 
 export const createRequest = async (req, res) => {
     try {
-        // formData is req.body, staffAuthId comes from frontend call
         const result = await RequestService.createRequest(req.body, req.body.staffAuthId);
         res.status(201).json(result);
     } catch (error) { res.status(500).json({ error: error.message }); }
@@ -34,6 +33,19 @@ export const deleteRequest = async (req, res) => {
         const result = await RequestService.deleteRequest(req.params.id);
         res.status(200).json(result);
     } catch (error) { res.status(500).json({ error: error.message }); }
+};
+
+export const checkOrUniqueness = async (req, res) => {
+    try {
+        const { orNumber, requestId } = req.query;
+        if (!orNumber) {
+            return res.status(400).json({ error: 'O.R. number is required' });
+        }
+        const result = await RequestService.checkOrUniqueness(orNumber, requestId);
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 };
 
 export const releaseRequest = async (req, res) => {
