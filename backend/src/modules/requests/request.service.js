@@ -38,12 +38,11 @@ class RequestService {
                 requested_by_name: formData.requestedByName,
                 reference_number: uniqueRef,
                 authorization_required: formData.authRequired,
-                // THIS LINE REGISTERS THE PURPOSE
                 purpose_id: formData.purposeId || null,
-                purpose_other_text: formData.purposeOtherText || null, 
+                purpose_other_text: formData.purposeOtherText || null,
                 action_taken: formData.actionTaken || 'PENDING',
                 encoded_by: staff.id,
-                status: formData.status || 'DRAFT' 
+                status: formData.status || 'DRAFT'
             }])
             .select().single();
 
@@ -71,23 +70,21 @@ class RequestService {
     }
 
     async updateRequest(id, formData) {
-        // Robust update logic: handles status, names, and PURPOSE
         const updateData = {};
-        
+
         if (formData.status) updateData.status = formData.status;
-        
+
         if (formData.declarantName || formData.declarant_name) {
             updateData.declarant_name = formData.declarantName || formData.declarant_name;
         }
-        
+
         if (formData.requestedByName || formData.requested_by_name) {
             updateData.requested_by_name = formData.requestedByName || formData.requested_by_name;
         }
 
-        // FIX: ADDED PURPOSE UPDATING HERE
         if (formData.purposeId) updateData.purpose_id = formData.purposeId;
         if (formData.purposeOtherText !== undefined) updateData.purpose_other_text = formData.purposeOtherText;
-        
+
         if (formData.action_taken || formData.actionTaken) {
             updateData.action_taken = formData.actionTaken || formData.action_taken;
         }
@@ -98,18 +95,52 @@ class RequestService {
             .eq('id', id)
             .select()
             .single();
-            
+
         if (error) throw error;
         return data;
     }
 
+    /**
+     * NEW: Check if an O.R. Number is unique in the database
+     */
+    async checkOrUniqueness(orNumber, excludeRequestId = null) {
+        let query = supabase
+            .from('requests')
+            .select('id, reference_number, declarant_name')
+            .eq('or_number', orNumber.trim());
+
+        if (excludeRequestId) {
+            query = query.neq('id', excludeRequestId);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            return {
+                isUnique: false,
+                existingRequest: {
+                    referenceNumber: data[0].reference_number,
+                    declarantName: data[0].declarant_name
+                }
+            };
+        }
+
+        return { isUnique: true };
+    }
+
+    /**
+     * UPDATED: Release Request with O.R., Signatory, and Override Justification
+     */
     async releaseRequest(id, paymentData) {
         const { data, error } = await supabase
             .from('requests')
             .update({
                 or_number: paymentData.orNumber,
                 authorized_signatory: paymentData.signatory,
-                status: 'PAID', 
+                is_or_overridden: paymentData.isOverridden || false,
+                or_override_justification: paymentData.justification || null,
+                status: 'PAID',
                 payment_date: new Date().toISOString()
             })
             .eq('id', id)

@@ -24,20 +24,29 @@ export const requestService = {
         const response = await axios.get(API_BASE_URL);
         return response.data;
     },
-    // This calls createRequest on backend
     submitRequest: async (formData: RequestFormData, staffAuthId: string) => {
         const response = await axios.post(API_BASE_URL, { ...formData, staffAuthId });
         return response.data;
     },
-    // This fixes your "updateRequest is not a function" error
     updateRequest: async (id: string, formData: any) => {
         const response = await axios.put(`${API_BASE_URL}/${id}`, formData);
         return response.data;
     },
-    releaseRequest: async (id: string, paymentData: { orNumber: string; signatory: string }) => {
-    const response = await axios.post(`${API_BASE_URL}/${id}/release`, paymentData);
-    return response.data;
-},
+    checkOrUniqueness: async (orNumber: string, currentRequestId?: string) => {
+        const response = await axios.get(`${API_BASE_URL}/check-or`, {
+            params: { orNumber, requestId: currentRequestId }
+        });
+        return response.data; // returns { isUnique: boolean, existingRequest?: object }
+    },
+    releaseRequest: async (id: string, paymentData: {
+        orNumber: string;
+        signatory: string;
+        isOverridden?: boolean;
+        justification?: string;
+    }) => {
+        const response = await axios.post(`${API_BASE_URL}/${id}/release`, paymentData);
+        return response.data;
+    },
     deleteRequest: async (id: string) => {
         const response = await axios.delete(`${API_BASE_URL}/${id}`);
         return response.data;
