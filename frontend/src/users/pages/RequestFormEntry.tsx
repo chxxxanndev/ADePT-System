@@ -111,19 +111,30 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
         declarantName: '', requestedByName: '', requestDate: new Date().toISOString().split('T')[0], purposeId: '', documentTypeIds: [], authRequired: false, actionTaken: 'PENDING', propertyLocation: '', releasingStaffId: '', releaseDate: '', purposeOtherText: '', referenceNumber: `REF-${new Date().getFullYear()}-0000`,
     });
 
+    // Determine if "Certificate of No Landholding" (NLH) is currently selected
+    const isNoLandholdingSelected = formData.documentTypeIds.some((id) => {
+        const selectedDoc = metadata.docTypes.find((d) => d.id === id);
+        const view = selectedDoc
+            ? (DOCUMENT_TYPE_ID_VIEW_MAP[selectedDoc.id] || DOCUMENT_TYPE_VIEW_MAP[selectedDoc.name])
+            : undefined;
+        return view === 'certificate-no-landholding';
+    });
+
+    // Cleanup logic: If NLH is selected, reset propertyLocation to prevent sending redundant values
+    useEffect(() => {
+        if (isNoLandholdingSelected && formData.propertyLocation !== '') {
+            setFormData((prev) => ({ ...prev, propertyLocation: '' }));
+        }
+    }, [isNoLandholdingSelected, formData.propertyLocation]);
+
     // Prefill Logic
     useEffect(() => {
         if (prefilledRequestData) {
             setFormData((prev) => ({
                 ...prev,
                 ...prefilledRequestData,
-
-                // CRUCIAL: Remove "|| prev.id". If parent sets it to undefined, force it to be undefined!
                 id: prefilledRequestData.id || prefilledRequestData.requestId || undefined,
-
-                // CRUCIAL: Remove "|| prev.referenceNumber". 
                 referenceNumber: prefilledRequestData.referenceNumber || prefilledRequestData.control_number || `REF-${new Date().getFullYear()}-0000`,
-
                 declarantName: prefilledRequestData.declarantName || prefilledRequestData.declarant_name || '',
                 requestedByName: prefilledRequestData.requestedByName || prefilledRequestData.requested_by_name || '',
                 requestDate: prefilledRequestData.requestDate || prefilledRequestData.request_date || new Date().toISOString().split('T')[0],
@@ -165,7 +176,6 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
         const selectedId = formData.documentTypeIds[0];
         const selectedDoc = metadata.docTypes.find((d) => d.id === selectedId);
 
-        // Find view string
         const view = selectedDoc
             ? (DOCUMENT_TYPE_ID_VIEW_MAP[selectedDoc.id] || DOCUMENT_TYPE_VIEW_MAP[selectedDoc.name])
             : undefined;
@@ -175,18 +185,15 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     }, [formData.documentTypeIds, formData.id, metadata.docTypes]);
 
     const handleProceedToDocument = async () => {
-        // 1. Validation
         if (!formData.declarantName || !formData.requestedByName || formData.documentTypeIds.length === 0) {
             setValidationError('Please fill out Declarant, Requester, and select at least one Document Type.');
             return;
         }
         setValidationError('');
 
-        // 2. Resolve Navigation Target
         const selectedId = formData.documentTypeIds[0];
         const selectedDoc = metadata.docTypes.find((d) => d.id === selectedId);
 
-        // Find view string by checking ID map, then Name map
         const view = selectedDoc
             ? (DOCUMENT_TYPE_ID_VIEW_MAP[selectedDoc.id] || DOCUMENT_TYPE_VIEW_MAP[selectedDoc.name])
             : undefined;
@@ -198,7 +205,6 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
 
         setIsProceeding(true);
         try {
-            // 3. Save as IN_PROGRESS (not DRAFT) so it does NOT appear in Saved Request Drafts
             let savedRequest;
             const requestPayload = { ...formData, status: 'IN_PROGRESS' };
 
@@ -213,17 +219,14 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
             const actualId = savedRequest?.id || formData.id;
             const actualRef = savedRequest?.reference_number || savedRequest?.control_number || formData.referenceNumber;
 
-            // 4. Build completed data with correct IDs
             const completedData: CompletedEntryData = {
                 ...formData,
                 requestId: actualId,
                 referenceNumber: actualRef,
             };
 
-            // 5. Notify Parent Component
             onEntryComplete(completedData);
 
-            // 6. Navigate to document form
             setTimeout(() => {
                 onNavigateToProcessing(view);
             }, 100);
@@ -310,7 +313,15 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                     {formData.declarantName && (<button type="button" className="input-clear-btn" onClick={() => setFormData({ ...formData, declarantName: '' })} title="Clear Name">×</button>)}
                                 </div>
                             </div>
-                            <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Location of the Property</label><SearchableSelectDropdown options={metadata.propertyLocations} value={formData.propertyLocation} onChange={(val) => setFormData({ ...formData, propertyLocation: val })} placeholder="Brgy., Municipality, Province" /></div>
+
+                            {/* Hide "Location of the Property" if Certificate of No Landholding (NLH) is chosen */}
+                            {!isNoLandholdingSelected && (
+                                <div className="rfe-field" style={{ marginTop: 14 }}>
+                                    <label className="rfe-label">Location of the Property</label>
+                                    <SearchableSelectDropdown options={metadata.propertyLocations} value={formData.propertyLocation} onChange={(val) => setFormData({ ...formData, propertyLocation: val })} placeholder="Brgy., Municipality, Province" />
+                                </div>
+                            )}
+
                             <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Date of Request</label><input className="rfe-input" type="date" value={formData.requestDate} onChange={(e) => setFormData({ ...formData, requestDate: e.target.value })} /></div>
                             <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Requested By</label><input className="rfe-input" type="text" placeholder="e.g. Juan D. Cruz" value={formData.requestedByName} onChange={(e) => setFormData({ ...formData, requestedByName: e.target.value, })} /></div>
                             <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Authorization</label><ToggleButtonPair leftLabel="Authorization Needed" rightLabel="Authorization Not Needed" value={formData.authRequired} onChange={(val) => setFormData({ ...formData, authRequired: val })} /></div>
@@ -361,7 +372,6 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                             className="btn-proceed"
                             onClick={handleProceedToDocument}
                             disabled={isSavingDraft || isProceeding}
-
                         >
                             {isProceeding ? 'Processing…' : 'Proceed to Document →'}
                         </button>
