@@ -28,7 +28,7 @@ function App() {
   }, []);
   // 2. WRAP THE LOGGED-IN RETURNS
   if (currentUser) {
-    const isAdmin = currentUser.role === 'SUPER_ADMIN';
+    const isAdmin = currentUser.role === 'SUPER_ADMIN' || (currentUser as any).roleCode === 'SUPER_ADMIN';
     return (
       <CartProvider>
         {isAdmin ? (
