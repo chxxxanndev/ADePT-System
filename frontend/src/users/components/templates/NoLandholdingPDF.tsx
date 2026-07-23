@@ -1,93 +1,105 @@
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import { Font, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+
+// 1. REGISTER GEORGIA FONT
+Font.register({
+  family: 'Georgia',
+  fonts: [
+    { src: window.location.origin + '/fonts/georgia.ttf' }, 
+    { src: window.location.origin + '/fonts/georgiab.ttf', fontWeight: 'bold' } 
+  ]
+});
 
 const styles = StyleSheet.create({
     page: {
         padding: 0,
-        fontFamily: 'Times-Roman',
+        fontFamily: 'Georgia',
         position: 'relative',
-        fontSize: 11,
-        lineHeight: 1.5,
+        fontSize: 12,
+        lineHeight: 1.2, // Tightened slightly to save vertical space
     },
-    background: {
+    headerImage: {
+        width: '100%',
+        height: 'auto',
+    },
+    // Bottom Background pinned to bottom, no stretching
+    bottomBackground: {
         position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        width: '100%', height: '100%',
-        objectFit: 'fill', zIndex: -1,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        width: '100%',
+        height: 180, // Reduced height slightly to save space
+        objectFit: 'cover',
+        zIndex: -1,
     },
     content: {
-        paddingHorizontal: 60, // Wider margins as seen in the image
-        paddingTop: 50,
-        paddingBottom: 50,
+        paddingHorizontal: 70,
+        paddingTop: 5,
+        paddingBottom: 20, // Reduced significantly to prevent page 2 spill
     },
-    headerCenter: {
-        textAlign: 'center',
-        marginBottom: 40,
-    },
-    headerNormal: { fontSize: 11, color: '#000080' }, // Navy blue tint often found in letterheads
-    headerBold: { fontSize: 12, fontFamily: 'Times-Bold', color: '#000080', marginTop: 2 },
-
     title: {
-        fontSize: 16,
-        fontFamily: 'Times-Bold',
+        fontSize: 23,
+        fontFamily: 'Georgia',
+        fontWeight: 'bold',
         textAlign: 'center',
-        marginBottom: 40,
+        marginTop: 15,
+        marginBottom: 30, // Reduced from 50 to pull content up
     },
     salutation: {
-        fontFamily: 'Times-Bold',
-        marginBottom: 20,
+        fontWeight: 'bold',
+        marginBottom: 15,
+        fontSize: 12,
+        marginLeft: 35, 
     },
-    paragraph: {
+    // Indented first line, left-aligned wrapping
+    officialParagraph: {
         textAlign: 'justify',
-        marginBottom: 20,
-        textIndent: 30, // Indents the first line
-        lineHeight: 1.6,
+        marginBottom: 15,
+        fontSize: 12,
+        marginLeft: 0,     
+        textIndent: 58,    // Indents exactly under 'H' of 'WHOM'
     },
-    boldUnderline: {
-        fontFamily: 'Times-Bold',
+    underlineText: {
+        fontWeight: 'bold',
         textDecoration: 'underline',
     },
 
-    // Signatory Section
+    // Signatories Block
     signatoryContainer: {
-        marginTop: 60,
-        alignItems: 'center',
-        paddingLeft: '40%', // Pushes the block to the center-right
+        marginTop: 30, // Reduced from 50
+        width: '100%',
+        alignItems: 'flex-end',
     },
     signatoryBlock: {
-        marginBottom: 50,
-        alignItems: 'center',
+        marginBottom: 30,
+        textAlign: 'center',
+        width: 250,
     },
     signatoryName: {
-        fontFamily: 'Times-Bold',
-        fontSize: 11,
-    },
-    signatoryTitle: {
-        fontSize: 11,
+        fontWeight: 'bold',
+        fontSize: 12,
+        textDecoration: 'underline',
     },
 
-    // Footer/Receipt Section
-    receiptBox: {
-        marginTop: 40,
-        width: 200,
+    // Receipt Section (Overlaid on footer image)
+    receiptContainer: {
+        position: 'absolute',
+        bottom: 100, // Positioned specifically over the background footer
+        left: 70,
+        width: 220,
     },
     receiptRow: {
         flexDirection: 'row',
         marginBottom: 2,
         alignItems: 'flex-end',
     },
-    receiptLabel: {
-        width: 65,
-        fontFamily: 'Times-Bold',
-        fontSize: 10,
-    },
-    receiptValueContainer: {
+    receiptLabel: { width: 55, fontSize: 10 },
+    receiptValue: {
         flex: 1,
         borderBottomWidth: 1,
-        borderBottomColor: '#000',
-    },
-    receiptValue: {
-        fontFamily: 'Times-Bold',
+        borderColor: '#000',
         fontSize: 10,
+        fontWeight: 'bold',
         paddingLeft: 5,
     },
 });
@@ -99,78 +111,73 @@ export const CertOfNoLandholdingPDF = ({
     orNumber = '',
     datePaid = '',
     certFee = '40.00',
-    signatory1Name = 'ELVIRA T. ENAO, REA',
-    signatory1Title = 'Local Assessment Operations Officer IV',
+    signatory1Name = 'ENGR. VICENTE P. DESUY',
+    signatory1Title = 'Municipal Assessor',
     signatory2Name = 'CHINA CHAN-OLARIO, RN, REA, REB, Enp',
     signatory2Title = 'Assistant Provincial Assessor'
-}: any) => (
-    <Document>
-        <Page size="LETTER" style={styles.page}>
-            <Image fixed src={window.location.origin + '/images/official_bg.png'} style={styles.background} />
+}: any) => {
 
-            <View style={styles.content}>
-                {/* Header - (Adjust or remove if this text is already baked into your background image) */}
-                <View style={styles.headerCenter}>
-                    <Text style={styles.headerNormal}>Republic of the Philippines</Text>
-                    <Text style={styles.headerNormal}>Province of Zamboanga del Norte</Text>
-                    <Text style={styles.headerBold}>OFFICE OF THE PROVINCIAL ASSESSOR</Text>
-                    <Text style={styles.headerNormal}>GF, Provincial Capitol, Estaka, Dipolog City</Text>
+    return (
+        <Document>
+            <Page size="LETTER" style={styles.page}>
+                {/* Images */}
+                <Image src={window.location.origin + '/images/landholding_header.png'} style={styles.headerImage} />
+                <Image fixed src={window.location.origin + '/images/landholding_bg.png'} style={styles.bottomBackground} />
+
+                <View style={styles.content}>
+                    <Text style={styles.title}>CERTIFICATE OF NO LANDHOLDING</Text>
+
+                    <Text style={styles.salutation}>TO WHOM IT MAY CONCERN:</Text>
+
+                    {/* Paragraph 1 */}
+                    <Text style={styles.officialParagraph}>
+                        <Text style={{fontWeight: 'bold'}}>THIS IS TO CERTIFY</Text>
+                        <Text> that </Text>
+                        <Text style={styles.underlineText}>{String(ownerName).toUpperCase()}</Text>
+                        <Text> has/have no real property/properties declared in his/her/their name/s either singly or collectively within the taxing jurisdiction of this province per office records.</Text>
+                    </Text>
+
+                    {/* Paragraph 2 */}
+                    <Text style={styles.officialParagraph}>
+                        <Text>Given this </Text>
+                        <Text style={styles.underlineText}>{day}</Text>
+                        <Text> day of </Text>
+                        <Text style={styles.underlineText}>{monthYear}</Text>
+                        <Text>, at Dipolog City for whatever legal purpose/intent it may serve best.</Text>
+                    </Text>
+
+                    {/* Signatories */}
+                    <View style={styles.signatoryContainer}>
+                        <View style={styles.signatoryBlock}>
+                            <Text style={styles.signatoryName}>{signatory1Name}</Text>
+                            <Text style={{fontSize: 11}}>{signatory1Title}</Text>
+                        </View>
+                        <View style={styles.signatoryBlock}>
+                            <Text style={styles.signatoryName}>{signatory2Name}</Text>
+                            <Text style={{fontSize: 11}}>{signatory2Title}</Text>
+                        </View>
+                    </View>
                 </View>
 
-                <Text style={styles.title}>CERTIFICATE OF NO LANDHOLDING</Text>
-
-                <Text style={styles.salutation}>TO WHOM IT MAY CONCERN:</Text>
-
-                <Text style={styles.paragraph}>
-                    <Text>     THIS IS TO CERTIFY that </Text>
-                    <Text style={styles.boldUnderline}>{String(ownerName).toUpperCase()}</Text>
-                    <Text> has/have no real property/properties declared in his/her/their name/s either singly or collectively within the taxing jurisdiction of this province per office records.</Text>
-                </Text>
-
-                <Text style={styles.paragraph}>
-                    <Text>     Given this </Text>
-                    <Text style={styles.boldUnderline}>{day}</Text>
-                    <Text> day of </Text>
-                    <Text style={styles.boldUnderline}>{monthYear}</Text>
-                    <Text>, at Dipolog City for whatever legal purpose/intent it may serve best.</Text>
-                </Text>
-
-                <View style={styles.signatoryContainer}>
-                    <View style={styles.signatoryBlock}>
-                        <Text style={styles.signatoryName}>{signatory1Name}</Text>
-                        <Text style={styles.signatoryTitle}>{signatory1Title}</Text>
-                    </View>
-                    <View style={styles.signatoryBlock}>
-                        <Text style={styles.signatoryName}>{signatory2Name}</Text>
-                        <Text style={styles.signatoryTitle}>{signatory2Title}</Text>
-                    </View>
-                </View>
-
-                <View style={styles.receiptBox}>
+                {/* Receipt Box */}
+                <View style={styles.receiptContainer}>
                     <View style={styles.receiptRow}>
                         <Text style={styles.receiptLabel}>Cert. Fee</Text>
-                        <Text style={{ fontFamily: 'Times-Bold', fontSize: 10 }}>: </Text>
-                        <View style={styles.receiptValueContainer}>
-                            <Text style={styles.receiptValue}>Php. {certFee}</Text>
-                        </View>
+                        <Text style={{fontSize: 10, fontWeight: 'bold'}}>: </Text>
+                        <Text style={styles.receiptValue}>Php. {certFee}</Text>
                     </View>
                     <View style={styles.receiptRow}>
                         <Text style={styles.receiptLabel}>O.R. No.</Text>
-                        <Text style={{ fontFamily: 'Times-Bold', fontSize: 10 }}>: </Text>
-                        <View style={styles.receiptValueContainer}>
-                            <Text style={styles.receiptValue}>{orNumber}</Text>
-                        </View>
+                        <Text style={{fontSize: 10, fontWeight: 'bold'}}>: </Text>
+                        <Text style={styles.receiptValue}>{orNumber}</Text>
                     </View>
                     <View style={styles.receiptRow}>
                         <Text style={styles.receiptLabel}>Dated</Text>
-                        <Text style={{ fontFamily: 'Times-Bold', fontSize: 10 }}>: </Text>
-                        <View style={styles.receiptValueContainer}>
-                            <Text style={styles.receiptValue}>{datePaid}</Text>
-                        </View>
+                        <Text style={{fontSize: 10, fontWeight: 'bold'}}>: </Text>
+                        <Text style={styles.receiptValue}>{datePaid}</Text>
                     </View>
                 </View>
-
-            </View>
-        </Page>
-    </Document>
-);
+            </Page>
+        </Document>
+    );
+};
