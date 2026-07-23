@@ -74,7 +74,20 @@ export default function AccountRequest({ user }: AccountRequestProps) {
   const [query, setQuery] = useState("");
   const [requests, setRequests] = useState<AccountRequestItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const safeUser = user ?? { firstName: "Admin", lastName: "User", email: "provincialassessor@gmail.com", role: "SUPER_ADMIN" };
+
+  // Read the freshest user data directly from localStorage instead of
+  // trusting the `user` prop, which can go stale if it was updated
+  // elsewhere (e.g. Account Settings) without a shared auth context.
+  const storedUser = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('adept_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const safeUser = storedUser ?? user ?? { firstName: "Admin", lastName: "User", email: "provincialassessor@gmail.com", role: "SUPER_ADMIN" };
 
   const loadRequests = async () => {
     try {
@@ -159,14 +172,16 @@ export default function AccountRequest({ user }: AccountRequestProps) {
           </div>
 
           <div className="admin-profile-widget audit-user-chip">
-            <div className="profile-widget-avatar-container audit-user-avatar">
-              {(safeUser.firstName?.[0] ?? 'A')}{(safeUser.lastName?.[0] ?? 'U')}
+            <div className="profile-widget-avatar-container">
+                {(safeUser.firstName?.[0] ?? 'A')}{(safeUser.lastName?.[0] ?? 'U')}
             </div>
             <div className="profile-widget-info audit-user-info">
-              <span className="profile-widget-name audit-user-name">Engr. Vicente Desoy</span>
-              <span className="profile-widget-role">SUPER_ADMIN</span>
+                <span className="profile-widget-name audit-user-name">{`${safeUser.firstName || 'Admin'} ${safeUser.lastName || 'User'}`}</span>
+                <span className="profile-widget-role">
+                    {safeUser.role === 'SUPER_ADMIN' ? 'Super Admin' : safeUser.role === 'OFFICE_STAFF' ? 'Office Staff' : safeUser.role || 'Admin'}
+                </span>
             </div>
-          </div>
+        </div>
         </div>
 
         <div className="admin-search-bar">

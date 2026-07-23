@@ -38,7 +38,7 @@ interface StaffPresence {
 }
 
 type TimeRange = "Today" | "This Week" | "This Month" | "All Time";
-type ActivityFilter = "All activity" | "Approvals" | "Declines" | "System" | "Logins" | "Logouts";
+type ActivityFilter = "All activity" | "Approvals" | "Declines" | "Logins" | "Logouts";
 
 interface CurrentUser {
   name: string;
@@ -60,7 +60,6 @@ const ACTIVITY_FILTER_TO_TYPE: Record<ActivityFilter, AuditActionType | null> = 
   "All activity": null,
   Approvals: "approval",
   Declines: "decline",
-  System: "system",
   Logins: "login",
   Logouts: "logout",
 };
@@ -175,7 +174,7 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
             name: fullName || member.username || member.email,
             role,
             initials,
-            avatarColor: ['#29237A', '#00BCD4', '#1976D2', '#4CAF50', '#607D8B'][index % 5],
+            avatarColor: ['#3D2E7C', '#00BCD4', '#1976D2', '#4CAF50', '#607D8B'][index % 5],
             online: member.account_status === 'ACTIVE',
             lastSeen: member.account_status === 'ACTIVE' ? 'Just now' : 'Offline',
           } satisfies StaffPresence;
@@ -218,72 +217,63 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
 
   return (
     <div className="audit-log-page">
-      <div className="audit-log-container">
-        {/* Top bar */}
-        <div className="audit-topbar">
+      {/* Page header: title/subtitle + profile chip, then toolbar */}
+      <div className="audit-page-header">
+        <div className="audit-page-header-row">
           <div>
-            <h1 className="audit-title">Audit log</h1>
-            <p className="audit-subtitle">
-              A record of every approval, decline, and system action.
+            <h1 className="audit-page-title">Audit log</h1>
+            <p className="audit-page-subtitle">
+              A record of every account approval, decline, login, and logout.
             </p>
           </div>
-          <div className="audit-topbar-actions">
-            <div className="audit-search-field">
-              <Search size={16} className="audit-search-icon" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search records"
-                className="audit-search-input"
-              />
-            </div>
-            <div className="audit-select-field">
-              <select
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value as TimeRange)}
-                className="audit-select"
-              >
-                <option>Today</option>
-                <option>This Week</option>
-                <option>This Month</option>
-                <option>All Time</option>
-              </select>
-              <ChevronDown size={14} className="audit-select-chevron" />
-            </div>
-            <button
-              className="audit-filter-btn"
-              onClick={() => setShowFilterMenu((prev) => !prev)}
-              type="button"
-            >
-              Filter
-            </button>
-            <button className="audit-notif-btn" aria-label="Notifications">
-              <Bell size={18} />
-              <span className="audit-notif-dot" />
-            </button>
-            <div className="audit-user-chip">
-              <div className="audit-user-avatar">{currentUser.initials}</div>
-              <div className="audit-user-info">
-                <p className="audit-user-name">{currentUser.name}</p>
-                <p className="audit-user-role">{currentUser.role}</p>
-              </div>
+          <div className="audit-user-chip">
+            <div className="audit-user-avatar">{currentUser.initials}</div>
+            <div className="audit-user-info">
+              <p className="audit-user-name">{currentUser.name}</p>
+              <p className="audit-user-role">{currentUser.role}</p>
             </div>
           </div>
         </div>
 
-        {showFilterMenu && (
-          <div className="audit-filter-menu">
-            <button className="audit-filter-chip" onClick={() => { setActivityFilter('All activity'); setShowFilterMenu(false); }} type="button">All activity</button>
-            <button className="audit-filter-chip" onClick={() => { setActivityFilter('Approvals'); setShowFilterMenu(false); }} type="button">Approvals</button>
-            <button className="audit-filter-chip" onClick={() => { setActivityFilter('Declines'); setShowFilterMenu(false); }} type="button">Declines</button>
-            <button className="audit-filter-chip" onClick={() => { setActivityFilter('System'); setShowFilterMenu(false); }} type="button">System</button>
-            <button className="audit-filter-chip" onClick={() => { setActivityFilter('Logins'); setShowFilterMenu(false); }} type="button">Logins</button>
-            <button className="audit-filter-chip" onClick={() => { setActivityFilter('Logouts'); setShowFilterMenu(false); }} type="button">Logouts</button>
-            <button className="audit-filter-chip audit-filter-chip--danger" onClick={() => { clearStoredAuditEntries(); setEntries([]); setShowFilterMenu(false); }} type="button">Clear audit entries</button>
+        <div className="audit-toolbar">
+          <div className="audit-search-field">
+            <Search size={16} className="audit-search-icon" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search records"
+              className="audit-search-input"
+            />
           </div>
-        )}
+          <div className="audit-select-field">
+            <select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value as TimeRange)}
+              className="audit-select"
+            >
+              <option>Today</option>
+              <option>This Week</option>
+              <option>This Month</option>
+              <option>All Time</option>
+            </select>
+            <ChevronDown size={14} className="audit-select-chevron" />
+          </div>
+        </div>
+      </div>
 
-        {/* Main content */}
+      {showFilterMenu && (
+        <div className="audit-filter-menu">
+          <button className="audit-filter-chip" onClick={() => { setActivityFilter('All activity'); setShowFilterMenu(false); }} type="button">All activity</button>
+          <button className="audit-filter-chip" onClick={() => { setActivityFilter('Approvals'); setShowFilterMenu(false); }} type="button">Approvals</button>
+          <button className="audit-filter-chip" onClick={() => { setActivityFilter('Declines'); setShowFilterMenu(false); }} type="button">Declines</button>
+          <button className="audit-filter-chip" onClick={() => { setActivityFilter('Logins'); setShowFilterMenu(false); }} type="button">Logins</button>
+          <button className="audit-filter-chip" onClick={() => { setActivityFilter('Logouts'); setShowFilterMenu(false); }} type="button">Logouts</button>
+          <button className="audit-filter-chip audit-filter-chip--danger" onClick={() => { clearStoredAuditEntries(); setEntries([]); setShowFilterMenu(false); }} type="button">Clear audit entries</button>
+        </div>
+      )}
+
+      {/* Scrollable content area — mirrors account-request-content */}
+      <div className="audit-log-content">
         <div className="audit-content-grid">
           {/* Audit log card */}
           <div className="audit-card">
@@ -298,7 +288,6 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
                   <option>All activity</option>
                   <option>Approvals</option>
                   <option>Declines</option>
-                  <option>System</option>
                   <option>Logins</option>
                   <option>Logouts</option>
                 </select>

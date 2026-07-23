@@ -86,12 +86,14 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                     </div>
 
                     <div className="admin-profile-widget audit-user-chip">
-                        <div className="profile-widget-avatar-container audit-user-avatar">
+                        <div className="profile-widget-avatar-container">
                             {initials}
                         </div>
                         <div className="profile-widget-info audit-user-info">
-                            <span className="profile-widget-name audit-user-name">Engr. Vicente Desoy</span>
-                            <span className="profile-widget-role">SUPER_ADMIN</span>
+                            <span className="profile-widget-name audit-user-name">{`${user.firstName || ''} ${user.lastName || ''}`.trim()}</span>
+                            <span className="profile-widget-role">
+                                {user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : user.role || 'Staff'}
+                            </span>
                         </div>
                     </div>
                 </div>

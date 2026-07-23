@@ -81,8 +81,8 @@ export function RequestQueue({ user }: RequestQueueProps) {
                             {initials}
                         </div>
                         <div className="profile-widget-info audit-user-info">
-                            <span className="profile-widget-name audit-user-name">Engr. Vicente Desoy</span>
-                            <span className="profile-widget-role">SUPER_ADMIN</span>
+                            <span className="profile-widget-name audit-user-name">{fullName}</span>
+                            <span className="profile-widget-role">{roleLabel}</span>
                         </div>
                     </div>
                 </div>

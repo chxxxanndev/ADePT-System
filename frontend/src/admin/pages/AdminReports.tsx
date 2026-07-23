@@ -98,12 +98,12 @@ export function AdminReports({ user }: AdminReportsProps) {
                     </div>
 
                     <div className="admin-profile-widget audit-user-chip">
-                        <div className="profile-widget-avatar-container audit-user-avatar">
+                        <div className="profile-widget-avatar-container">
                             {initials}
                         </div>
                         <div className="profile-widget-info audit-user-info">
-                            <span className="profile-widget-name audit-user-name">Engr. Vicente Desoy</span>
-                            <span className="profile-widget-role">SUPER_ADMIN</span>
+                            <span className="profile-widget-name audit-user-name">{fullName}</span>
+                            <span className="profile-widget-role">{roleLabel}</span>
                         </div>
                     </div>
                 </div>
