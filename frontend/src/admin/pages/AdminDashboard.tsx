@@ -180,14 +180,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                             }}
                         />
                     ) : activeView === 'settings' ? (
-                        <AdminAccountSettings
-                            user={user}
-                            onSave={(data) => console.log('TODO: save admin account settings', data)}
-                            onUpdateEmail={() => console.log('TODO: update email')}
-                            onChangePassword={() => console.log('TODO: change password')}
-                            onChangePhoto={() => console.log('TODO: change photo')}
-                            onDisableAccount={(disabled) => console.log('TODO: disable account', disabled)}
-                        />
+                        <AdminAccountSettings />
                     ) : (
                         /* Placeholder views for submenu clicks */
                         <div className="admin-placeholder-view">

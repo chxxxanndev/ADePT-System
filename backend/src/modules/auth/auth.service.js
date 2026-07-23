@@ -86,7 +86,7 @@ class AuthService {
     firstName: staffMember.first_name,
     lastName: staffMember.last_name,
     username: staffMember.username,
-    roleCode: staffMember.roles?.code, // 'OFFICE_STAFF'
+    role: staffMember.roles?.code,
     roleName: staffMember.roles?.name, // 'Office Staff' (FROM YOUR ROLES TABLE)
     status: staffMember.account_status,
     avatarUrl: staffMember.avatar_url,

@@ -42,9 +42,7 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
     const [form, setForm] = useState<NoLandholdingFormData>(() => ({ ...EMPTY_NO_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '', }));
     const { addItem } = useCart();
     const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
-    const [printAsCtc, setPrintAsCtc] = useState(false);
 
     const set = <K extends keyof NoLandholdingFormData>(field: K, value: NoLandholdingFormData[K]) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -54,7 +52,7 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
         setSaveError('');
         setSaving(true);
         try {
-            // REPLACE THE MOCK WITH THIS REAL API CALL:
+            // REAL API CALL:
             await noLandholdingService.saveCertificate({
                 requestId: entryData.requestId,
                 declarantName: form.declarantName,
@@ -63,27 +61,24 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
                 dateGiven: form.dateGiven,
                 givenAt: form.givenAt,
                 purpose: form.purpose,
-                printAsCtc,
                 action: action === 'draft' ? 'draft' : 'send_to_payment',
             }, user.id);
 
-            // Replace the old addItem logic:
             if (action !== 'draft') {
                 addItem({
-                    id: entryData.requestId,                  // FIX: Use real DB ID instead of Math.random()
-                    referenceNumber: entryData.referenceNumber, // FIX: Pass the ref number
-                    documentType: 'Certificate of No Landholding', // (Change string based on the form)
+                    id: entryData.requestId,
+                    referenceNumber: entryData.referenceNumber,
+                    documentType: 'Certificate of No Landholding',
                     fee: 40.00,
                     declarantName: entryData.declarantName,
                     requestedByName: entryData.requestedByName,
                 });
             }
 
-            setSaved(true);
-            setTimeout(() => {
-                if (action === 'review') onGoToSummary();
-                else if (action === 'add_another') onAddAnother();
-            }, 1500);
+            // Instantly transition without the banner delay
+            if (action === 'review') onGoToSummary();
+            else if (action === 'add_another') onAddAnother();
+
         } catch (err: any) {
             setSaveError(err?.response?.data?.error || 'Failed to save. Please try again.');
         } finally {
@@ -105,6 +100,7 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
                         <span className="lh-ref-chip">{entryData.referenceNumber}</span>
                     </div>
 
+<<<<<<< HEAD
                     {saved && (
                         <div className="lh-success-banner">
                             <span className="lh-success-icon"><CheckCircleIcon size={18} /></span>
@@ -120,14 +116,9 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
                             <AlertTriangleIcon size={16} /> {saveError}
                         </div>
                     )}
-
-                    <div className="lh-ctc-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 32px', background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <input type="checkbox" id="ctc-mode-checkbox" checked={printAsCtc} onChange={(e) => setPrintAsCtc(e.target.checked)} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-                            <label htmlFor="ctc-mode-checkbox" style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#1e293b', cursor: 'pointer' }}>Print as Certified True Copy (CTC)</label>
-                        </div>
-                        {printAsCtc && <span style={{ background: '#dbeafe', color: '#1e40af', padding: '4px 12px', borderRadius: '999px', fontSize: '0.78rem', fontWeight: 'bold' }}>CTC Mode Active — Printable Stamp Overlay Enabled</span>}
-                    </div>
+=======
+                    {saveError && <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '12px 20px', margin: '0 32px 16px', color: '#b91c1c', fontSize: '0.88rem', fontWeight: 600 }}>⚠ {saveError}</div>}
+>>>>>>> 83633769e55f045c730818fdbdd7f6f2748c7cc8
 
                     <div className="lh-form-body">
                         {/* ══ SECTION 1: Declarant Details ══ */}
