@@ -7,7 +7,6 @@ import { EMPTY_NO_LANDHOLDING_FORM } from '../../../../users/types/noLandholding
 import { useCart } from '../../../../users/hooks/TransactionCartContext';
 import '../../../../users/styles/LandholdingCertificate.css';
 import {
-    CheckCircleIcon,
     AlertTriangleIcon,
     SaveIcon,
     PlusIcon,
@@ -100,25 +99,11 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
                         <span className="lh-ref-chip">{entryData.referenceNumber}</span>
                     </div>
 
-<<<<<<< HEAD
-                    {saved && (
-                        <div className="lh-success-banner">
-                            <span className="lh-success-icon"><CheckCircleIcon size={18} /></span>
-                            <div className="lh-success-text">
-                                <strong>Certificate saved successfully!</strong>
-                                <span>Record stored. Sent to payment queue.</span>
-                            </div>
-                        </div>
-                    )}
-
                     {saveError && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '12px 20px', margin: '0 32px 16px', color: '#b91c1c', fontSize: '0.88rem', fontWeight: 600 }}>
                             <AlertTriangleIcon size={16} /> {saveError}
                         </div>
                     )}
-=======
-                    {saveError && <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '12px 20px', margin: '0 32px 16px', color: '#b91c1c', fontSize: '0.88rem', fontWeight: 600 }}>⚠ {saveError}</div>}
->>>>>>> 83633769e55f045c730818fdbdd7f6f2748c7cc8
 
                     <div className="lh-form-body">
                         {/* ══ SECTION 1: Declarant Details ══ */}
