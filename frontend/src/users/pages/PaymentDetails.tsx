@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { pdf } from '@react-pdf/renderer';
 import { requestService } from '../services/requestService';
 import { taxDeclarationService } from '../services/taxDeclarationService';
-import { TaxDeclarationPDF } from '../components/templates/TaxDeclarationPDF';
+import { DocumentPreviewModal, type DocumentItem } from '../components/DocumentPreviewModal';
 import '../styles/PaymentDetails.css';
 
 interface PaymentDetailsProps {
@@ -16,7 +15,6 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
     const [signatory, setSignatory] = useState('');
     const [isVerified, setIsVerified] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<{ orNumber?: string; signatory?: string }>({});
     const [banner, setBanner] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
@@ -26,6 +24,11 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
     const [justification, setJustification] = useState('');
     const [justificationError, setJustificationError] = useState('');
     const [existingRequestInfo, setExistingRequestInfo] = useState<{ referenceNumber?: string; declarantName?: string } | null>(null);
+
+    // --- NEW PREVIEW STATES ---
+    const [showPreview, setShowPreview] = useState(false);
+    const [previewDocuments, setPreviewDocuments] = useState<DocumentItem[]>([]);
+    const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
     if (!payment) {
         return (
@@ -62,18 +65,13 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
         setIsVerifying(true);
 
         try {
-            // Use groupId to exclude the current active group from the duplication check
             const mainRequestId = payment.groupId || payment.id;
-
-            // Check O.R. Uniqueness via Backend Service
             const res = await requestService.checkOrUniqueness(orNumber.trim(), mainRequestId);
 
             if (res && res.isUnique === false) {
-                // Duplicate O.R. -> Show Manual Override Modal
                 setExistingRequestInfo(res.existingRequest || null);
                 setShowOverrideModal(true);
             } else {
-                // Unique O.R. -> Verified directly
                 setIsVerified(true);
                 setIsOverridden(false);
                 setJustification('');
@@ -87,9 +85,6 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
         }
     };
 
-    /**
-     * CONFIRM MANUAL OVERRIDE
-     */
     const handleConfirmOverride = () => {
         if (!justification.trim()) {
             setJustificationError('Please provide a justification for using a shared/duplicate O.R.');
@@ -113,14 +108,90 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
     };
 
     /**
-     * MAIN PDF GENERATION LOGIC
+     * FETCH DATA & OPEN PREVIEW
      */
-    const handleGeneratePDF = async () => {
-        setIsSaving(true);
+    const handleOpenPreview = async () => {
+        setIsLoadingPreview(true);
         setBanner(null);
 
         try {
-            // A. Update database for ALL documents in this grouped payment
+            const items: DocumentItem[] = [];
+
+            // Calculate Dates for Certifications
+            const today = new Date();
+            const nth = (d: number) => {
+                if (d > 3 && d < 21) return 'th';
+                switch (d % 10) {
+                    case 1: return "st";
+                    case 2: return "nd";
+                    case 3: return "rd";
+                    default: return "th";
+                }
+            };
+            const dayStr = `${today.getDate()}${nth(today.getDate())}`;
+            const monthYearStr = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+            for (const doc of documents) {
+                const typeStr = doc.documentType?.toLowerCase() || '';
+                let docType: 'TAX_DEC' | 'LANDHOLDING' | 'NO_LANDHOLDING' = 'TAX_DEC';
+                let finalData = { ...doc };
+
+                // Determine template type
+                if (typeStr.includes('no landholding')) docType = 'NO_LANDHOLDING';
+                else if (typeStr.includes('landholding')) docType = 'LANDHOLDING';
+                else docType = 'TAX_DEC';
+
+                // Fetch real data for Tax Decs from database
+                if (docType === 'TAX_DEC') {
+                    try {
+                        const trueRecord = await taxDeclarationService.getTaxDeclaration(doc.id);
+                        if (trueRecord) finalData = trueRecord;
+                    } catch (fetchErr) {
+                        console.error(`Could not hydrate document ${doc.referenceNumber}`, fetchErr);
+                    }
+                }
+
+                // Format data based on what the template expects
+                let templateData: any = {};
+                if (docType === 'TAX_DEC') {
+                    templateData = finalData;
+                } else {
+                    // For Landholding / No Landholding
+                    templateData = {
+                        ownerName: finalData.declarantName || requesterName,
+                        day: dayStr,
+                        monthYear: monthYearStr,
+                        certFee: finalData.amountDue ? finalData.amountDue.toFixed(2) : '40.00',
+                        properties: finalData.properties || [] // If your backend returns property arrays
+                    };
+                }
+
+                items.push({
+                    id: doc.id || doc.referenceNumber,
+                    type: docType,
+                    title: `${doc.documentType} (${doc.referenceNumber})`,
+                    data: templateData
+                });
+            }
+
+            setPreviewDocuments(items);
+            setShowPreview(true);
+
+        } catch (err: any) {
+            console.error("Preview Prep Error:", err);
+            setBanner({ type: 'error', text: 'Failed to prepare documents for preview.' });
+        } finally {
+            setIsLoadingPreview(false);
+        }
+    };
+
+    /**
+     * FINAL RELEASE & DB SAVE (Called from inside Modal)
+     */
+    const handleFinalRelease = async () => {
+        setBanner(null);
+
+        try {
             await Promise.all(documents.map((doc: any) =>
                 requestService.releaseRequest(doc.id, {
                     orNumber: orNumber.trim(),
@@ -130,58 +201,28 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
                 })
             ));
 
-            setBanner({ type: 'success', text: `Saving verification... Generating ${documents.length} document(s).` });
+            setBanner({ type: 'success', text: 'Documents recorded and released successfully. Returning to queue...' });
+            setShowPreview(false); // Close Modal
 
-            // B. Sequential PDF Generation Loop
-            for (const doc of documents) {
-                let finalData = doc;
-
-                if (doc.documentType?.toLowerCase().includes('tax declaration')) {
-                    try {
-                        const trueRecord = await taxDeclarationService.getTaxDeclaration(doc.id);
-                        if (trueRecord) finalData = trueRecord;
-                    } catch (fetchErr) {
-                        console.error(`Could not hydrate document ${doc.referenceNumber}`, fetchErr);
-                    }
-                }
-
-                const docInstance = (
-                    <TaxDeclarationPDF
-                        data={finalData}
-                        orNumber={orNumber}
-                        signatory={signatory}
-                    />
-                );
-
-                const blob = await pdf(docInstance).toBlob();
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-
-                const safeName = (finalData.ownerName || requesterName).replace(/[^a-z0-9]/gi, '_');
-                link.download = `${safeName}_${doc.referenceNumber}.pdf`;
-
-                document.body.appendChild(link);
-                link.click();
-
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-            }
-
-            setBanner({ type: 'success', text: 'Documents generated & payment recorded successfully. Returning to queue...' });
             setTimeout(() => {
                 onBack();
             }, 2000);
 
         } catch (err: any) {
-            console.error("PDF Generation Error:", err);
+            console.error("Release Error:", err);
             setBanner({
                 type: 'error',
-                text: err?.response?.data?.error || err?.message || 'An error occurred during generation. Please try again.'
+                text: err?.response?.data?.error || err?.message || 'Failed to update transaction in database.'
             });
-        } finally {
-            setIsSaving(false);
+            setShowPreview(false);
         }
+    };
+
+
+    // Helper to get formatted date for the receipt fields (MM-DD-YYYY)
+    const getFormattedDate = () => {
+        const d = new Date();
+        return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}-${d.getFullYear()}`;
     };
 
     return (
@@ -202,7 +243,6 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
                     {banner && <div className={`pd-banner pd-banner--${banner.type}`}>{banner.text}</div>}
 
                     <div className="pd-split-layout">
-                        {/* LEFT COLUMN: DOCUMENT LIST */}
                         <div className="pd-col-left">
                             <div className="pd-section-label">Selected Documents ({documents.length})</div>
                             <div className="pd-doc-table-wrap">
@@ -233,7 +273,6 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
                             </div>
                         </div>
 
-                        {/* RIGHT COLUMN: VERIFICATION FORM */}
                         <div className="pd-col-right">
                             <div className="pd-receipt-card">
                                 <div className="pd-section-label">Treasurer Receipt Details</div>
@@ -277,7 +316,7 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
                                         <option value="">-- Select Signatory --</option>
                                         <option value="ENGR. VICENTE P. DESOY">ENGR. VICENTE P. DESOY</option>
                                         <option value="ELVIRA T. ENAO, REA">ELVIRA T. ENAO, REA</option>
-                                        <option value="CHINA CHAN-OLARIO, RN, REA">CHINA CHAN-OLARIO, RN, REA</option>
+                                        <option value="CHINA CHAN-OLARIO, RN, REA, REB, Enp">CHINA CHAN-OLARIO, RN, REA, REB, Enp</option>
                                     </select>
                                     {fieldErrors.signatory && <span className="pd-field-error">{fieldErrors.signatory}</span>}
                                 </div>
@@ -294,8 +333,15 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
                                     ) : (
                                         <div className="pd-verified-actions">
                                             <button onClick={handleEditVerify} className="pd-btn pd-btn--edit-verify">Edit</button>
-                                            <button onClick={handleGeneratePDF} disabled={isSaving} className="pd-btn pd-btn--print">
-                                                {isSaving ? 'Processing...' : `Release & Download PDF`}
+
+                                            {/* --- UPDATED BUTTON --- */}
+                                            <button
+                                                onClick={handleOpenPreview}
+                                                disabled={isLoadingPreview}
+                                                className="pd-btn pd-btn--print"
+                                                style={{ backgroundColor: '#22c55e', color: 'white' }}
+                                            >
+                                                {isLoadingPreview ? 'Preparing Preview...' : `Generate & Preview Documents`}
                                             </button>
                                         </div>
                                     )}
@@ -306,7 +352,7 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
                 </div>
             </div>
 
-            {/* --- MANUAL OVERRIDE / SHARED RECEIPT MODAL --- */}
+            {/* --- MANUAL OVERRIDE MODAL --- */}
             {showOverrideModal && (
                 <div className="pd-modal-overlay">
                     <div className="pd-modal">
@@ -356,6 +402,18 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* --- NEW DOCUMENT PREVIEW MODAL OVERLAY --- */}
+            {showPreview && (
+                <DocumentPreviewModal
+                    documents={previewDocuments}
+                    orNumber={orNumber}
+                    datePaid={getFormattedDate()}
+                    signatory1Name={signatory}
+                    onClose={() => setShowPreview(false)}
+                    onConfirmRelease={handleFinalRelease}
+                />
             )}
         </div>
     );
