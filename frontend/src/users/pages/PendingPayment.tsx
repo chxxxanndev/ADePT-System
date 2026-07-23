@@ -155,9 +155,9 @@ export function PendingPayment({ onSelectPayment }: any) {
             {/* --- HEADER CARD --- */}
             <div className="pp-header-card">
                 <div className="pp-header-content">
-                    <span className="pp-suptitle">Cashier Operations</span>
+                    <span className="pp-suptitle">Verify payments using Official Receipts issued by the Treasurer's Office.</span>
                     <div className="pp-title-row">
-                        <h1 className="pp-title">Pending Payments Queue</h1>
+                        <h1 className="pp-title">Payment Verification Queue</h1>
                         <button
                             className={`pp-refresh-btn${isRefreshing ? ' is-spinning' : ''}`}
                             onClick={() => fetchLivePayments(true)}
