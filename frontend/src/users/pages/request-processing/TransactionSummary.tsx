@@ -13,6 +13,51 @@ interface TransactionSummaryProps {
     onProceedToQueue: () => void;
 }
 
+// --- Inline SVG icons (replacing emoji for consistent, crisp rendering) ---
+
+function UserIcon({ size = 20, color = '#29237a' }: { size?: number; color?: string }) {
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ verticalAlign: 'middle', flexShrink: 0 }}
+        >
+            <circle cx="12" cy="8" r="4" stroke={color} strokeWidth="2" />
+            <path
+                d="M4 20c0-3.3137 3.5817-6 8-6s8 2.6863 8 6"
+                stroke={color}
+                strokeWidth="2"
+                strokeLinecap="round"
+            />
+        </svg>
+    );
+}
+
+function DocumentIcon({ size = 20, color = '#1e293b' }: { size?: number; color?: string }) {
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ verticalAlign: 'middle', flexShrink: 0 }}
+        >
+            <path
+                d="M6 2.75h8.5L19 7.25V19.5a1.75 1.75 0 0 1-1.75 1.75H6.75A1.75 1.75 0 0 1 5 19.5V4.5A1.75 1.75 0 0 1 6.75 2.75Z"
+                stroke={color}
+                strokeWidth="2"
+                strokeLinejoin="round"
+            />
+            <path d="M14 2.75V7.5h4.75" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+            <path d="M8.5 12.5h7M8.5 16h7" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+    );
+}
+
 export function TransactionSummary({ entryData, onBackToForms, onProceedToQueue }: TransactionSummaryProps) {
     const { items, totalAmount, removeItem, clearCart } = useCart();
     const [submitting, setSubmitting] = useState(false);
@@ -60,14 +105,14 @@ export function TransactionSummary({ entryData, onBackToForms, onProceedToQueue 
                         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '20px', background: '#f8fafc', padding: '20px 28px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '28px' }}>
                             <div>
                                 <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Transaction Requester / Client</span>
-                                <div style={{ fontSize: '1.25rem', color: '#29237a', fontWeight: 800, marginTop: '2px' }}>
-                                    👤 {requesterName}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.25rem', color: '#29237a', fontWeight: 800, marginTop: '2px' }}>
+                                    <UserIcon size={20} color="#29237a" /> {requesterName}
                                 </div>
                             </div>
                             <div style={{ borderLeft: '1px solid #cbd5e1', paddingLeft: '20px' }}>
                                 <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Documents</span>
-                                <div style={{ fontSize: '1.25rem', color: '#1e293b', fontWeight: 800, marginTop: '2px' }}>
-                                    📄 {items.length} Record(s)
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.25rem', color: '#1e293b', fontWeight: 800, marginTop: '2px' }}>
+                                    <DocumentIcon size={20} color="#1e293b" /> {items.length} Record(s)
                                 </div>
                             </div>
                             <div style={{ borderLeft: '1px solid #cbd5e1', paddingLeft: '20px' }}>

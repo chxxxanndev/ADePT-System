@@ -3,6 +3,7 @@ import { requestService, type RequestFormData } from '../services/requestService
 import type { User } from '../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../types/taxDeclaration';
 import '../styles/RequestFormEntry.css';
+import { CheckIcon, SaveIcon, LightbulbIcon } from '../components/icons';
 
 interface ExtendedRequestFormData extends RequestFormData {
     id?: string;
@@ -25,8 +26,8 @@ interface RequestFormEntryProps {
 function ToggleButtonPair({ leftLabel, rightLabel, value, onChange }: { leftLabel: string; rightLabel: string; value: boolean | null; onChange: (val: boolean) => void; }) {
     return (
         <div className="toggle-pair">
-            <button type="button" className={`toggle-btn ${value === true ? 'toggle-btn-active' : ''}`} onClick={() => onChange(true)}><span className="toggle-checkbox">{value === true && '✓'}</span>{leftLabel}</button>
-            <button type="button" className={`toggle-btn ${value === false ? 'toggle-btn-active' : ''}`} onClick={() => onChange(false)}><span className="toggle-checkbox">{value === false && '✓'}</span>{rightLabel}</button>
+            <button type="button" className={`toggle-btn ${value === true ? 'toggle-btn-active' : ''}`} onClick={() => onChange(true)}><span className="toggle-checkbox">{value === true && <CheckIcon size={13} />}</span>{leftLabel}</button>
+            <button type="button" className={`toggle-btn ${value === false ? 'toggle-btn-active' : ''}`} onClick={() => onChange(false)}><span className="toggle-checkbox">{value === false && <CheckIcon size={13} />}</span>{rightLabel}</button>
         </div>
     );
 }
@@ -337,7 +338,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
 
                     {/* SESSION BANNER */}
                     <div className="form-reuse-notice">
-                        <div className="form-reuse-notice-icon">💡</div>
+                        <div className="form-reuse-notice-icon"><LightbulbIcon size={20} /></div>
                         <div className="form-reuse-notice-text">
                             <strong>Active Session (Requested by: {formData.requestedByName || 'Client'}):</strong> Common details are saved to speed up typing.
                             You can add multiple documents for <strong>different declarants</strong> under this same transaction by clicking <strong>"Save & Add Another"</strong> or <strong>"Add Another Document"</strong> on the next screens.
@@ -353,7 +354,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                             onClick={handleSaveDraft}
                             disabled={isSavingDraft || isProceeding}
                         >
-                            {isSavingDraft ? 'Saving Draft…' : '💾 Save Draft'}
+                            {isSavingDraft ? 'Saving Draft…' : <><SaveIcon size={14} /> Save Draft</>}
                         </button>
                         <button
                             type="button"

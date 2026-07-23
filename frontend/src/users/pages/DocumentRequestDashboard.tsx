@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'react';
 import type { User } from '../../auth-folder/types/auth';
 import { requestService } from '../services/requestService';
-import { ClipboardListIcon, FilePlusIcon, RefreshIcon } from '../components/icons';
+import {
+    ClipboardListIcon,
+    FilePlusIcon,
+    RefreshIcon,
+    LandmarkIcon,
+    ScrollTextIcon,
+    FileCheckIcon,
+    LayersIcon,
+    FolderOpenIcon,
+    TrashIcon,
+} from '../components/icons';
 import '../styles/DocumentRequestDashboard.css';
 
 interface DocumentRequestDashboardProps {
@@ -64,7 +74,7 @@ export function DocumentRequestDashboard({
         {
             type: 'tax-declaration' as const,
             className: 'tax-dec',
-            icon: '🏛️',
+            icon: <LandmarkIcon size={22} />,
             label: 'Tax Declaration',
             desc: 'Generate latest or historical certified true copies of property tax declarations.',
             badge: 'Form Entry',
@@ -72,7 +82,7 @@ export function DocumentRequestDashboard({
         {
             type: 'certificate-land-holding' as const,
             className: 'land-holding',
-            icon: '📜',
+            icon: <ScrollTextIcon size={22} />,
             label: 'Certificate of Land Holding',
             desc: 'Generate official certifications listing all properties declared under a specific client.',
             badge: 'Form Entry',
@@ -80,7 +90,7 @@ export function DocumentRequestDashboard({
         {
             type: 'certificate-no-landholding' as const,
             className: 'no-landholding',
-            icon: '📋',
+            icon: <FileCheckIcon size={22} />,
             label: 'Certificate of No Landholding',
             desc: 'Create certifications verifying that a client owns no real property in this region.',
             badge: 'Form Entry',
@@ -121,7 +131,9 @@ export function DocumentRequestDashboard({
             {/* Document Selection Grid */}
             <div className="doc-req-types-section">
                 <h2 className="doc-req-section-title">
-                    <span className="doc-req-section-icon">📑</span>
+                    <span className="doc-req-section-icon">
+                        <LayersIcon size={18} />
+                    </span>
                     <span>Select Document Type</span>
                 </h2>
                 <div className="doc-req-grid">
@@ -177,7 +189,9 @@ export function DocumentRequestDashboard({
                     </div>
                 ) : drafts.length === 0 ? (
                     <div className="doc-req-empty-state">
-                        <div className="doc-req-empty-icon">📁</div>
+                        <div className="doc-req-empty-icon">
+                            <FolderOpenIcon size={32} />
+                        </div>
                         <h3>No Drafts Found</h3>
                         <p>All saved document requests are fully processed. Create a new form to begin.</p>
                     </div>
@@ -232,7 +246,7 @@ export function DocumentRequestDashboard({
                                                 title="Delete Abandoned Draft"
                                                 aria-label="Delete Draft"
                                             >
-                                                🗑️
+                                                <TrashIcon size={14} />
                                             </button>
                                         </div>
                                     </div>

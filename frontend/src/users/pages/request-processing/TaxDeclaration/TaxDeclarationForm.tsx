@@ -6,6 +6,16 @@ import { taxDeclarationService } from '../../../services/taxDeclarationService';
 import { requestService } from '../../../services/requestService';
 import { useCart } from '../../../hooks/TransactionCartContext';
 import '../../../styles/TaxDeclaration.css';
+import {
+    XIcon,
+    CheckCircleIcon,
+    AlertTriangleIcon,
+    SaveIcon,
+    PlusIcon,
+    ClipboardListIcon,
+    CheckIcon,
+    SquareIcon,
+} from '../../../components/icons';
 
 // 1. RESTORED HELPER FUNCTIONS
 function numberToWords(num: number): string {
@@ -54,7 +64,7 @@ function AssessmentRowItem({ row, onUpdate, onRemove, canRemove, classificationO
             <td className="td-table-input-right"><input className="td-input" type="number" placeholder="%" value={row.assessmentLevel} onChange={(e) => onUpdate(row.id, 'assessmentLevel', e.target.value)} min="0" max="100" step="0.01" /></td>
             <td className="td-table-input-right"><input className="td-input" readOnly value={av > 0 ? formatPeso(av) : ''} placeholder="Auto-calc" /></td>
             <td><input className="td-input" placeholder="has." value={row.area} onChange={(e) => onUpdate(row.id, 'area', e.target.value)} /></td>
-            <td><button type="button" className="td-row-remove-btn" onClick={() => onRemove(row.id)} disabled={!canRemove} title="Remove row">✕</button></td>
+            <td><button type="button" className="td-row-remove-btn" onClick={() => onRemove(row.id)} disabled={!canRemove} title="Remove row"><XIcon size={13} /></button></td>
         </tr>
     );
 }
@@ -163,7 +173,7 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
 
                     {saved && (
                         <div className="td-success-banner">
-                            <span className="td-success-icon">✓</span>
+                            <span className="td-success-icon"><CheckCircleIcon size={18} /></span>
                             <div className="td-success-text">
                                 <strong>Tax Declaration saved successfully!</strong>
                                 <span>Record stored. Client can now proceed to payment.</span>
@@ -171,7 +181,11 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
                         </div>
                     )}
 
-                    {saveError && <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '12px 20px', margin: '0 32px 16px', color: '#b91c1c', fontSize: '0.88rem', fontWeight: 600 }}>⚠ {saveError}</div>}
+                    {saveError && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '12px 20px', margin: '0 32px 16px', color: '#b91c1c', fontSize: '0.88rem', fontWeight: 600 }}>
+                            <AlertTriangleIcon size={16} /> {saveError}
+                        </div>
+                    )}
 
                     <div className="td-doc-header">
                         <div className="td-doc-header-row">
@@ -255,8 +269,12 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
                             <div className="td-taxability-block">
                                 <span className="td-taxability-label">Taxability</span>
                                 <div className="td-taxability-toggle">
-                                    <button type="button" className={`td-taxability-btn ${form.taxability === 'TAXABLE' ? 'active-taxable' : ''}`} onClick={() => set('taxability', 'TAXABLE')}><span>{form.taxability === 'TAXABLE' ? '✓' : '☐'}</span> Taxable</button>
-                                    <button type="button" className={`td-taxability-btn ${form.taxability === 'EXEMPT' ? 'active-exempt' : ''}`} onClick={() => set('taxability', 'EXEMPT')}><span>{form.taxability === 'EXEMPT' ? '✓' : '☐'}</span> Exempt</button>
+                                    <button type="button" className={`td-taxability-btn ${form.taxability === 'TAXABLE' ? 'active-taxable' : ''}`} onClick={() => set('taxability', 'TAXABLE')}>
+                                        <span>{form.taxability === 'TAXABLE' ? <CheckIcon size={14} /> : <SquareIcon size={14} />}</span> Taxable
+                                    </button>
+                                    <button type="button" className={`td-taxability-btn ${form.taxability === 'EXEMPT' ? 'active-exempt' : ''}`} onClick={() => set('taxability', 'EXEMPT')}>
+                                        <span>{form.taxability === 'EXEMPT' ? <CheckIcon size={14} /> : <SquareIcon size={14} />}</span> Exempt
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -275,9 +293,9 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
                     <div className="td-footer">
                         <div className="td-footer-left"><button type="button" className="td-btn td-btn-back" onClick={onBack}>← Back</button></div>
                         <div className="td-footer-right">
-                            <button type="button" className="td-btn td-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>{saving ? <span className="td-spinner" /> : '💾'} Save Draft</button>
-                            <button type="button" className="td-btn td-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving} style={{ backgroundColor: '#10b981', color: 'white' }}>{saving ? <span className="td-spinner" /> : '➕'} Save & Add Another Doc</button>
-                            <button type="button" className="td-btn td-btn-submit" onClick={() => handleSave('review')} disabled={saving}>{saving ? <span className="td-spinner" /> : '📋'} Review Transaction</button>
+                            <button type="button" className="td-btn td-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>{saving ? <span className="td-spinner" /> : <SaveIcon size={14} />} Save Draft</button>
+                            <button type="button" className="td-btn td-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving} style={{ backgroundColor: '#10b981', color: 'white' }}>{saving ? <span className="td-spinner" /> : <PlusIcon size={14} />} Save & Add Another Doc</button>
+                            <button type="button" className="td-btn td-btn-submit" onClick={() => handleSave('review')} disabled={saving}>{saving ? <span className="td-spinner" /> : <ClipboardListIcon size={14} />} Review Transaction</button>
                         </div>
                     </div>
 

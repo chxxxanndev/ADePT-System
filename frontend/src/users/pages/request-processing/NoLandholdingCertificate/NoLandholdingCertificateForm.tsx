@@ -6,6 +6,13 @@ import type { NoLandholdingFormData, PronounType, PropertyCountType } from '../.
 import { EMPTY_NO_LANDHOLDING_FORM } from '../../../../users/types/noLandholding';
 import { useCart } from '../../../../users/hooks/TransactionCartContext';
 import '../../../../users/styles/LandholdingCertificate.css';
+import {
+    CheckCircleIcon,
+    AlertTriangleIcon,
+    SaveIcon,
+    PlusIcon,
+    ClipboardListIcon,
+} from '../../../components/icons';
 
 function ordinal(n: number): string {
     const s = ['th', 'st', 'nd', 'rd'];
@@ -100,7 +107,7 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
 
                     {saved && (
                         <div className="lh-success-banner">
-                            <span className="lh-success-icon">✓</span>
+                            <span className="lh-success-icon"><CheckCircleIcon size={18} /></span>
                             <div className="lh-success-text">
                                 <strong>Certificate saved successfully!</strong>
                                 <span>Record stored. Sent to payment queue.</span>
@@ -108,7 +115,11 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
                         </div>
                     )}
 
-                    {saveError && <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '12px 20px', margin: '0 32px 16px', color: '#b91c1c', fontSize: '0.88rem', fontWeight: 600 }}>⚠ {saveError}</div>}
+                    {saveError && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '12px 20px', margin: '0 32px 16px', color: '#b91c1c', fontSize: '0.88rem', fontWeight: 600 }}>
+                            <AlertTriangleIcon size={16} /> {saveError}
+                        </div>
+                    )}
 
                     <div className="lh-ctc-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 32px', background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -170,13 +181,13 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
                         </div>
                         <div className="lh-footer-right">
                             <button type="button" className="lh-btn lh-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>
-                                {saving ? <span className="lh-spinner" /> : '💾'} Save Draft
+                                {saving ? <span className="lh-spinner" /> : <SaveIcon size={14} />} Save Draft
                             </button>
                             <button type="button" className="lh-btn lh-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving} style={{ backgroundColor: '#10b981', color: 'white' }}>
-                                {saving ? <span className="lh-spinner" /> : '➕'} Save & Add Another
+                                {saving ? <span className="lh-spinner" /> : <PlusIcon size={14} />} Save & Add Another
                             </button>
                             <button type="button" className="lh-btn lh-btn-submit" onClick={() => handleSave('review')} disabled={saving}>
-                                {saving ? <span className="lh-spinner" /> : '📋'} Review Transaction
+                                {saving ? <span className="lh-spinner" /> : <ClipboardListIcon size={14} />} Review Transaction
                             </button>
                         </div>
                     </div>

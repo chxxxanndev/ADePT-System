@@ -7,6 +7,14 @@ import { EMPTY_LANDHOLDING_FORM, EMPTY_LANDHOLDING_ROW } from '../../../types/la
 import '../../../styles/LandholdingCertificate.css';
 import { landholdingService } from '../../../services/landholdingService';
 import { useCart } from '../../../hooks/TransactionCartContext';
+import {
+    XIcon,
+    CheckCircleIcon,
+    AlertTriangleIcon,
+    SaveIcon,
+    PlusIcon,
+    ClipboardListIcon,
+} from '../../../components/icons';
 
 function ordinal(n: number): string {
     const s = ['th', 'st', 'nd', 'rd'];
@@ -43,7 +51,7 @@ function PropertyRowItem({ row, onUpdate, onRemove, canRemove }: { row: Landhold
             <td><input className="lh-input" placeholder="e.g. T-798" value={row.titleNumber} onChange={(e) => onUpdate(row.id, 'titleNumber', e.target.value)} /></td>
             <td><input className="lh-input" placeholder="e.g. 1.9999 has." value={row.area} onChange={(e) => onUpdate(row.id, 'area', e.target.value)} /></td>
             <td className="lh-td-right"><input className="lh-input" type="number" placeholder="0.00" value={row.assessedValue} onChange={(e) => onUpdate(row.id, 'assessedValue', e.target.value)} min="0" step="0.01" /></td>
-            <td><button type="button" className="lh-row-remove-btn" onClick={() => onRemove(row.id)} disabled={!canRemove} title="Remove row">✕</button></td>
+            <td><button type="button" className="lh-row-remove-btn" onClick={() => onRemove(row.id)} disabled={!canRemove} title="Remove row"><XIcon size={13} /></button></td>
         </tr>
     );
 }
@@ -120,7 +128,7 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
 
                     {saved && (
                         <div className="lh-success-banner">
-                            <span className="lh-success-icon">✓</span>
+                            <span className="lh-success-icon"><CheckCircleIcon size={18} /></span>
                             <div className="lh-success-text">
                                 <strong>Certificate saved successfully!</strong>
                                 <span>Record stored. Sent to payment queue.</span>
@@ -128,7 +136,11 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
                         </div>
                     )}
 
-                    {saveError && <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '12px 20px', margin: '0 32px 16px', color: '#b91c1c', fontSize: '0.88rem', fontWeight: 600 }}>⚠ {saveError}</div>}
+                    {saveError && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '12px 20px', margin: '0 32px 16px', color: '#b91c1c', fontSize: '0.88rem', fontWeight: 600 }}>
+                            <AlertTriangleIcon size={16} /> {saveError}
+                        </div>
+                    )}
 
                     <div className="lh-form-body">
                         {/* ══ SECTION 1: Declarant Details ══ */}
@@ -153,7 +165,9 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
                         <div className="lh-table-section">
                             <div className="lh-table-header-bar">
                                 <span>Property Details</span>
-                                <button type="button" className="lh-add-row-btn" onClick={addRow}>+ Add Property</button>
+                                <button type="button" className="lh-add-row-btn" onClick={addRow}>
+                                    <PlusIcon size={13} /> Add Property
+                                </button>
                             </div>
                             <div style={{ overflowX: 'auto' }}>
                                 <table className="lh-property-table">
@@ -202,13 +216,13 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
                         </div>
                         <div className="lh-footer-right">
                             <button type="button" className="lh-btn lh-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>
-                                {saving ? <span className="lh-spinner" /> : '💾'} Save Draft
+                                {saving ? <span className="lh-spinner" /> : <SaveIcon size={14} />} Save Draft
                             </button>
                             <button type="button" className="lh-btn lh-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving} style={{ backgroundColor: '#10b981', color: 'white' }}>
-                                {saving ? <span className="lh-spinner" /> : '➕'} Save & Add Another
+                                {saving ? <span className="lh-spinner" /> : <PlusIcon size={14} />} Save & Add Another
                             </button>
                             <button type="button" className="lh-btn lh-btn-submit" onClick={() => handleSave('review')} disabled={saving}>
-                                {saving ? <span className="lh-spinner" /> : '📋'} Review Transaction
+                                {saving ? <span className="lh-spinner" /> : <ClipboardListIcon size={14} />} Review Transaction
                             </button>
                         </div>
                     </div>
