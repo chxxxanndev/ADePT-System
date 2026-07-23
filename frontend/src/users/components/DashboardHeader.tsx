@@ -1,6 +1,18 @@
 import { useState, useEffect, useRef  } from 'react';
-import type { UserProfile } from '../types/dashboard';
+// REMOVED the conflicting UserProfile import from here
 import { SearchIcon, MenuIcon, CalendarIcon, UserIcon, PeriodToggleIcon } from './icons';
+
+/**
+ * Updated interface to support the connected database fields
+ * Defining it here locally fixes the "conflict" error.
+ */
+export interface UserProfile {
+    name: string;
+    email: string;
+    role: string;       
+    lastLogin: string;  
+    avatarUrl?: string; 
+}
 
 interface DashboardHeaderProps {
     user: UserProfile;
@@ -54,7 +66,21 @@ export function DashboardHeader({
             <div className="header-profile">
                 <div className="header-profile-card">
                     <div className="header-profile-avatar">
-                        <UserIcon size={18} />
+                        {user.avatarUrl ? (
+                            <img 
+                                src={user.avatarUrl} 
+                                alt={userName} 
+                                style={{ 
+                                    width: '100%', 
+                                    height: '100%', 
+                                    borderRadius: '50%', 
+                                    objectFit: 'cover',
+                                    display: 'block' 
+                                }} 
+                            />
+                        ) : (
+                            <UserIcon size={18} />
+                        )}
                     </div>
                     <div className="header-profile-namebox">
                         <span className="header-profile-name">{user.name}</span>
@@ -139,14 +165,12 @@ function CalendarPicker({ onApply, onCancel }: CalendarPickerProps) {
                 <button
                     type="button"
                     className="calendar-nav-btn"
-                    aria-label="Previous month"
                     onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
                 >‹</button>
                 <span className="calendar-month-label">{monthLabel}</span>
                 <button
                     type="button"
                     className="calendar-nav-btn"
-                    aria-label="Next month"
                     onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
                 >›</button>
             </div>
@@ -204,6 +228,9 @@ function CalendarPicker({ onApply, onCancel }: CalendarPickerProps) {
     );
 }
 
+/**
+ * FIXED: Defined WelcomeBannerProps to solve the "Cannot find name" error.
+ */
 interface WelcomeBannerProps {
     initialPeriod?: string;
     onPeriodChange?: (period: string) => void;
@@ -215,9 +242,6 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange }: Welco
     const [view, setView] = useState<'list' | 'calendar'>('list');
     const wrapRef = useRef<HTMLDivElement>(null);
 
-    // Close on outside click — no full-screen backdrop div needed,
-    // so there's nothing that can sit on top of the dropdown and
-    // swallow clicks/scroll (which is what was happening before).
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) {
@@ -273,9 +297,6 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange }: Welco
                     <PeriodToggleIcon size={16} className={`period-selector-toggle${open ? ' open' : ''}`} />
                 </button>
 
-                {/* No backdrop div — outside-click is handled via the
-                    document listener above instead, so nothing can
-                    ever overlap and block the dropdown's clicks/scroll. */}
                 {open && view === 'list' && (
                     <ul className="period-dropdown" role="listbox">
                         {PERIOD_OPTIONS.map((opt) => (
