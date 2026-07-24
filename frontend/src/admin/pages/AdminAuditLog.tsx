@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Search,
   ChevronDown,
-  Bell,
   CheckCircle2,
   XCircle,
   Settings2,
