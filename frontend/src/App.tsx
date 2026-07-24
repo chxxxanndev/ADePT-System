@@ -27,18 +27,18 @@ function App() {
     }
   }, []);
   // 2. WRAP THE LOGGED-IN RETURNS
-  if (currentUser) {
-    const isAdmin = currentUser.role === 'SUPER_ADMIN' || (currentUser as any).roleCode === 'SUPER_ADMIN';
+if (currentUser) {
+    const isAdminOrAbove = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN';
     return (
-      <CartProvider>
-        {isAdmin ? (
-          <AdminDashboard user={currentUser} onLogout={logout} />
-        ) : (
-          <Dashboard user={currentUser} backendHealthy={backendHealthy} onLogout={logout} onUserUpdate={updateCurrentUser} />
-        )}
-      </CartProvider>
+        <CartProvider>
+            {isAdminOrAbove ? (
+                <AdminDashboard user={currentUser} onLogout={logout} />
+            ) : (
+                <Dashboard user={currentUser} backendHealthy={backendHealthy} onLogout={logout} onUserUpdate={updateCurrentUser} />
+            )}
+        </CartProvider>
     );
-  }
+}
 
   // 3. WRAP THE LOGGED-OUT RETURN
   return (

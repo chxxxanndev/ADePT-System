@@ -47,7 +47,7 @@ class AuthService {
 
     const { data: staffMember, error: staffError } = await supabase
       .from('staff')
-      .select('first_name, last_name, username, account_status, disabled_at, avatar_url, roles(code,name)')
+      .select('first_name, last_name, username, account_status, disabled_at, avatar_url, admin_level, roles(code,name)')
       .eq('auth_user_id', data.user.id)
       .single();
 
@@ -79,20 +79,21 @@ class AuthService {
     }
 
     return {
-  token: data.session?.access_token,
-  user: {
-    id: data.user.id,
-    email: data.user.email,
-    firstName: staffMember.first_name,
-    lastName: staffMember.last_name,
-    username: staffMember.username,
-    role: staffMember.roles?.code,
-    roleName: staffMember.roles?.name, // 'Office Staff' (FROM YOUR ROLES TABLE)
-    status: staffMember.account_status,
-    avatarUrl: staffMember.avatar_url,
-    lastLogin: data.user.last_sign_in_at, // Real timestamp from Supabase Auth
-  }
-};
+      token: data.session?.access_token,
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        firstName: staffMember.first_name,
+        lastName: staffMember.last_name,
+        username: staffMember.username,
+        role: staffMember.roles?.code,
+        roleName: staffMember.roles?.name, // 'Office Staff' (FROM YOUR ROLES TABLE)
+        adminLevel: staffMember.admin_level, // 'HIGH' | 'MEDIUM' | 'LOW' | null
+        status: staffMember.account_status,
+        avatarUrl: staffMember.avatar_url,
+        lastLogin: data.user.last_sign_in_at, // Real timestamp from Supabase Auth
+      }
+    };
   }
 
   async reactivateAccount({ username, password }) {
@@ -109,7 +110,7 @@ class AuthService {
 
     const { data: staffMember, error: staffError } = await supabase
       .from('staff')
-      .select('first_name, last_name, username, account_status, disabled_at, avatar_url, roles(code)')
+      .select('first_name, last_name, username, account_status, disabled_at, avatar_url, admin_level, roles(code,name)')
       .eq('auth_user_id', data.user.id)
       .single();
 
@@ -150,11 +151,12 @@ class AuthService {
         firstName: staffMember.first_name,
         lastName: staffMember.last_name,
         username: staffMember.username,
-        roleCode: staffMember.roles?.code, // For internal logic
-        roleName: staffMember.roles?.name, // <--- ADD THIS for UI display
+        role: staffMember.roles?.code, // renamed from roleCode for frontend consistency
+        roleName: staffMember.roles?.name,
+        adminLevel: staffMember.admin_level, // 'HIGH' | 'MEDIUM' | 'LOW' | null
         status: reactivated.account_status,
         avatarUrl: staffMember.avatar_url,
-        lastLogin: data.user.last_sign_in_at, // <--- ADD THIS for real-time last login
+        lastLogin: data.user.last_sign_in_at,
       }
     };
   }

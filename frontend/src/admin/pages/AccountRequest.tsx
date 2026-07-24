@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import "../styles/StaffAccounts.css";
 import "../styles/AccountRequest.css";
 import { addAdminAuditEntry } from '../services/auditLogService';
+import { hasAdminLevel } from '../../utils/permissions';
 
 // ---------- Types ----------
 type RequestStatus = "pending" | "approved" | "declined";
@@ -66,6 +67,8 @@ interface AccountRequestProps {
     lastName?: string;
     email?: string;
     role?: string;
+    adminLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+    id?: string;
   };
 }
 
@@ -89,10 +92,15 @@ export default function AccountRequest({ user }: AccountRequestProps) {
 
   const safeUser = storedUser ?? user ?? { firstName: "Admin", lastName: "User", email: "provincialassessor@gmail.com", role: "SUPER_ADMIN" };
 
+  const canDecide = hasAdminLevel(safeUser as any, 'HIGH');
+
   const loadRequests = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE_URL}/account-requests`);
+      const token = localStorage.getItem('adept_token');
+      const res = await fetch(`${API_BASE_URL}/account-requests`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!res.ok) throw new Error('Unable to load account requests.');
       const data = await res.json();
       const nextRequests = (data.requests || []).map(toAccountRequestItem);
@@ -133,14 +141,19 @@ export default function AccountRequest({ user }: AccountRequestProps) {
   }, [requests, activeTab, query]);
 
   async function handleDecision(id: string, decision: "approved" | "declined") {
+    if (!canDecide) return;
     const applicant = requests.find((request) => request.id === id);
 
     try {
       const normalizedDecision = decision === 'declined' ? 'rejected' : decision;
+      const token = localStorage.getItem('adept_token');
       const res = await fetch(`${API_BASE_URL}/account-requests/${id}/decision`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decision: normalizedDecision, reason: decision === 'approved' ? 'Approved by super admin.' : 'Rejected by super admin.' }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ decision: normalizedDecision, reason: decision === 'approved' ? 'Approved.' : 'Rejected.' }),
       });
 
       if (!res.ok) {
@@ -150,7 +163,7 @@ export default function AccountRequest({ user }: AccountRequestProps) {
 
       addAdminAuditEntry({
         type: decision === 'approved' ? 'approval' : 'decline',
-        actor: 'Super Admin',
+        actor: `${safeUser.firstName || ''} ${safeUser.lastName || ''}`.trim() || 'Admin',
         description: `${decision === 'approved' ? 'approved' : 'declined'} account request — ${applicant?.applicantName || 'an applicant'}`,
       });
 
@@ -172,13 +185,13 @@ export default function AccountRequest({ user }: AccountRequestProps) {
           </div>
 
           <div className="admin-profile-widget audit-user-chip">
-            <div className="profile-widget-avatar-container">
+            <div className="profile-widget-avatar-container audit-user-avatar">
                 {(safeUser.firstName?.[0] ?? 'A')}{(safeUser.lastName?.[0] ?? 'U')}
             </div>
             <div className="profile-widget-info audit-user-info">
                 <span className="profile-widget-name audit-user-name">{`${safeUser.firstName || 'Admin'} ${safeUser.lastName || 'User'}`}</span>
                 <span className="profile-widget-role">
-                    {safeUser.role === 'SUPER_ADMIN' ? 'Super Admin' : safeUser.role === 'OFFICE_STAFF' ? 'Office Staff' : safeUser.role || 'Admin'}
+                    {safeUser.role === 'SUPER_ADMIN' ? 'Super Admin' : safeUser.role === 'ADMIN' ? `Admin · ${safeUser.adminLevel || ''}` : safeUser.role || 'Admin'}
                 </span>
             </div>
         </div>
@@ -286,20 +299,26 @@ export default function AccountRequest({ user }: AccountRequestProps) {
                   <td className="account-request-cell-muted">{r.submitted}</td>
                   <td>
                     {r.status === "pending" ? (
-                      <div className="account-request-actions">
-                        <button
-                          onClick={() => handleDecision(r.id, "approved")}
-                          className="account-request-btn approve"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleDecision(r.id, "declined")}
-                          className="account-request-btn decline"
-                        >
-                          Decline
-                        </button>
-                      </div>
+                      canDecide ? (
+                        <div className="account-request-actions">
+                          <button
+                            onClick={() => handleDecision(r.id, "approved")}
+                            className="account-request-btn approve"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleDecision(r.id, "declined")}
+                            className="account-request-btn decline"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                          View only
+                        </span>
+                      )
                     ) : (
                       <span
                         className={`account-request-status-label ${r.status}`}

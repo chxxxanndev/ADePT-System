@@ -4,13 +4,11 @@ import type { User } from '../../auth-folder/types/auth';
 import { useStaffAccounts } from '../hooks/useStaffAccounts';
 import { createStaffAccount } from '../services/userManagementService';
 import { addAdminAuditEntry } from '../services/auditLogService';
-
-
+import { hasAdminLevel, isSuperAdmin } from '../../utils/permissions';
 
 interface StaffAccountsProps {
     user: User;
     onAddStaff?: () => void;
-    /** @deprecated Replaced by live toggle — kept for API compatibility */
     onManageStaff?: (staffId: string) => void;
 }
 
@@ -41,8 +39,30 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
     const activeCount = staff.filter((s) => s.status === 'active').length;
-
     const initials = `${user.firstName?.[0] || 'A'}${user.lastName?.[0] || 'U'}`;
+
+    const canCreateStaff = hasAdminLevel(user, 'MEDIUM'); // MEDIUM and up (HIGH, SUPER_ADMIN)
+
+    /**
+     * Can the current user toggle status on this specific staff member?
+     * - Admins/Super Admins managing other Admins: Super Admin only.
+     * - MEDIUM admins managing regular staff: only staff they created.
+     * - LOW admins: never.
+     */
+    const canManageStaffMember = (member: (typeof staff)[number]): boolean => {
+        if (member.role === 'ADMIN' || member.role === 'SUPER_ADMIN') {
+            return isSuperAdmin(user);
+        }
+        if (isSuperAdmin(user)) return true;
+        if (user.role === 'ADMIN') {
+            if (user.adminLevel === 'LOW') return false;
+            if (user.adminLevel === 'MEDIUM') {
+                return (member as any).createdBy === user.id;
+            }
+            return true; // HIGH
+        }
+        return false;
+    };
 
     const handleAddStaff = async (event: React.FormEvent) => {
         event.preventDefault();
@@ -54,7 +74,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
             await createStaffAccount(form);
             addAdminAuditEntry({
                 type: 'approval',
-                actor: 'Super Admin',
+                actor: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin',
                 description: `created staff account — ${form.username}`,
             });
             setFormSuccess('Staff account created successfully.');
@@ -74,10 +94,8 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         }
     };
 
-
     return (
         <>
-            {/* Page header */}
             <div className="staff-page-header">
                 <div className="staff-page-header-row">
                     <div>
@@ -86,19 +104,18 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                     </div>
 
                     <div className="admin-profile-widget audit-user-chip">
-                        <div className="profile-widget-avatar-container">
+                        <div className="profile-widget-avatar-container audit-user-avatar">
                             {initials}
                         </div>
                         <div className="profile-widget-info audit-user-info">
                             <span className="profile-widget-name audit-user-name">{`${user.firstName || ''} ${user.lastName || ''}`.trim()}</span>
                             <span className="profile-widget-role">
-                                {user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : user.role || 'Staff'}
+                                {user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'ADMIN' ? `Admin · ${user.adminLevel || ''}` : user.role || 'Staff'}
                             </span>
                         </div>
                     </div>
                 </div>
 
-                {/* Search bar */}
                 <div className="admin-search-bar">
                     <input
                         type="text"
@@ -136,7 +153,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 <option value="inactive">Inactive</option>
                             </select>
                         </label>
-                        {/* Refresh button */}
                         <button
                             className="staff-manage-btn"
                             onClick={refresh}
@@ -145,18 +161,17 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                         >
                             ↻ Refresh
                         </button>
-                        <button className="admin-add-btn" onClick={() => {
-                            if (onAddStaff) {
-                                onAddStaff();
-                            }
-                            setShowAddModal(true);
-                        }}>
-                            + Add Staff
-                        </button>
+                        {canCreateStaff && (
+                            <button className="admin-add-btn" onClick={() => {
+                                if (onAddStaff) onAddStaff();
+                                setShowAddModal(true);
+                            }}>
+                                + Add Staff
+                            </button>
+                        )}
                     </div>
                 </div>
 
-                 {/* Error banner */}
                 {error && (
                     <div style={{
                         padding: '10px 14px',
@@ -177,7 +192,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                     </div>
                 )}
 
-
                 <div className="admin-table-container">
                     <table className="admin-table">
                         <thead>
@@ -193,7 +207,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                         </thead>
                         <tbody>
                             {loading ? (
-                                /* Loading skeleton rows */
                                 Array.from({ length: 4 }).map((_, i) => (
                                     <tr key={i}>
                                         {Array.from({ length: 7 }).map((__, j) => (
@@ -214,52 +227,59 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                     <td colSpan={7} style={{ textAlign: 'center', opacity: 0.5, padding: '24px' }}>
                                         No staff members found.
                                     </td>
-                                   
                                 </tr>
-     
-                             ) : (
+                            ) : (
                                 staff
                                     .filter((member) => statusFilter === 'all' || member.status === statusFilter)
-                                    .map((member) => (
-                                    <tr key={member.id}>
-                                        <td><strong>{member.name}</strong></td>
-                                        <td>{member.username}</td>
-                                        <td>{member.email}</td>
-                                        <td>{member.role}</td>
-                                        <td>
-                                            <span className={`status-indicator ${member.status}`}>
-                                                <span className="status-dot" />
-                                                {member.status === 'active' ? 'Active' : member.status === 'pending' ? 'Pending' : 'Inactive'}
-                                            </span>
-                                        </td>
-                                        <td>{member.dateAdded}</td>
-                                        <td>
-                                            <button
-                                                className={`staff-manage-btn ${member.status === 'active' ? 'deactivate' : 'activate'}`}
-                                                disabled={updatingId === member.id || member.status === 'pending'}
-                                                onClick={() => toggleStatus(member.id)}
-                                                title={
-                                                    member.status === 'active'
-                                                        ? 'Deactivate this staff member'
-                                                        : 'Reactivate this staff member'
-                                                }
-                                            >
-                                                {updatingId === member.id
-                                                    ? 'Saving…'
-                                                    : member.status === 'active'
-                                                    ? 'Deactivate'
-                                                    : 'Activate'}
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
+                                    .map((member) => {
+                                        const allowed = canManageStaffMember(member);
+                                        return (
+                                            <tr key={member.id}>
+                                                <td><strong>{member.name}</strong></td>
+                                                <td>{member.username}</td>
+                                                <td>{member.email}</td>
+                                                <td>{member.role}</td>
+                                                <td>
+                                                    <span className={`status-indicator ${member.status}`}>
+                                                        <span className="status-dot" />
+                                                        {member.status === 'active' ? 'Active' : member.status === 'pending' ? 'Pending' : 'Inactive'}
+                                                    </span>
+                                                </td>
+                                                <td>{member.dateAdded}</td>
+                                                <td>
+                                                    {allowed ? (
+                                                        <button
+                                                            className={`staff-manage-btn ${member.status === 'active' ? 'deactivate' : 'activate'}`}
+                                                            disabled={updatingId === member.id || member.status === 'pending'}
+                                                            onClick={() => toggleStatus(member.id)}
+                                                            title={
+                                                                member.status === 'active'
+                                                                    ? 'Deactivate this staff member'
+                                                                    : 'Reactivate this staff member'
+                                                            }
+                                                        >
+                                                            {updatingId === member.id
+                                                                ? 'Saving…'
+                                                                : member.status === 'active'
+                                                                ? 'Deactivate'
+                                                                : 'Activate'}
+                                                        </button>
+                                                    ) : (
+                                                        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                                                            No access
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                             )}
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            {showAddModal && (
+            {showAddModal && canCreateStaff && (
                 <div className="staff-modal-backdrop" onClick={() => setShowAddModal(false)}>
                     <div className="staff-modal-card" onClick={(event) => event.stopPropagation()}>
                         <div className="staff-modal-header">
@@ -317,5 +337,4 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
             )}
         </>
     );
-
 }

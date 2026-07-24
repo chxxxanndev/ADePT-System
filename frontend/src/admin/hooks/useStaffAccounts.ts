@@ -5,17 +5,22 @@ import {
     type StaffMember,
 } from '../services/userManagementService';
 import { addAdminAuditEntry } from '../services/auditLogService';
+
 // ─── UI-facing shape ──────────────────────────────────────────────────────────
 export interface StaffRow {
     id: string;
     name: string;
     username: string;
     role: string;
+    roleCode: string | undefined;
     email: string;
     status: 'active' | 'inactive' | 'pending';
     dateAdded: string;
     account_status: StaffMember['account_status'];
+    createdBy: string | null;
+    adminLevel: 'HIGH' | 'MEDIUM' | 'LOW' | null;
 }
+
 function formatDate(iso: string): string {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return '—';
@@ -25,13 +30,16 @@ function formatDate(iso: string): string {
         year: '2-digit',
     });
 }
+
 function toRoleLabel(code: string | undefined): string {
     switch (code) {
         case 'SUPER_ADMIN':  return 'Super Admin';
+        case 'ADMIN':        return 'Admin';
         case 'OFFICE_STAFF': return 'Office Staff';
         default:             return code ?? 'Staff';
     }
 }
+
 function mapToRow(member: StaffMember): StaffRow {
     const statusMap: Record<StaffMember['account_status'], StaffRow['status']> = {
         ACTIVE:           'active',
@@ -44,12 +52,16 @@ function mapToRow(member: StaffMember): StaffRow {
         name:           `${member.first_name} ${member.last_name}`,
         username:       member.username || '—',
         role:           toRoleLabel(member.roles?.code),
+        roleCode:       member.roles?.code,
         email:          member.email,
         status:         statusMap[member.account_status] ?? 'inactive',
         dateAdded:      formatDate(member.created_at),
         account_status: member.account_status,
+        createdBy:      member.created_by ?? null,
+        adminLevel:     member.admin_level ?? null,
     };
 }
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 export function useStaffAccounts() {
     const [staff, setStaff]               = useState<StaffRow[]>([]);
@@ -57,6 +69,7 @@ export function useStaffAccounts() {
     const [error, setError]               = useState<string | null>(null);
     const [searchQuery, setSearchQuery]   = useState('');
     const [updatingId, setUpdatingId]     = useState<string | null>(null);
+
     // ── Initial fetch ────────────────────────────────────────────────────────
     const loadStaff = useCallback(async () => {
         setLoading(true);
@@ -70,12 +83,14 @@ export function useStaffAccounts() {
             setLoading(false);
         }
     }, []);
+
     useEffect(() => { loadStaff(); }, [loadStaff]);
+
     // ── Toggle active / inactive ─────────────────────────────────────────────
     const toggleStatus = useCallback(async (staffId: string) => {
         const member = staff.find((s) => s.id === staffId);
         if (!member) return;
-    
+
         const nextStatus: 'ACTIVE' | 'DISABLED' =
          member.account_status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
         setUpdatingId(staffId);
@@ -87,7 +102,7 @@ export function useStaffAccounts() {
             );
             addAdminAuditEntry({
                 type: nextStatus === 'ACTIVE' ? 'approval' : 'decline',
-                actor: 'Super Admin',
+                actor: 'Admin',
                 description: `${nextStatus === 'ACTIVE' ? 'activated' : 'deactivated'} staff account — ${member.name}`,
             });
             setStaff((prev) =>
@@ -99,6 +114,7 @@ export function useStaffAccounts() {
             setUpdatingId(null);
         }
     }, [staff]);
+
     // ── Derived: filtered list ───────────────────────────────────────────────
     const filteredStaff = staff.filter((member) => {
         const q = searchQuery.toLowerCase();
@@ -110,6 +126,7 @@ export function useStaffAccounts() {
             member.role.toLowerCase().includes(q)
         );
     });
+
     return {
         staff: filteredStaff,
         loading,
