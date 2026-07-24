@@ -3,7 +3,7 @@ import '../styles/RequestQueue.css';
 import { SearchIcon } from '../components/icons';
 import type { User } from '../../auth-folder/types/auth';
 
-type RequestStatus = 'Approved' | 'Disapproved' | 'Pending' | 'Certified' | 'Processing';
+type RequestStatus = 'Pending' | 'Released';
 
 interface DocumentRequest {
     id: string;
@@ -12,26 +12,21 @@ interface DocumentRequest {
     document: string;
     assignedStaff: string;
     status: RequestStatus;
+    /** True when this row represents a reprint of a previously released document. */
+    isReprint: boolean;
     date: string;
 }
 
 // TODO: replace with real data from a useRequestQueue hook / API call
 const mockRequests: DocumentRequest[] = [
-    { id: '1', controlNo: '2026-ADR', citizen: 'Zacarias Jacob', document: 'Tax declaration', assignedStaff: 'Linda', status: 'Approved', date: 'Jul 11' },
-    { id: '2', controlNo: '2027-ADR', citizen: 'Elizabeth Santos', document: 'Landholding', assignedStaff: 'Josephine', status: 'Disapproved', date: 'Jul 17' },
-    { id: '3', controlNo: '2028-ADR', citizen: 'Maria Montoon', document: 'No landholding', assignedStaff: 'Emilio', status: 'Pending', date: 'Jul 17' },
-    { id: '4', controlNo: '2029-ADR', citizen: 'Mister Bean', document: 'Tax declaration', assignedStaff: 'Laurel', status: 'Approved', date: 'Jul 20' },
-    { id: '5', controlNo: '2030-ADR', citizen: 'Priscilla Uy', document: 'Cert. true copy', assignedStaff: 'Linda', status: 'Certified', date: 'Jul 21' },
+    { id: '1', controlNo: '2026-ADR', citizen: 'Zacarias Jacob', document: 'Tax declaration', assignedStaff: 'Linda', status: 'Released', isReprint: false, date: 'Jul 11' },
+    { id: '2', controlNo: '2027-ADR', citizen: 'Elizabeth Santos', document: 'Landholding', assignedStaff: 'Josephine', status: 'Released', isReprint: true, date: 'Jul 17' },
+    { id: '3', controlNo: '2028-ADR', citizen: 'Maria Montoon', document: 'No landholding', assignedStaff: 'Emilio', status: 'Pending', isReprint: false, date: 'Jul 17' },
+    { id: '4', controlNo: '2029-ADR', citizen: 'Mister Bean', document: 'Tax declaration', assignedStaff: 'Laurel', status: 'Released', isReprint: false, date: 'Jul 20' },
+    { id: '5', controlNo: '2030-ADR', citizen: 'Priscilla Uy', document: 'Cert. true copy', assignedStaff: 'Linda', status: 'Pending', isReprint: true, date: 'Jul 21' },
 ];
 
-type TabKey = 'all' | 'pending' | 'processing' | 'approved' | 'disapproved';
-
-const TAB_STATUS_MAP: Record<Exclude<TabKey, 'all'>, RequestStatus> = {
-    pending: 'Pending',
-    processing: 'Processing',
-    approved: 'Approved',
-    disapproved: 'Disapproved',
-};
+type TabKey = 'all' | 'pending' | 'released' | 'reprints';
 
 interface RequestQueueProps {
     user: User;
@@ -45,18 +40,21 @@ export function RequestQueue({ user }: RequestQueueProps) {
     const fullName = `${user.firstName || 'Vicente'} ${user.lastName || 'Desoy'}`;
     const initials = `${user.firstName?.[0] || 'V'}${user.lastName?.[0] || 'D'}`;
     const roleLabel = user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : user.role || 'Super Admin';
-    const countFor = (status: RequestStatus) => requests.filter((r) => r.status === status).length;
+
+    const countForStatus = (status: RequestStatus) => requests.filter((r) => r.status === status).length;
+    const countForReprints = () => requests.filter((r) => r.isReprint).length;
 
     const tabs: { key: TabKey; label: string; count: number | null }[] = [
         { key: 'all', label: 'All', count: null },
-        { key: 'pending', label: 'Pending', count: countFor('Pending') },
-        { key: 'processing', label: 'Processing', count: countFor('Processing') },
-        { key: 'approved', label: 'Approved', count: countFor('Approved') },
-        { key: 'disapproved', label: 'Disapproved', count: countFor('Disapproved') },
+        { key: 'pending', label: 'Pending', count: countForStatus('Pending') },
+        { key: 'released', label: 'Released', count: countForStatus('Released') },
+        { key: 'reprints', label: 'Reprints', count: countForReprints() },
     ];
 
     const filteredRequests = requests.filter((req) => {
-        const matchesTab = activeTab === 'all' || req.status === TAB_STATUS_MAP[activeTab];
+        const matchesTab =
+            activeTab === 'all' ||
+            (activeTab === 'reprints' ? req.isReprint : req.status === (activeTab === 'pending' ? 'Pending' : 'Released'));
         const query = searchQuery.toLowerCase();
         const matchesSearch =
             req.controlNo.toLowerCase().includes(query) ||
@@ -138,10 +136,23 @@ export function RequestQueue({ user }: RequestQueueProps) {
                                     <td className="rq-document-cell">{req.document}</td>
                                     <td>{req.assignedStaff}</td>
                                     <td>
-                                        <span className={`status-indicator rq-status-${req.status.toLowerCase()}`}>
-                                            <span className="status-dot" />
-                                            {req.status}
-                                        </span>
+                                        {req.isReprint ? (
+                                            <div className="rq-status-stack">
+                                                <span className={`rq-status-pill rq-status-${req.status.toLowerCase()}`}>
+                                                    <span className="status-dot" />
+                                                    {req.status}
+                                                </span>
+                                                <span className="rq-status-pill rq-status-reprint">
+                                                    <span className="status-dot" />
+                                                    Reprint
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <span className={`status-indicator rq-status-${req.status.toLowerCase()}`}>
+                                                <span className="status-dot" />
+                                                {req.status}
+                                            </span>
+                                        )}
                                     </td>
                                     <td>{req.date}</td>
                                 </tr>

@@ -141,35 +141,88 @@
     font-weight: 600;
 }
 
-/* ===== Status colors ===== */
-.rq-status-approved {
-    background: #E7F8EE;
-    color: #1E9E5A;
-    border-color: #C9EFDA;
-}
-
-.rq-status-disapproved {
-    background: #FDECEC;
-    color: #E1483F;
-    border-color: #F6CFCD;
-}
-
+/* ===== Status colors =====
+   Requests are now only ever Pending or Released. "Reprint" is not its own
+   status — it's shown as a small badge next to the status pill instead
+   (see .rq-reprint-badge below), since a reprint is still a Released
+   document that happened to be printed again. */
 .rq-status-pending {
     background: #FFF6E5;
     color: #D89A1D;
     border-color: #F5E3B9;
 }
 
-.rq-status-certified {
-    background: #E8F1FD;
-    color: #2F6FE4;
-    border-color: #C9DFF9;
+.rq-status-released {
+    background: #E7F8EE;
+    color: #1E9E5A;
+    border-color: #C9EFDA;
 }
 
-.rq-status-processing {
+.rq-reprint-badge {
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
     background: #F1EEFB;
     color: #6D4FC4;
-    border-color: #DCD3F5;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+/* ===== Reprint status stack =====
+   When a row is a reprint, the status is rendered as two separate full
+   pill-shaped badges stacked vertically (status pill on top, "Reprint"
+   pill below) instead of one pill + inline badge, so both statuses read
+   clearly on their own line. */
+.rq-status-stack {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.rq-status-pill {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.rq-status-reprint {
+    background: #F1EEFB;
+    color: #6D4FC4;
+}
+
+/* Dot color per pill variant — same .status-dot element/size as the
+   regular indicator, just recolored to match each pill. */
+.rq-status-pill.rq-status-pending .status-dot {
+    background: #D89A1D;
+}
+
+.rq-status-pill.rq-status-released .status-dot {
+    background: #1E9E5A;
+}
+
+.rq-status-pill.rq-status-reprint .status-dot {
+    background: #6D4FC4;
+}
+
+/* Force ALL CAPS on every status label in this table — both the
+   single dot+label indicator (non-reprint rows) and the stacked pills
+   (reprint rows) — regardless of what casing the shared .status-indicator
+   class defaults to elsewhere in the app. Scoped to .rq-table so it
+   doesn't affect status indicators on other pages. */
+.rq-table .status-indicator {
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
 
 /* ===== Responsive ===== */
