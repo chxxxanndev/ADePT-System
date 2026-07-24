@@ -547,5 +547,93 @@ class UserService {
         if (error) throw error;
         return data;
     }
+
+
+    async createStaff({ firstName, lastName, email, username, password, roleCode = 'OFFICE_STAFF', adminLevel }, actingStaff) {
+        if (!hasAdminLevel(actingStaff, 'MEDIUM')) {
+            throw new Error('Your admin access level does not permit creating staff accounts.');
+        }
+
+        if ((roleCode === 'ADMIN' || roleCode === 'SUPER_ADMIN') && actingStaff.roleCode !== 'SUPER_ADMIN') {
+            throw new Error('Only the Super Admin can create Admin accounts.');
+        }
+
+        if (roleCode === 'ADMIN' && adminLevel && !['HIGH', 'MEDIUM', 'LOW'].includes(adminLevel)) {
+            throw new Error('Invalid admin level. Must be HIGH, MEDIUM, or LOW.');
+        }
+
+        if (!validatePassword(password)) {
+            throw new Error('Password must be at least 6 characters long.');
+        }
+
+        const resolvedAdminLevel = roleCode === 'ADMIN' ? (adminLevel || 'LOW') : null;
+
+        if (useMock || !supabase) {
+            const existing = MOCK_STAFF.find((s) => s.email === email || s.username === username);
+            if (existing) {
+                throw new Error('A staff account with that email or username already exists.');
+            }
+
+            const created = {
+                id: `mock-${Date.now()}`,
+                first_name: firstName,
+                last_name: lastName,
+                email,
+                username,
+                account_status: 'ACTIVE',
+                created_at: new Date().toISOString(),
+                created_by: actingStaff.id,
+                admin_level: resolvedAdminLevel,
+                roles: { code: roleCode },
+            };
+            MOCK_STAFF.unshift(created);
+            return created;
+        }
+
+        const { data: roleData, error: roleError } = await supabase
+            .from('roles')
+            .select('id')
+            .eq('code', roleCode)
+            .single();
+
+        if (roleError || !roleData) {
+            throw new Error('Selected role was not found.');
+        }
+
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    first_name: firstName,
+                    last_name: lastName,
+                    display_username: username,
+                },
+            },
+        });
+
+        if (authError || !authData?.user?.id) {
+            throw new Error(authError?.message || 'Unable to create authentication account.');
+        }
+
+        const { data, error } = await supabase
+            .from('staff')
+            .insert([{
+                auth_user_id: authData.user.id,
+                first_name: firstName,
+                last_name: lastName,
+                email,
+                username,
+                role_id: roleData.id,
+                account_status: 'ACTIVE',
+                created_by: actingStaff.id,
+                admin_level: resolvedAdminLevel,
+            }])
+            .select('id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)')
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
 }
 export default new UserService();

@@ -12,6 +12,7 @@ import {
 import '../styles/AdminReports.css';
 import { SearchIcon } from '../components/icons';
 import type { User } from '../../auth-folder/types/auth';
+import { hasAdminLevel } from '../../utils/permissions';
 
 interface MonthlyRequest {
     month: string;
@@ -113,6 +114,8 @@ export function AdminReports({ user }: AdminReportsProps) {
     const initials = `${user.firstName?.[0] || 'M'}${user.lastName?.[0] || 'D'}`;
     const roleLabel = user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : user.role || 'Super Admin';
 
+    const canExport = hasAdminLevel(user, 'MEDIUM'); 
+
     const radius = 68;
     const segments = buildDonutSegments(distribution, radius);
 
@@ -178,7 +181,9 @@ export function AdminReports({ user }: AdminReportsProps) {
                 <div className="admin-card ar-bar-card">
                     <div className="ar-bar-card-header">
                         <h2 className="admin-card-title">Requests by month</h2>
-                        <button type="button" className="ar-export-btn">Export</button>
+                        {canExport && (
+                            <button type="button" className="ar-export-btn">Export</button>
+                        )}
                     </div>
                     <p className="ar-chart-description">
                         Total document requests received per month

@@ -58,7 +58,7 @@ export const decideAccountRequest = async (req, res) => {
  */
 export const createStaff = async (req, res) => {
     try {
-        const { firstName, lastName, email, username, password, roleCode } = req.body;
+        const { firstName, lastName, email, username, password, roleCode, adminLevel } = req.body;
 
         if (!firstName || !lastName || !email || !username || !password) {
             return res.status(400).json({ error: 'First name, last name, email, username, and password are required.' });
@@ -72,6 +72,7 @@ export const createStaff = async (req, res) => {
             username,
             password,
             roleCode,
+            adminLevel,
         }, actingStaff);
 
         res.status(201).json({ message: 'Staff account created.', staff: created });

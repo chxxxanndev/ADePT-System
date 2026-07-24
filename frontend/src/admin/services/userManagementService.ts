@@ -145,3 +145,13 @@ export async function demoteToStaff(staffId: string): Promise<StaffMember> {
     const data = await res.json();
     return data.staff as StaffMember;
 }
+
+export interface CreateStaffPayload {
+    firstName: string;
+    lastName: string;
+    email: string;
+    username: string;
+    password: string;
+    roleCode?: string;
+    adminLevel?: 'HIGH' | 'MEDIUM' | 'LOW';
+}
