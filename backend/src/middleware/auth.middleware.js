@@ -20,7 +20,7 @@ export async function requireAuth(req, res, next) {
         req.user = data.user; // { id, email, ... }
         req.token = token;
         next();
-    } catch (err) {
+   } catch {
         res.status(401).json({ error: 'Authentication failed.' });
     }
 }

@@ -25,6 +25,7 @@ export interface CreateStaffPayload {
     username: string;
     password: string;
     roleCode?: string;
+    adminLevel?: 'HIGH' | 'MEDIUM' | 'LOW';
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -85,6 +86,66 @@ export async function updateStaffStatus(
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `Failed to update staff status (${res.status})`);
+    }
+    const data = await res.json();
+    return data.staff as StaffMember;
+}
+
+/**
+ * Sets an Admin's access level (HIGH / MEDIUM / LOW). Super Admin only —
+ * the backend will reject this call if the caller isn't a Super Admin.
+ * @param staffId    The staff row UUID (must have role ADMIN).
+ * @param adminLevel The new level to assign.
+ */
+export async function setAdminLevel(
+    staffId: string,
+    adminLevel: 'HIGH' | 'MEDIUM' | 'LOW'
+): Promise<StaffMember> {
+    const res = await fetch(`${API_BASE_URL}/staff/${staffId}/admin-level`, {
+        method: 'PATCH',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ adminLevel }),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Failed to update admin level (${res.status})`);
+    }
+    const data = await res.json();
+    return data.staff as StaffMember;
+}
+
+/**
+ * Promotes an Office Staff member to Admin with an initial level.
+ * Super Admin only.
+ */
+export async function promoteToAdmin(
+    staffId: string,
+    adminLevel: 'HIGH' | 'MEDIUM' | 'LOW'
+): Promise<StaffMember> {
+    const res = await fetch(`${API_BASE_URL}/staff/${staffId}/promote-to-admin`, {
+        method: 'PATCH',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ adminLevel }),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Failed to promote staff to Admin (${res.status})`);
+    }
+    const data = await res.json();
+    return data.staff as StaffMember;
+}
+
+/**
+ * Demotes an Admin back to Office Staff. Super Admin only.
+ */
+export async function demoteToStaff(staffId: string): Promise<StaffMember> {
+    const res = await fetch(`${API_BASE_URL}/staff/${staffId}/demote-to-staff`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Failed to demote Admin (${res.status})`);
     }
     const data = await res.json();
     return data.staff as StaffMember;
