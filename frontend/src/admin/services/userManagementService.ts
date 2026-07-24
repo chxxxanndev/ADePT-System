@@ -2,6 +2,10 @@ const API_BASE_URL = 'http://localhost:5000/api/users';
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface StaffMember {
     id: string;
+    // Supabase Auth user id — required to match this staff row against the
+    // Realtime Presence channel keyed by auth id (see useOnlinePresence.ts
+    // and AdminAuditLog.tsx). Now returned by user.service.js's getAllStaff().
+    auth_user_id: string;
     first_name: string;
     last_name: string;
     email: string;

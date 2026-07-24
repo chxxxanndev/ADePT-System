@@ -4,7 +4,7 @@ import "../styles/AccountRequest.css";
 import { addAdminAuditEntry } from '../services/auditLogService';
 
 // ---------- Types ----------
-type RequestStatus = "pending" | "approved" | "declined";
+type RequestStatus = "pending" | "approved" | "disapproved";
 
 interface AccountRequestItem {
   id: string;
@@ -16,6 +16,10 @@ interface AccountRequestItem {
   requestedRole: string;
   submitted: string; // display string, e.g. "Jul 14, 8:02 AM"
   status: RequestStatus;
+  /** When the approve/disapprove decision was made — null while still pending. */
+  decidedOn: string | null;
+  /** ACTIVE/INACTIVE for an approved account; not applicable for pending/disapproved. */
+  accountStatus: string | null;
 }
 
 const API_BASE_URL = 'http://localhost:5000/api/users';
@@ -41,6 +45,11 @@ function toAccountRequestItem(payload: any): AccountRequestItem {
     .join('')
     .toUpperCase() || 'U';
 
+  const status: RequestStatus =
+    payload.status === 'approved' ? 'approved'
+      : payload.status === 'declined' || payload.status === 'disapproved' || payload.status === 'rejected' ? 'disapproved'
+      : 'pending';
+
   return {
     id: payload.id,
     applicantName: fullName || payload.username || payload.email,
@@ -50,14 +59,23 @@ function toAccountRequestItem(payload: any): AccountRequestItem {
     email: payload.email,
     requestedRole: payload.requestedRole || 'Office Staff',
     submitted: formatSubmitted(payload.submitted || payload.created_at || new Date().toISOString()),
-    status: payload.status === 'approved' ? 'approved' : payload.status === 'declined' ? 'declined' : 'pending',
+    status,
+    // Backend field name may vary (decided_at / reviewed_at / updated_at) —
+    // whichever one your account-requests endpoint returns gets picked up
+    // here. Shows as a dash in the table until the backend provides one.
+    decidedOn: payload.decided_at || payload.reviewed_at
+      ? formatSubmitted(payload.decided_at || payload.reviewed_at)
+      : null,
+    // A disapproved application never becomes a real staff account, so
+    // there is no "account status" to show for it — same for pending.
+    accountStatus: status === 'approved' ? (payload.account_status || 'ACTIVE') : null,
   };
 }
 
 const TABS: { key: RequestStatus; label: string }[] = [
   { key: "pending", label: "Pending" },
   { key: "approved", label: "Approved" },
-  { key: "declined", label: "Declined" },
+  { key: "disapproved", label: "Disapproved" },
 ];
 
 interface AccountRequestProps {
@@ -112,7 +130,7 @@ export default function AccountRequest({ user }: AccountRequestProps) {
     () => ({
       pending: requests.filter((r) => r.status === "pending").length,
       approved: requests.filter((r) => r.status === "approved").length,
-      declined: requests.filter((r) => r.status === "declined").length,
+      disapproved: requests.filter((r) => r.status === "disapproved").length,
     }),
     [requests]
   );
@@ -132,15 +150,17 @@ export default function AccountRequest({ user }: AccountRequestProps) {
       });
   }, [requests, activeTab, query]);
 
-  async function handleDecision(id: string, decision: "approved" | "declined") {
+  async function handleDecision(id: string, decision: "approved" | "disapproved") {
     const applicant = requests.find((request) => request.id === id);
 
     try {
-      const normalizedDecision = decision === 'declined' ? 'rejected' : decision;
+      // Backend still expects 'rejected' for a disapproval — only the
+      // frontend wording changed to Approve/Disapprove.
+      const normalizedDecision = decision === 'disapproved' ? 'rejected' : decision;
       const res = await fetch(`${API_BASE_URL}/account-requests/${id}/decision`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decision: normalizedDecision, reason: decision === 'approved' ? 'Approved by super admin.' : 'Rejected by super admin.' }),
+        body: JSON.stringify({ decision: normalizedDecision, reason: decision === 'approved' ? 'Approved by super admin.' : 'Disapproved by super admin.' }),
       });
 
       if (!res.ok) {
@@ -151,9 +171,10 @@ export default function AccountRequest({ user }: AccountRequestProps) {
       addAdminAuditEntry({
         type: decision === 'approved' ? 'approval' : 'decline',
         actor: 'Super Admin',
-        description: `${decision === 'approved' ? 'approved' : 'declined'} account request — ${applicant?.applicantName || 'an applicant'}`,
+        description: `${decision === 'approved' ? 'approved' : 'disapproved'} account request — ${applicant?.applicantName || 'an applicant'}`,
       });
 
+      window.dispatchEvent(new Event('staff-directory:updated'));
       await loadRequests();
     } catch {
       setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status: decision } : r)));
@@ -248,20 +269,22 @@ export default function AccountRequest({ user }: AccountRequestProps) {
                 <th>Email</th>
                 <th>Requested role</th>
                 <th>Submitted</th>
+                <th>Decided on</th>
+                <th>Account status</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={6} className="account-request-empty-row">
+                  <td colSpan={8} className="account-request-empty-row">
                     Loading requests...
                   </td>
                 </tr>
               )}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="account-request-empty-row">
+                  <td colSpan={8} className="account-request-empty-row">
                     No {activeTab} requests to show.
                   </td>
                 </tr>
@@ -284,6 +307,8 @@ export default function AccountRequest({ user }: AccountRequestProps) {
                   <td className="account-request-cell-muted">{r.email}</td>
                   <td>{r.requestedRole}</td>
                   <td className="account-request-cell-muted">{r.submitted}</td>
+                  <td className="account-request-cell-muted">{r.decidedOn || '—'}</td>
+                  <td className="account-request-cell-muted">{r.accountStatus || '—'}</td>
                   <td>
                     {r.status === "pending" ? (
                       <div className="account-request-actions">
@@ -294,17 +319,17 @@ export default function AccountRequest({ user }: AccountRequestProps) {
                           Approve
                         </button>
                         <button
-                          onClick={() => handleDecision(r.id, "declined")}
+                          onClick={() => handleDecision(r.id, "disapproved")}
                           className="account-request-btn decline"
                         >
-                          Decline
+                          Disapprove
                         </button>
                       </div>
                     ) : (
                       <span
                         className={`account-request-status-label ${r.status}`}
                       >
-                        {r.status === "approved" ? "Approved" : "Declined"}
+                        {r.status === "approved" ? "Approved" : "Disapproved"}
                       </span>
                     )}
                   </td>

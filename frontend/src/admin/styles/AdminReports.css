@@ -249,3 +249,44 @@
         max-width: none;
     }
 }
+
+/* ===== Append to AdminReports.css ===== */
+
+/* New 4th stat card variant, for "Total disapproved" */
+.ar-stat-card--red {
+    background: #FDECEC;
+}
+.ar-stat-card--red .ar-stat-value {
+    color: #E1483F;
+}
+
+/* Search-results table below the charts */
+.ar-search-results-card {
+    margin-top: 20px;
+}
+
+/* ===== PDF export (browser print) =====
+   handleExportPdf() calls window.print(). These rules hide everything
+   except the report content itself, so "Print to PDF" produces a clean
+   document instead of capturing the sidebar/search bar/buttons too.
+   Make sure your global layout (e.g. AdminDashboard.tsx's sidebar/header)
+   also carries a class you can target here, or wrap this page's parent
+   container so only #admin-reports-print-root remains visible. */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #admin-reports-print-root,
+    #admin-reports-print-root * {
+        visibility: visible;
+    }
+    #admin-reports-print-root {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+    .no-print {
+        display: none !important;
+    }
+}

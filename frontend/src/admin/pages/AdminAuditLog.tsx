@@ -11,6 +11,7 @@ import {
 import "../styles/AdminAuditLog.css";
 import { clearStoredAuditEntries, getStoredAuditEntries, type AuditLogEntry as StoredAuditLogEntry } from '../services/auditLogService';
 import { fetchAllStaff, type StaffMember } from '../services/userManagementService';
+import { supabase, STAFF_PRESENCE_CHANNEL } from '../services/supabaseClient';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -131,24 +132,35 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
   const [entries, setEntries] = useState<AuditLogEntry[]>(() => getStoredAuditEntries());
   const [staffPresence, setStaffPresence] = useState<StaffPresence[]>([]);
 
-  // ---- Simulated real-time presence updates ----
-  // Replace this interval with a WebSocket/SSE subscription or a short poll
-  // against a real presence endpoint once the backend supports it.
+  // ---- Real presence via Supabase Realtime ----
+  // This channel only *listens*; the actual "I'm online" announcement
+  // happens wherever useOnlinePresence(user) is mounted (AdminDashboard.tsx).
   useEffect(() => {
-    const interval = setInterval(() => {
+    let isMounted = true;
+    const channel = supabase.channel(STAFF_PRESENCE_CHANNEL);
+
+    // NOTE: presence keys are each user's Supabase Auth id (see
+    // useOnlinePresence.ts). For this to match correctly, StaffMember /
+    // fetchAllStaff() needs to expose each row's `auth_user_id` — the
+    // fallback to `member.id` below only works if your staff table's
+    // primary key happens to equal the auth user id.
+    const applyPresenceState = () => {
+      const state = channel.presenceState();
+      const onlineIds = new Set(Object.keys(state));
       setStaffPresence((prev) =>
-        prev.map((staff) => {
-          const shouldToggle = Math.random() < 0.15;
-          if (!shouldToggle) return staff;
-          const nowOnline = !staff.online;
-          return {
-            ...staff,
-            online: nowOnline,
-            lastSeen: "Just now",
-          };
-        })
+        prev.map((s) => ({
+          ...s,
+          online: onlineIds.has(s.id),
+          lastSeen: onlineIds.has(s.id) ? "Just now" : s.lastSeen,
+        }))
       );
-    }, 5000);
+    };
+
+    channel
+      .on("presence", { event: "sync" }, applyPresenceState)
+      .on("presence", { event: "join" }, applyPresenceState)
+      .on("presence", { event: "leave" }, applyPresenceState)
+      .subscribe();
 
     const loadStaffPresence = async () => {
       try {
@@ -169,18 +181,21 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
               : 'Staff';
 
           return {
-            id: member.id,
+            id: member.auth_user_id || member.id,
             name: fullName || member.username || member.email,
             role,
             initials,
             avatarColor: ['#3D2E7C', '#00BCD4', '#1976D2', '#4CAF50', '#607D8B'][index % 5],
-            online: member.account_status === 'ACTIVE',
-            lastSeen: member.account_status === 'ACTIVE' ? 'Just now' : 'Offline',
+            online: false, // corrected immediately by applyPresenceState() below
+            lastSeen: member.account_status === 'ACTIVE' ? 'Offline' : 'Inactive account',
           } satisfies StaffPresence;
         });
-        setStaffPresence(nextStaffPresence);
+        if (isMounted) {
+          setStaffPresence(nextStaffPresence);
+          applyPresenceState(); // reflect anyone already connected right now
+        }
       } catch {
-        setStaffPresence([]);
+        if (isMounted) setStaffPresence([]);
       }
     };
 
@@ -188,11 +203,20 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
       setEntries(getStoredAuditEntries());
     };
 
+    // Fired by StaffAccounts.tsx right after an activate/deactivate call
+    // succeeds, so the roster (names/roles) refetches immediately too.
+    const handleStaffDirectoryUpdate = () => {
+      void loadStaffPresence();
+    };
+
     void loadStaffPresence();
     window.addEventListener('admin-audit-log:updated', handleAuditUpdate);
+    window.addEventListener('staff-directory:updated', handleStaffDirectoryUpdate);
     return () => {
-      clearInterval(interval);
+      isMounted = false;
+      supabase.removeChannel(channel);
       window.removeEventListener('admin-audit-log:updated', handleAuditUpdate);
+      window.removeEventListener('staff-directory:updated', handleStaffDirectoryUpdate);
     };
   }, []);
 
