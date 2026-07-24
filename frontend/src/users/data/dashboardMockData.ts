@@ -1,5 +1,5 @@
 
-import type { StatCardData, TransactionRow, WeeklyTrendPoint, DocumentDistributionSlice, QuickActionItem, NavSection, UserProfile, } from '../types/dashboard';
+import type { StatCardData, TransactionRow, WeeklyTrendPoint, DocumentDistributionSlice, QuickActionItem, NavSection, UserProfile } from '../types/dashboard';
 
 export const currentUser: UserProfile = {
     name: 'Vicente Deosy',
@@ -59,6 +59,7 @@ export const navSections: NavSection[] = [
         label: 'General',
         items: [
             { label: 'Dashboard', icon: 'dashboard', view: 'dashboard' },
+            { label: 'Notifications', icon: 'notifications', view: 'notifications' },
         ],
     },
     {

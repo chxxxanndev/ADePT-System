@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import '../styles/dashboard.css';
+import '../styles/NotificationPage.css';
 import { Sidebar } from '../components/Sidebar';
 import { DashboardHeader, WelcomeBanner } from '../components/DashboardHeader';
 import { DashboardFooter } from '../components/DashboardFooter';
@@ -14,6 +15,7 @@ import { DocumentRequestDashboard } from './DocumentRequestDashboard';
 import Reports from './Reports';
 import CertifiedTrueCopy from './CertifiedTrueCopy';
 import ArchiveManagement from './ArchiveManagement';
+import { NotificationPage } from './NotificationPage';
 import { requestService } from '../services/requestService';
 import { RequestGuard } from '../components/RequestGuard';
 import { DashboardSummary } from '../components/StatCard';
@@ -29,6 +31,7 @@ import type { PendingPaymentRequest } from '../types/PendingPayment';
 import { TransactionRegistry } from './TransactionRegistry';
 import { TransactionSummary } from './request-processing/TransactionSummary';
 import { ROLES } from '../constants/roles';
+import { useNotifications } from '../hooks/useNotifications'; // ADDED
 
 import {
     navSections,
@@ -67,21 +70,6 @@ interface DashboardProps {
     backendHealthy?: boolean | null;
 }
 
-/**
- * HELPER: Formats the "OFFICE_STAFF" code into "Office Staff"
- */
-// const formatRoleName = (roleCode?: string) => {
-//     if (!roleCode) return 'Staff';
-//     const roles: Record<string, string> = {
-//         'OFFICE STAFF': 'Office Staff',
-//         'SUPER ADMIN': 'Super Admin'
-//     };
-//     return roles[roleCode] || roleCode;
-// };
-
-/**
- * HELPER: Formats the real-time lastLogin date from the database
- */
 const formatLastLogin = (dateString?: string) => {
     if (!dateString) return 'Just now';
     try {
@@ -90,7 +78,7 @@ const formatLastLogin = (dateString?: string) => {
             weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true
         }).replace(',', ' •');
     } catch (e) {
-        return dateString; // Fallback for invalid date strings
+        return dateString;
     }
 };
 
@@ -103,6 +91,29 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     const [completedEntryData, setCompletedEntryData] = useState<CompletedEntryData | null>(null);
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
     const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
+
+    // ADDED — single shared notifications state + realtime subscription, lives for the whole session
+    const {
+        notifications,
+        unreadCount,
+        loading: notifLoading,
+        markAsRead,
+        markAllAsRead,
+    } = useNotifications(user);
+
+    // ADDED — clicking a notification (from the bell OR the full page) lands here
+    const handleOpenNotification = async (requestId: string, notifId: string) => {
+        markAsRead(notifId);
+        try {
+            // TODO (backend): const request = await requestService.getRequestById(requestId);
+            // setPrefilledRequestData(request);
+            setPrefilledRequestData({ requestId }); // placeholder until getRequestById is wired up
+            setActiveView('new-request');
+        } catch (err) {
+            console.error('Failed to load forwarded request', err);
+            alert('Failed to load this request.');
+        }
+    };
 
     const handleSelectNewRequest = async (type: 'tax' | 'landholding' | 'nolandholding') => {
         try {
@@ -187,7 +198,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 id: undefined,
                 requestId: undefined,
                 documentTypeIds: [],
-                referenceNumber: `REF-${new Date().getFullYear()}-XXXX`, 
+                referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
             });
             setCompletedEntryData(null);
             setActiveView('new-request');
@@ -203,44 +214,39 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
 
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`;
 
-    /**
-     * CONNECTED DATA: Maps real DB info to the Header
-     */
-    // Instead of the hardcoded helper, just use the name directly from the database
-    const headerUser = { 
-        name: fullName, 
-        email: user.email || '', 
-        role: (user as any).roleName || 'Staff', // Use roleName, fallback to 'Staff'
-        lastLogin: formatLastLogin((user as any).lastLogin), // Use lastLogin
-        avatarUrl: user.avatarUrl 
+    const headerUser = {
+        name: fullName,
+        email: user.email || '',
+        role: (user as any).roleName || 'Staff',
+        lastLogin: formatLastLogin((user as any).lastLogin),
+        avatarUrl: user.avatarUrl
     };
 
-
     const hideHeader = [
-        'new-request', 'request-form', 'tax-declaration', 'tax-dec', 
-        'certificate-land-holding', 'land-holding', 'certificate-no-landholding', 
-        'no-land-holding', 'account-settings', 'pending-payment', 
-        'payment-details', 'document-request', 'reports', 
-        'transaction-registry', 'void-amend', 'certified-true-copy', 
-        'archive-management', 'transaction-summary'
+        'new-request', 'request-form', 'tax-declaration', 'tax-dec',
+        'certificate-land-holding', 'land-holding', 'certificate-no-landholding',
+        'no-land-holding', 'account-settings', 'pending-payment',
+        'payment-details', 'document-request', 'reports',
+        'transaction-registry', 'void-amend', 'certified-true-copy',
+        'archive-management', 'transaction-summary', 'notifications' // ADDED
     ].includes(activeView);
 
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
 
-    const accountUser: AccountUser = { 
-    id: user.id, 
-    fullName: fullName.trim(), 
-    username: user.username || user.email?.split('@')[0] || '', 
-    email: user.email || '', 
-    role: (user as any).roleName || 'Staff', // <--- FIXED: Now using roleName from DB
-    avatarUrl: user.avatarUrl, 
-    lastPasswordChange: (user as any).lastPasswordChange, 
-    status: (user as any).status || 'ACTIVE' 
-};
+    const accountUser: AccountUser = {
+        id: user.id,
+        fullName: fullName.trim(),
+        username: user.username || user.email?.split('@')[0] || '',
+        email: user.email || '',
+        role: (user as any).roleName || 'Staff',
+        avatarUrl: user.avatarUrl,
+        lastPasswordChange: (user as any).lastPasswordChange,
+        status: (user as any).status || 'ACTIVE'
+    };
 
     if ((user as any).roleCode === ROLES.SUPER_ADMIN) {
-    // console.log("User is an admin");
-}
+        // console.log("User is an admin");
+    }
 
     const handleAccountSave = async (data: AccountSettingsFormData) => {
         const result = await accountService.updateProfile(data.fullName, data.username);
@@ -282,10 +288,19 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
 
     return (
         <div className="dashboard-page">
-            <Sidebar sections={navSections} activeView={activeView} onNavigate={handleNavigate} onLogout={onLogout} mobileOpen={mobileMenuOpen} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)} />
+            <Sidebar
+                sections={navSections}
+                activeView={activeView}
+                onNavigate={handleNavigate}
+                onLogout={onLogout}
+                mobileOpen={mobileMenuOpen}
+                collapsed={sidebarCollapsed}
+                onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+                unreadCount={unreadCount}
+                onOpenNotifications={() => setActiveView('notifications')}
+            />
 
             <div className="dashboard-main">
-                {/* Header is now passed the correctly formatted headerUser */}
                 {!hideHeader && <DashboardHeader user={headerUser as any} userName={fullName} onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)} />}
 
                 <div className="dashboard-content">
@@ -309,6 +324,14 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                         <CertifiedTrueCopy />
                     ) : activeView === 'archive-management' ? (
                         <ArchiveManagement />
+                    ) : activeView === 'notifications' ? ( // ADDED
+                        <NotificationPage
+                            notifications={notifications}
+                            onOpenRequest={handleOpenNotification}
+                            loading={notifLoading}
+                            unreadCount={unreadCount}
+                            onMarkAllRead={markAllAsRead}
+                        />
                     ) : isRequestFormView ? (
                         <RequestFormEntry user={user} onCancel={handleCancelEntry} onEntryComplete={handleEntryComplete} onNavigateToProcessing={handleNavigateToProcessing} prefilledRequestData={prefilledRequestData} />
                     ) : activeView === 'tax-declaration' || activeView === 'tax-dec' ? (
