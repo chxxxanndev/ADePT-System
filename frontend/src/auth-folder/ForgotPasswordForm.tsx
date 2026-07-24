@@ -61,6 +61,7 @@ export function ForgotPasswordForm({ active, loading, onForgotPassword, navigate
                         placeholder="Enter your email address"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        autoComplete="email"
                         required
                     />
                 </div>

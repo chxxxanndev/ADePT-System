@@ -1,62 +1,82 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { View } from './auth-folder/types/auth';
 import { useAuth } from './users/hooks/useAuth';
-import { AuthBanner } from './users/components/AuthBanner';
+import { AuthBanner } from './auth-folder/components/AuthBanner';
 import { LoginForm } from './auth-folder/LoginForm';
 import { SignupForm } from './auth-folder/SignupForm';
 import { ForgotPasswordForm } from './auth-folder/ForgotPasswordForm';
+import { ResetPasswordForm } from './auth-folder/ResetPasswordForm';
 import { Dashboard } from './users/pages/Dashboard';
 import { AdminDashboard } from './admin/pages/AdminDashboard';
+import { CartProvider } from './users/hooks/TransactionCartContext';
 
 function App() {
   const [view, setView] = useState<View>('login');
   const [prefilledUsername, setPrefilledUsername] = useState('');
 
-  const { currentUser, backendHealthy, loading, login, signUp, forgotPassword, logout } = useAuth();
+  const { currentUser, backendHealthy, loading, login, updateCurrentUser, reactivateAccount, signUp, forgotPassword, logout } = useAuth();
 
   const handleSignupSuccess = (username: string) => {
     setPrefilledUsername(username);
   };
 
   const navigateTo = (newView: View) => setView(newView);
-
-  if (currentUser) {
-    const isAdmin = currentUser.role === 'SUPER_ADMIN';
-    if (isAdmin) {
-      return <AdminDashboard user={currentUser} onLogout={logout} />;
+  useEffect(() => {
+    if (window.location.pathname === '/reset-password') {
+      setView('resetPassword');
     }
-    return <Dashboard user={currentUser} backendHealthy={backendHealthy} onLogout={logout} />;
+  }, []);
+  // 2. WRAP THE LOGGED-IN RETURNS
+  if (currentUser) {
+    const isAdmin = currentUser.role === 'SUPER_ADMIN' || (currentUser as any).roleCode === 'SUPER_ADMIN';
+    return (
+      <CartProvider>
+        {isAdmin ? (
+          <AdminDashboard user={currentUser} onLogout={logout} />
+        ) : (
+          <Dashboard user={currentUser} backendHealthy={backendHealthy} onLogout={logout} onUserUpdate={updateCurrentUser} />
+        )}
+      </CartProvider>
+    );
   }
 
+  // 3. WRAP THE LOGGED-OUT RETURN
   return (
-    <div className={`auth-container${view === 'signup' ? ' signup-mode' : ''}`}>
-      <AuthBanner view={view} />
+    <CartProvider>
+      <div className={`auth-container${view === 'signup' ? ' signup-mode' : ''}`}>
+        <AuthBanner view={view} />
 
-      <div className="auth-form-container">
-        <div className="form-content-area">
-          <LoginForm
-            active={view === 'login'}
-            loading={loading}
-            onLogin={login}
-            navigateTo={navigateTo}
-            initialUsername={prefilledUsername}
-          />
-          <SignupForm
-            active={view === 'signup'}
-            loading={loading}
-            onSignUp={signUp}
-            navigateTo={navigateTo}
-            prefillUsername={handleSignupSuccess}
-          />
-          <ForgotPasswordForm
-            active={view === 'forgot'}
-            loading={loading}
-            onForgotPassword={forgotPassword}
-            navigateTo={navigateTo}
-          />
+        <div className="auth-form-container">
+          <div className="form-content-area">
+            <LoginForm
+              active={view === 'login'}
+              loading={loading}
+              onLogin={login}
+              onReactivate={reactivateAccount}
+              navigateTo={navigateTo}
+              initialUsername={prefilledUsername}
+            />
+            <SignupForm
+              active={view === 'signup'}
+              loading={loading}
+              onSignUp={signUp}
+              navigateTo={navigateTo}
+              prefillUsername={handleSignupSuccess}
+            />
+            <ForgotPasswordForm
+              active={view === 'forgotPassword'}
+              loading={loading}
+              onForgotPassword={forgotPassword}
+              navigateTo={navigateTo}
+            />
+            <ResetPasswordForm
+              active={view === 'resetPassword'}
+              navigateTo={navigateTo}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </CartProvider>
   );
 }
 

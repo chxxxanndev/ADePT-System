@@ -4,19 +4,18 @@ import {
     updateStaffStatus,
     type StaffMember,
 } from '../services/userManagementService';
-
+import { addAdminAuditEntry } from '../services/auditLogService';
 // ─── UI-facing shape ──────────────────────────────────────────────────────────
-
 export interface StaffRow {
     id: string;
     name: string;
+    username: string;
     role: string;
     email: string;
     status: 'active' | 'inactive' | 'pending';
     dateAdded: string;
     account_status: StaffMember['account_status'];
 }
-
 function formatDate(iso: string): string {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return '—';
@@ -26,15 +25,13 @@ function formatDate(iso: string): string {
         year: '2-digit',
     });
 }
-
 function toRoleLabel(code: string | undefined): string {
     switch (code) {
         case 'SUPER_ADMIN':  return 'Super Admin';
-        case 'OFFICE_STAFF': return 'Records Officer';
+        case 'OFFICE_STAFF': return 'Office Staff';
         default:             return code ?? 'Staff';
     }
 }
-
 function mapToRow(member: StaffMember): StaffRow {
     const statusMap: Record<StaffMember['account_status'], StaffRow['status']> = {
         ACTIVE:           'active',
@@ -42,9 +39,10 @@ function mapToRow(member: StaffMember): StaffRow {
         PENDING_APPROVAL: 'pending',
         REJECTED:         'inactive',
     };
-    return {
+     return {
         id:             member.id,
         name:           `${member.first_name} ${member.last_name}`,
+        username:       member.username || '—',
         role:           toRoleLabel(member.roles?.code),
         email:          member.email,
         status:         statusMap[member.account_status] ?? 'inactive',
@@ -52,16 +50,13 @@ function mapToRow(member: StaffMember): StaffRow {
         account_status: member.account_status,
     };
 }
-
 // ─── Hook ─────────────────────────────────────────────────────────────────────
-
 export function useStaffAccounts() {
     const [staff, setStaff]               = useState<StaffRow[]>([]);
     const [loading, setLoading]           = useState(true);
     const [error, setError]               = useState<string | null>(null);
     const [searchQuery, setSearchQuery]   = useState('');
     const [updatingId, setUpdatingId]     = useState<string | null>(null);
-
     // ── Initial fetch ────────────────────────────────────────────────────────
     const loadStaff = useCallback(async () => {
         setLoading(true);
@@ -75,35 +70,26 @@ export function useStaffAccounts() {
             setLoading(false);
         }
     }, []);
-
     useEffect(() => { loadStaff(); }, [loadStaff]);
-
     // ── Toggle active / inactive ─────────────────────────────────────────────
     const toggleStatus = useCallback(async (staffId: string) => {
         const member = staff.find((s) => s.id === staffId);
         if (!member) return;
-
+    
         const nextStatus: 'ACTIVE' | 'DISABLED' =
-            member.account_status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
-
-        // Constraint chk_disable_reason: disable_reason must be provided when disabling
-        let disableReason: string | undefined;
-        if (nextStatus === 'DISABLED') {
-            const input = window.prompt(
-                `Reason for disabling ${member.name}'s account:
-(This is required and will be stored in the audit record.)`,
-                'Account access revoked by administrator'
-            );
-            if (!input || !input.trim()) {
-                // Admin cancelled or left blank — abort
-                return;
-            }
-            disableReason = input.trim();
-        }
-
+         member.account_status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
         setUpdatingId(staffId);
         try {
-            const updated = await updateStaffStatus(staffId, nextStatus, disableReason);
+            const updated = await updateStaffStatus(
+                staffId,
+                nextStatus,
+                nextStatus === 'DISABLED' ? 'Account disabled by administrator.' : undefined
+            );
+            addAdminAuditEntry({
+                type: nextStatus === 'ACTIVE' ? 'approval' : 'decline',
+                actor: 'Super Admin',
+                description: `${nextStatus === 'ACTIVE' ? 'activated' : 'deactivated'} staff account — ${member.name}`,
+            });
             setStaff((prev) =>
                 prev.map((s) => (s.id === staffId ? mapToRow(updated) : s))
             );
@@ -113,18 +99,17 @@ export function useStaffAccounts() {
             setUpdatingId(null);
         }
     }, [staff]);
-
     // ── Derived: filtered list ───────────────────────────────────────────────
     const filteredStaff = staff.filter((member) => {
         const q = searchQuery.toLowerCase();
         return (
             !q ||
             member.name.toLowerCase().includes(q) ||
+            member.username.toLowerCase().includes(q) ||
             member.email.toLowerCase().includes(q) ||
             member.role.toLowerCase().includes(q)
         );
     });
-
     return {
         staff: filteredStaff,
         loading,

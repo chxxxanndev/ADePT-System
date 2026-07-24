@@ -6,6 +6,7 @@ export interface User {
     lastName: string;
     role?: string;       // Added this (optional)
     status?: string;
+    avatarUrl?: string;
 }
 
 export interface MockUser {
@@ -17,7 +18,4 @@ export interface MockUser {
 }
 
 
-// If you have a View type in this file, keep it
-export type View = 'login' | 'signup' | 'forgot';
-
-
+export type View = 'login' | 'signup' | 'forgotPassword' | 'resetPassword';

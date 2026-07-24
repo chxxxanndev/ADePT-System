@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import '../styles/dashboard.css';
-import '../styles/accountSettings.css'
 import { Sidebar } from '../components/Sidebar';
 import { DashboardHeader, WelcomeBanner } from '../components/DashboardHeader';
 import { DashboardFooter } from '../components/DashboardFooter';
@@ -13,6 +12,8 @@ import { PendingPayment } from './PendingPayment';
 import { PaymentDetails } from './PaymentDetails';
 import { DocumentRequestDashboard } from './DocumentRequestDashboard';
 import Reports from './Reports';
+import CertifiedTrueCopy from './CertifiedTrueCopy';
+import ArchiveManagement from './ArchiveManagement';
 import { requestService } from '../services/requestService';
 import { RequestGuard } from '../components/RequestGuard';
 import { DashboardSummary } from '../components/StatCard';
@@ -23,7 +24,11 @@ import { QuickActions } from '../components/QuickActions';
 import type { User } from '../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../types/taxDeclaration';
 import type { AccountUser, AccountSettingsFormData } from '../types/accountSettings';
+import { accountService } from '../services/accountService';
 import type { PendingPaymentRequest } from '../types/PendingPayment';
+import { TransactionRegistry } from './TransactionRegistry';
+import { TransactionSummary } from './request-processing/TransactionSummary';
+import { ROLES } from '../constants/roles';
 
 import {
     navSections,
@@ -35,6 +40,7 @@ import {
     recentTransactions,
     quickActions
 } from '../data/dashboardMockData';
+import VoidAndAmend from './VoidAndAmend';
 
 const REQUEST_PROCESSING_VIEWS = new Set([
     'tax-declaration',
@@ -57,11 +63,41 @@ const VIEW_LABELS: Record<string, string> = {
 interface DashboardProps {
     user: User;
     onLogout: () => void;
+    onUserUpdate: (patch: Partial<User>) => void;
     backendHealthy?: boolean | null;
 }
 
-export function Dashboard({ user, onLogout }: DashboardProps) {
-    const [activeView, setActiveView] = useState('dashboard');
+/**
+ * HELPER: Formats the "OFFICE_STAFF" code into "Office Staff"
+ */
+// const formatRoleName = (roleCode?: string) => {
+//     if (!roleCode) return 'Staff';
+//     const roles: Record<string, string> = {
+//         'OFFICE STAFF': 'Office Staff',
+//         'SUPER ADMIN': 'Super Admin'
+//     };
+//     return roles[roleCode] || roleCode;
+// };
+
+/**
+ * HELPER: Formats the real-time lastLogin date from the database
+ */
+const formatLastLogin = (dateString?: string) => {
+    if (!dateString) return 'Just now';
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleString('en-US', {
+            weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true
+        }).replace(',', ' •');
+    } catch (e) {
+        return dateString; // Fallback for invalid date strings
+    }
+};
+
+export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
+    const [activeView, setActiveView] = useState<string>(
+        () => sessionStorage.getItem('adept-active-view') || 'dashboard'
+    );
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [completedEntryData, setCompletedEntryData] = useState<CompletedEntryData | null>(null);
@@ -120,6 +156,10 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         scrollContainer?.scrollTo(0, 0);
     }, [activeView]);
 
+    useEffect(() => {
+        sessionStorage.setItem('adept-active-view', activeView);
+    }, [activeView]);
+
     const handleEntryComplete = (data: CompletedEntryData) => {
         setCompletedEntryData(data);
         setPrefilledRequestData(null);
@@ -143,9 +183,11 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                 purposeId: completedEntryData.purposeId,
                 authRequired: completedEntryData.authRequired,
                 actionTaken: completedEntryData.actionTaken || 'PENDING',
-                referenceNumber: `REF-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+                propertyLocation: completedEntryData.propertyLocation,
+                id: undefined,
+                requestId: undefined,
                 documentTypeIds: [],
-                propertyLocation: '',
+                referenceNumber: `REF-${new Date().getFullYear()}-XXXX`, 
             });
             setCompletedEntryData(null);
             setActiveView('new-request');
@@ -160,24 +202,91 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     };
 
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`;
-    const headerUser = { name: fullName, email: user.email || '', role: user.role || 'Staff', lastLogin: 'Today • 8:12 AM' };
 
-    const hideHeader = activeView === 'new-request' || activeView === 'request-form' || activeView === 'tax-declaration' || activeView === 'tax-dec' || activeView === 'certificate-land-holding' || activeView === 'land-holding' || activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' || activeView === 'account-settings' || activeView === 'pending-payment' || activeView === 'payment-details' || activeView === 'document-request' || activeView === 'reports';
+    /**
+     * CONNECTED DATA: Maps real DB info to the Header
+     */
+    // Instead of the hardcoded helper, just use the name directly from the database
+    const headerUser = { 
+        name: fullName, 
+        email: user.email || '', 
+        role: (user as any).roleName || 'Staff', // Use roleName, fallback to 'Staff'
+        lastLogin: formatLastLogin((user as any).lastLogin), // Use lastLogin
+        avatarUrl: user.avatarUrl 
+    };
+
+
+    const hideHeader = [
+        'new-request', 'request-form', 'tax-declaration', 'tax-dec', 
+        'certificate-land-holding', 'land-holding', 'certificate-no-landholding', 
+        'no-land-holding', 'account-settings', 'pending-payment', 
+        'payment-details', 'document-request', 'reports', 
+        'transaction-registry', 'void-amend', 'certified-true-copy', 
+        'archive-management', 'transaction-summary'
+    ].includes(activeView);
+
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
 
-    const accountUser: AccountUser = { id: user.id, fullName: fullName.trim(), username: user.username || user.email?.split('@')[0] || '', email: user.email || '', role: user.role || 'Staff', avatarUrl: (user as any).avatarUrl, lastPasswordChange: (user as any).lastPasswordChange };
-    const handleAccountSave = async (data: AccountSettingsFormData) => { console.log('TODO', data); };
-    const handleUpdateEmail = () => { console.log('TODO'); };
-    const handleChangePassword = () => { console.log('TODO'); };
-    const handleChangePhoto = () => { console.log('TODO'); };
-    const handleDisableAccount = async (disabled: boolean) => { console.log('TODO', disabled); };
+    const accountUser: AccountUser = { 
+    id: user.id, 
+    fullName: fullName.trim(), 
+    username: user.username || user.email?.split('@')[0] || '', 
+    email: user.email || '', 
+    role: (user as any).roleName || 'Staff', // <--- FIXED: Now using roleName from DB
+    avatarUrl: user.avatarUrl, 
+    lastPasswordChange: (user as any).lastPasswordChange, 
+    status: (user as any).status || 'ACTIVE' 
+};
+
+    if ((user as any).roleCode === ROLES.SUPER_ADMIN) {
+    // console.log("User is an admin");
+}
+
+    const handleAccountSave = async (data: AccountSettingsFormData) => {
+        const result = await accountService.updateProfile(data.fullName, data.username);
+        onUserUpdate({
+            firstName: result.data.first_name,
+            lastName: result.data.last_name,
+            username: result.data.username,
+        });
+    };
+
+    const handleUpdateEmail = async (newEmail: string) => {
+        await accountService.updateEmail(newEmail);
+        onUserUpdate({ email: newEmail });
+    };
+
+    const handleChangePassword = async (currentPassword: string, newPassword: string) => {
+        await accountService.changePassword(currentPassword, newPassword);
+    };
+
+    const handleChangePhoto = async (file: File): Promise<string> => {
+        const avatarUrl = await accountService.uploadPhoto(file);
+        onUserUpdate({ avatarUrl } as Partial<User>);
+        return avatarUrl;
+    };
+
+    const handleDisableAccount = async (disabled: boolean) => {
+        try {
+            await accountService.setAccountStatus(disabled);
+            if (disabled) {
+                setTimeout(() => {
+                    onLogout();
+                }, 500);
+            }
+        } catch (err) {
+            console.error("Failed to update account status", err);
+            throw err;
+        }
+    };
 
     return (
         <div className="dashboard-page">
             <Sidebar sections={navSections} activeView={activeView} onNavigate={handleNavigate} onLogout={onLogout} mobileOpen={mobileMenuOpen} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)} />
 
             <div className="dashboard-main">
-                {!hideHeader && <DashboardHeader user={headerUser} userName={fullName} onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)} />}
+                {/* Header is now passed the correctly formatted headerUser */}
+                {!hideHeader && <DashboardHeader user={headerUser as any} userName={fullName} onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)} />}
 
                 <div className="dashboard-content">
                     {activeView === 'dashboard' ? (
@@ -196,6 +305,10 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                         </>
                     ) : activeView === 'reports' ? (
                         <Reports />
+                    ) : activeView === 'certified-true-copy' ? (
+                        <CertifiedTrueCopy />
+                    ) : activeView === 'archive-management' ? (
+                        <ArchiveManagement />
                     ) : isRequestFormView ? (
                         <RequestFormEntry user={user} onCancel={handleCancelEntry} onEntryComplete={handleEntryComplete} onNavigateToProcessing={handleNavigateToProcessing} prefilledRequestData={prefilledRequestData} />
                     ) : activeView === 'tax-declaration' || activeView === 'tax-dec' ? (
@@ -204,8 +317,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 user={user}
                                 entryData={completedEntryData}
                                 onBack={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')} // Fallback
-                                onGoToPendingPayments={() => setActiveView('pending-payment')} // THIS TRIGGERS THE REDIRECT
+                                onGoToSummary={() => setActiveView('transaction-summary')}
                                 onAddAnother={handleAddAnother}
                             />
                         ) : (<RequestGuard attemptedView="Tax Declaration" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
@@ -215,16 +327,11 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 user={user}
                                 entryData={completedEntryData}
                                 onBack={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')} // Fallback
-                                onGoToPendingPayments={() => setActiveView('pending-payment')} // THIS TRIGGERS THE REDIRECT
+                                onGoToSummary={() => setActiveView('transaction-summary')}
                                 onAddAnother={handleAddAnother}
                             />
                         ) : (
-                            <RequestGuard
-                                attemptedView="Certificate of Land Holding"
-                                onGoToEntry={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')}
-                            />
+                            <RequestGuard attemptedView="Certificate of Land Holding" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />
                         )
                     ) : activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' ? (
                         completedEntryData ? (
@@ -232,13 +339,20 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 user={user}
                                 entryData={completedEntryData}
                                 onBack={() => setActiveView('new-request')}
-                                onBackToDashboard={() => setActiveView('dashboard')} // Fallback
-                                onGoToPendingPayments={() => setActiveView('pending-payment')} // THIS TRIGGERS THE REDIRECT
+                                onGoToSummary={() => setActiveView('transaction-summary')}
                                 onAddAnother={handleAddAnother}
                             />
                         ) : (<RequestGuard attemptedView="Certificate of No Landholding" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
                     ) : activeView === 'document-request' ? (
                         <DocumentRequestDashboard user={user} onSelectNewRequest={handleSelectNewRequest} onSelectDraft={handleSelectDraft} onSelectDocumentView={(view) => setActiveView(view)} />
+                    ) : activeView === 'transaction-summary' ? (
+                        completedEntryData ? (
+                            <TransactionSummary
+                                entryData={completedEntryData}
+                                onBackToForms={handleAddAnother}
+                                onProceedToQueue={() => setActiveView('pending-payment')}
+                            />
+                        ) : (<RequestGuard attemptedView="Transaction Summary" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
                     ) : activeView === 'account-settings' ? (
                         <AccountSettings user={accountUser} onSave={handleAccountSave} onUpdateEmail={handleUpdateEmail} onChangePassword={handleChangePassword} onChangePhoto={handleChangePhoto} onDisableAccount={handleDisableAccount} />
                     ) : activeView === 'pending-payment' ? (
@@ -253,6 +367,10 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                                 else setActiveView('tax-declaration');
                             }}
                         />
+                    ) : activeView === 'transaction-registry' ? (
+                        <TransactionRegistry />
+                    ) : activeView === 'void-amend' ? (
+                        <VoidAndAmend />
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
                             <h2>{VIEW_LABELS[activeView] ?? activeView}</h2>

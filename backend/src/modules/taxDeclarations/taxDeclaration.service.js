@@ -208,7 +208,7 @@ class TaxDeclarationService {
         // actually requires a tax declaration to this TD record.
         const { data: reqDocs, error: rdErr } = await supabase
             .from('request_documents')
-            .select('id, document_types(requires_tax_declaration)')
+            .select('id, document_types!fk_document_types(requires_tax_declaration)') 
             .eq('request_id', data.requestId);
 
         if (rdErr) throw rdErr;

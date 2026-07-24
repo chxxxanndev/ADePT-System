@@ -1,239 +1,159 @@
-import { supabase, useMock } from '../../config/supabase.js';
+import { supabase } from '../../config/supabase.js';
 
 class RequestService {
-    async getMetadata() {
-        if (useMock || !supabase) {
-            return {
-                municipalities: [
-                    { id: 'm1', name: 'Sibutad' },
-                    { id: 'm2', name: 'Dapitan' },
-                    { id: 'm3', name: 'Dipolog' },
-                ],
-                barangays: [
-                    { id: 'b1', name: 'Pob. Sibutad', municipality_id: 'm1' },
-                    { id: 'b2', name: 'Calamba', municipality_id: 'm1' },
-                ],
-                docTypes: [
-                    { id: 'dt1', name: 'Certified True Copy of Latest Tax Declaration', prefix: 'TD' },
-                    { id: 'dt2', name: 'Certified True Copy of Old Tax Declaration', prefix: 'CTC' },
-                    { id: 'dt3', name: 'Certificate of Landholding', prefix: 'CLH' },
-                ],
-                purposes: [
-                    { id: 'p1', name: 'For Settling of Tax Obligation', code: 'TAX_OBLIGATION' },
-                    { id: 'p2', name: 'For Court and Other Legal Purposes', code: 'LEGAL' },
-                    { id: 'p3', name: 'Others', code: 'OTHERS' },
-                ],
-                classifications: [
-                    { id: 'c1', name: 'Agricultural', code: 'AGRICULTURAL' },
-                    { id: 'c2', name: 'Residential', code: 'RESIDENTIAL' },
-                    { id: 'c3', name: 'Commercial', code: 'COMMERCIAL' },
-                    { id: 'c4', name: 'Industrial', code: 'INDUSTRIAL' },
-                    { id: 'c5', name: 'Special', code: 'SPECIAL' },
-                ],
-                propertyTypes: [
-                    { id: 'pt1', name: 'Land', code: 'LAND' },
-                    { id: 'pt2', name: 'Building', code: 'BUILDING' },
-                    { id: 'pt3', name: 'Machinery', code: 'MACHINERY' },
-                    { id: 'pt4', name: 'Others', code: 'OTHERS' },
-                ],
-                staff: [
-                    { id: 's1', name: 'Juan Dela Cruz' },
-                    { id: 's2', name: 'Maria Santos' },
-                ],
-            };
-        }
+    // Generates Prefix-Year-Random (e.g., NLH-2026-1234)
+    async _generateReferenceNumber(documentTypeIds) {
+        let prefix = 'REF';
+        try {
+            if (documentTypeIds && documentTypeIds.length > 0) {
+                const { data } = await supabase.from('document_types').select('prefix').eq('id', documentTypeIds[0]).single();
+                if (data?.prefix) prefix = data.prefix;
+            }
+        } catch (e) { console.error("Prefix error:", e.message); }
+        return `${prefix}-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    }
 
+    async getMetadata() {
         const { data: municipalities } = await supabase.from('municipalities').select('id, name');
         const { data: barangays } = await supabase.from('barangays').select('id, name, municipality_id');
         const { data: docTypes } = await supabase.from('document_types').select('id, name, prefix');
+        const { data: purposes } = await supabase.from('lookup_values').select('id, label, code');
+        const { data: staffRows } = await supabase.from('staff').select('id, first_name, last_name');
+        const staff = (staffRows ?? []).map(s => ({ id: s.id, name: `${s.first_name} ${s.last_name}` }));
 
-        const { data: categories } = await supabase.from('lookup_categories').select('id, code');
-        const { data: values } = await supabase
-            .from('lookup_values')
-            .select('id, category_id, code, label')
-            .eq('is_active', true);
-
-        const categoryMap = {};
-        categories?.forEach((c) => { categoryMap[c.id] = c.code; });
-
-        const purposes = [];
-        const classifications = [];
-        const propertyTypes = [];
-
-        values?.forEach((v) => {
-            const catCode = categoryMap[v.category_id];
-            const entry = { id: v.id, name: v.label, code: v.code };
-            if (catCode === 'PURPOSE') purposes.push(entry);
-            else if (catCode === 'CLASSIFICATION') classifications.push(entry);
-            else if (catCode === 'PROPERTY_TYPE') propertyTypes.push(entry);
-        });
-
-        const { data: staffRows } = await supabase
-            .from('staff')
-            .select('id, first_name, last_name')
-            .eq('account_status', 'ACTIVE')
-            .is('deleted_at', null);
-
-        const staff = (staffRows ?? []).map((s) => ({ id: s.id, name: `${s.first_name} ${s.last_name}` }));
-
-        return { municipalities, barangays, docTypes, purposes, classifications, propertyTypes, staff };
+        return { municipalities: municipalities || [], barangays: barangays || [], docTypes: docTypes || [], purposes: purposes || [], staff: staff || [] };
     }
 
-    async saveNewRequest(formData, authUserId) {
-        const { data: staff } = await supabase
-            .from('staff')
-            .select('id')
-            .eq('auth_user_id', authUserId)
-            .eq('account_status', 'ACTIVE')
-            .is('deleted_at', null)
-            .single();
+    async createRequest(formData, authUserId) {
+        const { data: staff } = await supabase.from('staff').select('id').eq('auth_user_id', authUserId).single();
+        if (!staff) throw new Error('Staff not found');
 
-        if (!staff) throw new Error('Staff profile not found or inactive.');
-
-        const insertPayload = {
-            declarant_name: formData.declarantName,
-            request_date: formData.requestDate,
-            requested_by_name: formData.requestedByName,
-            authorization_required: formData.authRequired,
-            purpose_id: formData.purposeId || null,
-            purpose_other_text: formData.purposeOtherText || null,   // ← add this
-            action_taken: formData.actionTaken || 'PENDING',
-            encoded_by: staff.id,
-            status: 'DRAFT',
-        };
-
-        if (formData.releasingStaffId) insertPayload.released_by = formData.releasingStaffId;
-        if (formData.releaseDate) insertPayload.archive_returned_date = formData.releaseDate;
+        const uniqueRef = await this._generateReferenceNumber(formData.documentTypeIds);
 
         const { data: request, error: reqError } = await supabase
             .from('requests')
-            .insert([insertPayload])
-            .select()
-            .single();
+            .insert([{
+                declarant_name: formData.declarantName,
+                request_date: formData.requestDate,
+                requested_by_name: formData.requestedByName,
+                reference_number: uniqueRef,
+                authorization_required: formData.authRequired,
+                purpose_id: formData.purposeId || null,
+                purpose_other_text: formData.purposeOtherText || null,
+                action_taken: formData.actionTaken || 'PENDING',
+                encoded_by: staff.id,
+                status: formData.status || 'DRAFT'
+            }])
+            .select().single();
 
         if (reqError) throw reqError;
 
         if (formData.documentTypeIds?.length) {
-            const docLinks = formData.documentTypeIds.map((docId) => ({
-                request_id: request.id,
-                document_type_id: docId,
-            }));
-            const { error: docError } = await supabase.from('request_documents').insert(docLinks);
-            if (docError) throw docError;
+            const links = formData.documentTypeIds.map(id => ({ request_id: request.id, document_type_id: id }));
+            await supabase.from('request_documents').insert(links);
         }
-
         return request;
     }
 
-    /**
-     * Updates an existing DRAFT request and reconciles its document type
-     * selections.
-     *
-     * IMPORTANT caveat on document types: this only adds/removes rows in
-     * request_documents that are still 'PENDING' (i.e. no PDF generated
-     * yet). If a document type was deselected but already has a generated
-     * PDF (status != 'PENDING'), it is deliberately left alone rather than
-     * deleted — removing it would orphan generated_documents rows and
-     * silently invalidate an already-issued document_number. Those are
-     * reported back in `skippedRemovals` so the frontend/controller can
-     * decide whether to surface a warning.
-     */
-    async updateRequest(requestId, formData) {
-        const updatePayload = {
-            declarant_name: formData.declarantName,
-            request_date: formData.requestDate,
-            requested_by_name: formData.requestedByName,
-            authorization_required: formData.authRequired,
-            purpose_id: formData.purposeId || null,
-            purpose_other_text: formData.purposeOtherText || null,   // ← add this
-            action_taken: formData.actionTaken || 'PENDING',
-        };
+    async getRequests() {
+        try {
+            const { data: requests, error: reqErr } = await supabase.from('requests').select('*').order('created_at', { ascending: false });
+            if (reqErr) throw reqErr;
 
-        if (formData.status) {
-            updatePayload.status = formData.status;
+            const { data: docLinks } = await supabase.from('request_documents').select('request_id, document_types(name)');
+
+            return (requests || []).map(r => ({
+                ...r,
+                request_documents: (docLinks || []).filter(d => d.request_id === r.id)
+            }));
+        } catch (err) { return []; }
+    }
+
+    async updateRequest(id, formData) {
+        const updateData = {};
+
+        if (formData.status) updateData.status = formData.status;
+
+        if (formData.declarantName || formData.declarant_name) {
+            updateData.declarant_name = formData.declarantName || formData.declarant_name;
         }
 
-        if (formData.releasingStaffId) updatePayload.released_by = formData.releasingStaffId;
-        if (formData.releaseDate) updatePayload.archive_returned_date = formData.releaseDate;
+        if (formData.requestedByName || formData.requested_by_name) {
+            updateData.requested_by_name = formData.requestedByName || formData.requested_by_name;
+        }
 
-        if (formData.releasingStaffId) updatePayload.released_by = formData.releasingStaffId;
-        if (formData.releaseDate) updatePayload.archive_returned_date = formData.releaseDate;
+        if (formData.purposeId) updateData.purpose_id = formData.purposeId;
+        if (formData.purposeOtherText !== undefined) updateData.purpose_other_text = formData.purposeOtherText;
 
-        const { data: request, error: reqError } = await supabase
+        if (formData.action_taken || formData.actionTaken) {
+            updateData.action_taken = formData.actionTaken || formData.action_taken;
+        }
+
+        const { data, error } = await supabase
             .from('requests')
-            .update(updatePayload)
-            .eq('id', requestId)
+            .update(updateData)
+            .eq('id', id)
             .select()
             .single();
 
-        if (reqError) throw reqError;
-        if (!request) throw new Error('REQUEST_NOT_FOUND');
-
-        // Reconcile request_documents against the newly selected document types.
-        const { data: existingDocs, error: fetchError } = await supabase
-            .from('request_documents')
-            .select('id, document_type_id, status')
-            .eq('request_id', requestId);
-
-        if (fetchError) throw fetchError;
-
-        const newTypeIds = new Set(formData.documentTypeIds ?? []);
-        const existingTypeIds = new Set((existingDocs ?? []).map((d) => d.document_type_id));
-
-        const toAdd = [...newTypeIds].filter((t) => !existingTypeIds.has(t));
-        const removable = (existingDocs ?? []).filter(
-            (d) => !newTypeIds.has(d.document_type_id) && d.status === 'PENDING'
-        );
-        const skippedRemovals = (existingDocs ?? []).filter(
-            (d) => !newTypeIds.has(d.document_type_id) && d.status !== 'PENDING'
-        );
-
-        if (toAdd.length) {
-            const docLinks = toAdd.map((docId) => ({ request_id: requestId, document_type_id: docId }));
-            const { error: addError } = await supabase.from('request_documents').insert(docLinks);
-            if (addError) throw addError;
-        }
-
-        if (removable.length) {
-            const { error: removeError } = await supabase
-                .from('request_documents')
-                .delete()
-                .in('id', removable.map((r) => r.id));
-            if (removeError) throw removeError;
-        }
-
-        return { ...request, skippedRemovals };
-    }
-
-    async getAllRequests() {
-        const { data: requests, error } = await supabase
-            .from('requests')
-            .select(`
-            *,
-            request_documents ( document_type_id, status )
-        `)
-            .order('created_at', { ascending: false });
-
         if (error) throw error;
-        return requests ?? [];
+        return data;
     }
 
-    async deleteRequest(requestId) {
-        const { data: existing, error: fetchError } = await supabase
+    /**
+     * NEW: Check if an O.R. Number is unique in the database
+     */
+    async checkOrUniqueness(orNumber, excludeRequestId = null) {
+        let query = supabase
             .from('requests')
-            .select('id')
-            .eq('id', requestId)
+            .select('id, reference_number, declarant_name')
+            .eq('or_number', orNumber.trim());
+
+        if (excludeRequestId) {
+            query = query.neq('id', excludeRequestId);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            return {
+                isUnique: false,
+                existingRequest: {
+                    referenceNumber: data[0].reference_number,
+                    declarantName: data[0].declarant_name
+                }
+            };
+        }
+
+        return { isUnique: true };
+    }
+
+    /**
+     * UPDATED: Release Request with O.R., Signatory, and Override Justification
+     */
+    async releaseRequest(id, paymentData) {
+        const { data, error } = await supabase
+            .from('requests')
+            .update({
+                or_number: paymentData.orNumber,
+                authorized_signatory: paymentData.signatory,
+                is_or_overridden: paymentData.isOverridden || false,
+                or_override_justification: paymentData.justification || null,
+                status: 'PAID',
+                payment_date: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
             .single();
 
-        if (fetchError || !existing) throw new Error('REQUEST_NOT_FOUND');
+        if (error) throw error;
+        return data;
+    }
 
-        const { error: deleteError } = await supabase
-            .from('requests')
-            .delete()
-            .eq('id', requestId);
-
-        if (deleteError) throw deleteError;
-        return { id: requestId };
+    async deleteRequest(id) {
+        await supabase.from('requests').delete().eq('id', id);
+        return { id };
     }
 }
 

@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'react';
 import type { User } from '../../auth-folder/types/auth';
 import { requestService } from '../services/requestService';
-import { ClipboardListIcon, FilePlusIcon, RefreshIcon } from '../components/icons';
+import {
+    ClipboardListIcon,
+    FilePlusIcon,
+    RefreshIcon,
+    LandmarkIcon,
+    ScrollTextIcon,
+    FileCheckIcon,
+    LayersIcon,
+    FolderOpenIcon,
+    TrashIcon,
+} from '../components/icons';
 import '../styles/DocumentRequestDashboard.css';
 
 interface DocumentRequestDashboardProps {
@@ -64,7 +74,7 @@ export function DocumentRequestDashboard({
         {
             type: 'tax-declaration' as const,
             className: 'tax-dec',
-            icon: '🏛️',
+            icon: <LandmarkIcon size={22} />,
             label: 'Tax Declaration',
             desc: 'Generate latest or historical certified true copies of property tax declarations.',
             badge: 'Form Entry',
@@ -72,7 +82,7 @@ export function DocumentRequestDashboard({
         {
             type: 'certificate-land-holding' as const,
             className: 'land-holding',
-            icon: '📜',
+            icon: <ScrollTextIcon size={22} />,
             label: 'Certificate of Land Holding',
             desc: 'Generate official certifications listing all properties declared under a specific client.',
             badge: 'Form Entry',
@@ -80,20 +90,18 @@ export function DocumentRequestDashboard({
         {
             type: 'certificate-no-landholding' as const,
             className: 'no-landholding',
-            icon: '📋',
+            icon: <FileCheckIcon size={22} />,
             label: 'Certificate of No Landholding',
             desc: 'Create certifications verifying that a client owns no real property in this region.',
             badge: 'Form Entry',
         },
     ];
 
-
     const handleDeleteDraft = async (e: React.MouseEvent, draftId: string) => {
-        e.stopPropagation(); // Prevents the row click from opening the draft
+        e.stopPropagation();
         if (confirm("Are you sure you want to permanently delete this abandoned draft?")) {
             try {
                 await requestService.deleteRequest(draftId);
-                // Update UI state immediately:
                 setDrafts(prev => prev.filter(d => d.id !== draftId));
             } catch (err) {
                 console.error("Delete draft error:", err);
@@ -103,41 +111,29 @@ export function DocumentRequestDashboard({
     };
 
     return (
-        // ADDED page-transition class to fix the glitching!
         <div className="doc-req-container page-transition">
-            {/* Header */}
+            {/* Header Area */}
             <div className="doc-req-header">
                 <div className="doc-req-title-section">
                     <h1>Document Requests Hub</h1>
                     <p>Create new request records or complete existing drafts for approval</p>
                 </div>
                 <button
-                    className="sidebar-toggle-btn"
+                    className="doc-req-refresh-btn"
                     onClick={fetchDraftsAndMetadata}
                     title="Refresh Data"
-                    style={{
-                        background: 'rgba(41, 35, 122, 0.07)',
-                        color: 'var(--db-primary)',
-                        display: 'flex',
-                        gap: '8px',
-                        padding: '10px 18px',
-                        borderRadius: '8px',
-                        fontWeight: 700,
-                        border: '1px solid rgba(41,35,122,0.12)',
-                        cursor: 'pointer',
-                        fontSize: '0.85rem',
-                        alignItems: 'center',
-                    }}
                 >
-                    <RefreshIcon size={15} />
+                    <RefreshIcon size={14} />
                     <span>Refresh</span>
                 </button>
             </div>
 
-            {/* Request Type Cards */}
+            {/* Document Selection Grid */}
             <div className="doc-req-types-section">
                 <h2 className="doc-req-section-title">
-                    <span className="doc-req-section-icon">📑</span>
+                    <span className="doc-req-section-icon">
+                        <LayersIcon size={18} />
+                    </span>
                     <span>Select Document Type</span>
                 </h2>
                 <div className="doc-req-grid">
@@ -145,7 +141,6 @@ export function DocumentRequestDashboard({
                         <div
                             key={card.type}
                             className={`doc-req-card ${card.className}`}
-                            // This ensures the entry form opens properly
                             onClick={() => onSelectNewRequest(card.type === 'tax-declaration' ? 'tax' : card.type === 'certificate-land-holding' ? 'landholding' : 'nolandholding')}
                             role="button"
                             tabIndex={0}
@@ -164,14 +159,14 @@ export function DocumentRequestDashboard({
 
                             <div className="doc-req-card-action">
                                 <span>Fill Request Form</span>
-                                <span>→</span>
+                                <span className="action-arrow">→</span>
                             </div>
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* Saved Draft Requests */}
+            {/* Saved Request Drafts Registry */}
             <div className="doc-req-drafts-section">
                 <div className="doc-req-drafts-header">
                     <div className="doc-req-drafts-header-title">
@@ -181,85 +176,83 @@ export function DocumentRequestDashboard({
                 </div>
 
                 {loading ? (
-                    <div style={{ textAlign: 'center', padding: '36px', color: 'var(--db-text-muted)', fontSize: '0.9rem' }}>
-                        Loading drafts…
+                    <div className="doc-req-loader">
+                        <span className="loading-spinner"></span>
+                        <p>Loading drafts...</p>
                     </div>
                 ) : error ? (
-                    <div style={{ textAlign: 'center', padding: '20px', color: 'var(--db-error)' }}>
-                        {error}
-                        <button
-                            onClick={fetchDraftsAndMetadata}
-                            style={{
-                                display: 'block',
-                                margin: '12px auto',
-                                padding: '8px 16px',
-                                background: 'var(--db-primary)',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                                fontWeight: 700,
-                            }}
-                        >
-                            Retry
+                    <div className="doc-req-error">
+                        <p>{error}</p>
+                        <button onClick={fetchDraftsAndMetadata} className="retry-btn">
+                            Retry Connection
                         </button>
                     </div>
                 ) : drafts.length === 0 ? (
                     <div className="doc-req-empty-state">
-                        <div className="doc-req-empty-icon">📁</div>
+                        <div className="doc-req-empty-icon">
+                            <FolderOpenIcon size={32} />
+                        </div>
                         <h3>No Drafts Found</h3>
                         <p>All saved document requests are fully processed. Create a new form to begin.</p>
                     </div>
                 ) : (
-                    <div className="doc-req-drafts-list">
-                        {drafts.map((draft) => {
-                            const docNames = getDocTypeNames(draft.documentTypeIds || []);
-                            return (
-                                <div
-                                    className="doc-req-draft-row"
-                                    key={draft.id}
-                                    onClick={() => onSelectDraft(draft)}
-                                    title="Click to resume processing this draft request"
-                                >
-                                    <div className="doc-req-draft-ref" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{ color: 'var(--db-primary)', display: 'inline-flex' }}>
-                                            <FilePlusIcon size={16} />
-                                        </span>
-                                        <span>{draft.control_number || draft.referenceNumber || 'REF-XXXX'}</span>
-                                    </div>
-                                    <div className="doc-req-draft-declarant">
-                                        <div style={{ fontSize: '0.65rem', color: 'var(--db-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Declarant</div>
-                                        <div>{draft.declarant_name || draft.declarantName}</div>
-                                    </div>
-                                    <div className="doc-req-draft-date">
-                                        <div style={{ fontSize: '0.65rem', color: 'var(--db-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Date</div>
-                                        <div>{draft.request_date || draft.requestDate}</div>
-                                    </div>
-                                    <div className="doc-req-draft-docs">
-                                        {docNames.map((name, i) => (
-                                            <span className="doc-req-draft-doc-badge" key={i} title={name}>
-                                                {name}
+                    <div className="doc-req-drafts-wrapper">
+                        {/* Table Layout Headers */}
+                        <div className="doc-req-draft-table-header">
+                            <div>Reference Number</div>
+                            <div>Declarant</div>
+                            <div>Date Created</div>
+                            <div>Document Details</div>
+                            <div style={{ textAlign: 'right', paddingRight: '12px' }}>Actions</div>
+                        </div>
+
+                        <div className="doc-req-drafts-list">
+                            {drafts.map((draft) => {
+                                const docNames = getDocTypeNames(draft.documentTypeIds || []);
+                                return (
+                                    <div
+                                        className="doc-req-draft-row"
+                                        key={draft.id}
+                                        onClick={() => onSelectDraft(draft)}
+                                        title="Click to resume processing this draft request"
+                                    >
+                                        <div className="doc-req-draft-ref">
+                                            <FilePlusIcon size={14} />
+                                            <span>{draft.control_number || draft.referenceNumber || 'REF-XXXX'}</span>
+                                        </div>
+                                        <div className="doc-req-draft-declarant">
+                                            {draft.declarant_name || draft.declarantName}
+                                        </div>
+                                        <div className="doc-req-draft-date">
+                                            {draft.request_date || draft.requestDate}
+                                        </div>
+                                        <div className="doc-req-draft-docs">
+                                            {docNames.map((name, i) => (
+                                                <span className="doc-req-draft-doc-badge" key={i} title={name}>
+                                                    {name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <div className="doc-req-draft-actions">
+                                            <span className="doc-req-draft-badge-status">
+                                                {draft.status || 'Draft'}
                                             </span>
-                                        ))}
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <span className="doc-req-draft-badge-status">
-                                            {draft.status}
-                                        </span>
-                                        <div className="doc-req-draft-action-btn">
-                                            <ClipboardListIcon size={18} />
-                                        </div>
-                                        <div
-                                            className="doc-req-draft-delete-btn"
-                                            onClick={(e) => handleDeleteDraft(e, draft.id)}
-                                            title="Delete Abandoned Draft"
-                                        >
-                                            🗑️
+                                            <button className="doc-req-draft-action-btn" aria-label="Edit Draft">
+                                                <ClipboardListIcon size={15} />
+                                            </button>
+                                            <button
+                                                className="doc-req-draft-delete-btn"
+                                                onClick={(e) => handleDeleteDraft(e, draft.id)}
+                                                title="Delete Abandoned Draft"
+                                                aria-label="Delete Draft"
+                                            >
+                                                <TrashIcon size={14} />
+                                            </button>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
             </div>

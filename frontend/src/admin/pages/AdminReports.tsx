@@ -97,17 +97,13 @@ export function AdminReports({ user }: AdminReportsProps) {
                         <p className="rq-page-subtitle">Trends across staff performance and document processing.</p>
                     </div>
 
-                    <div className="admin-profile-widget">
+                    <div className="admin-profile-widget audit-user-chip">
                         <div className="profile-widget-avatar-container">
                             {initials}
                         </div>
-                        <div className="profile-widget-info">
-                            <span className="profile-widget-name">{fullName}</span>
-                            <span className="profile-widget-email">{user.email || 'provincialassessor@gmail.com'}</span>
-                            <div className="profile-widget-meta">
-                                <span className="profile-widget-role">{roleLabel}</span>
-                                <span>Last Login : Today • 8:12 AM</span>
-                            </div>
+                        <div className="profile-widget-info audit-user-info">
+                            <span className="profile-widget-name audit-user-name">{fullName}</span>
+                            <span className="profile-widget-role">{roleLabel}</span>
                         </div>
                     </div>
                 </div>

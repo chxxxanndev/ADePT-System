@@ -1,6 +1,11 @@
+import { useState } from 'react';
 import '../styles/StaffAccounts.css';
 import type { User } from '../../auth-folder/types/auth';
 import { useStaffAccounts } from '../hooks/useStaffAccounts';
+import { createStaffAccount } from '../services/userManagementService';
+import { addAdminAuditEntry } from '../services/auditLogService';
+
+
 
 interface StaffAccountsProps {
     user: User;
@@ -21,10 +26,54 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         refresh,
     } = useStaffAccounts();
 
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [form, setForm] = useState({
+        firstName: '',
+        lastName: '',
+        email: '',
+        username: '',
+        password: '',
+        roleCode: 'OFFICE_STAFF',
+    });
+    const [submitting, setSubmitting] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
+    const [formSuccess, setFormSuccess] = useState<string | null>(null);
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
     const activeCount = staff.filter((s) => s.status === 'active').length;
 
-    const fullName = `${user.firstName || 'Admin'} ${user.lastName || 'User'}`;
     const initials = `${user.firstName?.[0] || 'A'}${user.lastName?.[0] || 'U'}`;
+
+    const handleAddStaff = async (event: React.FormEvent) => {
+        event.preventDefault();
+        setSubmitting(true);
+        setFormError(null);
+        setFormSuccess(null);
+
+        try {
+            await createStaffAccount(form);
+            addAdminAuditEntry({
+                type: 'approval',
+                actor: 'Super Admin',
+                description: `created staff account — ${form.username}`,
+            });
+            setFormSuccess('Staff account created successfully.');
+            setForm({
+                firstName: '',
+                lastName: '',
+                email: '',
+                username: '',
+                password: '',
+                roleCode: 'OFFICE_STAFF',
+            });
+            await refresh();
+        } catch (err: unknown) {
+            setFormError(err instanceof Error ? err.message : 'Failed to create staff account.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
 
     return (
         <>
@@ -36,19 +85,15 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                         <p className="staff-page-subtitle">Manage assessor's office staff profiles and access.</p>
                     </div>
 
-                    <div className="admin-profile-widget">
+                    <div className="admin-profile-widget audit-user-chip">
                         <div className="profile-widget-avatar-container">
                             {initials}
                         </div>
-                        <div className="profile-widget-info">
-                            <span className="profile-widget-name">{fullName}</span>
-                            <span className="profile-widget-email">{user.email || 'provincialassessor@gmail.com'}</span>
-                            <div className="profile-widget-meta">
-                                <span className="profile-widget-role">
-                                    {user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : user.role || 'Super Admin'}
-                                </span>
-                                <span>Last Login : Today • 8:12 AM</span>
-                            </div>
+                        <div className="profile-widget-info audit-user-info">
+                            <span className="profile-widget-name audit-user-name">{`${user.firstName || ''} ${user.lastName || ''}`.trim()}</span>
+                            <span className="profile-widget-role">
+                                {user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : user.role || 'Staff'}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -77,7 +122,20 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                         <h2 className="admin-card-title">Staff Accounts</h2>
                         {!loading && <span className="active-count-pill">{activeCount} Active</span>}
                     </div>
+
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: '#cbd5e1' }}>
+                            <span>Filter</span>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+                                style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', background: '#ffffff', color: '#0f172a', padding: '6px 10px' }}
+                            >
+                                <option value="all">All</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </label>
                         {/* Refresh button */}
                         <button
                             className="staff-manage-btn"
@@ -87,13 +145,18 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                         >
                             ↻ Refresh
                         </button>
-                        <button className="admin-add-btn" onClick={onAddStaff}>
+                        <button className="admin-add-btn" onClick={() => {
+                            if (onAddStaff) {
+                                onAddStaff();
+                            }
+                            setShowAddModal(true);
+                        }}>
                             + Add Staff
                         </button>
                     </div>
                 </div>
 
-                {/* Error banner */}
+                 {/* Error banner */}
                 {error && (
                     <div style={{
                         padding: '10px 14px',
@@ -114,11 +177,13 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                     </div>
                 )}
 
+
                 <div className="admin-table-container">
                     <table className="admin-table">
                         <thead>
                             <tr>
                                 <th>Name</th>
+                                <th>Username</th>
                                 <th>Email</th>
                                 <th>Role</th>
                                 <th>Status</th>
@@ -131,7 +196,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 /* Loading skeleton rows */
                                 Array.from({ length: 4 }).map((_, i) => (
                                     <tr key={i}>
-                                        {Array.from({ length: 6 }).map((__, j) => (
+                                        {Array.from({ length: 7 }).map((__, j) => (
                                             <td key={j}>
                                                 <div style={{
                                                     height: '14px',
@@ -146,14 +211,19 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 ))
                             ) : staff.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} style={{ textAlign: 'center', opacity: 0.5, padding: '24px' }}>
+                                    <td colSpan={7} style={{ textAlign: 'center', opacity: 0.5, padding: '24px' }}>
                                         No staff members found.
                                     </td>
+                                   
                                 </tr>
-                            ) : (
-                                staff.map((member) => (
+     
+                             ) : (
+                                staff
+                                    .filter((member) => statusFilter === 'all' || member.status === statusFilter)
+                                    .map((member) => (
                                     <tr key={member.id}>
                                         <td><strong>{member.name}</strong></td>
+                                        <td>{member.username}</td>
                                         <td>{member.email}</td>
                                         <td>{member.role}</td>
                                         <td>
@@ -165,13 +235,11 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                         <td>{member.dateAdded}</td>
                                         <td>
                                             <button
-                                                className="staff-manage-btn"
+                                                className={`staff-manage-btn ${member.status === 'active' ? 'deactivate' : 'activate'}`}
                                                 disabled={updatingId === member.id || member.status === 'pending'}
                                                 onClick={() => toggleStatus(member.id)}
                                                 title={
-                                                    member.status === 'pending'
-                                                        ? 'Approve account via Account Requests first'
-                                                        : member.status === 'active'
+                                                    member.status === 'active'
                                                         ? 'Deactivate this staff member'
                                                         : 'Reactivate this staff member'
                                                 }
@@ -190,6 +258,64 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                     </table>
                 </div>
             </div>
+
+            {showAddModal && (
+                <div className="staff-modal-backdrop" onClick={() => setShowAddModal(false)}>
+                    <div className="staff-modal-card" onClick={(event) => event.stopPropagation()}>
+                        <div className="staff-modal-header">
+                            <div>
+                                <h3>Add New Staff</h3>
+                                <p>Create a new staff account and assign access.</p>
+                            </div>
+                            <button className="staff-modal-close" onClick={() => setShowAddModal(false)}>
+                                ×
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleAddStaff} className="staff-modal-form">
+                            {formError && <div className="staff-form-error">{formError}</div>}
+                            {formSuccess && <div className="staff-form-success">{formSuccess}</div>}
+
+                            <div className="staff-form-grid">
+                                <label>
+                                    First name
+                                    <input required value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
+                                </label>
+                                <label>
+                                    Last name
+                                    <input required value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+                                </label>
+                                <label>
+                                    Email
+                                    <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                                </label>
+                                <label>
+                                    Username
+                                    <input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+                                </label>
+                                <label>
+                                    Password
+                                    <input type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                                </label>
+                                <label>
+                                    Role
+                                    <input value="Office Staff" readOnly />
+                                </label>
+                            </div>
+
+                            <div className="staff-modal-actions">
+                                <button type="button" className="staff-manage-btn" onClick={() => setShowAddModal(false)}>
+                                    Cancel
+                                </button>
+                                <button type="submit" className="admin-add-btn" disabled={submitting}>
+                                    {submitting ? 'Creating…' : 'Create Staff'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </>
     );
+
 }

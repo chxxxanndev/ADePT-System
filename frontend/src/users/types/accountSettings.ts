@@ -16,6 +16,7 @@ export interface AccountUser {
     username: string;
     email: string;
     role: string;
+    status: 'ACTIVE' | 'DISABLED' | 'PENDING_APPROVAL' | string; 
     avatarUrl?: string;
     lastPasswordChange?: string;
 }

@@ -6,7 +6,6 @@ const API_BASE = 'http://localhost:5000/api/tax-declarations';
 export const taxDeclarationService = {
     /**
      * Save a tax declaration to the backend.
-     * Falls back gracefully if the server is unavailable (mock mode).
      */
     save: async (
         formData: TaxDeclarationFormData,
@@ -29,8 +28,8 @@ export const taxDeclarationService = {
             administratorTin:             formData.administratorTin,
             administratorTelephone:       formData.administratorTelephone,
             propertyStreet:               formData.propertyStreet,
-            barangayId:                     formData.barangayId,
-            municipalityId:                 formData.municipalityId,
+            barangayId:                   formData.barangayId,
+            municipalityId:               formData.municipalityId,
             octTctNumber:                 formData.octTctNumber,
             surveyNumber:                 formData.surveyNumber,
             lotNumber:                    formData.lotNumber,
@@ -48,7 +47,7 @@ export const taxDeclarationService = {
             notes:                        formData.notes,
             assessmentRows: formData.assessmentRows.map((row, idx) => ({
                 rowOrder:           idx,
-                kindOfProperty:     row.kindOfProperty || null,   // ← added
+                kindOfProperty:     row.kindOfProperty || null,
                 classificationId:   row.classificationId || null,
                 actualUseId:        row.actualUseId || null,
                 actualUseOtherText: row.actualUseOtherText || null,
@@ -64,7 +63,6 @@ export const taxDeclarationService = {
             const res = await axios.post(API_BASE, payload);
             return res.data;
         } catch (err: any) {
-            // If the server is unreachable (mock/dev mode) generate a local mock response
             if (!err.response) {
                 console.warn('[taxDeclarationService] Server unreachable — using local mock.');
                 return {
@@ -77,10 +75,43 @@ export const taxDeclarationService = {
     },
 
     /**
-     * Fetch an existing tax declaration by its parent request ID.
+     * FETCH AND TRANSLATE DATA FOR PDF
+     * This bridges the gap between Supabase column names and your PDF Template names.
      */
-    getByRequestId: async (requestId: string) => {
-        const res = await axios.get(`${API_BASE}/${requestId}`);
-        return res.data;
+    getTaxDeclaration: async (requestId: string) => {
+        try {
+            const res = await axios.get(`${API_BASE}/${requestId}`);
+            const dbData = res.data.data; // Extracts the record from { data: { ... } }
+
+            if (!dbData) return null;
+
+            // TRANSLATOR: Maps database snake_case to PDF camelCase
+            return {
+                taxDeclarationNumber: dbData.tax_declaration_number,
+                propertyIndexNumber:  dbData.property_identification_number,
+                arpNumber:            dbData.arp_number,
+                ownerName:            dbData.owner_name,
+                ownerAddress:         dbData.owner_address,
+                barangay:             dbData.barangay_id, // Note: update if you store text
+                municipality:         dbData.municipality_id,
+                boundaryNorth:        dbData.boundary_north,
+                boundarySouth:        dbData.boundary_south,
+                boundaryEast:         dbData.boundary_east,
+                boundaryWest:         dbData.boundary_west,
+                totalAssessedValue:   dbData.total_assessed_value,
+                amountInWords:        dbData.amount_in_words,
+                
+                // Map the child rows for the PDF table
+                assessmentRows: (dbData.encoded_assessment_rows || []).map((row: any) => ({
+                    classificationLabel: row.classification_id || 'LAND',
+                    marketValue: row.market_value,
+                    assessmentLevel: row.assessment_level,
+                    assessedValue: row.assessed_value
+                }))
+            };
+        } catch (error) {
+            console.error("[taxDeclarationService] Error fetching details:", error);
+            throw error;
+        }
     },
 };

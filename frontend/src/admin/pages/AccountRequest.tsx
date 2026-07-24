@@ -1,187 +1,252 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { SearchIcon } from "../components/icons";
+import { useEffect, useMemo, useState } from "react";
+import "../styles/StaffAccounts.css";
 import "../styles/AccountRequest.css";
-import type { User } from "../../auth-folder/types/auth";
-import { fetchAllStaff, updateStaffStatus, type StaffMember } from "../services/userManagementService";
+import { addAdminAuditEntry } from '../services/auditLogService';
 
 // ---------- Types ----------
-type TabKey = "pending" | "approved" | "declined";
+type RequestStatus = "pending" | "approved" | "declined";
 
-interface StaffRequestItem {
+interface AccountRequestItem {
   id: string;
   applicantName: string;
+  username: string;
   initials: string;
-  avatarColor: string;
+  avatarColor: string; // css class, e.g. "avatar-rose"
   email: string;
-  submitted: string;
-  status: StaffMember["account_status"];
+  requestedRole: string;
+  submitted: string; // display string, e.g. "Jul 14, 8:02 AM"
+  status: RequestStatus;
 }
 
-const AVATAR_COLORS = ["avatar-rose", "avatar-amber", "avatar-sky", "avatar-emerald", "avatar-violet"];
+const API_BASE_URL = 'http://localhost:5000/api/users';
 
-function avatarColorForId(id: string) {
-  const sum = id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return AVATAR_COLORS[sum % AVATAR_COLORS.length];
-}
-
-function formatSubmitted(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
+function formatSubmitted(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   });
 }
 
-function mapRow(row: StaffMember): StaffRequestItem {
+function toAccountRequestItem(payload: any): AccountRequestItem {
+  const fullName = payload.applicantName || `${payload.first_name || ''} ${payload.last_name || ''}`.trim();
+  const initials = (fullName || payload.email || 'U')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part: string) => part[0])
+    .join('')
+    .toUpperCase() || 'U';
+
   return {
-    id: row.id,
-    applicantName: `${row.first_name} ${row.last_name}`,
-    initials: `${row.first_name[0] ?? ""}${row.last_name[0] ?? ""}`.toUpperCase(),
-    avatarColor: avatarColorForId(row.id),
-    email: row.email,
-    submitted: formatSubmitted(row.created_at),
-    status: row.account_status,
+    id: payload.id,
+    applicantName: fullName || payload.username || payload.email,
+    username: payload.username || payload.email?.split('@')[0] || '—',
+    initials,
+    avatarColor: ['avatar-rose', 'avatar-amber', 'avatar-sky', 'avatar-emerald', 'avatar-violet'][Math.abs((payload.id || '').length) % 5],
+    email: payload.email,
+    requestedRole: payload.requestedRole || 'Office Staff',
+    submitted: formatSubmitted(payload.submitted || payload.created_at || new Date().toISOString()),
+    status: payload.status === 'approved' ? 'approved' : payload.status === 'declined' ? 'declined' : 'pending',
   };
 }
 
-const TABS: { key: TabKey; label: string; status: StaffMember["account_status"] }[] = [
-  { key: "pending", label: "Pending", status: "PENDING_APPROVAL" },
-  { key: "approved", label: "Approved", status: "ACTIVE" },
-  { key: "declined", label: "Declined", status: "REJECTED" },
+const TABS: { key: RequestStatus; label: string }[] = [
+  { key: "pending", label: "Pending" },
+  { key: "approved", label: "Approved" },
+  { key: "declined", label: "Declined" },
 ];
 
 interface AccountRequestProps {
-  user: User;
+  user?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    role?: string;
+  };
 }
 
 export default function AccountRequest({ user }: AccountRequestProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>("pending");
+  const [activeTab, setActiveTab] = useState<RequestStatus>("pending");
   const [query, setQuery] = useState("");
-  const [requests, setRequests] = useState<StaffRequestItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [requests, setRequests] = useState<AccountRequestItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const fullName = `${user.firstName || "Mommy"} ${user.lastName || "Dionisia"}`;
-  const initials = `${user.firstName?.[0] || "M"}${user.lastName?.[0] || "D"}`;
-  const roleLabel =
-    user.role === "SUPER_ADMIN" ? "Super Admin" : user.role === "OFFICE_STAFF" ? "Office Staff" : user.role || "Super Admin";
-
-  const loadRequests = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  // Read the freshest user data directly from localStorage instead of
+  // trusting the `user` prop, which can go stale if it was updated
+  // elsewhere (e.g. Account Settings) without a shared auth context.
+  const storedUser = useMemo(() => {
     try {
-      const staff = await fetchAllStaff();
-      const relevant = staff.filter((s) =>
-        ["PENDING_APPROVAL", "ACTIVE", "REJECTED"].includes(s.account_status)
-      );
-      setRequests(relevant.map(mapRow));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load requests.");
-    } finally {
-      setLoading(false);
+      const raw = localStorage.getItem('adept_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
     }
   }, []);
 
+  const safeUser = storedUser ?? user ?? { firstName: "Admin", lastName: "User", email: "provincialassessor@gmail.com", role: "SUPER_ADMIN" };
+
+  const loadRequests = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE_URL}/account-requests`);
+      if (!res.ok) throw new Error('Unable to load account requests.');
+      const data = await res.json();
+      const nextRequests = (data.requests || []).map(toAccountRequestItem);
+      setRequests(nextRequests);
+    } catch {
+      setRequests([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadRequests();
-  }, [loadRequests]);
+  }, []);
 
   const counts = useMemo(
     () => ({
-      pending: requests.filter((r) => r.status === "PENDING_APPROVAL").length,
-      approved: requests.filter((r) => r.status === "ACTIVE").length,
-      declined: requests.filter((r) => r.status === "REJECTED").length,
+      pending: requests.filter((r) => r.status === "pending").length,
+      approved: requests.filter((r) => r.status === "approved").length,
+      declined: requests.filter((r) => r.status === "declined").length,
     }),
     [requests]
   );
 
-  const activeStatus = TABS.find((t) => t.key === activeTab)!.status;
-
   const filtered = useMemo(() => {
     return requests
-      .filter((r) => r.status === activeStatus)
+      .filter((r) => r.status === activeTab)
       .filter((r) => {
         const q = query.trim().toLowerCase();
         if (!q) return true;
-        return r.applicantName.toLowerCase().includes(q) || r.email.toLowerCase().includes(q);
+        return (
+          r.applicantName.toLowerCase().includes(q) ||
+          r.username.toLowerCase().includes(q) ||
+          r.email.toLowerCase().includes(q) ||
+          r.requestedRole.toLowerCase().includes(q)
+        );
       });
-  }, [requests, activeStatus, query]);
+  }, [requests, activeTab, query]);
 
   async function handleDecision(id: string, decision: "approved" | "declined") {
-    setDecidingId(id);
-    const newStatus = decision === "approved" ? "ACTIVE" : "REJECTED";
-
-    setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r)));
+    const applicant = requests.find((request) => request.id === id);
 
     try {
-      await updateStaffStatus(id, newStatus);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update status.");
-      loadRequests();
-    } finally {
-      setDecidingId(null);
+      const normalizedDecision = decision === 'declined' ? 'rejected' : decision;
+      const res = await fetch(`${API_BASE_URL}/account-requests/${id}/decision`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision: normalizedDecision, reason: decision === 'approved' ? 'Approved by super admin.' : 'Rejected by super admin.' }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Unable to complete the decision.');
+      }
+
+      addAdminAuditEntry({
+        type: decision === 'approved' ? 'approval' : 'decline',
+        actor: 'Super Admin',
+        description: `${decision === 'approved' ? 'approved' : 'declined'} account request — ${applicant?.applicantName || 'an applicant'}`,
+      });
+
+      await loadRequests();
+    } catch {
+      setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status: decision } : r)));
     }
   }
 
   return (
     <div className="account-request-page">
-      <div className="rq-page-header">
-        <div className="rq-page-header-row">
+      <div className="staff-page-header">
+        <div className="staff-page-header-row">
           <div>
-            <h1 className="rq-page-title">Account requests</h1>
-            <p className="rq-page-subtitle">
-              Approve or decline new staff registrations before they can access the system.
+            <h1 className="staff-page-title">Account Requests</h1>
+            <p className="staff-page-subtitle">
+              Review new registrations and decide who can access the system.
             </p>
           </div>
 
-          <div className="account-request-user-chip">
-            <div className="account-request-user-avatar">{initials}</div>
-            <div>
-              <p className="account-request-user-name">{fullName}</p>
-              <p className="account-request-user-role">{roleLabel}</p>
+          <div className="admin-profile-widget audit-user-chip">
+            <div className="profile-widget-avatar-container">
+                {(safeUser.firstName?.[0] ?? 'A')}{(safeUser.lastName?.[0] ?? 'U')}
             </div>
-          </div>
+            <div className="profile-widget-info audit-user-info">
+                <span className="profile-widget-name audit-user-name">{`${safeUser.firstName || 'Admin'} ${safeUser.lastName || 'User'}`}</span>
+                <span className="profile-widget-role">
+                    {safeUser.role === 'SUPER_ADMIN' ? 'Super Admin' : safeUser.role === 'OFFICE_STAFF' ? 'Office Staff' : safeUser.role || 'Admin'}
+                </span>
+            </div>
+        </div>
         </div>
 
-        <div className="rq-search-wrapper">
+        <div className="admin-search-bar">
           <input
             type="text"
-            className="rq-search-input"
-            placeholder="Search records"
+            className="admin-search-input"
+            placeholder="Search applicants"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <span className="rq-search-icon">
-            <SearchIcon size={16} />
+          <span className="admin-search-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
           </span>
         </div>
       </div>
 
       <div className="account-request-content">
-        <div className="account-request-card">
+        <div className="admin-card staff-accounts-card account-request-card">
+          <div className="staff-accounts-header-row account-request-card-header">
+            <div className="staff-accounts-title-group">
+              <h2 className="admin-card-title">Account Requests</h2>
+              {!loading && <span className="active-count-pill">{counts.pending} Pending</span>}
+            </div>
+
+            <div className="account-request-card-actions">
+              <button
+                onClick={() => loadRequests()}
+                className="staff-manage-btn"
+                disabled={loading}
+              >
+                ↻ Refresh
+              </button>
+            </div>
+          </div>
+
           <div className="account-request-tabs">
             {TABS.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`account-request-tab ${activeTab === tab.key ? "active" : ""}`}
+                className={`account-request-tab ${activeTab === tab.key ? "active" : ""
+                  }`}
               >
                 {tab.label}
-                {tab.key === "pending" && counts.pending > 0 && <span> ({counts.pending})</span>}
-                {activeTab === tab.key && <span className="account-request-tab-indicator" />}
+                {tab.key === "pending" && counts.pending > 0 && (
+                  <span> ({counts.pending})</span>
+                )}
+                {activeTab === tab.key && (
+                  <span className="account-request-tab-indicator" />
+                )}
               </button>
             ))}
           </div>
 
-          {error && <div className="account-request-error-banner">{error}</div>}
-
+          {/* Table */}
           <table className="account-request-table">
             <thead>
               <tr>
                 <th>Applicant</th>
+                <th>Username</th>
                 <th>Email</th>
+                <th>Requested role</th>
                 <th>Submitted</th>
                 <th>Action</th>
               </tr>
@@ -189,56 +254,72 @@ export default function AccountRequest({ user }: AccountRequestProps) {
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={4} className="account-request-empty-row">Loading requests…</td>
+                  <td colSpan={6} className="account-request-empty-row">
+                    Loading requests...
+                  </td>
                 </tr>
               )}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="account-request-empty-row">No {activeTab} requests to show.</td>
+                  <td colSpan={6} className="account-request-empty-row">
+                    No {activeTab} requests to show.
+                  </td>
                 </tr>
               )}
-              {!loading &&
-                filtered.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <div className="account-request-applicant">
-                        <div className={`account-request-applicant-avatar ${r.avatarColor}`}>{r.initials}</div>
-                        <span className="account-request-applicant-name">{r.applicantName}</span>
+              {filtered.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <div className="account-request-applicant">
+                      <div
+                        className={`account-request-applicant-avatar ${r.avatarColor}`}
+                      >
+                        {r.initials}
                       </div>
-                    </td>
-                    <td className="account-request-cell-muted">{r.email}</td>
-                    <td className="account-request-cell-muted">{r.submitted}</td>
-                    <td>
-                      {r.status === "PENDING_APPROVAL" ? (
-                        <div className="account-request-actions">
-                          <button
-                            onClick={() => handleDecision(r.id, "approved")}
-                            disabled={decidingId === r.id}
-                            className="account-request-btn approve"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleDecision(r.id, "declined")}
-                            disabled={decidingId === r.id}
-                            className="account-request-btn decline"
-                          >
-                            Decline
-                          </button>
-                        </div>
-                      ) : (
-                        <span className={`account-request-status-label ${r.status === "ACTIVE" ? "approved" : "declined"}`}>
-                          {r.status === "ACTIVE" ? "Approved" : "Declined"}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      <span className="account-request-applicant-name">
+                        {r.applicantName}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="account-request-cell-muted">{r.username}</td>
+                  <td className="account-request-cell-muted">{r.email}</td>
+                  <td>{r.requestedRole}</td>
+                  <td className="account-request-cell-muted">{r.submitted}</td>
+                  <td>
+                    {r.status === "pending" ? (
+                      <div className="account-request-actions">
+                        <button
+                          onClick={() => handleDecision(r.id, "approved")}
+                          className="account-request-btn approve"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleDecision(r.id, "declined")}
+                          className="account-request-btn decline"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    ) : (
+                      <span
+                        className={`account-request-status-label ${r.status}`}
+                      >
+                        {r.status === "approved" ? "Approved" : "Declined"}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
 
+          {/* Footer note */}
           <div className="account-request-footer-note">
-            <p>Approving a request grants entry to the main system dashboard. Only approve applicants with a legitimate assessor's office role.</p>
+            <p>
+              Approving a request grants entry to the main system dashboard
+              for that account type. Only approve applicants with a verified
+              ID document and a legitimate assessor's office role.
+            </p>
           </div>
         </div>
       </div>

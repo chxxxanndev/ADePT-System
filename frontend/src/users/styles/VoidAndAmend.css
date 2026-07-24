@@ -1,0 +1,236 @@
+/* ==================================================================
+   VoidAndAmend.css
+   Styles for src/users/pages/VoidAndAmend.tsx
+   Palette source: ADePT Official Design System
+   ================================================================== */
+
+.va-page {
+  --color-primary: #29237a;
+  --color-secondary: #00bcd4;
+  --color-background: #fffcf9;
+  --color-text: #2c3338;
+  --color-muted: #8b8fa3;
+  --color-muted-light: #9aa0af;
+
+  --color-error: #d32f2f;
+  --color-error-bg: #ffebee;
+  --color-pending: #fdd835;
+  --color-pending-bg: #fff8e1;
+  --color-pending-text: #a8891a;
+
+  --glass-border: rgba(255, 255, 255, 0.35);
+  --input-focus-border: #00bcd4;
+  --row-divider: rgba(41, 35, 122, 0.06);
+  --row-alt-bg: rgba(41, 35, 122, 0.015);
+  --table-header-bg: rgba(41, 35, 122, 0.05);
+  --card-shadow: rgba(41, 35, 122, 0.06);
+
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: inherit;
+}
+
+.va-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---------- Header ---------- */
+
+.va-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.va-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.va-subtitle {
+  font-size: 14px;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+/* ---------- Filters ---------- */
+
+.va-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.va-search-field {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+}
+
+.va-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted-light);
+  pointer-events: none;
+}
+
+.va-search-input {
+  width: 100%;
+  padding: 9px 14px 9px 36px;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  background-color: #ffffff;
+  border: 1px solid var(--glass-border);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px var(--card-shadow);
+}
+
+.va-search-input:focus {
+  border-color: var(--input-focus-border);
+}
+
+.va-select-field {
+  position: relative;
+}
+
+.va-select {
+  appearance: none;
+  padding: 9px 32px 9px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  background-color: #ffffff;
+  border: 1px solid var(--glass-border);
+  color: var(--color-text);
+  cursor: pointer;
+  box-shadow: 0 1px 2px var(--card-shadow);
+}
+
+.va-select:focus {
+  border-color: var(--input-focus-border);
+}
+
+.va-select-chevron {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted-light);
+  pointer-events: none;
+}
+
+/* ---------- Table card ---------- */
+
+.va-card {
+  background-color: #ffffff;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px var(--card-shadow);
+}
+
+.va-table-scroll {
+  overflow-x: auto;
+}
+
+.va-table {
+  width: 100%;
+  font-size: 14px;
+  border-collapse: collapse;
+}
+
+.va-table thead tr {
+  background-color: var(--table-header-bg);
+}
+
+.va-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--color-muted);
+  padding: 12px 16px;
+  white-space: nowrap;
+}
+
+.va-table th:first-child,
+.va-table td:first-child {
+  padding-left: 24px;
+}
+
+.va-table th:last-child,
+.va-table td:last-child {
+  padding-right: 24px;
+}
+
+.va-table tbody tr {
+  border-top: 1px solid var(--row-divider);
+}
+
+.va-table tbody tr.va-row-alt {
+  background-color: var(--row-alt-bg);
+}
+
+.va-table td {
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+
+.va-cell-reference {
+  font-weight: 600;
+  color: var(--color-secondary);
+  white-space: nowrap;
+}
+
+.va-cell-name {
+  font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.va-cell-muted {
+  color: var(--color-muted);
+}
+
+.va-cell-nowrap {
+  white-space: nowrap;
+}
+
+.va-empty-row td {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--color-muted-light);
+}
+
+/* ---------- Action badge ---------- */
+
+.va-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.va-badge--void {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.va-badge--amended {
+  background-color: var(--color-pending-bg);
+  color: var(--color-pending-text);
+}
