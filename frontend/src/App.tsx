@@ -60,7 +60,7 @@ function App() {
         </CartProvider>
       </BrowserRouter>
     );
-  }
+}
 
   return (
     <BrowserRouter>

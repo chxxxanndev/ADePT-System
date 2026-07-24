@@ -1,4 +1,5 @@
 const API_BASE_URL = 'http://localhost:5000/api/users';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface StaffMember {
     id: string;
@@ -12,20 +13,9 @@ export interface StaffMember {
     username: string;
     account_status: 'ACTIVE' | 'DISABLED' | 'PENDING_APPROVAL' | 'REJECTED';
     created_at: string;
+    created_by: string | null;
+    admin_level: 'HIGH' | 'MEDIUM' | 'LOW' | null;
     roles: { code: string } | null;
-}
-// ─── API calls ────────────────────────────────────────────────────────────────
-/**
- * Fetches all staff members from the backend.
- */
-export async function fetchAllStaff(): Promise<StaffMember[]> {
-    const res = await fetch(`${API_BASE_URL}/staff`);
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Failed to fetch staff (${res.status})`);
-    }
-    const data = await res.json();
-    return data.staff as StaffMember[];
 }
 
 export interface CreateStaffPayload {
@@ -37,10 +27,36 @@ export interface CreateStaffPayload {
     roleCode?: string;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function authHeaders(extra: Record<string, string> = {}) {
+    const token = localStorage.getItem('adept_token');
+    return {
+        ...extra,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+}
+
+// ─── API calls ────────────────────────────────────────────────────────────────
+
+/**
+ * Fetches all staff members from the backend.
+ */
+export async function fetchAllStaff(): Promise<StaffMember[]> {
+    const res = await fetch(`${API_BASE_URL}/staff`, {
+        headers: authHeaders(),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Failed to fetch staff (${res.status})`);
+    }
+    const data = await res.json();
+    return data.staff as StaffMember[];
+}
+
 export async function createStaffAccount(payload: CreateStaffPayload): Promise<StaffMember> {
     const res = await fetch(`${API_BASE_URL}/staff`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
     });
     if (!res.ok) {
@@ -50,10 +66,11 @@ export async function createStaffAccount(payload: CreateStaffPayload): Promise<S
     const data = await res.json();
     return data.staff as StaffMember;
 }
+
 /**
  * Toggles a staff member's account status.
  * @param staffId  The staff row UUID.
- * @param status   'ACTIVE' or 'INACTIVE'.
+ * @param status   'ACTIVE' or 'DISABLED'.
  */
 export async function updateStaffStatus(
     staffId: string,
@@ -62,7 +79,7 @@ export async function updateStaffStatus(
 ): Promise<StaffMember> {
     const res = await fetch(`${API_BASE_URL}/staff/${staffId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ status, reason }),
     });
     if (!res.ok) {

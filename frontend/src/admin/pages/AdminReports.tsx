@@ -12,6 +12,7 @@ import {
 import '../styles/AdminReports.css';
 import { SearchIcon } from '../components/icons';
 import type { User } from '../../auth-folder/types/auth';
+import { hasAdminLevel } from '../../utils/permissions';
 
 const API_BASE_URL = 'http://localhost:5000/api/users';
 
@@ -187,6 +188,8 @@ export function AdminReports({ user }: AdminReportsProps) {
         );
     }, [rows, searchQuery]);
 
+    const canExport = hasAdminLevel(user, 'MEDIUM'); 
+
     const radius = 68;
     const segments = buildDonutSegments(distribution, radius);
 
@@ -259,9 +262,15 @@ export function AdminReports({ user }: AdminReportsProps) {
                 <div className="admin-card ar-bar-card">
                     <div className="ar-bar-card-header">
                         <h2 className="admin-card-title">Requests by month</h2>
+<<<<<<< HEAD
                         <button type="button" className="ar-export-btn no-print" onClick={handleExportPdf}>
                             Export PDF
                         </button>
+=======
+                        {canExport && (
+                            <button type="button" className="ar-export-btn">Export</button>
+                        )}
+>>>>>>> caa1fe4a434750ed715f4f29a932dceede6211b8
                     </div>
                     <p className="ar-chart-description">
                         Account requests submitted per month

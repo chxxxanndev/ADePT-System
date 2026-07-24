@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import "../styles/StaffAccounts.css";
 import "../styles/AccountRequest.css";
 import { addAdminAuditEntry } from '../services/auditLogService';
+import { hasAdminLevel } from '../../utils/permissions';
 
 // ---------- Types ----------
 type RequestStatus = "pending" | "approved" | "disapproved";
@@ -84,6 +85,8 @@ interface AccountRequestProps {
     lastName?: string;
     email?: string;
     role?: string;
+    adminLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+    id?: string;
   };
 }
 
@@ -107,10 +110,15 @@ export default function AccountRequest({ user }: AccountRequestProps) {
 
   const safeUser = storedUser ?? user ?? { firstName: "Admin", lastName: "User", email: "provincialassessor@gmail.com", role: "SUPER_ADMIN" };
 
+  const canDecide = hasAdminLevel(safeUser as any, 'HIGH');
+
   const loadRequests = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE_URL}/account-requests`);
+      const token = localStorage.getItem('adept_token');
+      const res = await fetch(`${API_BASE_URL}/account-requests`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!res.ok) throw new Error('Unable to load account requests.');
       const data = await res.json();
       const nextRequests = (data.requests || []).map(toAccountRequestItem);
@@ -193,13 +201,13 @@ export default function AccountRequest({ user }: AccountRequestProps) {
           </div>
 
           <div className="admin-profile-widget audit-user-chip">
-            <div className="profile-widget-avatar-container">
+            <div className="profile-widget-avatar-container audit-user-avatar">
                 {(safeUser.firstName?.[0] ?? 'A')}{(safeUser.lastName?.[0] ?? 'U')}
             </div>
             <div className="profile-widget-info audit-user-info">
                 <span className="profile-widget-name audit-user-name">{`${safeUser.firstName || 'Admin'} ${safeUser.lastName || 'User'}`}</span>
                 <span className="profile-widget-role">
-                    {safeUser.role === 'SUPER_ADMIN' ? 'Super Admin' : safeUser.role === 'OFFICE_STAFF' ? 'Office Staff' : safeUser.role || 'Admin'}
+                    {safeUser.role === 'SUPER_ADMIN' ? 'Super Admin' : safeUser.role === 'ADMIN' ? `Admin · ${safeUser.adminLevel || ''}` : safeUser.role || 'Admin'}
                 </span>
             </div>
         </div>

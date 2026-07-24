@@ -1,14 +1,27 @@
 import express from 'express';
-import { createStaff, decideAccountRequest, getAccountRequests, getAllStaff, updateStaffStatus } from './user.controller.js';
+import { requireAuth } from '../../middleware/auth.middleware.js';
+import {
+    createStaff,
+    decideAccountRequest,
+    getAccountRequests,
+    getAllStaff,
+    updateStaffStatus,
+    setAdminLevel,
+    promoteToAdmin,
+    demoteToStaff,
+} from './user.controller.js';
+
 const router = express.Router();
-// GET  /api/users/staff
+
+router.use(requireAuth);
+
 router.get('/staff', getAllStaff);
-// POST /api/users/staff
 router.post('/staff', createStaff);
-// GET /api/users/account-requests
 router.get('/account-requests', getAccountRequests);
-// PATCH /api/users/account-requests/:id/decision
 router.patch('/account-requests/:id/decision', decideAccountRequest);
-// PATCH /api/users/staff/:id/status
 router.patch('/staff/:id/status', updateStaffStatus);
+router.patch('/staff/:id/admin-level', setAdminLevel);
+router.patch('/staff/:id/promote-to-admin', promoteToAdmin);
+router.patch('/staff/:id/demote-to-staff', demoteToStaff);
+
 export default router;
