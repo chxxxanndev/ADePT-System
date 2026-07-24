@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter } from 'react-router-dom'; // 1. IMPORT THIS
 import type { View } from './auth-folder/types/auth';
 import { useAuth } from './users/hooks/useAuth';
 import { AuthBanner } from './auth-folder/components/AuthBanner';
@@ -21,62 +22,68 @@ function App() {
   };
 
   const navigateTo = (newView: View) => setView(newView);
+
   useEffect(() => {
     if (window.location.pathname === '/reset-password') {
       setView('resetPassword');
     }
   }, []);
-  // 2. WRAP THE LOGGED-IN RETURNS
+
+  // 2. WRAP THE LOGGED-IN RETURN IN BROWSER-ROUTER
   if (currentUser) {
     const isAdmin = currentUser.role === 'SUPER_ADMIN' || (currentUser as any).roleCode === 'SUPER_ADMIN';
     return (
-      <CartProvider>
-        {isAdmin ? (
-          <AdminDashboard user={currentUser} onLogout={logout} />
-        ) : (
-          <Dashboard user={currentUser} backendHealthy={backendHealthy} onLogout={logout} onUserUpdate={updateCurrentUser} />
-        )}
-      </CartProvider>
+      <BrowserRouter> 
+        <CartProvider>
+          {isAdmin ? (
+            <AdminDashboard user={currentUser} onLogout={logout} />
+          ) : (
+            <Dashboard user={currentUser} backendHealthy={backendHealthy} onLogout={logout} onUserUpdate={updateCurrentUser} />
+          )}
+        </CartProvider>
+      </BrowserRouter>
     );
   }
 
-  // 3. WRAP THE LOGGED-OUT RETURN
+  // 3. WRAP THE LOGGED-OUT RETURN IN BROWSER-ROUTER
   return (
-    <CartProvider>
-      <div className={`auth-container${view === 'signup' ? ' signup-mode' : ''}`}>
-        <AuthBanner view={view} />
+    <BrowserRouter>
+      <CartProvider>
+        <div className={`auth-container${view === 'signup' ? ' signup-mode' : ''}`}>
+          <AuthBanner view={view} />
 
-        <div className="auth-form-container">
-          <div className="form-content-area">
-            <LoginForm
-              active={view === 'login'}
-              loading={loading}
-              onLogin={login}
-              onReactivate={reactivateAccount}
-              navigateTo={navigateTo}
-              initialUsername={prefilledUsername}
-            />
-            <SignupForm
-              active={view === 'signup'}
-              loading={loading}
-              onSignUp={signUp}
-              navigateTo={navigateTo}
-              prefillUsername={handleSignupSuccess}
-            />
-            <ForgotPasswordForm
-              active={view === 'forgotPassword'}
-              loading={loading}
-              onForgotPassword={forgotPassword}
-              navigateTo={navigateTo}
-            />
-            <ResetPasswordForm
-              active={view === 'resetPassword'}
-              navigateTo={navigateTo}
-            />
+          <div className="auth-form-container">
+            <div className="form-content-area">
+              <LoginForm
+                active={view === 'login'}
+                loading={loading}
+                onLogin={login}
+                onReactivate={reactivateAccount}
+                navigateTo={navigateTo}
+                initialUsername={prefilledUsername}
+              />
+              <SignupForm
+                active={view === 'signup'}
+                loading={loading}
+                onSignUp={signUp}
+                navigateTo={navigateTo}
+                prefillUsername={handleSignupSuccess}
+              />
+              <ForgotPasswordForm
+                active={view === 'forgotPassword'}
+                loading={loading}
+                onForgotPassword={forgotPassword}
+                navigateTo={navigateTo}
+              />
+              <ResetPasswordForm
+                active={view === 'resetPassword'}
+                navigateTo={navigateTo}
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </CartProvider>
+      </CartProvider>
+    </BrowserRouter>
   );
 }
 
