@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { requestService, type RequestFormData } from '../services/requestService';
 import type { User } from '../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../types/taxDeclaration';
+import { ForwardToStaffModal } from '../components/ForwardToStaffModal';
 import '../styles/RequestFormEntry.css';
 import { CheckIcon, SaveIcon, LightbulbIcon } from '../components/icons';
 
@@ -106,6 +107,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     const [isProceeding, setIsProceeding] = useState(false);
     const [metadata, setMetadata] = useState<{ docTypes: any[]; purposes: any[]; staff: any[]; propertyLocations: { id: string; name: string }[]; }>({ docTypes: [], purposes: PURPOSE_OPTIONS, staff: [], propertyLocations: [], });
     const [validationError, setValidationError] = useState<string>('');
+    const [showForwardModal, setShowForwardModal] = useState(false); // MOVED HERE
 
     const [formData, setFormData] = useState<ExtendedRequestFormData>({
         declarantName: '', requestedByName: '', requestDate: new Date().toISOString().split('T')[0], purposeId: '', documentTypeIds: [], authRequired: false, actionTaken: 'PENDING', propertyLocation: '', releasingStaffId: '', releaseDate: '', purposeOtherText: '', referenceNumber: `REF-${new Date().getFullYear()}-0000`,
@@ -183,6 +185,24 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
         const prefix = (view && VIEW_PREFIX_MAP[view]) || 'REF';
         setFormData((prev) => ({ ...prev, referenceNumber: `${prefix}-${new Date().getFullYear()}-XXXX`, }));
     }, [formData.documentTypeIds, formData.id, metadata.docTypes]);
+
+    // MOVED HERE — place alongside your other handlers, e.g. right before handleProceedToDocument
+    const handleOpenForwardModal = () => {
+        if (!formData.declarantName && !formData.requestedByName) {
+            setValidationError('Please enter at least the Requester or Declarant name before forwarding.');
+            return;
+        }
+        setValidationError('');
+        setShowForwardModal(true);
+    };
+
+    const handleConfirmForward = async (staffId: string, note: string) => {
+        // TODO (backend): await requestService.forwardRequest(formData.id, staffId, note)
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        console.log('Forwarding to staff:', staffId, 'note:', note);
+        setShowForwardModal(false);
+        alert('Request forwarded (demo mode — backend not connected yet).');
+    };
 
     const handleProceedToDocument = async () => {
         if (!formData.declarantName || !formData.requestedByName || formData.documentTypeIds.length === 0) {
@@ -302,6 +322,15 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                         </div>
                     </div>
 
+                    <ForwardToStaffModal
+                        open={showForwardModal}
+                        staffOptions={metadata.staff}
+                        currentStaffId={user.id}
+                        referenceNumber={formData.referenceNumber}
+                        onClose={() => setShowForwardModal(false)}
+                        onConfirm={handleConfirmForward}
+                    />
+
                     <div className="rfe-form-body">
                         {/* Section 1 */}
                         <div className="rfe-section">
@@ -359,22 +388,29 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                     {validationError && (<div className="warning-banner" role="alert">{validationError}</div>)}
 
                     <div className="rfe-footer">
-                        <button
-                            type="button"
-                            className="btn-submit"
-                            onClick={handleSaveDraft}
-                            disabled={isSavingDraft || isProceeding}
-                        >
-                            {isSavingDraft ? 'Saving Draft…' : <><SaveIcon size={14} /> Save Draft</>}
-                        </button>
-                        <button
-                            type="button"
-                            className="btn-proceed"
-                            onClick={handleProceedToDocument}
-                            disabled={isSavingDraft || isProceeding}
-                        >
-                            {isProceeding ? 'Processing…' : 'Proceed to Document →'}
-                        </button>
+                        <div style={{ display: 'flex', gap: 12 }}>
+                            <button
+                                type="button"
+                                className="btn-submit"
+                                onClick={handleSaveDraft}
+                                disabled={isSavingDraft || isProceeding}
+                            >
+                                {isSavingDraft ? 'Saving Draft…' : <><SaveIcon size={14} /> Save Draft</>}
+                            </button>
+                        </div>
+                        <div style={{ display: 'flex', gap: 12 }}>
+                            <button className="btn-forward" type="button" onClick={handleOpenForwardModal} disabled={isSavingDraft || isProceeding}>
+                                📨 Forward to Staff
+                            </button>
+                            <button
+                                type="button"
+                                className="btn-proceed"
+                                onClick={handleProceedToDocument}
+                                disabled={isSavingDraft || isProceeding}
+                            >
+                                {isProceeding ? 'Processing…' : 'Proceed to Document →'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
