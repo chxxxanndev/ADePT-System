@@ -48,8 +48,10 @@
     box-shadow: 0 6px 16px rgba(43, 42, 110, 0.08);
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 4px;
     min-width: 0;
+    min-height: 78px;
 }
 
 .tr-summary-card-label {
@@ -58,9 +60,10 @@
     text-transform: uppercase;
     letter-spacing: 0.02em;
     color: #7A76A8;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: keep-all;
+    line-height: 1.25;
 }
 
 .tr-summary-card-value {
@@ -225,7 +228,7 @@
 .tr-table td:nth-child(3) { width: 13%; } /* Requested By */
 
 .tr-table th:nth-child(4),
-.tr-table td:nth-child(4) { width: 21%; } /* Requested Documents */
+.tr-table td:nth-child(4) { width: 19%; } /* Requested Documents */
 
 .tr-table th:nth-child(5),
 .tr-table td:nth-child(5) { width: 11%; } /* Date Requested */
@@ -237,15 +240,17 @@
 .tr-table td:nth-child(7) { width: 11%; } /* Current Status */
 
 .tr-table th:nth-child(8),
-.tr-table td:nth-child(8) { width: 8%;  } /* Actions */
+.tr-table td:nth-child(8) { width: 10%; } /* Actions */
 
 .tr-row {
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: inset 3px 0 0 0 transparent;
 }
 
 .tr-row:hover {
     background-color: #FBF7FF;
+    box-shadow: inset 3px 0 0 0 #534AB7;
 }
 
 .tr-ref {
@@ -269,16 +274,41 @@
 }
 
 .tr-doc-pill {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     background: #f1f5f9;
     border: 1px solid #cbd5e1;
     color: #475569;
-    padding: 3px 8px;
-    border-radius: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
     font-size: 0.74rem;
     font-weight: 600;
     margin: 2px 3px 2px 0;
     white-space: normal; /* allow pills to wrap instead of forcing row width */
+}
+
+.tr-doc-pill svg {
+    flex-shrink: 0;
+}
+
+/* Document-type color variants, matching the No Landholding / Tax Declaration / Landholding chips */
+.tr-doc-pill--nlh {
+    background: #FEF9E7;
+    border-color: #F6E4A8;
+    color: #92650B;
+}
+
+.tr-doc-pill--td {
+    background: #EAFBF1;
+    border-color: #BCEBD1;
+    color: #1E7A46;
+}
+
+.tr-doc-pill--lh {
+    background: #EAF3FE;
+    border-color: #C6DEFB;
+    color: #1D4ED8;
 }
 
 .tr-table-empty {
@@ -302,7 +332,7 @@
     gap: 6px;
     justify-content: center;
     position: relative;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .tr-action-btn {
@@ -371,20 +401,20 @@
 .tr-badge {
     display: inline-block;
     padding: 5px 10px;
-    border-radius: 999px;
+    /* border-radius: 999px; */
     font-size: 11.5px;
     font-weight: 700;
     white-space: normal;
 }
 
-.tr-badge--pending { background: rgba(253, 216, 53, 0.44); color: #8A6A00; }
-.tr-badge--forpayment { background: rgba(251, 146, 60, 0.24); color: #C2410C; }
-.tr-badge--paymentverified { background: rgba(56, 189, 248, 0.22); color: #0369A1; }
-.tr-badge--processing { background: rgba(37, 99, 235, 0.16); color: #1D4ED8; }
-.tr-badge--readyforrelease { background: rgba(13, 148, 136, 0.18); color: #0D9488; }
-.tr-badge--released { background: rgba(60, 179, 113, 0.25); color: #1E7A46; }
-.tr-badge--void { background: rgba(235, 87, 87, 0.2); color: #B0281C; }
-.tr-badge--archived { background: rgba(148, 163, 184, 0.25); color: #475569; }
+.tr-badge--pending {color: #8A6A00; }
+.tr-badge--forpayment {color: #C2410C; }
+.tr-badge--paymentverified {color: #0369A1; }
+.tr-badge--processing {color: #1D4ED8; }
+.tr-badge--readyforrelease {color: #0D9488; }
+.tr-badge--released {color: #1E7A46; }
+.tr-badge--void {color: #B0281C; }
+.tr-badge--archived {color: #475569; }
 
 /* ---- Pagination ---- */
 
@@ -740,6 +770,23 @@
 
 /* Skeleton loading states */
 
+/* Toolbar skeleton container: children are SkeletonBox elements with
+   their own width/height/borderRadius props (see components/common/Skeleton.tsx),
+   this just lays them out in a row matching .tr-toolbar's spacing. */
+.tr-toolbar-skeleton {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+    margin: 0 24px 16px;
+}
+
+@media (max-width: 1100px) {
+    .tr-toolbar-skeleton {
+        flex-wrap: wrap;
+    }
+}
+
 @keyframes skeleton-shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
@@ -762,11 +809,15 @@
 
 .skeleton-card-accent {
     background: white;
-    padding: 20px;
-    border-radius: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
     border: 1px solid #eef2f6;
     border-left: 4px solid #e2e8f0;
-    height: 100px;
+    height: 78px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
 }
 
 .skeleton-accent-purple { border-left-color: #a78bfa; }
@@ -778,11 +829,15 @@
 
 .skeleton-card-ghost {
     background: white;
-    padding: 20px;
-    border-radius: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
     border: 1px solid #eef2f6;
     border-left: 4px solid #f1f5f9;
-    height: 100px;
+    height: 78px;
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
 }

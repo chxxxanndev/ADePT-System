@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RegistrySummarySkeleton, RegistryTableSkeleton, SkeletonBox } from '../components/common/Skeleton'; 
+import { RegistrySummarySkeleton, RegistryToolbarSkeleton, RegistryTableSkeleton } from '../components/common/Skeleton';
 import type { Transaction, TransactionFilters } from '../types/transaction';
 import { mockTransactions, computeSummary } from '../data/mockTransactions';
 import { SummaryCards } from '../components/SummaryCards';
@@ -26,7 +26,7 @@ function toComparableDate(mmddyyyy: string): string {
 
 export function TransactionRegistry() {
     const navigate = useNavigate();
-    
+
     // --- DATA & LOADING STATES ---
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -48,12 +48,12 @@ export function TransactionRegistry() {
     const filteredTransactions = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
         return transactions.filter((t) => {
-            const matchesQuery = query === '' || 
-                t.referenceNumber.toLowerCase().includes(query) || 
+            const matchesQuery = query === '' ||
+                t.referenceNumber.toLowerCase().includes(query) ||
                 t.client.declarantName.toLowerCase().includes(query);
             const matchesStatus = filters.status === 'All' || t.status === filters.status;
             const matchesDocType = filters.documentType === 'All' || t.requestedDocuments.includes(filters.documentType);
-            
+
             const requestDate = toComparableDate(t.dateRequested);
             const matchesDateFrom = !filters.dateFrom || requestDate >= filters.dateFrom;
             const matchesDateTo = !filters.dateTo || requestDate <= filters.dateTo;
@@ -66,7 +66,7 @@ export function TransactionRegistry() {
      * ACTION HANDLERS (Status-Aware Logic)
      */
     const handlePrint = (t: Transaction) => alert(`Printing official copy: ${t.referenceNumber}`);
-    
+
     const handleEdit = (t: Transaction) => {
         const ref = t.referenceNumber;
         // Logic: Redirect to appropriate encoding form
@@ -107,11 +107,7 @@ export function TransactionRegistry() {
             {isLoading ? (
                 <div className="tr-lazy-load">
                     <RegistrySummarySkeleton />
-                    <div className="tr-toolbar-skeleton">
-                        <SkeletonBox width="40%" height="40px" borderRadius="10px" />
-                        <SkeletonBox width="20%" height="40px" borderRadius="10px" />
-                        <SkeletonBox width="20%" height="40px" borderRadius="10px" />
-                    </div>
+                    <RegistryToolbarSkeleton />
                     <RegistryTableSkeleton />
                 </div>
             ) : (
@@ -122,10 +118,10 @@ export function TransactionRegistry() {
                         <div className="tr-search-wrapper">
                             <SearchBar value={searchQuery} onChange={setSearchQuery} />
                         </div>
-                        <FilterBar 
-                            filters={filters} 
-                            onChange={setFilters} 
-                            onReset={() => setFilters(DEFAULT_FILTERS)} 
+                        <FilterBar
+                            filters={filters}
+                            onChange={setFilters}
+                            onReset={() => setFilters(DEFAULT_FILTERS)}
                         />
                     </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter } from 'react-router-dom'; // 1. IMPORT THIS
+import { BrowserRouter } from 'react-router-dom';
 import type { View } from './auth-folder/types/auth';
 import { useAuth } from './users/hooks/useAuth';
 import { AuthBanner } from './auth-folder/components/AuthBanner';
@@ -15,7 +15,17 @@ function App() {
   const [view, setView] = useState<View>('login');
   const [prefilledUsername, setPrefilledUsername] = useState('');
 
-  const { currentUser, backendHealthy, loading, login, updateCurrentUser, reactivateAccount, signUp, forgotPassword, logout } = useAuth();
+  const {
+    currentUser,
+    backendHealthy,
+    loading,
+    login,
+    updateCurrentUser,
+    reactivateAccount,
+    signUp,
+    forgotPassword,
+    logout
+  } = useAuth();
 
   const handleSignupSuccess = (username: string) => {
     setPrefilledUsername(username);
@@ -29,23 +39,29 @@ function App() {
     }
   }, []);
 
-  // 2. WRAP THE LOGGED-IN RETURN IN BROWSER-ROUTER
   if (currentUser) {
-    const isAdmin = currentUser.role === 'SUPER_ADMIN' || (currentUser as any).roleCode === 'SUPER_ADMIN';
+    const isAdminOrAbove =
+      currentUser.role === 'SUPER_ADMIN' ||
+      currentUser.role === 'ADMIN';
+
     return (
-      <BrowserRouter> 
+      <BrowserRouter>
         <CartProvider>
-          {isAdmin ? (
+          {isAdminOrAbove ? (
             <AdminDashboard user={currentUser} onLogout={logout} />
           ) : (
-            <Dashboard user={currentUser} backendHealthy={backendHealthy} onLogout={logout} onUserUpdate={updateCurrentUser} />
+            <Dashboard
+              user={currentUser}
+              backendHealthy={backendHealthy}
+              onLogout={logout}
+              onUserUpdate={updateCurrentUser}
+            />
           )}
         </CartProvider>
       </BrowserRouter>
     );
   }
 
-  // 3. WRAP THE LOGGED-OUT RETURN IN BROWSER-ROUTER
   return (
     <BrowserRouter>
       <CartProvider>
