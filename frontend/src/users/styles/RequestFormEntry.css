@@ -285,6 +285,30 @@
     flex-wrap: wrap;
 }
 
+.btn-forward {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1.5px solid #bae6fd;
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.18s ease;
+}
+
+.btn-forward:hover:not(:disabled) {
+    background: #bae6fd;
+    border-color: #7dd3fc;
+    color: #075985;
+    transform: translateY(-1px);
+}
+
+.btn-forward:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .btn-proceed {
     background: linear-gradient(135deg, #29237a 0%, #3730a3 100%);
     color: #ffffff;

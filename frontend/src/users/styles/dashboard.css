@@ -268,6 +268,42 @@
     flex-shrink: 0;
     width: 18px;
     height: 18px;
+    position: relative;
+}
+
+.nav-item-icon-badge {
+    position: absolute;
+    top: -5px;
+    right: -7px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 99px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.6rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.nav-item-inline-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 5px;
+    margin-left: 6px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1;
+    vertical-align: text-top;
 }
 
 /* Sub-navigation Items */
@@ -316,7 +352,7 @@
     gap: 10px;
     width: calc(100% - 28px);
     margin: 0 14px 16px;
-    padding: 8px 10px 8px 16px;
+    padding: 8px 10px 8px 10px;
     border-radius: 7px;
     background: none;
     border: none;
