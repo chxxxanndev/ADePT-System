@@ -3,14 +3,15 @@
 // Replace mockTransactions.ts with an API/service call and these types stay the same.
 
 export type TransactionStatus =
-    | 'Pending'
-    | 'For Payment'
-    | 'Payment Verified'
-    | 'Processing'
-    | 'Ready for Release'
-    | 'Released'
-    | 'Void'
-    | 'Archived';
+    | 'Pending'            // Request created, no details encoded yet
+    | 'For Payment'        // Details encoded, waiting for OR number
+    | 'Payment Verified'   // OR entered, ready to be processed/printed
+    | 'Processing'         // Currently being worked on
+    | 'Ready for Release'  // Printed and signed, sitting in the "Outbox"
+    | 'Released'           // Handed to client
+    | 'Void'               // Cancelled after being released (errors found)
+    | 'Cancelled'          // Terminated by client before payment
+    | 'Archived';          // Old records
 
 export type DocumentType =
     | 'Tax Declaration'

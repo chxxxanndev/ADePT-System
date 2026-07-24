@@ -1,4 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { RegistrySummarySkeleton, RegistryToolbarSkeleton, RegistryTableSkeleton } from '../components/common/Skeleton';
 import type { Transaction, TransactionFilters } from '../types/transaction';
 import { mockTransactions, computeSummary } from '../data/mockTransactions';
 import { SummaryCards } from '../components/SummaryCards';
@@ -15,39 +17,42 @@ const DEFAULT_FILTERS: TransactionFilters = {
     dateTo: '',
 };
 
-// Swap this for a live fetch (e.g. requestService.getTransactions()) later —
-// the rest of the page only depends on the Transaction[] shape.
 const SOURCE_DATA: Transaction[] = mockTransactions;
 
 function toComparableDate(mmddyyyy: string): string {
-    // "07/17/2026" -> "2026-07-17" so it can be compared against <input type="date">
     const [m, d, y] = mmddyyyy.split('/');
     return `${y}-${m}-${d}`;
 }
 
 export function TransactionRegistry() {
-    const [transactions, setTransactions] = useState<Transaction[]>(SOURCE_DATA);
+    const navigate = useNavigate();
+
+    // --- DATA & LOADING STATES ---
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_FILTERS);
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+
+    // --- LAZY LOADING SIMULATION ---
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setTransactions(SOURCE_DATA);
+            setIsLoading(false);
+        }, 1500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const summary = useMemo(() => computeSummary(transactions), [transactions]);
 
     const filteredTransactions = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
-
         return transactions.filter((t) => {
-            const matchesQuery =
-                query === '' ||
+            const matchesQuery = query === '' ||
                 t.referenceNumber.toLowerCase().includes(query) ||
-                t.client.declarantName.toLowerCase().includes(query) ||
-                t.client.requestedBy.toLowerCase().includes(query) ||
-                t.property.taxDeclarationNo.toLowerCase().includes(query);
-
+                t.client.declarantName.toLowerCase().includes(query);
             const matchesStatus = filters.status === 'All' || t.status === filters.status;
-
-            const matchesDocType =
-                filters.documentType === 'All' || t.requestedDocuments.includes(filters.documentType);
+            const matchesDocType = filters.documentType === 'All' || t.requestedDocuments.includes(filters.documentType);
 
             const requestDate = toComparableDate(t.dateRequested);
             const matchesDateFrom = !filters.dateFrom || requestDate >= filters.dateFrom;
@@ -57,37 +62,36 @@ export function TransactionRegistry() {
         });
     }, [transactions, searchQuery, filters]);
 
-    const handleResetFilters = () => setFilters(DEFAULT_FILTERS);
+    /** 
+     * ACTION HANDLERS (Status-Aware Logic)
+     */
+    const handlePrint = (t: Transaction) => alert(`Printing official copy: ${t.referenceNumber}`);
 
-    const handleViewClientHistory = (declarantName: string) => {
-        setSearchQuery(declarantName);
-        setFilters(DEFAULT_FILTERS);
-        setSelectedTransaction(null);
+    const handleEdit = (t: Transaction) => {
+        const ref = t.referenceNumber;
+        // Logic: Redirect to appropriate encoding form
+        if (t.requestedDocuments.includes('Tax Declaration')) navigate(`/encode/tax-declaration/${ref}`);
+        else navigate(`/encode/certification/${ref}`);
     };
 
-    const handlePrint = (transaction: Transaction) => {
-        // Placeholder — later this triggers the print template/service.
-        alert(`Printing ${transaction.referenceNumber}...`);
-    };
+    const handleIssueCTC = (t: Transaction) => alert(`Issuing Certified True Copy for ${t.referenceNumber}`);
 
-    const handleGeneratePdf = (transaction: Transaction) => {
-        // Placeholder — later this calls the document generation service.
-        alert(`Generating PDF for ${transaction.referenceNumber}...`);
-    };
-
-    const handleVoid = (transaction: Transaction) => {
-        if (confirm(`Void transaction ${transaction.referenceNumber}? This cannot be undone.`)) {
-            setTransactions((prev) =>
-                prev.map((t) => (t.id === transaction.id ? { ...t, status: 'Void', isVoid: true } : t))
-            );
+    const handleVoid = (t: Transaction) => {
+        const reason = prompt(`Reason for voiding ${t.referenceNumber}:`);
+        if (reason) {
+            setTransactions(prev => prev.map(item => item.id === t.id ? { ...item, status: 'Void', voidReason: reason } : item));
         }
     };
 
-    const handleArchive = (transaction: Transaction) => {
-        if (confirm(`Move ${transaction.referenceNumber} to Archive?`)) {
-            setTransactions((prev) =>
-                prev.map((t) => (t.id === transaction.id ? { ...t, status: 'Archived' } : t))
-            );
+    const handleArchive = (t: Transaction) => {
+        if (confirm("Move this transaction to Archive?")) {
+            setTransactions(prev => prev.map(item => item.id === t.id ? { ...item, status: 'Archived' } : item));
+        }
+    };
+
+    const handleCancel = (t: Transaction) => {
+        if (confirm("Cancel this request?")) {
+            setTransactions(prev => prev.map(item => item.id === t.id ? { ...item, status: 'Cancelled' } : item));
         }
     };
 
@@ -100,27 +104,48 @@ export function TransactionRegistry() {
                 </div>
             </div>
 
-            <SummaryCards summary={summary} />
+            {isLoading ? (
+                <div className="tr-lazy-load">
+                    <RegistrySummarySkeleton />
+                    <RegistryToolbarSkeleton />
+                    <RegistryTableSkeleton />
+                </div>
+            ) : (
+                <>
+                    <SummaryCards summary={summary} />
 
-            <div className="tr-toolbar">
-                <SearchBar value={searchQuery} onChange={setSearchQuery} />
-                <FilterBar filters={filters} onChange={setFilters} onReset={handleResetFilters} />
-            </div>
+                    <div className="tr-toolbar">
+                        <div className="tr-search-wrapper">
+                            <SearchBar value={searchQuery} onChange={setSearchQuery} />
+                        </div>
+                        <FilterBar
+                            filters={filters}
+                            onChange={setFilters}
+                            onReset={() => setFilters(DEFAULT_FILTERS)}
+                        />
+                    </div>
 
-            <TransactionTable
-                transactions={filteredTransactions}
-                onViewDetails={setSelectedTransaction}
-                onPrint={handlePrint}
-                onGeneratePdf={handleGeneratePdf}
-                onVoid={handleVoid}
-                onArchive={handleArchive}
-            />
+                    <TransactionTable
+                        transactions={filteredTransactions}
+                        onViewDetails={setSelectedTransaction}
+                        onPrint={handlePrint}
+                        onIssueCTC={handleIssueCTC}
+                        onVoid={handleVoid}
+                        onEdit={handleEdit}
+                        onArchive={handleArchive}
+                        onCancel={handleCancel}
+                    />
+                </>
+            )}
 
             {selectedTransaction && (
                 <TransactionDetails
                     transaction={selectedTransaction}
                     onClose={() => setSelectedTransaction(null)}
-                    onViewClientHistory={handleViewClientHistory}
+                    onViewClientHistory={(name) => {
+                        setSearchQuery(name);
+                        setSelectedTransaction(null);
+                    }}
                 />
             )}
         </div>
