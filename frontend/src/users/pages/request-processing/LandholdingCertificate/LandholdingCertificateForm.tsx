@@ -3,9 +3,18 @@ import type { User } from '../../../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../../../types/taxDeclaration';
 import type { LandholdingFormData, LandholdingPropertyRow } from '../../../types/landholding';
 import { EMPTY_LANDHOLDING_FORM, EMPTY_LANDHOLDING_ROW } from '../../../types/landholding';
-import { requestService } from '../../../services/requestService';
+
 import '../../../styles/LandholdingCertificate.css';
 import { landholdingService } from '../../../services/landholdingService';
+import { useCart } from '../../../hooks/TransactionCartContext';
+import {
+    XIcon,
+    CheckCircleIcon,
+    AlertTriangleIcon,
+    SaveIcon,
+    PlusIcon,
+    ClipboardListIcon,
+} from '../../../components/icons';
 
 function ordinal(n: number): string {
     const s = ['th', 'st', 'nd', 'rd'];
@@ -23,19 +32,14 @@ function formatCertDate(isoDate: string): { day: string; month: string; year: st
     };
 }
 
-function formatPeso(val: string): string {
-    const num = parseFloat(val);
-    if (isNaN(num)) return val;
-    return num.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+
 
 interface LandholdingCertificateFormProps {
     user: User;
     entryData: CompletedEntryData;
     onBack: () => void;
-    onBackToDashboard: () => void;
     onAddAnother: () => void;
-    onGoToPendingPayments: () => void;
+    onGoToSummary: () => void;
 }
 
 function PropertyRowItem({ row, onUpdate, onRemove, canRemove }: { row: LandholdingPropertyRow; onUpdate: (id: string, field: keyof LandholdingPropertyRow, value: string) => void; onRemove: (id: string) => void; canRemove: boolean; }) {
@@ -47,13 +51,14 @@ function PropertyRowItem({ row, onUpdate, onRemove, canRemove }: { row: Landhold
             <td><input className="lh-input" placeholder="e.g. T-798" value={row.titleNumber} onChange={(e) => onUpdate(row.id, 'titleNumber', e.target.value)} /></td>
             <td><input className="lh-input" placeholder="e.g. 1.9999 has." value={row.area} onChange={(e) => onUpdate(row.id, 'area', e.target.value)} /></td>
             <td className="lh-td-right"><input className="lh-input" type="number" placeholder="0.00" value={row.assessedValue} onChange={(e) => onUpdate(row.id, 'assessedValue', e.target.value)} min="0" step="0.01" /></td>
-            <td><button type="button" className="lh-row-remove-btn" onClick={() => onRemove(row.id)} disabled={!canRemove} title="Remove row">✕</button></td>
+            <td><button type="button" className="lh-row-remove-btn" onClick={() => onRemove(row.id)} disabled={!canRemove} title="Remove row"><XIcon size={13} /></button></td>
         </tr>
     );
 }
 
-export function LandholdingCertificateForm({ user, entryData, onBack, onBackToDashboard, onAddAnother, onGoToPendingPayments }: LandholdingCertificateFormProps) {
+export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnother, onGoToSummary }: LandholdingCertificateFormProps) {
     const [form, setForm] = useState<LandholdingFormData>(() => ({ ...EMPTY_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '', }));
+    const { addItem } = useCart();
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
@@ -63,8 +68,8 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onBackToDa
     const addRow = () => setForm((prev) => ({ ...prev, propertyRows: [...prev.propertyRows, EMPTY_LANDHOLDING_ROW()] }));
     const removeRow = (id: string) => setForm((prev) => ({ ...prev, propertyRows: prev.propertyRows.filter((r) => r.id !== id) }));
 
-    // PHASE 1 LOGIC: Send to Payment & return to Dashboard
-    const handleSave = async (action: 'draft' | 'send_to_payment' | 'add_another') => {
+    // Support review action
+    const handleSave = async (action: 'draft' | 'review' | 'add_another') => {
         if (!form.declarantName.trim()) return setSaveError('Declarant / Owner Name is required.');
         if (form.propertyRows.some((r) => !r.tdArpNumber.trim())) return setSaveError('TD/ARP No. is required for every property row.');
 
@@ -80,16 +85,24 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onBackToDa
                 dateGiven: form.dateGiven,
                 givenAt: form.givenAt,
                 purpose: form.purpose,
-                action,
+                action: action === 'draft' ? 'draft' : 'send_to_payment',
             }, user.id);
 
+            // Replace the old addItem logic:
             if (action !== 'draft') {
-                await requestService.updateRequest(entryData.requestId, { ...entryData, status: 'PENDING_PAYMENT' });
+                addItem({
+                    id: entryData.requestId,                  // FIX: Use real DB ID instead of Math.random()
+                    referenceNumber: entryData.referenceNumber, // FIX: Pass the ref number
+                    documentType: 'Certificate of Landholding', // (Change string based on the form)
+                    fee: 40.00,
+                    declarantName: entryData.declarantName,
+                    requestedByName: entryData.requestedByName,
+                });
             }
 
             setSaved(true);
             setTimeout(() => {
-                if (action === 'send_to_payment') onGoToPendingPayments();
+                if (action === 'review') onGoToSummary();
                 else if (action === 'add_another') onAddAnother();
             }, 1500);
         } catch (err: any) {
@@ -115,7 +128,7 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onBackToDa
 
                     {saved && (
                         <div className="lh-success-banner">
-                            <span className="lh-success-icon">✓</span>
+                            <span className="lh-success-icon"><CheckCircleIcon size={18} /></span>
                             <div className="lh-success-text">
                                 <strong>Certificate saved successfully!</strong>
                                 <span>Record stored. Sent to payment queue.</span>
@@ -123,7 +136,11 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onBackToDa
                         </div>
                     )}
 
-                    {saveError && <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '12px 20px', margin: '0 32px 16px', color: '#b91c1c', fontSize: '0.88rem', fontWeight: 600 }}>⚠ {saveError}</div>}
+                    {saveError && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '12px 20px', margin: '0 32px 16px', color: '#b91c1c', fontSize: '0.88rem', fontWeight: 600 }}>
+                            <AlertTriangleIcon size={16} /> {saveError}
+                        </div>
+                    )}
 
                     <div className="lh-form-body">
                         {/* ══ SECTION 1: Declarant Details ══ */}
@@ -148,7 +165,9 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onBackToDa
                         <div className="lh-table-section">
                             <div className="lh-table-header-bar">
                                 <span>Property Details</span>
-                                <button type="button" className="lh-add-row-btn" onClick={addRow}>+ Add Property</button>
+                                <button type="button" className="lh-add-row-btn" onClick={addRow}>
+                                    <PlusIcon size={13} /> Add Property
+                                </button>
                             </div>
                             <div style={{ overflowX: 'auto' }}>
                                 <table className="lh-property-table">
@@ -190,20 +209,20 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onBackToDa
 
                     </div>
 
-                    {/* ── Footer actions (Phase 1 Logic) ── */}
+                    {/* ── Footer actions ── */}
                     <div className="lh-footer">
                         <div className="lh-footer-left">
                             <button type="button" className="lh-btn lh-btn-back" onClick={onBack}>← Back</button>
                         </div>
                         <div className="lh-footer-right">
                             <button type="button" className="lh-btn lh-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>
-                                {saving ? <span className="lh-spinner" /> : '💾'} Save Draft
+                                {saving ? <span className="lh-spinner" /> : <SaveIcon size={14} />} Save Draft
                             </button>
-                            <button type="button" className="lh-btn lh-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving}>
-                                {saving ? <span className="lh-spinner" /> : '➕'} Send & Add Another
+                            <button type="button" className="lh-btn lh-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving} style={{ backgroundColor: '#10b981', color: 'white' }}>
+                                {saving ? <span className="lh-spinner" /> : <PlusIcon size={14} />} Save & Add Another
                             </button>
-                            <button type="button" className="lh-btn lh-btn-submit" onClick={() => handleSave('send_to_payment')} disabled={saving}>
-                                {saving ? <span className="lh-spinner" /> : '💳'} Send to Payment
+                            <button type="button" className="lh-btn lh-btn-submit" onClick={() => handleSave('review')} disabled={saving}>
+                                {saving ? <span className="lh-spinner" /> : <ClipboardListIcon size={14} />} Review Transaction
                             </button>
                         </div>
                     </div>

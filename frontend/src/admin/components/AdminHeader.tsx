@@ -9,8 +9,6 @@ interface AdminHeaderProps {
     setSearchQuery: (query: string) => void;
     dateFilter: string;
     onToggleMobileMenu: () => void;
-    // Optional — wire this up once useAdminDashboard exposes a setter for dateFilter.
-    // Until then the dropdown just tracks its own selection locally.
     onDateFilterChange?: (period: string) => void;
 }
 
@@ -35,6 +33,18 @@ function isSameDate(a: Date, b: Date) {
     return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+function roleLabel(user: User): string {
+    if (user.role === 'SUPER_ADMIN') return 'Super Admin';
+    if (user.role === 'ADMIN') {
+        const level = user.adminLevel
+            ? user.adminLevel.charAt(0) + user.adminLevel.slice(1).toLowerCase()
+            : '';
+        return level ? `Admin · ${level}` : 'Admin';
+    }
+    if (user.role === 'OFFICE_STAFF') return 'Office Staff';
+    return user.role || 'Super Admin';
+}
+
 export function AdminHeader({
     user,
     searchQuery,
@@ -47,11 +57,9 @@ export function AdminHeader({
     const initials = `${user.firstName?.[0] || 'M'}${user.lastName?.[0] || 'D'}`;
 
     const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
-    // 'list' shows the period options, 'calendar' shows the custom range picker
     const [view, setView] = useState<'list' | 'calendar'>('list');
     const dateDropdownRef = useRef<HTMLDivElement>(null);
 
-    // Close the dropdown when clicking outside of it
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (dateDropdownRef.current && !dateDropdownRef.current.contains(event.target as Node)) {
@@ -84,7 +92,6 @@ export function AdminHeader({
 
     return (
         <header className="admin-header">
-            {/* Top row containing Title and Profile */}
             <div className="header-top-row">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                     <button className="mobile-menu-toggle" onClick={onToggleMobileMenu}>
@@ -108,7 +115,6 @@ export function AdminHeader({
                     </div>
                 </div>
 
-                {/* Profile card matching image */}
                 <div className="admin-profile-widget">
                     <div className="profile-widget-avatar-container">
                         {initials}
@@ -118,7 +124,7 @@ export function AdminHeader({
                         <span className="profile-widget-email">{user.email || 'provincialassessor@gmail.com'}</span>
                         <div className="profile-widget-meta">
                             <span className="profile-widget-role">
-                                {user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : user.role || 'Super Admin'}
+                                {roleLabel(user)}
                             </span>
                             <span>Last Login : Today • 8:12 AM</span>
                         </div>
@@ -126,7 +132,6 @@ export function AdminHeader({
                 </div>
             </div>
 
-            {/* Bottom Row containing Search and Date */}
             <div className="header-actions-row">
                 <div className="admin-search-wrapper">
                     <span className="admin-search-icon">

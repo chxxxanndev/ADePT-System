@@ -1,143 +1,389 @@
 import { useState } from 'react';
-import type { PendingPaymentRequest } from '../types/PendingPayment';
+import { requestService } from '../services/requestService';
+import { taxDeclarationService } from '../services/taxDeclarationService';
+import { landholdingService } from '../services/landholdingService'; // INTEGRATED NEW SERVICE
+import { DocumentPreviewModal, type DocumentItem } from '../components/DocumentPreviewModal';
+import '../styles/PaymentDetails.css';
 
 interface PaymentDetailsProps {
-    payment: PendingPaymentRequest | null;
+    payment: any | null;
     onBack: () => void;
-    onEditDocument: (controlNumber: string) => void;
+    onEditDocument: (referenceNumber: string) => void;
 }
 
-export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetailsProps) {
+export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
     const [orNumber, setOrNumber] = useState('');
     const [signatory, setSignatory] = useState('');
     const [isVerified, setIsVerified] = useState(false);
-    const [showSharedWarning, setShowSharedWarning] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<{ orNumber?: string; signatory?: string }>({});
+    const [banner, setBanner] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
-    if (!payment) return <div style={{ padding: '40px' }}>Payment data missing.</div>;
+    // --- OVERRIDE / DUPLICATE O.R. STATES ---
+    const [showOverrideModal, setShowOverrideModal] = useState(false);
+    const [isOverridden, setIsOverridden] = useState(false);
+    const [justification, setJustification] = useState('');
+    const [justificationError, setJustificationError] = useState('');
+    const [existingRequestInfo, setExistingRequestInfo] = useState<{ referenceNumber?: string; declarantName?: string } | null>(null);
 
-    const handleVerify = () => {
-        if (!orNumber || !signatory) return alert("O.R. Number and Signatory are required.");
+    // --- NEW PREVIEW STATES ---
+    const [showPreview, setShowPreview] = useState(false);
+    const [previewDocuments, setPreviewDocuments] = useState<DocumentItem[]>([]);
+    const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
-        // SETBACK 1 LOGIC: The "Shared Receipt" Bulk Payment Collision
-        // In a real app, this checks the database. We will mock it here:
-        const isDuplicateInDatabase = orNumber === "12345";
+    if (!payment) {
+        return (
+            <div className="pd-page">
+                <div className="pd-panel">
+                    <div className="pd-body" style={{ textAlign: 'center' }}>
+                        Payment data missing. Please go back and select a client from the queue.
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
-        if (isDuplicateInDatabase && !showSharedWarning) {
-            setShowSharedWarning(true);
+    const requesterName = payment.requesterName;
+    const totalAmount = payment.totalAmountDue;
+    const documents = payment.documents || [];
+    const currency = (n: number) => `\u20B1 ${n.toFixed(2)}`;
+
+    // Helper for date ordinals (e.g., 23rd, 1st)
+    const getOrdinal = (d: number) => {
+        if (d > 3 && d < 21) return 'th';
+        switch (d % 10) {
+            case 1: return "st";
+            case 2: return "nd";
+            case 3: return "rd";
+            default: return "th";
+        }
+    };
+
+    /**
+     * VERIFY O.R. FLOWCHART LOGIC
+     */
+    const handleVerify = async () => {
+        const errors: { orNumber?: string; signatory?: string } = {};
+        if (!orNumber.trim()) errors.orNumber = 'Enter the Treasurer O.R. number.';
+        if (!signatory) errors.signatory = 'Select an authorized signatory.';
+        setFieldErrors(errors);
+
+        if (Object.keys(errors).length > 0) {
+            setBanner({ type: 'error', text: 'Please complete the verification details.' });
             return;
         }
 
-        setIsVerified(true);
-        setShowSharedWarning(false);
+        setBanner(null);
+        setIsVerifying(true);
+
+        try {
+            const mainRequestId = payment.groupId || payment.id;
+            const res = await requestService.checkOrUniqueness(orNumber.trim(), mainRequestId);
+
+            if (res && res.isUnique === false) {
+                setExistingRequestInfo(res.existingRequest || null);
+                setShowOverrideModal(true);
+            } else {
+                setIsVerified(true);
+                setIsOverridden(false);
+                setJustification('');
+                setBanner({ type: 'success', text: 'Official Receipt verified as unique.' });
+            }
+        } catch (err: any) {
+            console.error("Error during O.R. verification:", err);
+            setShowOverrideModal(true);
+        } finally {
+            setIsVerifying(false);
+        }
     };
 
-    const handlePrint = () => {
-        window.print();
-        alert(`Document ${payment.controlNumber} marked as RELEASED.`);
-        onBack(); // Go back to the queue
+    const handleConfirmOverride = () => {
+        if (!justification.trim()) {
+            setJustificationError('Please provide a justification for using a shared/duplicate O.R.');
+            return;
+        }
+        setJustificationError('');
+        setShowOverrideModal(false);
+        setIsOverridden(true);
+        setIsVerified(true);
+        setBanner({ type: 'success', text: 'O.R. Number verified via Manual Override (Shared Receipt).' });
+    };
+
+    const handleEditVerify = () => {
+        setIsVerified(false);
+        setIsOverridden(false);
+        setBanner(null);
+    };
+
+    /**
+     * FETCH DATA & OPEN PREVIEW
+     */
+    const handleOpenPreview = async () => {
+        setIsLoadingPreview(true);
+        setBanner(null);
+
+        try {
+            const items: DocumentItem[] = [];
+
+            for (const doc of documents) {
+                const typeStr = doc.documentType?.toLowerCase() || '';
+                let docType: 'TAX_DEC' | 'LANDHOLDING' | 'NO_LANDHOLDING' = 'TAX_DEC';
+                let rawBackendData: any = null;
+
+                // 1. Determine template type
+                if (typeStr.includes('no landholding')) docType = 'NO_LANDHOLDING';
+                else if (typeStr.includes('landholding')) docType = 'LANDHOLDING';
+                else docType = 'TAX_DEC';
+
+                // 2. HYDRATION: Fetch detailed data from database
+                try {
+                    if (docType === 'TAX_DEC') {
+                        rawBackendData = await taxDeclarationService.getTaxDeclaration(doc.id);
+                    } else if (docType === 'LANDHOLDING') {
+                        // FETCHING FROM NEW BACKEND SERVICE
+                        rawBackendData = await landholdingService.getByRequestId(doc.id);
+                    } else {
+                        // Fallback for no landholding for now
+                        rawBackendData = { ...doc };
+                    }
+                } catch (fetchErr) {
+                    console.error(`Could not hydrate document ${doc.referenceNumber}`, fetchErr);
+                    rawBackendData = doc; 
+                }
+
+                // 3. MAPPING: Prepare data object for PDF components
+                let templateData: any = {};
+                if (docType === 'TAX_DEC') {
+                    templateData = rawBackendData;
+                } else if (docType === 'LANDHOLDING') {
+                    // Extract and format date components
+                    const dateObj = rawBackendData.date_given ? new Date(rawBackendData.date_given) : new Date();
+                    const dayNum = dateObj.getDate();
+                    
+                    templateData = {
+                        ownerName: rawBackendData.declarant_name || requesterName,
+                        day: `${dayNum}${getOrdinal(dayNum)}`,
+                        monthYear: dateObj.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
+                        certFee: rawBackendData.amountDue ? rawBackendData.amountDue.toFixed(2) : '40.00',
+                        // Map the backend SQL rows to PDF table columns
+                        properties: (rawBackendData.properties || []).map((p: any) => ({
+                            tdNo: p.td_arp_number,
+                            location: p.location_of_property,
+                            lotNo: p.lot_number,
+                            titleNo: p.title_number,
+                            area: p.area,
+                            assdValue: p.assessed_value ? Number(p.assessed_value).toLocaleString(undefined, { minimumFractionDigits: 2 }) : ''
+                        }))
+                    };
+                } else {
+                    // Mapping for No Landholding
+                    const dateObj = new Date();
+                    templateData = {
+                        ownerName: rawBackendData.declarantName || requesterName,
+                        day: `${dateObj.getDate()}${getOrdinal(dateObj.getDate())}`,
+                        monthYear: dateObj.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
+                        certFee: '40.00'
+                    };
+                }
+
+                items.push({
+                    id: doc.id || doc.referenceNumber,
+                    type: docType,
+                    title: `${doc.documentType} (${doc.referenceNumber})`,
+                    data: templateData
+                });
+            }
+
+            setPreviewDocuments(items);
+            setShowPreview(true);
+
+        } catch (err: any) {
+            console.error("Preview Prep Error:", err);
+            setBanner({ type: 'error', text: 'Failed to prepare documents for preview.' });
+        } finally {
+            setIsLoadingPreview(false);
+        }
+    };
+
+    /**
+     * FINAL RELEASE & DB SAVE
+     */
+    const handleFinalRelease = async () => {
+        setBanner(null);
+        try {
+            await Promise.all(documents.map((doc: any) =>
+                requestService.releaseRequest(doc.id, {
+                    orNumber: orNumber.trim(),
+                    signatory,
+                    isOverridden,
+                    justification: isOverridden ? justification : undefined
+                })
+            ));
+
+            setBanner({ type: 'success', text: 'Documents recorded and released successfully. Returning to queue...' });
+            setShowPreview(false);
+
+            setTimeout(() => onBack(), 2000);
+        } catch (err: any) {
+            console.error("Release Error:", err);
+            setBanner({
+                type: 'error',
+                text: err?.response?.data?.error || err?.message || 'Failed to update transaction in database.'
+            });
+            setShowPreview(false);
+        }
+    };
+
+    const getFormattedDate = () => {
+        const d = new Date();
+        return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}-${d.getFullYear()}`;
     };
 
     return (
-        <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
-            <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontWeight: 'bold', marginBottom: '20px' }}>
-                &larr; Back to Queue
-            </button>
-
-            <div style={{ background: '#fff', padding: '32px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(41, 35, 122, 0.05)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #f1f5f9', paddingBottom: '20px', marginBottom: '24px' }}>
-                    <h2 style={{ color: '#29237a', margin: 0 }}>Payment & Document Release</h2>
-                    {/* SETBACK 2 LOGIC: Typo Discovered at the Finish Line */}
-                    <button
-                        onClick={() => onEditDocument(payment.controlNumber)}
-                        style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#475569' }}
-                    >
-                        ✏️ Edit Document Typo
-                    </button>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
-                    <div>
-                        <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Control Number</p>
-                        <h3 style={{ margin: 0, fontSize: '18px', color: '#1e293b' }}>{payment.controlNumber}</h3>
-                    </div>
-                    <div>
-                        <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Declarant Name</p>
-                        <h3 style={{ margin: 0, fontSize: '18px', color: '#1e293b' }}>{payment.declarantName}</h3>
-                    </div>
-                    <div>
-                        <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Document Type</p>
-                        <p style={{ margin: 0, fontWeight: 'bold', color: '#475569' }}>{payment.documentType}</p>
-                    </div>
-                    <div>
-                        <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Calculated Fee</p>
-                        <h2 style={{ margin: 0, color: '#059669', fontSize: '24px' }}>₱{payment.amountDue.toFixed(2)}</h2>
+        <div className="pd-page page-transition">
+            <div className="pd-panel">
+                <div className="pd-header-banner">
+                    <button onClick={onBack} className="pd-header-back-btn" title="Back to Queue">&larr;</button>
+                    <div className="pd-header-text">
+                        <h2 className="pd-header-title">Payment Verification</h2>
+                        <span className="pd-header-subtitle">Prepare documents for <strong>{requesterName}</strong></span>
                     </div>
                 </div>
 
-                {/* PHASE 3 LOGIC: Verification Inputs */}
-                <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <h3 style={{ marginTop: 0, fontSize: '15px', color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px', marginBottom: '16px' }}>Official Receipt & Signatories</h3>
+                <div className="pd-body">
+                    {banner && <div className={`pd-banner pd-banner--${banner.type}`}>{banner.text}</div>}
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                        <div>
-                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#475569', marginBottom: '6px' }}>O.R. Number</label>
-                            <input
-                                type="text"
-                                placeholder="Enter receipt number..."
-                                value={orNumber}
-                                onChange={(e) => { setOrNumber(e.target.value); setIsVerified(false); }}
-                                disabled={isVerified}
-                                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '14px', boxSizing: 'border-box' }}
-                            />
-                        </div>
-                        <div>
-                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#475569', marginBottom: '6px' }}>Authorized Signatory</label>
-                            <select
-                                value={signatory}
-                                onChange={(e) => setSignatory(e.target.value)}
-                                disabled={isVerified}
-                                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '14px', boxSizing: 'border-box', background: '#fff' }}
-                            >
-                                <option value="">-- Select Signatory --</option>
-                                <option value="ENGR. VICENTE P. DESOY">ENGR. VICENTE P. DESOY (Provincial Assessor)</option>
-                                <option value="ELVIRA T. ENAO">ELVIRA T. ENAO (LAOO IV)</option>
-                                <option value="ISAGANI B. EMBOL">ISAGANI B. EMBOL (LAOO II)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* SETBACK 1 LOGIC: The Warning Box */}
-                    {showSharedWarning && (
-                        <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', color: '#92400e', padding: '14px', borderRadius: '8px', marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div>
-                                <strong>⚠️ Duplicate O.R. Detected:</strong><br />
-                                This receipt was recently used. Is this a bulk/shared receipt?
+                    <div className="pd-split-layout">
+                        <div className="pd-col-left">
+                            <div className="pd-section-label">Selected Documents ({documents.length})</div>
+                            <div className="pd-doc-table-wrap">
+                                <table className="pd-doc-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Ref. No</th>
+                                            <th>Owner</th>
+                                            <th>Type</th>
+                                            <th style={{ textAlign: 'right' }}>Fee</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {documents.map((doc: any, i: number) => (
+                                            <tr key={i}>
+                                                <td className="pd-doc-ref">{doc.referenceNumber}</td>
+                                                <td className="pd-doc-declarant">{doc.declarantName}</td>
+                                                <td className="pd-doc-type">{doc.documentType}</td>
+                                                <td className="pd-doc-fee">{currency(doc.amountDue)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
-                            <button onClick={handleVerify} style={{ background: '#f59e0b', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                                Yes, Override & Proceed
-                            </button>
+                            <div className="pd-total-row">
+                                <div className="pd-total-label">Total Payment Due</div>
+                                <div className="pd-total-value">{currency(totalAmount)}</div>
+                            </div>
                         </div>
-                    )}
-                </div>
 
-                <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'flex-end' }}>
-                    {!isVerified ? (
-                        <button
-                            onClick={handleVerify}
-                            style={{ background: 'linear-gradient(135deg, #29237a 0%, #3730a3 100%)', color: '#fff', border: 'none', padding: '14px 28px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px', boxShadow: '0 4px 12px rgba(41,35,122,0.2)' }}
-                        >
-                            Verify O.R. & Unlock Printing
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handlePrint}
-                            style={{ background: '#10b981', color: '#fff', border: 'none', padding: '14px 28px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px', boxShadow: '0 4px 12px rgba(16,185,129,0.2)' }}
-                        >
-                            🖨️ Print & Release Document
-                        </button>
-                    )}
+                        <div className="pd-col-right">
+                            <div className="pd-receipt-card">
+                                <div className="pd-section-label">Treasurer Receipt Details</div>
+
+                                {isVerified && isOverridden && (
+                                    <div className="pd-override-badge-card">
+                                        <div className="pd-override-badge-header"><span>⚠️ Shared Receipt (Manual Override)</span></div>
+                                        <div className="pd-override-badge-body"><strong>Justification:</strong> {justification}</div>
+                                    </div>
+                                )}
+
+                                <div className="pd-form-group">
+                                    <label className="pd-field-label">Official Receipt (O.R.) Number</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. 1234567"
+                                        value={orNumber}
+                                        onChange={(e) => { setOrNumber(e.target.value); setIsVerified(false); setIsOverridden(false); }}
+                                        disabled={isVerified}
+                                        className={`pd-field-input${fieldErrors.orNumber ? ' pd-field-invalid' : ''}`}
+                                    />
+                                    {fieldErrors.orNumber && <span className="pd-field-error">{fieldErrors.orNumber}</span>}
+                                </div>
+
+                                <div className="pd-form-group">
+                                    <label className="pd-field-label">Authorized Signatory</label>
+                                    <select
+                                        value={signatory}
+                                        onChange={(e) => setSignatory(e.target.value)}
+                                        disabled={isVerified}
+                                        className="pd-field-select"
+                                    >
+                                        <option value="">-- Select Signatory --</option>
+                                        <option value="ENGR. VICENTE P. DESOY">ENGR. VICENTE P. DESOY</option>
+                                        <option value="ELVIRA T. ENAO, REA">ELVIRA T. ENAO, REA</option>
+                                        <option value="CHINA CHAN-OLARIO, RN, REA, REB, Enp">CHINA CHAN-OLARIO, RN, REA, REB, Enp</option>
+                                    </select>
+                                    {fieldErrors.signatory && <span className="pd-field-error">{fieldErrors.signatory}</span>}
+                                </div>
+
+                                <div className="pd-actions-row">
+                                    {!isVerified ? (
+                                        <button onClick={handleVerify} disabled={isVerifying} className="pd-btn pd-btn--verify">
+                                            {isVerifying ? 'Verifying Receipt...' : 'Verify Receipt'}
+                                        </button>
+                                    ) : (
+                                        <div className="pd-verified-actions">
+                                            <button onClick={handleEditVerify} className="pd-btn pd-btn--edit-verify">Edit</button>
+                                            <button
+                                                onClick={handleOpenPreview}
+                                                disabled={isLoadingPreview}
+                                                className="pd-btn pd-btn--print"
+                                                style={{ backgroundColor: '#22c55e', color: 'white' }}
+                                            >
+                                                {isLoadingPreview ? 'Preparing Preview...' : `Generate & Preview Documents`}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            {showOverrideModal && (
+                <div className="pd-modal-overlay">
+                    <div className="pd-modal">
+                        <div className="pd-modal-header"><h3>⚠️ Duplicate / Shared Receipt Detected</h3></div>
+                        <div className="pd-modal-body">
+                            <p>Official Receipt <strong>#{orNumber}</strong> is already recorded in the system{existingRequestInfo?.referenceNumber && ` (Ref: ${existingRequestInfo.referenceNumber} - ${existingRequestInfo.declarantName})`}.</p>
+                            <div className="pd-form-group" style={{ marginTop: '16px' }}>
+                                <label className="pd-field-label">Override Justification *</label>
+                                <textarea
+                                    className={`pd-field-textarea${justificationError ? ' pd-field-invalid' : ''}`}
+                                    rows={3}
+                                    value={justification}
+                                    onChange={(e) => { setJustification(e.target.value); setJustificationError(''); }}
+                                />
+                                {justificationError && <span className="pd-field-error">{justificationError}</span>}
+                            </div>
+                        </div>
+                        <div className="pd-modal-footer">
+                            <button onClick={() => setShowOverrideModal(false)} className="pd-btn pd-btn--secondary">Cancel</button>
+                            <button onClick={handleConfirmOverride} className="pd-btn pd-btn--warning">Confirm Manual Override</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showPreview && (
+                <DocumentPreviewModal
+                    documents={previewDocuments}
+                    orNumber={orNumber}
+                    datePaid={getFormattedDate()}
+                    signatory1Name={signatory}
+                    onClose={() => setShowPreview(false)}
+                    onConfirmRelease={handleFinalRelease}
+                />
+            )}
         </div>
     );
 }

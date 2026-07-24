@@ -6,9 +6,11 @@ interface TransactionTableProps {
     transactions: Transaction[];
     onViewDetails: (transaction: Transaction) => void;
     onPrint: (transaction: Transaction) => void;
-    onGeneratePdf: (transaction: Transaction) => void;
+    onIssueCTC: (transaction: Transaction) => void; // New
     onVoid: (transaction: Transaction) => void;
+    onEdit: (transaction: Transaction) => void;   // New
     onArchive: (transaction: Transaction) => void;
+    onCancel: (transaction: Transaction) => void;  // New
 }
 
 const COLUMNS = [
@@ -22,9 +24,18 @@ const COLUMNS = [
     'Actions',
 ];
 
-const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50];
+const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
-export function TransactionTable({ transactions, onViewDetails, onPrint, onGeneratePdf, onVoid, onArchive }: TransactionTableProps) {
+export function TransactionTable({ 
+    transactions, 
+    onViewDetails, 
+    onPrint, 
+    onIssueCTC, 
+    onVoid, 
+    onEdit, 
+    onArchive, 
+    onCancel 
+}: TransactionTableProps) {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [page, setPage] = useState(1);
 
@@ -48,7 +59,9 @@ export function TransactionTable({ transactions, onViewDetails, onPrint, onGener
                     <thead>
                         <tr>
                             {COLUMNS.map((col) => (
-                                <th key={col} style={col === 'Actions' ? { textAlign: 'center' } : undefined}>{col}</th>
+                                <th key={col} style={col === 'Actions' ? { textAlign: 'center' } : undefined}>
+                                    {col}
+                                </th>
                             ))}
                         </tr>
                     </thead>
@@ -67,9 +80,11 @@ export function TransactionTable({ transactions, onViewDetails, onPrint, onGener
                                     transaction={t}
                                     onViewDetails={onViewDetails}
                                     onPrint={onPrint}
-                                    onGeneratePdf={onGeneratePdf}
+                                    onIssueCTC={onIssueCTC}
                                     onVoid={onVoid}
+                                    onEdit={onEdit}
                                     onArchive={onArchive}
+                                    onCancel={onCancel}
                                 />
                             ))
                         )}

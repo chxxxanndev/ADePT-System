@@ -11,10 +11,12 @@ import {
     BarChartIcon,
     SettingsIcon,
     LogoutIcon,
-    MenuIcon
+    MenuIcon,
+    BellIcon,
 } from './icons';
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+    notifications: BellIcon,
     dashboard: DashboardIcon,
     newRequest: FilePlusIcon,
     requestProcessing: ClipboardListIcon,
@@ -33,6 +35,8 @@ interface SidebarProps {
     setMobileOpen?: (open: boolean) => void;
     collapsed: boolean;
     onToggleCollapse: () => void;
+    unreadCount: number;
+    onOpenNotifications: () => void;
 }
 
 export function Sidebar({
@@ -44,6 +48,7 @@ export function Sidebar({
     setMobileOpen,
     collapsed,
     onToggleCollapse,
+    unreadCount,
 }: SidebarProps) {
     const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
@@ -108,8 +113,8 @@ export function Sidebar({
                             const Icon = ICONS[item.icon] ?? DashboardIcon;
                             const hasSubItems = !!item.subItems?.length;
                             const isOpen = !!openMenus[item.label];
+                            const isNotifications = item.view === 'notifications'; // ADDED
 
-                            // Parent counts as active if its own view matches, OR one of its children is active.
                             const isActive =
                                 item.view === activeView ||
                                 (hasSubItems && item.subItems!.some((sub) => sub.view === activeView));
@@ -121,8 +126,20 @@ export function Sidebar({
                                         onClick={() => handleItemClick(item)}
                                         title={collapsed ? item.label : ''}
                                     >
-                                        <span className="nav-item-icon"><Icon size={18} /></span>
-                                        {!collapsed && <span className="nav-item-label">{item.label}</span>}
+                                        <span className="nav-item-icon">
+                                            <Icon size={18} />
+                                            {isNotifications && collapsed && unreadCount > 0 && (
+                                                <span className="nav-item-icon-badge">{unreadCount}</span>
+                                            )}
+                                        </span>
+                                        {!collapsed && (
+                                            <span className="nav-item-label">
+                                                {item.label}
+                                                {isNotifications && unreadCount > 0 && (
+                                                    <span className="nav-item-inline-badge">{unreadCount}</span>
+                                                )}
+                                            </span>
+                                        )}
                                         {!collapsed && hasSubItems && (
                                             <span className={`nav-item-chevron ${isOpen ? 'open' : ''}`}>
                                                 <ChevronDownIcon size={14} />

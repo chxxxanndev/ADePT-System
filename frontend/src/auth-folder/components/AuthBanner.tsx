@@ -1,8 +1,7 @@
-import sealImg from '../../auth-folder/assets/seal.png';
-import logoImg from '../../auth-folder/assets/logo.png';
-// 1. Import the background image so Vite bundles it
-import bgImg from '../../auth-folder/assets/background.jpg';
-import type { View } from '../../auth-folder/types/auth';
+import sealImg from '../assets/seal.png';
+import logoImg from '../assets/logo.png';
+import bgImg from '../assets/background.jpg';
+import type { View } from '../types/auth';
 
 interface AuthBannerProps {
     view: View;
@@ -35,7 +34,7 @@ export function AuthBanner({ view }: AuthBannerProps) {
 
                 <div className="banner-branding-area">
                     {/* LOGIN / FORGOT: Left-aligned ADePT + vertical divider + taglines */}
-                    <div className={`banner-branding-content ${view === 'login' || view === 'forgot' ? 'active' : ''}`}>
+                    <div className={`banner-branding-content ${view === 'login' || view === 'forgotPassword' || view === 'resetPassword' ? 'active' : ''}`}>
                         <div className="banner-branding-signup">
                             <h1 className="branding-title-signup">ADePT</h1>
                             <div className="branding-divider"></div>

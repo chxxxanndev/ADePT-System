@@ -3,12 +3,16 @@ export type PaymentStatus = 'Awaiting Payment' | 'Paid' | 'Overdue' | 'Pending V
 export type PaymentDocumentKey = 'tax-declaration' | 'certificate-land-holding' | 'certificate-no-landholding';
 
 export interface PendingPaymentRequest {
+    id: string;
     controlNumber: string;
-    declarantName: string;
+    declarant_name: string;
+    declarant?: string;
+    declarantName?: string;
+    refNumber?: string;
     documentType: string;
     amountDue: number;
     dateRequested: string;
-    status: PaymentStatus;
+    status: PaymentStatus | string;
     documentKey?: PaymentDocumentKey;
     orNumber?: string;
     formSummary?: {
@@ -16,6 +20,7 @@ export interface PendingPaymentRequest {
         ownerName?: string;
         propertyIndexNumber?: string;
         taxDeclarationNumber?: string;
+        declarant_name?: string;
         declarantName?: string;
         ownershipType?: string;
         pronoun?: string;

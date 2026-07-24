@@ -1,254 +1,736 @@
-/* ===== Pending Payment ===== */
+/* ==========================================================================
+   Cashier Queue Styles (PendingPayment.css)
+   Glassmorphic, responsive redesign — built on ADePT design tokens
+   ========================================================================== */
 
-.pp-page {
-    /* Light gray-purple so the white card actually stands out instead of fading in */
-    background-color: #ECEAF3;
-    min-height: 100%;
-    padding: 0 4px 32px;
-}
-
-/* ---- Page header (self-contained for this view) ---- */
-
-.pp-header {
+.pp-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 14px;
-    margin: 0 -4px 24px;
-    padding: 16px 28px;
-    background-color: var(--db-primary, #29237A);
-    color: #FFFFFF;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
 }
 
-.pp-header-brand {
+/* --- 1. HEADER CARD --- */
+.pp-header-card {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    background-color: var(--db-glass-card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: var(--db-radius-lg);
+    padding: 24px 28px;
+    box-shadow: var(--db-shadow-card);
+}
+
+.pp-header-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 220px;
+}
+
+.pp-suptitle {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--db-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+}
+
+.pp-title-row {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-wrap: wrap;
 }
 
-.pp-header-logo {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: #FFFFFF;
-    overflow: hidden;
-    flex-shrink: 0;
-}
-
-.pp-header-logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
-.pp-header-brand-text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.pp-header-title {
-    font-size: 19px;
+.pp-title {
+    font-size: 1.5rem;
     font-weight: 800;
-    letter-spacing: 0.3px;
-    color: #FFFFFF;
+    color: var(--db-primary);
+    margin: 0;
+    letter-spacing: -0.02em;
 }
 
-.pp-header-title-light {
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.75);
-}
-
-.pp-header-subtitle {
-    font-size: 11px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.65);
-}
-
-.pp-header-profile {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 16px 6px 6px;
-    border-radius: 999px;
-    background-color: rgba(255, 255, 255, 0.14);
-}
-
-.pp-header-profile-avatar {
-    display: flex;
+.pp-refresh-btn {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 30px;
     height: 30px;
-    border-radius: 50%;
-    background-color: rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    border: 1px solid var(--db-glass-border-alt);
+    background-color: rgba(255, 255, 255, 0.6);
+    color: var(--db-primary);
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.4s ease;
     flex-shrink: 0;
 }
 
-.pp-header-profile-info {
+.pp-refresh-btn:hover {
+    background-color: #ffffff;
+}
+
+.pp-refresh-btn.is-spinning svg {
+    animation: pp-spin 0.7s linear;
+}
+
+@keyframes pp-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.pp-subtitle {
+    font-size: 0.85rem;
+    color: var(--db-text-muted);
+    margin: 4px 0 0;
+}
+
+/* Inline quick stats */
+.pp-stats-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+}
+
+.pp-stat-chip {
     display: flex;
     flex-direction: column;
     gap: 1px;
+    padding: 8px 14px;
+    border-radius: var(--db-radius-sm);
+    background-color: rgba(41, 35, 122, 0.05);
+    border: 1px solid var(--db-glass-border-alt);
+    min-width: 92px;
 }
 
-.pp-header-profile-name {
-    font-size: 12.5px;
-    font-weight: 700;
-    color: #FFFFFF;
-    line-height: 1.2;
+.pp-stat-chip strong {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--db-primary);
 }
 
-.pp-header-profile-date {
+.pp-stat-chip span {
     font-size: 10.5px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.65);
-    line-height: 1.2;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--db-text-muted);
 }
 
-/* ---- Section title ---- */
-
-.pp-title {
+.pp-search-wrapper {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin: 0 24px 20px;
-}
-
-.pp-title-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
-    background-color: #2B2A6E;
+    background-color: var(--db-input-bg);
+    border: 1px solid var(--db-glass-border-alt);
+    padding: 11px 16px;
+    border-radius: 999px;
+    width: 340px;
+    max-width: 100%;
+    gap: 10px;
+    color: var(--db-text-muted);
+    transition: all 0.2s ease;
     flex-shrink: 0;
 }
 
-.pp-title h2 {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    color: #16161F;
+.pp-search-wrapper:focus-within {
+    background: #ffffff;
+    border-color: var(--db-secondary);
+    box-shadow: 0 4px 12px rgba(41, 35, 122, 0.08);
+    color: var(--db-primary);
 }
 
-/* ---- Card / table ---- */
+.pp-search-input {
+    border: none;
+    background: transparent;
+    outline: none;
+    width: 100%;
+    font-size: 0.87rem;
+    font-family: inherit;
+    font-weight: 600;
+    color: var(--db-slate);
+}
 
-.pp-card {
-    background-color: #FFFFFF;
-    border: 1px solid #D7D2F2;
-    border-radius: 16px;
-    margin: 0 24px;
-    padding: 8px 28px 10px;
-    /* Stronger shadow so the card visibly lifts off the page background */
-    box-shadow: 0 10px 28px rgba(43, 42, 110, 0.12), 0 2px 6px rgba(43, 42, 110, 0.06);
+.pp-search-input::placeholder {
+    color: #9CA3AF;
+    font-weight: 500;
+}
+
+/* --- 2. BULK ACTION BAR (appears when rows selected) --- */
+.pp-bulk-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    background-color: rgba(41, 35, 122, 0.06);
+    border: 1px solid rgba(41, 35, 122, 0.12);
+    border-radius: var(--db-radius-md);
+    padding: 12px 20px;
+    animation: pp-slide-in 0.2s ease;
+}
+
+@keyframes pp-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.pp-bulk-bar-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--db-primary);
+}
+
+.pp-bulk-bar-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.pp-bulk-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 700;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.pp-bulk-btn--archive {
+    background-color: #ffffff;
+    color: var(--db-error);
+    border-color: rgba(211, 47, 47, 0.25);
+}
+
+.pp-bulk-btn--archive:hover {
+    background-color: #fee2e2;
+}
+
+.pp-bulk-btn--clear {
+    background: none;
+    color: var(--db-text-muted);
+}
+
+.pp-bulk-btn--clear:hover {
+    color: var(--db-slate);
+}
+
+/* --- 3. TABLE CARD --- */
+.pp-table-card {
+    background-color: var(--db-glass-card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: var(--db-radius-lg);
+    box-shadow: var(--db-shadow-card);
+    overflow: hidden;
+}
+
+.pp-table-scroll {
+    overflow-x: auto;
+    width: 100%;
 }
 
 .pp-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
+    min-width: 700px;
 }
 
-.pp-table thead th {
+.pp-table thead {
+    background-color: var(--db-table-header);
+    border-bottom: 1px solid var(--db-glass-border-alt);
+}
+
+.pp-table th {
+    padding: 14px 20px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--db-primary);
+    letter-spacing: 0.05em;
     text-align: left;
-    padding: 18px 12px;
-    font-size: 13px;
-    font-weight: 700;
-    color: #16161F;
-    border-bottom: 2px solid #B7B0F0;
     white-space: nowrap;
 }
 
-.pp-table tbody td {
-    padding: 16px 12px;
-    font-size: 13.5px;
-    color: #2B2A34;
-    border-bottom: 1px solid #EEECFB;
-}
-
-.pp-table tbody tr:last-child td {
-    border-bottom: none;
+.pp-th-checkbox {
+    width: 44px;
 }
 
 .pp-row {
-    cursor: pointer;
+    border-bottom: 1px solid var(--db-glass-border-alt);
     transition: background-color 0.15s ease;
+    cursor: pointer;
 }
 
-.pp-row:hover,
-.pp-row:focus-visible {
-    background-color: #FBF7FF;
+.pp-row:last-child {
+    border-bottom: none;
 }
 
-.pp-row:focus-visible {
-    outline: 2px solid #8B85F5;
-    outline-offset: -2px;
+.pp-row:hover {
+    background-color: var(--db-hover-highlight);
 }
 
-.pp-table-empty {
-    text-align: center;
-    padding: 32px 12px;
-    color: #8A8894;
-    font-style: italic;
+.pp-row.is-selected {
+    background-color: rgba(0, 188, 212, 0.06);
 }
 
-/* ---- Status badge ---- */
+.pp-cell {
+    padding: 18px 20px;
+    vertical-align: middle;
+}
 
-.pp-badge {
-    display: inline-block;
-    padding: 5px 14px;
-    border-radius: 999px;
-    font-size: 12px;
+.pp-checkbox {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--db-primary);
+    cursor: pointer;
+}
+
+/* Client column */
+.pp-client-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pp-avatar {
+    width: 34px;
+    height: 34px;
+    background-color: #eef2ff;
+    color: var(--db-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 800;
+    border: 1px solid rgba(41, 35, 122, 0.12);
+    flex-shrink: 0;
+}
+
+.pp-client-name {
+    font-weight: 700;
+    color: var(--db-slate);
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.pp-client-info {
+    min-width: 0;
+}
+
+/* Documents column */
+.pp-doc-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    align-items: flex-start;
+}
+
+.pp-doc-count-badge {
+    background-color: #F3F4F6;
+    color: #374151;
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-size: 0.66rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    border: 1px solid #E5E7EB;
+}
+
+.pp-doc-refs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pp-ref-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'SFMono-Regular', 'Courier New', monospace;
+    font-size: 0.76rem;
+    font-weight: 600;
+    background-color: #f1f5f9;
+    color: var(--db-text-muted);
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+.pp-ref-chip svg {
+    flex-shrink: 0;
+}
+
+/* Color-coded by document type, inferred from the reference number prefix.
+   Desaturated tint + high-contrast same-hue text: legible, and distinguishable
+   under low light or common color-vision deficiencies. */
+.pp-ref-chip--lh {
+    background-color: #E0F2FE;
+    color: #0369A1;
+    border-color: #BFE3FA;
+}
+
+.pp-ref-chip--nlh {
+    background-color: #FEF3C7;
+    color: #92400E;
+    border-color: #FDE9A8;
+}
+
+.pp-ref-chip--td {
+    background-color: #DCFCE7;
+    color: #166534;
+    border-color: #BBF7D0;
+}
+
+/* Legend under the header stats — icon + color match the chips exactly */
+.pp-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.pp-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--db-text-muted);
+}
+
+.pp-legend-item svg {
+    flex-shrink: 0;
+}
+
+.pp-legend-item--lh svg {
+    color: #0369A1;
+}
+
+.pp-legend-item--nlh svg {
+    color: #92400E;
+}
+
+.pp-legend-item--td svg {
+    color: #166534;
+}
+
+.pp-amount {
+    font-weight: 800;
+    color: var(--db-success);
+    font-size: 1.05rem;
+    white-space: nowrap;
+}
+
+.pp-date {
+    font-size: 0.82rem;
+    color: var(--db-text-muted);
     font-weight: 600;
     white-space: nowrap;
 }
 
-.pp-badge--awaiting {
-    background-color: rgba(253, 216, 53, 0.44);
-    color: #8A6A00;
+/* Actions */
+.pp-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
 }
 
-.pp-badge--paid {
-    background-color: rgba(60, 179, 113, 0.25);
-    color: #1E7A46;
+.pp-btn-process {
+    background-color: var(--db-primary);
+    color: #ffffff;
+    border: none;
+    padding: 9px 15px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 10px rgba(41, 35, 122, 0.15);
+    white-space: nowrap;
 }
 
-.pp-badge--overdue {
-    background-color: rgba(235, 87, 87, 0.2);
-    color: #B0281C;
+.pp-btn-process:hover {
+    background-color: var(--db-primary-hover);
+    transform: translateY(-1px);
 }
 
-/* ---- Responsive ---- */
+.pp-btn-archive {
+    background: transparent;
+    color: #9CA3AF;
+    border: none;
+    padding: 9px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
 
-@media (max-width: 720px) {
-    .pp-header {
-        justify-content: center;
-        text-align: center;
-        padding: 16px 20px;
+.pp-btn-archive:hover {
+    background-color: #fee2e2;
+    color: var(--db-error);
+}
+
+/* Loading skeleton */
+.pp-skeleton-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--db-glass-border-alt);
+}
+
+.pp-skeleton-block {
+    height: 14px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #eef0f4 25%, #f6f7fa 37%, #eef0f4 63%);
+    background-size: 400% 100%;
+    animation: pp-shimmer 1.4s ease infinite;
+}
+
+@keyframes pp-shimmer {
+    0% {
+        background-position: 100% 50%;
     }
 
-    .pp-header-profile {
+    100% {
+        background-position: 0 50%;
+    }
+}
+
+/* Empty state */
+.pp-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 72px 20px;
+    color: var(--db-text-muted);
+    text-align: center;
+}
+
+.pp-empty-state svg {
+    color: #cbd5e1;
+}
+
+.pp-empty-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--db-slate);
+}
+
+.pp-empty-sub {
+    font-size: 0.85rem;
+    font-weight: 500;
+    max-width: 320px;
+}
+
+/* --- 4. CONFIRM MODAL --- */
+.pp-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(22, 22, 31, 0.45);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 20px;
+    animation: pp-fade-in 0.15s ease;
+}
+
+@keyframes pp-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.pp-modal {
+    background-color: #ffffff;
+    border-radius: var(--db-radius-lg);
+    padding: 28px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 20px 60px rgba(22, 22, 31, 0.25);
+    animation: pp-modal-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pp-modal-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.pp-modal-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--db-slate);
+    margin: 0 0 8px;
+}
+
+.pp-modal-body {
+    font-size: 0.88rem;
+    color: var(--db-text-muted);
+    line-height: 1.5;
+    margin: 0 0 22px;
+}
+
+.pp-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.pp-modal-btn {
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.pp-modal-btn--cancel {
+    background-color: #f1f5f9;
+    color: var(--db-slate);
+}
+
+.pp-modal-btn--cancel:hover {
+    background-color: #e2e8f0;
+}
+
+.pp-modal-btn--confirm {
+    background-color: var(--db-error);
+    color: #ffffff;
+}
+
+.pp-modal-btn--confirm:hover {
+    background-color: #b32424;
+}
+
+/* --- 5. RESPONSIVE --- */
+@media (max-width: 900px) {
+    .pp-header-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .pp-search-wrapper {
         width: 100%;
+    }
+}
+
+/* Below 640px, drop the table for a stacked card layout so nothing is clipped */
+@media (max-width: 640px) {
+    .pp-stats-row {
+        gap: 8px;
+    }
+
+    .pp-stat-chip {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .pp-table-scroll {
+        overflow-x: visible;
+    }
+
+    .pp-table,
+    .pp-table thead,
+    .pp-table tbody,
+    .pp-table th,
+    .pp-table td,
+    .pp-table tr {
+        display: block;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .pp-table thead {
+        display: none;
+    }
+
+    .pp-row {
+        border: none;
+        border-bottom: 1px solid var(--db-glass-border-alt);
+        padding: 14px 16px;
+        position: relative;
+    }
+
+    .pp-cell {
+        padding: 4px 0;
+    }
+
+    .pp-cell[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--db-text-muted);
+        margin-bottom: 4px;
+    }
+
+    .pp-cell-checkbox {
+        position: absolute;
+        top: 14px;
+        right: 16px;
+        padding: 0;
+    }
+
+    .pp-actions {
+        justify-content: flex-start;
+        margin-top: 6px;
+    }
+
+    .pp-btn-process {
+        flex: 1;
         justify-content: center;
-    }
-
-    .pp-title,
-    .pp-card {
-        margin-left: 12px;
-        margin-right: 12px;
-    }
-
-    .pp-card {
-        padding: 8px 14px;
-        overflow-x: auto;
-    }
-
-    .pp-table {
-        min-width: 640px;
     }
 }

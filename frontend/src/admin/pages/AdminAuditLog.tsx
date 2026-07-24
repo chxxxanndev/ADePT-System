@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Search,
   ChevronDown,
-  Bell,
   CheckCircle2,
   XCircle,
   Settings2,
@@ -10,13 +9,16 @@ import {
   LogOut,
 } from "lucide-react";
 import "../styles/AdminAuditLog.css";
+import { clearStoredAuditEntries, getStoredAuditEntries, type AuditLogEntry as StoredAuditLogEntry } from '../services/auditLogService';
+import { fetchAllStaff, type StaffMember } from '../services/userManagementService';
+import { supabase, STAFF_PRESENCE_CHANNEL } from '../services/supabaseClient';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 type AuditActionType = "approval" | "decline" | "system" | "login" | "logout";
 
-interface AuditLogEntry {
+interface AuditLogEntry extends StoredAuditLogEntry {
   id: string;
   type: AuditActionType;
   actor: string;
@@ -36,7 +38,7 @@ interface StaffPresence {
 }
 
 type TimeRange = "Today" | "This Week" | "This Month" | "All Time";
-type ActivityFilter = "All activity" | "Approvals" | "Declines" | "System" | "Logins" | "Logouts";
+type ActivityFilter = "All activity" | "Approvals" | "Declines" | "Logins" | "Logouts";
 
 interface CurrentUser {
   name: string;
@@ -48,144 +50,6 @@ interface AuditLogProps {
   currentUser?: CurrentUser;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Mock data — inlined here for now.                                  */
-/*  TODO: replace with real data from a useAuditLog hook / API +       */
-/*  WebSocket subscription once a backend endpoint exists. If this     */
-/*  file grows, consider moving these two arrays back out to a         */
-/*  ../data/auditLogMockData.ts file and importing them instead.       */
-/* ------------------------------------------------------------------ */
-const initialAuditEntries: AuditLogEntry[] = [
-  {
-    id: "log-001",
-    type: "approval",
-    actor: "Vicente Desoy",
-    description: "approved staff account — John Cruz",
-    date: "Today",
-    time: "8:40 AM",
-  },
-  {
-    id: "log-002",
-    type: "login",
-    actor: "John Cruz",
-    description: "logged in",
-    date: "Today",
-    time: "8:41 AM",
-  },
-  {
-    id: "log-003",
-    type: "approval",
-    actor: "Vicente Desoy",
-    description: "approved tax declaration 2026-ADR",
-    date: "Today",
-    time: "8:12 AM",
-  },
-  {
-    id: "log-004",
-    type: "login",
-    actor: "Maria Lopez",
-    description: "logged in",
-    date: "Today",
-    time: "7:58 AM",
-  },
-  {
-    id: "log-005",
-    type: "decline",
-    actor: "Vicente Desoy",
-    description: "declined a registration request — Liza Tan",
-    date: "Today",
-    time: "7:55 AM",
-  },
-  {
-    id: "log-006",
-    type: "logout",
-    actor: "Anne Reyes",
-    description: "logged out",
-    date: "Yesterday",
-    time: "6:10 PM",
-  },
-  {
-    id: "log-007",
-    type: "decline",
-    actor: "Vicente Desoy",
-    description: "disapproved landholding request 2027-ADR",
-    date: "Yesterday",
-    time: "5:02 PM",
-  },
-  {
-    id: "log-008",
-    type: "login",
-    actor: "Dennis Cruz",
-    description: "logged in",
-    date: "Yesterday",
-    time: "3:47 PM",
-  },
-  {
-    id: "log-009",
-    type: "system",
-    actor: "System",
-    description: "Carlo Gomez marked inactive after 90 days",
-    date: "Yesterday",
-    time: "2:30 PM",
-  },
-  {
-    id: "log-010",
-    type: "logout",
-    actor: "John Cruz",
-    description: "logged out",
-    date: "Yesterday",
-    time: "1:15 PM",
-  },
-];
-
-const initialStaffPresence: StaffPresence[] = [
-  {
-    id: "staff-001",
-    name: "John Cruz",
-    role: "Records Officer",
-    initials: "JC",
-    avatarColor: "#29237A",
-    online: true,
-    lastSeen: "Just now",
-  },
-  {
-    id: "staff-002",
-    name: "Maria Lopez",
-    role: "Front Desk Staff",
-    initials: "ML",
-    avatarColor: "#00BCD4",
-    online: true,
-    lastSeen: "Just now",
-  },
-  {
-    id: "staff-003",
-    name: "Anne Reyes",
-    role: "Assessment Staff",
-    initials: "AR",
-    avatarColor: "#1976D2",
-    online: false,
-    lastSeen: "Yesterday, 6:10 PM",
-  },
-  {
-    id: "staff-004",
-    name: "Dennis Cruz",
-    role: "Encoder",
-    initials: "DC",
-    avatarColor: "#4CAF50",
-    online: true,
-    lastSeen: "Just now",
-  },
-  {
-    id: "staff-005",
-    name: "Ana Marquez",
-    role: "Encoder",
-    initials: "AM",
-    avatarColor: "#607D8B",
-    online: false,
-    lastSeen: "Today, 11:20 AM",
-  },
-];
-
 const DEFAULT_USER: CurrentUser = {
   name: "Vicente Desoy",
   role: "Super admin",
@@ -196,7 +60,6 @@ const ACTIVITY_FILTER_TO_TYPE: Record<ActivityFilter, AuditActionType | null> = 
   "All activity": null,
   Approvals: "approval",
   Declines: "decline",
-  System: "system",
   Logins: "login",
   Logouts: "logout",
 };
@@ -265,28 +128,96 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("Today");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("All activity");
-  const [entries] = useState<AuditLogEntry[]>(initialAuditEntries);
-  const [staffPresence, setStaffPresence] = useState<StaffPresence[]>(initialStaffPresence);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [entries, setEntries] = useState<AuditLogEntry[]>(() => getStoredAuditEntries());
+  const [staffPresence, setStaffPresence] = useState<StaffPresence[]>([]);
 
-  // ---- Simulated real-time presence updates ----
-  // Replace this interval with a WebSocket/SSE subscription or a short poll
-  // against a real presence endpoint once the backend supports it.
+  // ---- Real presence via Supabase Realtime ----
+  // This channel only *listens*; the actual "I'm online" announcement
+  // happens wherever useOnlinePresence(user) is mounted (AdminDashboard.tsx).
   useEffect(() => {
-    const interval = setInterval(() => {
+    let isMounted = true;
+    const channel = supabase.channel(STAFF_PRESENCE_CHANNEL);
+
+    // NOTE: presence keys are each user's Supabase Auth id (see
+    // useOnlinePresence.ts). For this to match correctly, StaffMember /
+    // fetchAllStaff() needs to expose each row's `auth_user_id` — the
+    // fallback to `member.id` below only works if your staff table's
+    // primary key happens to equal the auth user id.
+    const applyPresenceState = () => {
+      const state = channel.presenceState();
+      const onlineIds = new Set(Object.keys(state));
       setStaffPresence((prev) =>
-        prev.map((staff) => {
-          const shouldToggle = Math.random() < 0.15;
-          if (!shouldToggle) return staff;
-          const nowOnline = !staff.online;
-          return {
-            ...staff,
-            online: nowOnline,
-            lastSeen: "Just now",
-          };
-        })
+        prev.map((s) => ({
+          ...s,
+          online: onlineIds.has(s.id),
+          lastSeen: onlineIds.has(s.id) ? "Just now" : s.lastSeen,
+        }))
       );
-    }, 5000);
-    return () => clearInterval(interval);
+    };
+
+    channel
+      .on("presence", { event: "sync" }, applyPresenceState)
+      .on("presence", { event: "join" }, applyPresenceState)
+      .on("presence", { event: "leave" }, applyPresenceState)
+      .subscribe();
+
+    const loadStaffPresence = async () => {
+      try {
+        const staffMembers = await fetchAllStaff();
+        const nextStaffPresence = staffMembers.map((member: StaffMember, index: number) => {
+          const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim();
+          const initials = fullName
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0])
+            .join('')
+            .toUpperCase() || 'ST';
+          const role = member.roles?.code === 'SUPER_ADMIN'
+            ? 'Super Admin'
+            : member.roles?.code === 'OFFICE_STAFF'
+              ? 'Office Staff'
+              : 'Staff';
+
+          return {
+            id: member.auth_user_id || member.id,
+            name: fullName || member.username || member.email,
+            role,
+            initials,
+            avatarColor: ['#3D2E7C', '#00BCD4', '#1976D2', '#4CAF50', '#607D8B'][index % 5],
+            online: false, // corrected immediately by applyPresenceState() below
+            lastSeen: member.account_status === 'ACTIVE' ? 'Offline' : 'Inactive account',
+          } satisfies StaffPresence;
+        });
+        if (isMounted) {
+          setStaffPresence(nextStaffPresence);
+          applyPresenceState(); // reflect anyone already connected right now
+        }
+      } catch {
+        if (isMounted) setStaffPresence([]);
+      }
+    };
+
+    const handleAuditUpdate = () => {
+      setEntries(getStoredAuditEntries());
+    };
+
+    // Fired by StaffAccounts.tsx right after an activate/deactivate call
+    // succeeds, so the roster (names/roles) refetches immediately too.
+    const handleStaffDirectoryUpdate = () => {
+      void loadStaffPresence();
+    };
+
+    void loadStaffPresence();
+    window.addEventListener('admin-audit-log:updated', handleAuditUpdate);
+    window.addEventListener('staff-directory:updated', handleStaffDirectoryUpdate);
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+      window.removeEventListener('admin-audit-log:updated', handleAuditUpdate);
+      window.removeEventListener('staff-directory:updated', handleStaffDirectoryUpdate);
+    };
   }, []);
 
   const filteredEntries = useMemo(() => {
@@ -309,53 +240,63 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
 
   return (
     <div className="audit-log-page">
-      <div className="audit-log-container">
-        {/* Top bar */}
-        <div className="audit-topbar">
+      {/* Page header: title/subtitle + profile chip, then toolbar */}
+      <div className="audit-page-header">
+        <div className="audit-page-header-row">
           <div>
-            <h1 className="audit-title">Audit log</h1>
-            <p className="audit-subtitle">
-              A record of every approval, decline, and system action.
+            <h1 className="audit-page-title">Audit log</h1>
+            <p className="audit-page-subtitle">
+              A record of every account approval, decline, login, and logout.
             </p>
           </div>
-          <div className="audit-topbar-actions">
-            <div className="audit-search-field">
-              <Search size={16} className="audit-search-icon" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search records"
-                className="audit-search-input"
-              />
-            </div>
-            <div className="audit-select-field">
-              <select
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value as TimeRange)}
-                className="audit-select"
-              >
-                <option>Today</option>
-                <option>This Week</option>
-                <option>This Month</option>
-                <option>All Time</option>
-              </select>
-              <ChevronDown size={14} className="audit-select-chevron" />
-            </div>
-            <button className="audit-notif-btn" aria-label="Notifications">
-              <Bell size={18} />
-              <span className="audit-notif-dot" />
-            </button>
-            <div className="audit-user-chip">
-              <div className="audit-user-avatar">{currentUser.initials}</div>
-              <div className="audit-user-info">
-                <p className="audit-user-name">{currentUser.name}</p>
-                <p className="audit-user-role">{currentUser.role}</p>
-              </div>
+          <div className="audit-user-chip">
+            <div className="audit-user-avatar">{currentUser.initials}</div>
+            <div className="audit-user-info">
+              <p className="audit-user-name">{currentUser.name}</p>
+              <p className="audit-user-role">{currentUser.role}</p>
             </div>
           </div>
         </div>
 
-        {/* Main content */}
+        <div className="audit-toolbar">
+          <div className="audit-search-field">
+            <Search size={16} className="audit-search-icon" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search records"
+              className="audit-search-input"
+            />
+          </div>
+          <div className="audit-select-field">
+            <select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value as TimeRange)}
+              className="audit-select"
+            >
+              <option>Today</option>
+              <option>This Week</option>
+              <option>This Month</option>
+              <option>All Time</option>
+            </select>
+            <ChevronDown size={14} className="audit-select-chevron" />
+          </div>
+        </div>
+      </div>
+
+      {showFilterMenu && (
+        <div className="audit-filter-menu">
+          <button className="audit-filter-chip" onClick={() => { setActivityFilter('All activity'); setShowFilterMenu(false); }} type="button">All activity</button>
+          <button className="audit-filter-chip" onClick={() => { setActivityFilter('Approvals'); setShowFilterMenu(false); }} type="button">Approvals</button>
+          <button className="audit-filter-chip" onClick={() => { setActivityFilter('Declines'); setShowFilterMenu(false); }} type="button">Declines</button>
+          <button className="audit-filter-chip" onClick={() => { setActivityFilter('Logins'); setShowFilterMenu(false); }} type="button">Logins</button>
+          <button className="audit-filter-chip" onClick={() => { setActivityFilter('Logouts'); setShowFilterMenu(false); }} type="button">Logouts</button>
+          <button className="audit-filter-chip audit-filter-chip--danger" onClick={() => { clearStoredAuditEntries(); setEntries([]); setShowFilterMenu(false); }} type="button">Clear audit entries</button>
+        </div>
+      )}
+
+      {/* Scrollable content area — mirrors account-request-content */}
+      <div className="audit-log-content">
         <div className="audit-content-grid">
           {/* Audit log card */}
           <div className="audit-card">
@@ -370,7 +311,6 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
                   <option>All activity</option>
                   <option>Approvals</option>
                   <option>Declines</option>
-                  <option>System</option>
                   <option>Logins</option>
                   <option>Logouts</option>
                 </select>

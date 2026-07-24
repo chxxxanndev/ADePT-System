@@ -1,19 +1,14 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import '../styles/AdminAccountSettings.css';
+import { useAuth } from '../../users/hooks/useAuth';
+import { PasswordInput } from '../../auth-folder/components/PasswordInput';
+import * as accountService from '../services/adminAccountService';
+
 function CameraIcon({ size = 16 }: { size?: number }) {
     return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
             <circle cx="12" cy="13" r="4" />
-        </svg>
-    );
-}
-
-function EditPencilIcon({ size = 14 }: { size?: number }) {
-    return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
         </svg>
     );
 }
@@ -25,21 +20,14 @@ function ShieldIcon({ size = 16 }: { size?: number }) {
         </svg>
     );
 }
-import type { User } from '../../auth-folder/types/auth';
 
-interface AdminAccountSettingsFormData {
-    fullName: string;
-    username: string;
-    email: string;
-}
-
-interface AdminAccountSettingsProps {
-    user: User;
-    onSave?: (data: AdminAccountSettingsFormData) => Promise<void> | void;
-    onUpdateEmail?: () => void;
-    onChangePassword?: () => void;
-    onChangePhoto?: () => void;
-    onDisableAccount?: (disabled: boolean) => Promise<void> | void;
+function CloseIcon({ size = 16 }: { size?: number }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+    );
 }
 
 function getInitials(fullName: string): string {
@@ -51,61 +39,124 @@ function getInitials(fullName: string): string {
         .join('');
 }
 
-export function AdminAccountSettings({
-    user,
-    onSave,
-    onUpdateEmail,
-    onChangePassword,
-    onChangePhoto,
-    onDisableAccount,
-}: AdminAccountSettingsProps) {
-    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-    const roleLabel = user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : user.role || 'Super Admin';
+export function AdminAccountSettings() {
+    const { currentUser, updateCurrentUser, logout } = useAuth();
 
-    const [form, setForm] = useState<AdminAccountSettingsFormData>({
+    const fullName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const initialUsername = currentUser?.username || currentUser?.email?.split('@')[0] || '';
+    const roleLabel = currentUser?.role === 'SUPER_ADMIN' ? 'Super Admin' : currentUser?.role === 'OFFICE_STAFF' ? 'Office Staff' : currentUser?.role || 'Super Admin';
+
+    // --- 1. STAGED PROFILE STATE (requires Save Changes) ---
+    const [form, setForm] = useState({
         fullName,
-        username: user.username || user.email?.split('@')[0] || '',
-        email: user.email || '',
+        username: initialUsername,
     });
     const [saving, setSaving] = useState(false);
-    const [accountDisabled, setAccountDisabled] = useState(false);
+    const isDirty = form.fullName !== fullName || form.username !== initialUsername;
+
+    // --- 2. INSTANT STATES ---
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const [emailDraft, setEmailDraft] = useState(currentUser?.email || '');
+    const [isEditingEmail, setIsEditingEmail] = useState(false);
+    const [emailSubmitting, setEmailSubmitting] = useState(false);
     const [togglingStatus, setTogglingStatus] = useState(false);
 
-    const set = (field: keyof AdminAccountSettingsFormData, value: string) =>
-        setForm((prev) => ({ ...prev, [field]: value }));
+    // --- 3. MODAL & UI STATES ---
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [showDisableConfirmModal, setShowDisableConfirmModal] = useState(false);
+    const [toast, setToast] = useState<string | null>(null);
 
-    const isDirty =
-        form.fullName !== fullName ||
-        form.username !== (user.username || user.email?.split('@')[0] || '') ||
-        form.email !== (user.email || '');
+    const emailInputRef = useRef<HTMLInputElement | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    const handleDiscard = () => {
-        setForm({
-            fullName,
-            username: user.username || user.email?.split('@')[0] || '',
-            email: user.email || '',
-        });
+    const showToast = (message: string) => {
+        setToast(message);
+        window.setTimeout(() => setToast(null), 2500);
     };
 
-    const handleSave = async () => {
+    // --- HANDLERS ---
+
+    const handleSaveProfile = async () => {
         setSaving(true);
         try {
-            await onSave?.(form);
+            const result = await accountService.updateProfile(form.fullName, form.username);
+            updateCurrentUser({
+                firstName: result.first_name,
+                lastName: result.last_name,
+                username: result.username,
+            });
+            showToast('Profile updated successfully!');
+        } catch (err: any) {
+            showToast(err?.message || 'Failed to update profile');
         } finally {
             setSaving(false);
         }
     };
 
-    const handleToggleDisable = async () => {
-        const next = !accountDisabled;
+    const handleDiscard = () => {
+        setForm({ fullName, username: initialUsername });
+    };
+
+    const handleEmailUpdate = async () => {
+        if (!isEditingEmail) {
+            setIsEditingEmail(true);
+            requestAnimationFrame(() => emailInputRef.current?.focus());
+            return;
+        }
+        setEmailSubmitting(true);
+        try {
+            const result = await accountService.updateEmail(emailDraft);
+            updateCurrentUser({ email: result.email });
+            setIsEditingEmail(false);
+            showToast('Email updated successfully!');
+        } catch (err: any) {
+            showToast(err?.message || 'Failed to update email');
+        } finally {
+            setEmailSubmitting(false);
+        }
+    };
+
+    const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadingPhoto(true);
+        try {
+            const avatarUrl = await accountService.uploadPhoto(file);
+            updateCurrentUser({ avatarUrl });
+            showToast('Profile photo updated!');
+        } catch (err: any) {
+            showToast(err?.message || 'Failed to upload photo');
+        } finally {
+            setUploadingPhoto(false);
+            e.target.value = '';
+        }
+    };
+
+    const handleChangePassword = async (current: string, next: string) => {
+        await accountService.changePassword(current, next);
+    };
+
+    const applyDisableStatus = async (next: boolean) => {
         setTogglingStatus(true);
         try {
-            await onDisableAccount?.(next);
-            setAccountDisabled(next);
+            await accountService.setAccountStatus(next);
+            setShowDisableConfirmModal(false);
+            showToast(next ? 'Account disabled' : 'Account re-enabled');
+            if (next) {
+                logout();
+            }
+        } catch (err: any) {
+            showToast(err?.message || 'Failed to update account status');
         } finally {
             setTogglingStatus(false);
         }
     };
+
+    // --- Early return AFTER all hooks are declared ---
+    if (!currentUser) return null;
+
+    const accountDisabled = currentUser.status === 'DISABLED';
 
     return (
         <div className="aas-page">
@@ -122,25 +173,27 @@ export function AdminAccountSettings({
             <div className="aas-profile-banner">
                 <div className="aas-profile-identity">
                     <div className="aas-avatar-circle">
-                        {(user as any).avatarUrl ? (
-                            <img src={(user as any).avatarUrl} alt={fullName} />
-                        ) : (
-                            getInitials(fullName)
-                        )}
+                        {currentUser.avatarUrl ? <img src={currentUser.avatarUrl} alt={fullName} /> : getInitials(fullName)}
                     </div>
                     <div className="aas-profile-text">
                         <span className="aas-profile-name">{fullName}</span>
                         <span className="aas-profile-meta">
-                            {user.email}
+                            {currentUser.email}
                             <span className="aas-profile-meta-dot" />
                             <span className="aas-role-chip">{roleLabel.toUpperCase()}</span>
                         </span>
                     </div>
                 </div>
-                <button type="button" className="aas-change-photo-btn" onClick={onChangePhoto}>
+                <button
+                    type="button"
+                    className="aas-change-photo-btn"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                >
                     <CameraIcon />
-                    Change Photo
+                    {uploadingPhoto ? 'Uploading…' : 'Change Photo'}
                 </button>
+                <input ref={fileInputRef} type="file" hidden accept="image/*" onChange={handlePhotoChange} />
             </div>
 
             {/* Profile information */}
@@ -159,9 +212,8 @@ export function AdminAccountSettings({
                                 className="aas-input"
                                 placeholder="e.g. Juan Dela Cruz"
                                 value={form.fullName}
-                                onChange={(e) => set('fullName', e.target.value)}
+                                onChange={(e) => setForm((prev) => ({ ...prev, fullName: e.target.value }))}
                             />
-                            <span className="aas-input-edit-icon"><EditPencilIcon /></span>
                         </div>
                     </div>
 
@@ -173,27 +225,63 @@ export function AdminAccountSettings({
                                 className="aas-input"
                                 placeholder="e.g. Ju-An"
                                 value={form.username}
-                                onChange={(e) => set('username', e.target.value)}
+                                onChange={(e) => setForm((prev) => ({ ...prev, username: e.target.value }))}
                             />
-                            <span className="aas-input-edit-icon"><EditPencilIcon /></span>
                         </div>
                         <span className="aas-field-hint">Used for login and your public profile URL.</span>
                     </div>
+                </div>
 
+                {isDirty && (
+                    <div className="aas-card-actions" style={{ marginTop: 16 }}>
+                        <button
+                            type="button"
+                            className="aas-btn aas-btn-discard"
+                            onClick={handleDiscard}
+                            disabled={saving}
+                        >
+                            Discard Changes
+                        </button>
+                        <button
+                            type="button"
+                            className="aas-btn aas-btn-save"
+                            onClick={handleSaveProfile}
+                            disabled={saving}
+                        >
+                            {saving ? 'Saving…' : 'Save Changes'}
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Security settings */}
+            <div>
+                <div className="aas-section-header">
+                    <h2 className="aas-section-title">Security Settings</h2>
+                </div>
+
+                <div className="aas-info-card">
                     <div className="aas-field">
                         <label className="aas-field-label" htmlFor="aas-email">Email</label>
                         <div className="aas-field-row">
                             <div className="aas-input-wrap">
                                 <input
                                     id="aas-email"
+                                    ref={emailInputRef}
                                     className="aas-input"
                                     placeholder="e.g. Juan@gmail.com"
-                                    value={form.email}
-                                    onChange={(e) => set('email', e.target.value)}
+                                    value={isEditingEmail ? emailDraft : currentUser.email}
+                                    readOnly={!isEditingEmail}
+                                    onChange={(e) => setEmailDraft(e.target.value)}
                                 />
                             </div>
-                            <button type="button" className="aas-inline-btn" onClick={onUpdateEmail}>
-                                Update email
+                            <button
+                                type="button"
+                                className="aas-inline-btn"
+                                onClick={handleEmailUpdate}
+                                disabled={emailSubmitting}
+                            >
+                                {emailSubmitting ? 'Updating…' : isEditingEmail ? 'Update Email' : 'Update email'}
                             </button>
                         </div>
                     </div>
@@ -210,30 +298,11 @@ export function AdminAccountSettings({
                                     value="••••••••"
                                 />
                             </div>
-                            <button type="button" className="aas-inline-btn" onClick={onChangePassword}>
+                            <button type="button" className="aas-inline-btn" onClick={() => setShowPasswordModal(true)}>
                                 Change Password
                             </button>
                         </div>
                     </div>
-                </div>
-
-                <div className="aas-card-actions" style={{ marginTop: 16 }}>
-                    <button
-                        type="button"
-                        className="aas-btn aas-btn-discard"
-                        onClick={handleDiscard}
-                        disabled={!isDirty || saving}
-                    >
-                        Discard Changes
-                    </button>
-                    <button
-                        type="button"
-                        className="aas-btn aas-btn-save"
-                        onClick={handleSave}
-                        disabled={!isDirty || saving}
-                    >
-                        {saving ? 'Saving…' : 'Save Changes'}
-                    </button>
                 </div>
             </div>
 
@@ -251,7 +320,7 @@ export function AdminAccountSettings({
                     <button
                         type="button"
                         className={`aas-toggle ${accountDisabled ? 'is-on' : ''}`}
-                        onClick={handleToggleDisable}
+                        onClick={() => (accountDisabled ? applyDisableStatus(false) : setShowDisableConfirmModal(true))}
                         disabled={togglingStatus}
                         aria-pressed={accountDisabled}
                         aria-label="Disable account"
@@ -266,6 +335,117 @@ export function AdminAccountSettings({
                 )}
             </div>
 
+            {/* CHANGE PASSWORD MODAL */}
+            {showPasswordModal && (
+                <div className="as-modal-overlay" onClick={() => setShowPasswordModal(false)}>
+                    <div className="as-modal" onClick={(e) => e.stopPropagation()} role="dialog">
+                        <div className="as-modal-header">
+                            <h3>Change Password</h3>
+                            <button type="button" className="as-modal-close" onClick={() => setShowPasswordModal(false)}>
+                                <CloseIcon />
+                            </button>
+                        </div>
+                        <PasswordFormContent
+                            onSave={handleChangePassword}
+                            onClose={() => setShowPasswordModal(false)}
+                            showToast={showToast}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* DISABLE CONFIRM MODAL */}
+            {showDisableConfirmModal && (
+                <div className="as-modal-overlay" onClick={() => setShowDisableConfirmModal(false)}>
+                    <div className="as-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="as-modal-header">
+                            <h3>Disable Account</h3>
+                            <button type="button" className="as-modal-close" onClick={() => setShowDisableConfirmModal(false)}>
+                                <CloseIcon />
+                            </button>
+                        </div>
+                        <div className="as-modal-body">
+                            <p>Are you sure you want to disable your account? You will be logged out immediately.</p>
+                        </div>
+                        <div className="as-modal-actions">
+                            <button type="button" className="as-btn as-btn-discard" onClick={() => setShowDisableConfirmModal(false)}>
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="as-btn as-btn-save"
+                                onClick={() => applyDisableStatus(true)}
+                                disabled={togglingStatus}
+                            >
+                                {togglingStatus ? 'Disabling…' : 'Yes, Disable'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {toast && <div className="as-toast">{toast}</div>}
         </div>
+    );
+}
+
+function PasswordFormContent({
+    onSave,
+    onClose,
+    showToast,
+}: {
+    onSave: (current: string, next: string) => Promise<void>;
+    onClose: () => void;
+    showToast: (msg: string) => void;
+}) {
+    const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+        if (!pwForm.current) return setError('Enter your current password');
+        if (pwForm.next.length < 8) return setError('New password must be at least 8 characters');
+        if (pwForm.next !== pwForm.confirm) return setError('Passwords do not match');
+
+        setLoading(true);
+        try {
+            await onSave(pwForm.current, pwForm.next);
+            showToast('Password updated successfully');
+            onClose();
+        } catch (err: any) {
+            setError(err?.message || 'Failed to update password');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <div className="as-modal-body">
+                <div className="as-modal-field">
+                    <label>Current password</label>
+                    <PasswordInput value={pwForm.current} onChange={(v) => setPwForm({ ...pwForm, current: v })} id="admin-cur" />
+                </div>
+                <div className="as-modal-field">
+                    <label>New password</label>
+                    <PasswordInput value={pwForm.next} onChange={(v) => setPwForm({ ...pwForm, next: v })} id="admin-nxt" />
+                </div>
+                <div className="as-modal-field">
+                    <label>Confirm new password</label>
+                    <PasswordInput value={pwForm.confirm} onChange={(v) => setPwForm({ ...pwForm, confirm: v })} id="admin-cfm" />
+                </div>
+                {error && <p className="as-modal-error">{error}</p>}
+            </div>
+            <div className="as-modal-actions">
+                <button type="button" className="as-btn as-btn-discard" onClick={onClose}>
+                    Cancel
+                </button>
+                <button type="submit" className="as-btn as-btn-save" disabled={loading}>
+                    {loading ? 'Updating…' : 'Update Password'}
+                </button>
+            </div>
+        </form>
     );
 }

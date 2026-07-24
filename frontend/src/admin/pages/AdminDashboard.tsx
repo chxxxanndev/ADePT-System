@@ -160,7 +160,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                             </div>
                         </div>
                     ) : activeView === 'account-request' ? (
-                        <AccountRequest />
+                        <AccountRequest user={user} />
                     ) : activeView === 'staff-accounts' ? (
                         <StaffAccounts
                             user={user}
@@ -172,16 +172,15 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                     ) : activeView === 'reports-analytics' ? (
                         <AdminReports user={user} />
                     ) : activeView === 'audit-log' ? (
-                        <AdminAuditLog user={user} />
-                    ) : activeView === 'settings' ? (
-                        <AdminAccountSettings
-                            user={user}
-                            onSave={(data) => console.log('TODO: save admin account settings', data)}
-                            onUpdateEmail={() => console.log('TODO: update email')}
-                            onChangePassword={() => console.log('TODO: change password')}
-                            onChangePhoto={() => console.log('TODO: change photo')}
-                            onDisableAccount={(disabled) => console.log('TODO: disable account', disabled)}
+                        <AdminAuditLog
+                            currentUser={{
+                                name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                                role: user.role || 'Staff',
+                                initials: `${(user.firstName || '')[0] || ''}${(user.lastName || '')[0] || ''}`.toUpperCase(),
+                            }}
                         />
+                    ) : activeView === 'settings' ? (
+                        <AdminAccountSettings />
                     ) : (
                         /* Placeholder views for submenu clicks */
                         <div className="admin-placeholder-view">

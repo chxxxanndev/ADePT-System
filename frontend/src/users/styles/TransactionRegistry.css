@@ -44,23 +44,30 @@
     background-color: #FFFFFF;
     border: 1px solid #D7D2F2;
     border-radius: 14px;
-    padding: 16px 18px;
+    padding: 14px 16px;
     box-shadow: 0 6px 16px rgba(43, 42, 110, 0.08);
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    min-height: 78px;
 }
 
 .tr-summary-card-label {
-    font-size: 0.74rem;
+    font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
     color: #7A76A8;
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: keep-all;
+    line-height: 1.25;
 }
 
 .tr-summary-card-value {
-    font-size: 1.55rem;
+    font-size: 1.4rem;
     font-weight: 800;
     color: #16161F;
 }
@@ -76,9 +83,9 @@
 
 .tr-toolbar {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     margin: 0 24px 16px;
 }
 
@@ -90,8 +97,8 @@
     border: 1px solid #e2e8f0;
     border-radius: 10px;
     padding: 10px 16px;
-    flex: 1 1 320px;
-    min-width: 260px;
+    flex: 1 1 auto;
+    min-width: 160px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     color: #7A76A8;
 }
@@ -114,7 +121,8 @@
     color: #29237A;
     font-weight: 600;
     cursor: pointer;
-    min-width: 160px;
+    flex: 0 1 150px;
+    min-width: 110px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
@@ -127,6 +135,7 @@
     border-radius: 10px;
     padding: 8px 12px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    flex: 0 0 auto;
 }
 
 .tr-filter-date input[type="date"] {
@@ -136,6 +145,7 @@
     color: #29237A;
     font-weight: 600;
     background: transparent;
+    width: 100px;
 }
 
 .tr-filter-date span {
@@ -152,6 +162,8 @@
     font-size: 0.82rem;
     font-weight: 700;
     cursor: pointer;
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .tr-filter-reset:hover {
@@ -167,46 +179,78 @@
     margin: 0 24px;
     padding: 4px 20px 6px;
     box-shadow: 0 10px 28px rgba(43, 42, 110, 0.12), 0 2px 6px rgba(43, 42, 110, 0.06);
-    overflow-x: auto;
+    overflow-x: auto; /* kept as a safety net for very narrow screens, no longer relied on at desktop widths */
 }
 
 .tr-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 980px;
+    table-layout: fixed; /* columns share available width instead of forcing min-width overflow */
 }
 
 .tr-table thead th {
     text-align: left;
-    padding: 16px 12px;
+    padding: 16px 10px;
     font-size: 12.5px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: #475569;
     border-bottom: 2px solid #B7B0F0;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: keep-all;   /* only wrap at spaces, never mid-word */
+    overflow-wrap: normal;
+    hyphens: none;
 }
 
 .tr-table tbody td {
-    padding: 14px 12px;
+    padding: 14px 10px;
     font-size: 13.5px;
     color: #2B2A34;
     border-bottom: 1px solid #EEECFB;
     vertical-align: middle;
+    white-space: normal;
+    overflow-wrap: break-word;
 }
 
 .tr-table tbody tr:last-child td {
     border-bottom: none;
 }
 
+/* Column width proportions so the table fits without horizontal scroll at 100% zoom */
+.tr-table th:nth-child(1),
+.tr-table td:nth-child(1) { width: 11%; } /* Control Number */
+
+.tr-table th:nth-child(2),
+.tr-table td:nth-child(2) { width: 13%; } /* Declarant */
+
+.tr-table th:nth-child(3),
+.tr-table td:nth-child(3) { width: 13%; } /* Requested By */
+
+.tr-table th:nth-child(4),
+.tr-table td:nth-child(4) { width: 19%; } /* Requested Documents */
+
+.tr-table th:nth-child(5),
+.tr-table td:nth-child(5) { width: 11%; } /* Date Requested */
+
+.tr-table th:nth-child(6),
+.tr-table td:nth-child(6) { width: 12%; } /* Assigned Staff */
+
+.tr-table th:nth-child(7),
+.tr-table td:nth-child(7) { width: 11%; } /* Current Status */
+
+.tr-table th:nth-child(8),
+.tr-table td:nth-child(8) { width: 10%; } /* Actions */
+
 .tr-row {
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: inset 3px 0 0 0 transparent;
 }
 
 .tr-row:hover {
     background-color: #FBF7FF;
+    box-shadow: inset 3px 0 0 0 #534AB7;
 }
 
 .tr-ref {
@@ -230,16 +274,41 @@
 }
 
 .tr-doc-pill {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     background: #f1f5f9;
     border: 1px solid #cbd5e1;
     color: #475569;
-    padding: 3px 8px;
-    border-radius: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
     font-size: 0.74rem;
     font-weight: 600;
     margin: 2px 3px 2px 0;
-    white-space: nowrap;
+    white-space: normal; /* allow pills to wrap instead of forcing row width */
+}
+
+.tr-doc-pill svg {
+    flex-shrink: 0;
+}
+
+/* Document-type color variants, matching the No Landholding / Tax Declaration / Landholding chips */
+.tr-doc-pill--nlh {
+    background: #FEF9E7;
+    border-color: #F6E4A8;
+    color: #92650B;
+}
+
+.tr-doc-pill--td {
+    background: #EAFBF1;
+    border-color: #BCEBD1;
+    color: #1E7A46;
+}
+
+.tr-doc-pill--lh {
+    background: #EAF3FE;
+    border-color: #C6DEFB;
+    color: #1D4ED8;
 }
 
 .tr-table-empty {
@@ -263,6 +332,7 @@
     gap: 6px;
     justify-content: center;
     position: relative;
+    flex-wrap: nowrap;
 }
 
 .tr-action-btn {
@@ -277,6 +347,7 @@
     justify-content: center;
     cursor: pointer;
     transition: background 0.15s ease;
+    flex-shrink: 0;
 }
 
 .tr-action-btn:hover {
@@ -329,21 +400,21 @@
 
 .tr-badge {
     display: inline-block;
-    padding: 5px 12px;
-    border-radius: 999px;
+    padding: 5px 10px;
+    /* border-radius: 999px; */
     font-size: 11.5px;
     font-weight: 700;
-    white-space: nowrap;
+    white-space: normal;
 }
 
-.tr-badge--pending { background: rgba(253, 216, 53, 0.44); color: #8A6A00; }
-.tr-badge--forpayment { background: rgba(251, 146, 60, 0.24); color: #C2410C; }
-.tr-badge--paymentverified { background: rgba(56, 189, 248, 0.22); color: #0369A1; }
-.tr-badge--processing { background: rgba(37, 99, 235, 0.16); color: #1D4ED8; }
-.tr-badge--readyforrelease { background: rgba(13, 148, 136, 0.18); color: #0D9488; }
-.tr-badge--released { background: rgba(60, 179, 113, 0.25); color: #1E7A46; }
-.tr-badge--void { background: rgba(235, 87, 87, 0.2); color: #B0281C; }
-.tr-badge--archived { background: rgba(148, 163, 184, 0.25); color: #475569; }
+.tr-badge--pending {color: #8A6A00; }
+.tr-badge--forpayment {color: #C2410C; }
+.tr-badge--paymentverified {color: #0369A1; }
+.tr-badge--processing {color: #1D4ED8; }
+.tr-badge--readyforrelease {color: #0D9488; }
+.tr-badge--released {color: #1E7A46; }
+.tr-badge--void {color: #B0281C; }
+.tr-badge--archived {color: #475569; }
 
 /* ---- Pagination ---- */
 
@@ -415,6 +486,7 @@
     display: flex;
     justify-content: flex-end;
     z-index: 100;
+    animation: fadeInOverlay 0.2s ease-out;
 }
 
 .td-panel {
@@ -423,6 +495,7 @@
     height: 100%;
     overflow-y: auto;
     box-shadow: -12px 0 32px rgba(0, 0, 0, 0.2);
+    animation: slideInRight 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 
 .td-header {
@@ -622,9 +695,26 @@
 
 /* ---- Responsive ---- */
 
+/* Laptop / smaller desktop widths: tighten table so it never needs horizontal scroll */
+@media (max-width: 1440px) {
+    .tr-table thead th,
+    .tr-table tbody td {
+        padding: 12px 8px;
+        font-size: 12.5px;
+    }
+}
+
 @media (max-width: 1100px) {
     .tr-summary-grid {
         grid-template-columns: repeat(3, 1fr);
+    }
+
+    .tr-toolbar {
+        flex-wrap: wrap;
+    }
+
+    .tr-search {
+        flex: 1 1 100%;
     }
 }
 
@@ -649,4 +739,105 @@
     .td-panel {
         width: 100%;
     }
+
+    /* Below this width the fixed layout can't fit legibly anymore,
+       so fall back to a horizontally scrollable table just on small/mobile screens */
+    .tr-table {
+        table-layout: auto;
+        min-width: 720px;
+    }
+
+    .tr-card {
+        overflow-x: auto;
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Skeleton loading states */
+
+/* Toolbar skeleton container: children are SkeletonBox elements with
+   their own width/height/borderRadius props (see components/common/Skeleton.tsx),
+   this just lays them out in a row matching .tr-toolbar's spacing. */
+.tr-toolbar-skeleton {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+    margin: 0 24px 16px;
+}
+
+@media (max-width: 1100px) {
+    .tr-toolbar-skeleton {
+        flex-wrap: wrap;
+    }
+}
+
+@keyframes skeleton-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.skeleton-item {
+    background: #f1f5f9;
+    background-image: linear-gradient(
+        90deg,
+        #f1f5f9 0%,
+        #f8fafc 50%,
+        #f1f5f9 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite linear;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.skeleton-card-accent {
+    background: white;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid #eef2f6;
+    border-left: 4px solid #e2e8f0;
+    height: 78px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+}
+
+.skeleton-accent-purple { border-left-color: #a78bfa; }
+.skeleton-accent-gold { border-left-color: #fbbf24; }
+.skeleton-accent-blue { border-left-color: #60a5fa; }
+.skeleton-accent-green { border-left-color: #34d399; }
+.skeleton-accent-navy { border-left-color: #1e3a8a; }
+.skeleton-accent-red { border-left-color: #f87171; }
+
+.skeleton-card-ghost {
+    background: white;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid #eef2f6;
+    border-left: 4px solid #f1f5f9;
+    height: 78px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
 }

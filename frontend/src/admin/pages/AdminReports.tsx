@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     BarChart,
     Bar,
@@ -12,6 +12,9 @@ import {
 import '../styles/AdminReports.css';
 import { SearchIcon } from '../components/icons';
 import type { User } from '../../auth-folder/types/auth';
+import { hasAdminLevel } from '../../utils/permissions';
+
+const API_BASE_URL = 'http://localhost:5000/api/users';
 
 interface MonthlyRequest {
     month: string;
@@ -19,33 +22,85 @@ interface MonthlyRequest {
     color: string;
 }
 
-interface DistributionSlice {
-    label: string;
-    percent: number;
-    color: string;
+interface RawAccountRequest {
+    id: string;
+    applicantName?: string;
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    requestedRole?: string;
+    status?: string;
+    submitted?: string;
+    created_at?: string;
 }
 
-// TODO: replace with real data from a useAdminReports hook / API call
-const monthlyRequests: MonthlyRequest[] = [
-    { month: 'Feb', count: 210, color: '#29237a' },
-    { month: 'Mar', count: 180, color: '#00bcd4' },
-    { month: 'Apr', count: 240, color: '#29237a' },
-    { month: 'May', count: 300, color: '#00bcd4' },
-    { month: 'Jun', count: 260, color: '#29237a' },
-    { month: 'Jul', count: 140, color: '#00bcd4' },
-];
+interface ReportRow {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    status: 'pending' | 'approved' | 'disapproved';
+    submitted: string;
+    submittedRaw: string;
+}
 
-const totalDocuments = 8984;
-const approvalRate = 88;
-const avgProcessingDays = 1.8;
+function toReportRow(payload: RawAccountRequest): ReportRow {
+    const fullName = payload.applicantName || `${payload.first_name || ''} ${payload.last_name || ''}`.trim();
+    const status: ReportRow['status'] =
+        payload.status === 'approved' ? 'approved'
+            : payload.status === 'declined' || payload.status === 'disapproved' || payload.status === 'rejected' ? 'disapproved'
+            : 'pending';
+    const submittedRaw = payload.submitted || payload.created_at || new Date().toISOString();
+    const submittedDate = new Date(submittedRaw);
+    return {
+        id: payload.id,
+        name: fullName || payload.email || 'Unknown applicant',
+        email: payload.email || '—',
+        role: payload.requestedRole || 'Office Staff',
+        status,
+        submittedRaw,
+        submitted: Number.isNaN(submittedDate.getTime())
+            ? submittedRaw
+            : submittedDate.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+    };
+}
 
-const distribution: DistributionSlice[] = [
+const MONTH_COLORS = ['#29237a', '#00bcd4'];
+
+function buildMonthlyBuckets(rows: ReportRow[]): MonthlyRequest[] {
+    // Buckets the last 6 calendar months, oldest first, and counts how many
+    // account requests were submitted in each — this is what feeds the bar
+    // chart below instead of hardcoded numbers.
+    const now = new Date();
+    const buckets: { key: string; label: string; count: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        buckets.push({
+            key: `${d.getFullYear()}-${d.getMonth()}`,
+            label: d.toLocaleDateString('en-US', { month: 'short' }),
+            count: 0,
+        });
+    }
+    const bucketByKey = new Map(buckets.map((b) => [b.key, b]));
+
+    rows.forEach((row) => {
+        const d = new Date(row.submittedRaw);
+        if (Number.isNaN(d.getTime())) return;
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        const bucket = bucketByKey.get(key);
+        if (bucket) bucket.count += 1;
+    });
+
+    return buckets.map((b, i) => ({ month: b.label, count: b.count, color: MONTH_COLORS[i % 2] }));
+}
+
+const distribution = [
     { label: 'Tax declaration', percent: 52, color: '#252175' },
     { label: 'Cert. landholding', percent: 26, color: '#00BCD4' },
     { label: 'No landholding', percent: 22, color: '#F2994A' },
 ];
 
-function buildDonutSegments(slices: DistributionSlice[], radius: number) {
+function buildDonutSegments(slices: typeof distribution, radius: number) {
     const circumference = 2 * Math.PI * radius;
     let cumulative = 0;
     return slices.map((slice) => {
@@ -79,35 +134,90 @@ interface AdminReportsProps {
 
 export function AdminReports({ user }: AdminReportsProps) {
     const [searchQuery, setSearchQuery] = useState('');
+    const [rows, setRows] = useState<ReportRow[]>([]);
+    const [loading, setLoading] = useState(false);
+    // TODO: replace with a real total-documents count once a documents
+    // endpoint exists — account requests alone don't tell us this number.
+    const [totalDocuments] = useState(8984);
 
     const fullName = `${user.firstName || 'Mommy'} ${user.lastName || 'Dionisia'}`;
     const initials = `${user.firstName?.[0] || 'M'}${user.lastName?.[0] || 'D'}`;
-    const roleLabel = user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : user.role || 'Super Admin';
+    // Every account created through this system is Office Staff — there is
+    // no other requestable role — so the report always shows this label
+    // regardless of who's currently viewing the page.
+    const roleLabel = 'Office Staff';
+
+    const loadReportData = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch(`${API_BASE_URL}/account-requests`);
+            if (!res.ok) throw new Error('Failed to load report data.');
+            const data = await res.json();
+            setRows((data.requests || []).map(toReportRow));
+        } catch {
+            setRows([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadReportData();
+        // Keep this page's counts fresh the moment a decision happens
+        // anywhere else in the app (Account Requests page).
+        const handler = () => void loadReportData();
+        window.addEventListener('staff-directory:updated', handler);
+        return () => window.removeEventListener('staff-directory:updated', handler);
+    }, []);
+
+    const totalRequestAccounts = rows.length;
+    const totalApproved = rows.filter((r) => r.status === 'approved').length;
+    const totalDisapproved = rows.filter((r) => r.status === 'disapproved').length;
+
+    const monthlyRequests = useMemo(() => buildMonthlyBuckets(rows), [rows]);
+
+    const filteredRows = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return rows;
+        return rows.filter(
+            (r) =>
+                r.name.toLowerCase().includes(q) ||
+                r.email.toLowerCase().includes(q) ||
+                r.role.toLowerCase().includes(q) ||
+                r.status.toLowerCase().includes(q)
+        );
+    }, [rows, searchQuery]);
+
+    const canExport = hasAdminLevel(user, 'MEDIUM'); 
 
     const radius = 68;
     const segments = buildDonutSegments(distribution, radius);
 
+    const handleExportPdf = () => {
+        // Dependency-free PDF export: the browser's native "Print to PDF"
+        // does the job. #admin-reports-print-root is scoped to hide the
+        // sidebar/search/export controls via the @media print rules in
+        // AdminReports.css (see the snippet appended below).
+        window.print();
+    };
+
     return (
-        <div className="admin-reports-page">
+        <div className="admin-reports-page" id="admin-reports-print-root">
             {/* Page header */}
-            <div className="rq-page-header">
+            <div className="rq-page-header no-print">
                 <div className="rq-page-header-row">
                     <div>
                         <h1 className="rq-page-title">Reports &amp; Analytics</h1>
                         <p className="rq-page-subtitle">Trends across staff performance and document processing.</p>
                     </div>
 
-                    <div className="admin-profile-widget">
+                    <div className="admin-profile-widget audit-user-chip">
                         <div className="profile-widget-avatar-container">
                             {initials}
                         </div>
-                        <div className="profile-widget-info">
-                            <span className="profile-widget-name">{fullName}</span>
-                            <span className="profile-widget-email">{user.email || 'provincialassessor@gmail.com'}</span>
-                            <div className="profile-widget-meta">
-                                <span className="profile-widget-role">{roleLabel}</span>
-                                <span>Last Login : Today • 8:12 AM</span>
-                            </div>
+                        <div className="profile-widget-info audit-user-info">
+                            <span className="profile-widget-name audit-user-name">{fullName}</span>
+                            <span className="profile-widget-role">{roleLabel}</span>
                         </div>
                     </div>
                 </div>
@@ -116,7 +226,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                     <input
                         type="text"
                         className="rq-search-input"
-                        placeholder="Search"
+                        placeholder="Search applicants, roles, or status"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -132,26 +242,32 @@ export function AdminReports({ user }: AdminReportsProps) {
                     <span className="ar-stat-label">Total documents</span>
                     <span className="ar-stat-value">{totalDocuments.toLocaleString()}</span>
                 </div>
-                <div className="ar-stat-card ar-stat-card--green">
-                    <span className="ar-stat-label">Approval rate</span>
-                    <span className="ar-stat-value">{approvalRate}%</span>
-                </div>
                 <div className="ar-stat-card ar-stat-card--gold">
-                    <span className="ar-stat-label">Avg. processing time</span>
-                    <span className="ar-stat-value">{avgProcessingDays} days</span>
+                    <span className="ar-stat-label">Total request accounts</span>
+                    <span className="ar-stat-value">{totalRequestAccounts.toLocaleString()}</span>
+                </div>
+                <div className="ar-stat-card ar-stat-card--green">
+                    <span className="ar-stat-label">Total approved</span>
+                    <span className="ar-stat-value">{totalApproved.toLocaleString()}</span>
+                </div>
+                <div className="ar-stat-card ar-stat-card--red">
+                    <span className="ar-stat-label">Total disapproved</span>
+                    <span className="ar-stat-value">{totalDisapproved.toLocaleString()}</span>
                 </div>
             </div>
 
             {/* Chart row */}
             <div className="ar-charts-row">
-                {/* Bar chart — now recharts, styled like Transaction & Document Status Overview */}
+                {/* Bar chart — now driven by real account-request submission dates */}
                 <div className="admin-card ar-bar-card">
                     <div className="ar-bar-card-header">
                         <h2 className="admin-card-title">Requests by month</h2>
-                        <button type="button" className="ar-export-btn">Export</button>
+                        <button type="button" className="ar-export-btn no-print" onClick={handleExportPdf}>
+                            Export PDF
+                        </button>
                     </div>
                     <p className="ar-chart-description">
-                        Total document requests received per month
+                        Account requests submitted per month
                     </p>
 
                     <div className="ar-chart-canvas">
@@ -172,6 +288,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                                     tick={{ fontSize: 11, fill: '#8b8fa3' }}
                                     axisLine={false}
                                     tickLine={false}
+                                    allowDecimals={false}
                                 />
                                 <Tooltip
                                     content={<AdminBarTooltip />}
@@ -236,6 +353,49 @@ export function AdminReports({ user }: AdminReportsProps) {
                             </div>
                         ))}
                     </div>
+                </div>
+            </div>
+
+            {/* Searchable account-requests table — this is what the search bar filters */}
+            <div className="admin-card ar-search-results-card">
+                <h2 className="admin-card-title">Account requests</h2>
+                <div className="admin-table-container">
+                    <table className="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Applicant</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading && (
+                                <tr>
+                                    <td colSpan={5} style={{ textAlign: 'center', opacity: 0.6, padding: '20px' }}>
+                                        Loading...
+                                    </td>
+                                </tr>
+                            )}
+                            {!loading && filteredRows.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} style={{ textAlign: 'center', opacity: 0.6, padding: '20px' }}>
+                                        No requests match your search.
+                                    </td>
+                                </tr>
+                            )}
+                            {!loading && filteredRows.map((r) => (
+                                <tr key={r.id}>
+                                    <td><strong>{r.name}</strong></td>
+                                    <td>{r.email}</td>
+                                    <td>{r.role}</td>
+                                    <td style={{ textTransform: 'capitalize' }}>{r.status}</td>
+                                    <td>{r.submitted}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

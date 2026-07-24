@@ -1,6 +1,7 @@
 /* =========================================================
    ADePT Dashboard — Official Design System Tokens
    Source: ADePT Official Design System Color Palette
+   Integrated Changes: Fluid Width, Hidden Scrollbars, & Selector Styling
    ========================================================= */
 :root {
     /* Brand */
@@ -187,6 +188,17 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+
+    /* Hide scrollbar track for Firefox & Edge */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+/* Hide scrollbar track for Chrome, Safari, and Opera */
+.sidebar-nav::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
 }
 
 /* Section Separators */
@@ -246,7 +258,6 @@
 .nav-item:active,
 .sidebar-toggle-btn:active,
 .sidebar-logout:active {
-    background-color: #ffffff;
     color: var(--db-primary);
 }
 
@@ -257,6 +268,42 @@
     flex-shrink: 0;
     width: 18px;
     height: 18px;
+    position: relative;
+}
+
+.nav-item-icon-badge {
+    position: absolute;
+    top: -5px;
+    right: -7px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 99px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.6rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.nav-item-inline-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 5px;
+    margin-left: 6px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1;
+    vertical-align: text-top;
 }
 
 /* Sub-navigation Items */
@@ -305,8 +352,8 @@
     gap: 10px;
     width: calc(100% - 28px);
     margin: 0 14px 16px;
-    padding: 14px 10px 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 10px 8px 10px;
+    border-radius: 7px;
     background: none;
     border: none;
     color: rgba(255, 255, 255, 0.85);
@@ -320,6 +367,7 @@
 
 .sidebar-logout:hover {
     color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.08);
 }
 
 /* --- COLLAPSED STATE LOGIC --- */
@@ -358,7 +406,6 @@
     max-height: 0 !important;
 }
 
-
 .dashboard-sidebar.collapsed .nav-item,
 .dashboard-sidebar.collapsed .sidebar-logout {
     justify-content: center;
@@ -366,21 +413,6 @@
     width: 100%;
     margin-left: 0;
     margin-right: 0;
-}
-
-
-/* Scrollbar Style */
-.sidebar-nav::-webkit-scrollbar {
-    width: 4px;
-}
-
-.sidebar-nav::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.sidebar-nav::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
 }
 
 /* =========================================================
@@ -395,6 +427,7 @@
     width: 100%;
     height: 100%;
     overflow-y: auto;
+    overflow-x: hidden;
     min-width: 0;
 }
 
@@ -582,35 +615,85 @@
     border-bottom: 1px solid var(--db-glass-border-alt);
 }
 
+/* --- BEAUTIFIED PERIOD SELECTOR & DROPDOWN --- */
 .period-selector {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 8px 8px 16px;
-    border-radius: 999px;
-    background-color: #F0F0F2;
-    border: none;
+    padding: 8px 16px;
+    border-radius: 99px;
+    background-color: rgba(41, 35, 122, 0.05);
+    /* Light brand tint background */
+    border: 1px solid var(--db-glass-border-alt);
     font-size: 12.5px;
-    color: var(--db-slate);
+    font-weight: 700;
+    color: var(--db-primary);
     cursor: pointer;
     white-space: nowrap;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 8px rgba(41, 35, 122, 0.03);
+}
+
+.period-selector:hover {
+    background-color: rgba(41, 35, 122, 0.1);
+    border-color: var(--db-primary);
+    transform: translateY(-0.5px);
 }
 
 .period-selector-label {
-    font-weight: 700;
-    color: var(--db-slate);
+    font-weight: 800;
+    color: var(--db-primary);
 }
 
 .period-selector-value {
-    font-weight: 500;
-    color: var(--db-slate);
-    margin-left: -2px;
+    font-weight: 600;
+    color: var(--db-text);
 }
 
 .period-selector-toggle {
     color: var(--db-text-muted);
     margin-left: 4px;
     flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.period-selector-toggle.open {
+    transform: rotate(180deg);
+}
+
+.period-selector-wrap {
+    position: relative;
+    display: inline-flex;
+    z-index: 50;
+    isolation: isolate;
+}
+
+.period-dropdown-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: transparent;
+}
+
+.period-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 100;
+    min-width: 220px;
+    max-height: 340px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 8px;
+    list-style: none;
+    background-color: var(--db-glass-card-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--db-glass-border);
+    border-radius: var(--db-radius-md);
+    box-shadow: 0 12px 32px rgba(41, 35, 122, 0.12);
+    animation: dropdown-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: top right;
 }
 
 @keyframes dropdown-in {
@@ -623,47 +706,6 @@
         opacity: 1;
         transform: translateY(0) scale(1);
     }
-}
-
-.period-selector-wrap {
-    position: relative;
-    display: inline-flex;
-    z-index: 50;
-    isolation: isolate;
-}
-
-.period-selector-toggle {
-    transition: transform 0.2s ease;
-}
-
-.period-selector-toggle.open {
-    transform: rotate(180deg);
-}
-
-.period-dropdown-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 90;
-    background: transparent;
-}
-
-.period-dropdown {
-    position: absolute;
-    top: calc(100% + 10px);
-    right: 0;
-    z-index: 100;
-    min-width: 200px;
-    max-height: 340px;
-    overflow-y: auto;
-    margin: 0;
-    padding: 8px;
-    list-style: none;
-    background-color: #ffffff;
-    border: 1px solid var(--db-glass-border-alt);
-    border-radius: var(--db-radius-md);
-    box-shadow: 0 12px 32px rgba(41, 35, 122, 0.16), 0 2px 8px rgba(41, 35, 122, 0.08);
-    animation: dropdown-in 0.16s ease-out;
-    transform-origin: top right;
 }
 
 .period-dropdown::-webkit-scrollbar {
@@ -866,15 +908,19 @@
     cursor: not-allowed;
 }
 
-/* Content */
+/* =========================================================
+   FLUID CONTENT AREA (OPTIMIZED FOR MULTI-RESOLUTION VIEWPORTS)
+   ========================================================= */
 .dashboard-content {
     display: flex;
     flex-direction: column;
     padding: 12px 28px 32px;
     flex: 1;
-    max-width: 1360px;
-    margin: 0 auto;
-    width: 100%;
+    width: 100% !important;
+    max-width: 100% !important;
+    /* FIXED: Unlocked dashboard panel widths */
+    box-sizing: border-box;
+    min-width: 0;
 }
 
 /* Section header */
@@ -918,7 +964,6 @@
 .stat-card {
     padding: 20px;
     border-radius: 20px;
-    /* High radius as per image */
     border: 1px solid rgba(0, 0, 0, 0.04);
     display: flex;
     flex-direction: column;
@@ -994,10 +1039,8 @@
     color: #E53935;
 }
 
-
 .stat-card-value {
     font-size: 42px;
-    /* Large numerical display */
     font-weight: 700;
     color: #1a1a1a;
     line-height: 1;
@@ -1591,4 +1634,39 @@
 
 .page-transition {
     animation: page-enter 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* =========================================================
+   Print (used by Cashier Checkout's "Mark Paid & Print")
+   Hides chrome so window.print() only outputs the receipt panel
+   ========================================================= */
+@media print {
+    .dashboard-page {
+        display: block;
+        height: auto;
+        overflow: visible;
+        background: #ffffff;
+    }
+
+    .dashboard-page::before,
+    .dashboard-page::after {
+        display: none;
+    }
+
+    .dashboard-sidebar,
+    .dashboard-header,
+    .dashboard-welcome,
+    .dashboard-footer,
+    .header-menu-btn {
+        display: none !important;
+    }
+
+    .dashboard-main {
+        height: auto;
+        overflow: visible;
+    }
+
+    .dashboard-content {
+        padding: 0;
+    }
 }
