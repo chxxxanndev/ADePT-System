@@ -136,9 +136,6 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
         }
     }, [isNoLandholdingSelected, formData.propertyLocation]);
 
-    // Prefill Logic
-    // Replace your existing Prefill useEffect with this one:
-
 useEffect(() => {
     if (prefilledRequestData) {
         setFormData((prev) => ({
