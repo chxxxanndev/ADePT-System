@@ -1,7 +1,6 @@
 import { supabase } from '../../config/supabase.js';
 
 class RequestService {
-    // Generates Prefix-Year-Random (e.g., NLH-2026-1234)
     async _generateReferenceNumber(documentTypeIds) {
         let prefix = 'REF';
         try {
@@ -14,22 +13,33 @@ class RequestService {
     }
 
     async getMetadata() {
-        const { data: municipalities } = await supabase.from('municipalities').select('id, name');
-        const { data: barangays } = await supabase.from('barangays').select('id, name, municipality_id');
-        const { data: docTypes } = await supabase.from('document_types').select('id, name, prefix');
-        const { data: purposes } = await supabase.from('lookup_values').select('id, label, code');
-        const { data: staffRows } = await supabase.from('staff').select('id, first_name, last_name');
-        const staff = (staffRows ?? []).map(s => ({ id: s.id, name: `${s.first_name} ${s.last_name}` }));
+        const [
+            { data: municipalities },
+            { data: barangays },
+            { data: docTypes, error: docErr },
+            { data: purposes },
+            { data: staffRows }
+        ] = await Promise.all([
+            supabase.from('municipalities').select('id, name'),
+            supabase.from('barangays').select('id, name, municipality_id'),
+            supabase.from('document_types').select('id, name, prefix'),
+            supabase.from('lookup_values').select('id, label, code'),
+            supabase.from('staff').select('id, first_name, last_name'),
+        ]);
 
-        return { municipalities: municipalities || [], barangays: barangays || [], docTypes: docTypes || [], purposes: purposes || [], staff: staff || [] };
+        if (docErr) throw new Error(`Failed to load document types: ${docErr.message}`);
+
+        return {
+            municipalities: municipalities || [],
+            barangays: barangays || [],
+            docTypes: docTypes || [],
+            purposes: purposes || [],
+            staff: (staffRows || []).map(s => ({ id: s.id, name: `${s.first_name} ${s.last_name}` })),
+        };
     }
 
-    async createRequest(formData, authUserId) {
-        const { data: staff } = await supabase.from('staff').select('id').eq('auth_user_id', authUserId).single();
-        if (!staff) throw new Error('Staff not found');
-
+    async createRequest(formData, staffId) {
         const uniqueRef = await this._generateReferenceNumber(formData.documentTypeIds);
-
         const { data: request, error: reqError } = await supabase
             .from('requests')
             .insert([{
@@ -41,7 +51,8 @@ class RequestService {
                 purpose_id: formData.purposeId || null,
                 purpose_other_text: formData.purposeOtherText || null,
                 action_taken: formData.actionTaken || 'PENDING',
-                encoded_by: staff.id,
+                property_location: formData.propertyLocation || null, // Ensure this is saved
+                encoded_by: staffId,
                 status: formData.status || 'DRAFT'
             }])
             .select().single();
@@ -55,39 +66,69 @@ class RequestService {
         return request;
     }
 
+    async getRequestById(id) {
+        const { data: request, error: reqError } = await supabase.from('requests').select('*').eq('id', id).single();
+        if (reqError) throw reqError;
+
+        const { data: docLinks } = await supabase.from('request_documents').select('document_type_id').eq('request_id', id);
+        
+        return {
+            ...request,
+            documentTypeIds: docLinks ? docLinks.map(link => link.document_type_id) : []
+        };
+    }
+
+    async forwardRequest(requestId, { recipientStaffId, note, actorStaffId }) {
+        const { data, error } = await supabase
+            .from('requests')
+            .update({
+                assigned_staff_id: recipientStaffId,
+                forwarded_by: actorStaffId,
+                forwarded_at: new Date().toISOString(),
+                status: 'FORWARDED', // Fixes the "remains draft" bug
+            })
+            .eq('id', requestId)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        await supabase.from('notifications').insert([{
+            request_id: requestId,
+            actor_id: actorStaffId,
+            recipient_id: recipientStaffId,
+            message: note || 'forwarded a request to you',
+            is_read: false,
+        }]);
+
+        return data;
+    }
+
+    async deleteRequest(id) {
+        const { error } = await supabase.from('requests').delete().eq('id', id);
+        if (error) throw error;
+        return { success: true };
+    }
+    
+    // Add missing getRequests method for getAllRequests
     async getRequests() {
-        try {
-            const { data: requests, error: reqErr } = await supabase.from('requests').select('*').order('created_at', { ascending: false });
-            if (reqErr) throw reqErr;
-
-            const { data: docLinks } = await supabase.from('request_documents').select('request_id, document_types(name)');
-
-            return (requests || []).map(r => ({
-                ...r,
-                request_documents: (docLinks || []).filter(d => d.request_id === r.id)
-            }));
-        } catch (err) { return []; }
+        const { data, error } = await supabase.from('requests').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        return data;
     }
 
     async updateRequest(id, formData) {
         const updateData = {};
 
+        // Map frontend camelCase to backend snake_case
         if (formData.status) updateData.status = formData.status;
-
-        if (formData.declarantName || formData.declarant_name) {
-            updateData.declarant_name = formData.declarantName || formData.declarant_name;
-        }
-
-        if (formData.requestedByName || formData.requested_by_name) {
-            updateData.requested_by_name = formData.requestedByName || formData.requested_by_name;
-        }
-
+        if (formData.declarantName) updateData.declarant_name = formData.declarantName;
+        if (formData.requestedByName) updateData.requested_by_name = formData.requestedByName;
         if (formData.purposeId) updateData.purpose_id = formData.purposeId;
         if (formData.purposeOtherText !== undefined) updateData.purpose_other_text = formData.purposeOtherText;
-
-        if (formData.action_taken || formData.actionTaken) {
-            updateData.action_taken = formData.actionTaken || formData.action_taken;
-        }
+        if (formData.actionTaken) updateData.action_taken = formData.actionTaken;
+        if (formData.propertyLocation) updateData.property_location = formData.propertyLocation;
+        if (formData.authRequired !== undefined) updateData.authorization_required = formData.authRequired;
 
         const { data, error } = await supabase
             .from('requests')
@@ -100,61 +141,30 @@ class RequestService {
         return data;
     }
 
-    /**
-     * NEW: Check if an O.R. Number is unique in the database
-     */
-    async checkOrUniqueness(orNumber, excludeRequestId = null) {
-        let query = supabase
-            .from('requests')
-            .select('id, reference_number, declarant_name')
-            .eq('or_number', orNumber.trim());
-
-        if (excludeRequestId) {
-            query = query.neq('id', excludeRequestId);
-        }
-
-        const { data, error } = await query;
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-            return {
-                isUnique: false,
-                existingRequest: {
-                    referenceNumber: data[0].reference_number,
-                    declarantName: data[0].declarant_name
-                }
-            };
-        }
-
-        return { isUnique: true };
-    }
-
-    /**
-     * UPDATED: Release Request with O.R., Signatory, and Override Justification
-     */
-    async releaseRequest(id, paymentData) {
+    async forwardRequest(requestId, { recipientStaffId, note, actorStaffId }) {
         const { data, error } = await supabase
             .from('requests')
             .update({
-                or_number: paymentData.orNumber,
-                authorized_signatory: paymentData.signatory,
-                is_or_overridden: paymentData.isOverridden || false,
-                or_override_justification: paymentData.justification || null,
-                status: 'PAID',
-                payment_date: new Date().toISOString()
+                assigned_staff_id: recipientStaffId,
+                forwarded_by: actorStaffId,
+                forwarded_at: new Date().toISOString(),
+                status: 'FORWARDED',
             })
-            .eq('id', id)
+            .eq('id', requestId)
             .select()
             .single();
 
         if (error) throw error;
+
+        await supabase.from('notifications').insert([{
+            request_id: requestId,
+            actor_id: actorStaffId,
+            recipient_id: recipientStaffId,
+            message: note || 'forwarded a request to you',
+            is_read: false,
+        }]);
+
         return data;
     }
-
-    async deleteRequest(id) {
-        await supabase.from('requests').delete().eq('id', id);
-        return { id };
-    }
 }
-
 export default new RequestService();

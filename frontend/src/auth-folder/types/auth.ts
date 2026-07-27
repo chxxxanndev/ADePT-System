@@ -1,10 +1,11 @@
 export interface User {
-    id: string;          // Added this
+    id: string;         
+      staffId: string;
     email: string;
     username: string;
     firstName: string;
     lastName: string;
-    role?: string;       // Added this (optional)
+    role?: string;      
     status?: string;
     avatarUrl?: string;
 }

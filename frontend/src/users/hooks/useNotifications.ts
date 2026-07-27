@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { User } from '../../auth-folder/types/auth';
-// TODO (backend): import { supabase } from '../config/supabaseClient';
-// TODO (backend): import { requestService } from '../services/requestService';
+import { supabase } from '../../auth-folder/services/supabaseClient';
+import { requestService } from '../services/requestService';
 
 export interface NotificationItem {
     id: string;
@@ -13,74 +13,69 @@ export interface NotificationItem {
     requests?: { reference_number?: string; control_number?: string; declarant_name?: string };
 }
 
-// TEMP mock data — shape matches what GET /notifications will eventually return.
-const MOCK_NOTIFICATIONS: NotificationItem[] = [
-    {
-        id: 'mock-1',
-        request_id: 'req-mock-1',
-        message: 'forwarded a Tax Declaration request to you',
-        is_read: false,
-        created_at: new Date().toISOString(),
-        actor: { first_name: 'Maria', last_name: 'Santos' },
-        requests: { reference_number: 'TD-2026-4821', declarant_name: 'Juan D. Cruz' },
-    },
-    {
-        id: 'mock-2',
-        request_id: 'req-mock-2',
-        message: 'forwarded a Certificate of Landholding request to you',
-        is_read: true,
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-        actor: { first_name: 'Pedro', last_name: 'Reyes' },
-        requests: { reference_number: 'LH-2026-1190', declarant_name: 'Ana Lopez' },
-    },
-];
-
 export function useNotifications(user: User | null | undefined) {
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-    // Initial load
-    useEffect(() => {
-        if (!user) return;
-        let isMounted = true;
+    const fetchNotifications = useCallback(async () => {
+        if (!user?.staffId) return;
         setLoading(true);
-        // TODO (backend): requestService.getNotifications().then((data) => { if (isMounted) { setNotifications(data); setLoading(false); } });
-        const timeout = setTimeout(() => {
-            if (isMounted) {
-                setNotifications(MOCK_NOTIFICATIONS);
-                setLoading(false);
-            }
-        }, 300);
-        return () => { isMounted = false; clearTimeout(timeout); };
-    }, [user?.id]);
+        setError('');
+        try {
+            const data = await requestService.getNotifications();
+            setNotifications(data.data || data);
+        } catch (err) {
+            console.error('Failed to load notifications', err);
+            setError('Failed to load notifications.');
+        } finally {
+            setLoading(false);
+        }
+    }, [user?.staffId]);
 
-    // Realtime subscription — lives at the top of the app (via Dashboard),
-    // so it's automatic no matter which page the staff member is on.
     useEffect(() => {
-        if (!user) return;
-        // TODO (backend): once the notifications table + Realtime are live:
-        //
-        // const channel = supabase
-        //     .channel(`notifications-${user.id}`)
-        //     .on('postgres_changes',
-        //         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_staff_id=eq.${user.id}` },
-        //         (payload) => setNotifications((prev) => [payload.new as NotificationItem, ...prev])
-        //     )
-        //     .subscribe();
-        // return () => { supabase.removeChannel(channel); };
-    }, [user?.id]);
+        fetchNotifications();
+    }, [fetchNotifications]);
+
+    // Realtime subscription — one channel per staff member, lives for the whole session
+    useEffect(() => {
+        if (!user?.staffId) return;
+
+        const channel = supabase
+            .channel(`notifications-${user.staffId}`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${user.staffId}` },
+                (payload) => setNotifications((prev) => [payload.new as NotificationItem, ...prev])
+            )
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [user?.staffId]);
 
     const markAsRead = useCallback((notificationId: string) => {
         setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)));
-        // TODO (backend): requestService.markNotificationRead(notificationId)
+        requestService.markNotificationRead(notificationId).catch((err) =>
+            console.error('Failed to mark notification read', err)
+        );
     }, []);
 
     const markAllAsRead = useCallback(() => {
         setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-        // TODO (backend): requestService.markAllNotificationsRead()
+        requestService.markAllNotificationsRead().catch((err) =>
+            console.error('Failed to mark all notifications read', err)
+        );
     }, []);
 
-    return { notifications, unreadCount, loading, markAsRead, markAllAsRead };
+    return {
+        notifications,
+        unreadCount,
+        loading,
+        error,
+        refetch: fetchNotifications,
+        markAsRead,
+        markAllAsRead,
+    };
 }

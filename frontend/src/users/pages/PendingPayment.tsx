@@ -7,6 +7,8 @@ const ArchiveIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="
 const ProcessIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>;
 const RefreshIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>;
 const InboxIcon = () => <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>;
+const CheckSquareIcon = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>;
+const UserIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
 
 // Small same-hue glyphs for each document type, used in both the ref chips and the legend
 const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11 12 3l9 8" /><path d="M5 10v10h14V10" /></svg>;
@@ -39,11 +41,25 @@ function resolveDocTypeName(req: any): string {
     return 'Certified True Tax Declaration';
 }
 
+// Deterministic, pleasant avatar tint per requester name — purely cosmetic variety,
+// stays within the same low-saturation palette family as the rest of the UI.
+function getAvatarStyle(name: string): React.CSSProperties {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    const hue = Math.abs(hash) % 360;
+    return {
+        backgroundColor: `hsl(${hue}, 60%, 94%)`,
+        color: `hsl(${hue}, 45%, 32%)`,
+        borderColor: `hsl(${hue}, 45%, 82%)`,
+    };
+}
+
 export function PendingPayment({ onSelectPayment }: any) {
     const [groupedPayments, setGroupedPayments] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [selectionMode, setSelectionMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [confirmTarget, setConfirmTarget] = useState<{ groups: any[]; label: string } | null>(null);
     const [isArchiving, setIsArchiving] = useState(false);
@@ -104,13 +120,29 @@ export function PendingPayment({ onSelectPayment }: any) {
         return { clients: groupedPayments.length, docs: totalDocs, amount: totalAmount };
     }, [groupedPayments]);
 
-    const toggleSelect = (e: React.MouseEvent, groupId: string) => {
-        e.stopPropagation();
+    // Column count drives colSpan for skeleton / empty rows: 6 fixed columns,
+    // +1 more when the Select-mode checkbox column is showing.
+    const columnCount = selectionMode ? 7 : 6;
+
+    const toggleSelect = (groupId: string) => {
         setSelectedIds(prev => {
             const next = new Set(prev);
             if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
             return next;
         });
+    };
+
+    const toggleSelectAll = () => {
+        setSelectedIds(prev => {
+            if (filtered.length > 0 && prev.size === filtered.length) return new Set();
+            return new Set(filtered.map(g => g.groupId));
+        });
+    };
+
+    const enterSelectionMode = () => setSelectionMode(true);
+    const exitSelectionMode = () => {
+        setSelectionMode(false);
+        setSelectedIds(new Set());
     };
 
     const runArchive = async (groups: any[]) => {
@@ -147,6 +179,7 @@ export function PendingPayment({ onSelectPayment }: any) {
     };
 
     const selectedCount = selectedIds.size;
+    const allFilteredSelected = filtered.length > 0 && selectedCount === filtered.length;
     const currency = (n: number) => `\u20B1 ${n.toFixed(2)}`;
 
     return (
@@ -154,91 +187,122 @@ export function PendingPayment({ onSelectPayment }: any) {
 
             {/* --- HEADER CARD --- */}
             <div className="pp-header-card">
-                <div className="pp-header-content">
-                    <span className="pp-suptitle">Verify payments using Official Receipts issued by the Treasurer's Office.</span>
-                    <div className="pp-title-row">
+                <div className="pp-header-top">
+                    <div className="pp-header-titles">
+                        <span className="pp-suptitle">Verify payments using Official Receipts issued by the Treasurer's Office.</span>
                         <h1 className="pp-title">Payment Verification Queue</h1>
-                        <button
-                            className={`pp-refresh-btn${isRefreshing ? ' is-spinning' : ''}`}
-                            onClick={() => fetchLivePayments(true)}
-                            title="Refresh queue"
-                            aria-label="Refresh queue"
-                        >
-                            <RefreshIcon />
-                        </button>
+                        <p className="pp-subtitle">Process bulk payments grouped by client request</p>
                     </div>
-                    <p className="pp-subtitle">Process bulk payments grouped by client request</p>
+                    <button
+                        className={`pp-refresh-btn${isRefreshing ? ' is-spinning' : ''}`}
+                        onClick={() => fetchLivePayments(true)}
+                        title="Refresh queue"
+                        aria-label="Refresh queue"
+                    >
+                        <RefreshIcon />
+                    </button>
+                </div>
 
-                    <div className="pp-stats-row">
-                        <div className="pp-stat-chip">
-                            <strong>{summary.clients}</strong>
-                            <span>Clients waiting</span>
-                        </div>
-                        <div className="pp-stat-chip">
-                            <strong>{summary.docs}</strong>
-                            <span>Documents</span>
-                        </div>
-                        <div className="pp-stat-chip">
-                            <strong>{currency(summary.amount)}</strong>
-                            <span>Total due</span>
-                        </div>
+                <div className="pp-stats-row">
+                    <div className="pp-stat-chip">
+                        <strong>{summary.clients}</strong>
+                        <span>Clients waiting</span>
                     </div>
-
-                    <div className="pp-legend-row">
-                        <div className="pp-legend-item pp-legend-item--lh"><LandholdingIcon />Landholding</div>
-                        <div className="pp-legend-item pp-legend-item--nlh"><NoLandholdingIcon />No Landholding</div>
-                        <div className="pp-legend-item pp-legend-item--td"><TaxDeclarationIcon />Tax Declaration</div>
+                    <div className="pp-stat-chip">
+                        <strong>{summary.docs}</strong>
+                        <span>Documents</span>
+                    </div>
+                    <div className="pp-stat-chip pp-stat-chip--amount">
+                        <strong>{currency(summary.amount)}</strong>
+                        <span>Total due</span>
                     </div>
                 </div>
 
-                <div className="pp-search-wrapper">
-                    <SearchIcon />
-                    <input
-                        type="text"
-                        className="pp-search-input"
-                        placeholder="Search by Client, Declarant, or Ref No..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                <div className="pp-legend-row">
+                    <div className="pp-legend-item pp-legend-item--lh"><LandholdingIcon />Landholding</div>
+                    <div className="pp-legend-item pp-legend-item--nlh"><NoLandholdingIcon />No Landholding</div>
+                    <div className="pp-legend-item pp-legend-item--td"><TaxDeclarationIcon />Tax Declaration</div>
                 </div>
             </div>
 
-            {/* --- BULK ACTION BAR --- */}
-            {selectedCount > 0 && (
-                <div className="pp-bulk-bar">
-                    <span className="pp-bulk-bar-text">{selectedCount} client{selectedCount !== 1 && 's'} selected</span>
-                    <div className="pp-bulk-bar-actions">
-                        <button className="pp-bulk-btn pp-bulk-btn--clear" onClick={() => setSelectedIds(new Set())}>
-                            Clear selection
-                        </button>
-                        <button className="pp-bulk-btn pp-bulk-btn--archive" onClick={requestArchiveSelected}>
-                            <ArchiveIcon /> Archive selected
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {/* --- TABLE CARD --- */}
             <div className="pp-table-card">
+                {/* Toolbar sits above the column headers, right next to the rows it filters:
+                    search + client count on the left, Select (or Cancel/Archive) on the right. */}
+                <div className={`pp-table-toolbar${selectionMode ? ' is-active' : ''}`}>
+                    <div className="pp-toolbar-left">
+                        <div className="pp-toolbar-search">
+                            <SearchIcon />
+                            <input
+                                type="text"
+                                className="pp-toolbar-search-input"
+                                placeholder="Search by Client, Declarant, or Ref No..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        <span className="pp-table-toolbar-text">
+                            {selectionMode
+                                ? (selectedCount > 0
+                                    ? `${selectedCount} client${selectedCount !== 1 ? 's' : ''} selected`
+                                    : 'Tap a row to select it for archiving')
+                                : `${filtered.length} client${filtered.length !== 1 ? 's' : ''} in queue`}
+                        </span>
+                    </div>
+                    <div className="pp-table-toolbar-actions">
+                        {selectionMode ? (
+                            <>
+                                <button className="pp-bulk-btn pp-bulk-btn--clear" onClick={exitSelectionMode}>
+                                    Cancel
+                                </button>
+                                <button
+                                    className="pp-bulk-btn pp-bulk-btn--archive"
+                                    onClick={requestArchiveSelected}
+                                    disabled={selectedCount === 0}
+                                >
+                                    <ArchiveIcon /> Archive selected
+                                </button>
+                            </>
+                        ) : (
+                            <button className="pp-select-toggle-btn" onClick={enterSelectionMode}>
+                                <CheckSquareIcon />
+                                Select
+                            </button>
+                        )}
+                    </div>
+                </div>
+
                 <div className="pp-table-scroll">
                     <table className="pp-table">
                         <thead>
                             <tr>
-                                <th className="pp-th-checkbox"></th>
-                                <th style={{ width: '210px' }}>Client / Requester</th>
-                                <th>Documents Included</th>
-                                <th style={{ width: '120px', textAlign: 'right' }}>Total Fee</th>
-                                <th style={{ width: '110px', textAlign: 'center' }}>Date</th>
-                                <th style={{ width: '180px', textAlign: 'right', paddingRight: '32px' }}>Actions</th>
+                                {selectionMode && (
+                                    <th className="pp-th-checkbox">
+                                        <input
+                                            type="checkbox"
+                                            className="pp-checkbox"
+                                            checked={allFilteredSelected}
+                                            onChange={toggleSelectAll}
+                                            aria-label="Select all"
+                                        />
+                                    </th>
+                                )}
+                                <th style={{ width: '21%' }}>Client / Requester</th>
+                                <th style={{ width: '15%' }}>Reference No.</th>
+                                <th style={{ width: '22%' }}>Declarant</th>
+                                <th style={{ width: '11%', textAlign: 'right' }}>Total Fee</th>
+                                <th style={{ width: '11%', textAlign: 'center' }}>Date</th>
+                                <th style={{ width: '20%', textAlign: 'right', paddingRight: '32px' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 Array.from({ length: 4 }).map((_, i) => (
                                     <tr key={i}>
-                                        <td colSpan={6} style={{ padding: 0 }}>
+                                        <td colSpan={columnCount} style={{ padding: 0 }}>
                                             <div className="pp-skeleton-row">
                                                 <div className="pp-skeleton-block" style={{ width: 34, height: 34, borderRadius: '50%' }} />
+
                                                 <div className="pp-skeleton-block" style={{ width: '18%' }} />
                                                 <div className="pp-skeleton-block" style={{ width: '28%' }} />
                                                 <div className="pp-skeleton-block" style={{ width: '10%' }} />
@@ -249,7 +313,7 @@ export function PendingPayment({ onSelectPayment }: any) {
                                 ))
                             ) : filtered.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6}>
+                                    <td colSpan={columnCount}>
                                         <div className="pp-empty-state">
                                             <InboxIcon />
                                             <span className="pp-empty-title">
@@ -267,46 +331,61 @@ export function PendingPayment({ onSelectPayment }: any) {
                                 filtered.map((group) => (
                                     <tr
                                         key={group.groupId}
-                                        onClick={() => onSelectPayment(group)}
-                                        className={`pp-row${selectedIds.has(group.groupId) ? ' is-selected' : ''}`}
+                                        className={`pp-row${selectionMode ? ' is-selectable' : ''}${selectedIds.has(group.groupId) ? ' is-selected' : ''}`}
+                                        onClick={selectionMode ? () => toggleSelect(group.groupId) : undefined}
                                     >
-                                        <td className="pp-cell pp-cell-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                className="pp-checkbox"
-                                                checked={selectedIds.has(group.groupId)}
-                                                onClick={(e) => toggleSelect(e, group.groupId)}
-                                                onChange={() => { }}
-                                                aria-label={`Select ${group.requesterName}`}
-                                            />
-                                        </td>
+                                        {selectionMode && (
+                                            <td className="pp-cell pp-cell-checkbox">
+                                                <input
+                                                    type="checkbox"
+                                                    className="pp-checkbox"
+                                                    checked={selectedIds.has(group.groupId)}
+                                                    onChange={() => toggleSelect(group.groupId)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    aria-label={`Select ${group.requesterName}`}
+                                                />
+                                            </td>
+                                        )}
 
                                         <td className="pp-cell" data-label="Client / Requester">
                                             <div className="pp-client-info">
-                                                <div className="pp-avatar">
+                                                <div className="pp-avatar" style={getAvatarStyle(group.requesterName)}>
                                                     {group.requesterName.charAt(0).toUpperCase()}
                                                 </div>
-                                                <span className="pp-client-name">{group.requesterName}</span>
+                                                <span className="pp-client-name" title={group.requesterName}>{group.requesterName}</span>
                                             </div>
                                         </td>
 
-                                        <td className="pp-cell" data-label="Documents Included">
-                                            <div className="pp-doc-stack">
-                                                <div className="pp-doc-count-badge">
-                                                    {group.documents.length} Document{group.documents.length !== 1 && 's'}
-                                                </div>
-                                                <div className="pp-doc-refs">
-                                                    {group.documents.map((d: any, i: number) => (
+                                        <td className="pp-cell" data-label="Reference No.">
+                                            <div className="pp-doc-count-label">
+                                                {group.documents.length} document{group.documents.length !== 1 && 's'}
+                                            </div>
+                                            <div className="pp-ref-list">
+                                                {group.documents.map((d: any, i: number) => (
+                                                    <div className="pp-doc-line" key={i}>
                                                         <span
-                                                            key={i}
                                                             className={`pp-ref-chip ${getRefChipClass(d.referenceNumber)}`}
-                                                            title={`Declarant: ${d.declarantName}`}
+                                                            title={d.documentType}
                                                         >
                                                             {getRefTypeIcon(d.referenceNumber)}
                                                             {d.referenceNumber}
                                                         </span>
-                                                    ))}
-                                                </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </td>
+
+                                        <td className="pp-cell" data-label="Declarant">
+                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
+                                            <div className="pp-declarant-list">
+                                                {group.documents.map((d: any, i: number) => (
+                                                    <div className="pp-doc-line" key={i}>
+                                                        <span className="pp-doc-declarant" title={d.declarantName}>
+                                                            <UserIcon />
+                                                            {d.declarantName}
+                                                        </span>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </td>
 
