@@ -40,13 +40,26 @@ function MultiSelectDropdown({ options, selectedIds, onChange, placeholder }: { 
     return (
         <div className="custom-select" ref={ref}>
             <button type="button" className="custom-select-trigger" onClick={() => setOpen((o) => !o)}><span className={selectedIds.length === 0 ? 'placeholder-text' : ''}>{label}</span><span className={`chevron ${open ? 'chevron-up' : ''}`}>▾</span></button>
-            {open && (<div className="custom-select-menu">{options.length === 0 && <div className="custom-select-empty">No options available</div>}{options.map((opt) => (<label key={opt.id} className="custom-select-option"><input type="checkbox" checked={selectedIds.includes(opt.id)} onChange={() => toggleOption(opt.id)} />{opt.name}</label>))}</div>)}
+            {open && (<div className="custom-select-menu">{options.length === 0 && <div className="custom-select-empty">No options available</div>}{options.map((opt) => (
+    <label key={opt.id} className="custom-select-option" htmlFor={`doc-type-${opt.id}`}>
+        <input id={`doc-type-${opt.id}`} name={`doc-type-${opt.id}`} type="checkbox" checked={selectedIds.includes(opt.id)} onChange={() => toggleOption(opt.id)} />
+        {opt.name}
+    </label>
+))}</div>)}
         </div>
     );
 }
-function SingleSelectDropdown({ options, value, onChange, placeholder }: { options: { id: string; name: string }[]; value: string; onChange: (id: string) => void; placeholder: string; }) {
-    return (<div className="custom-select"><select className="native-select" value={value} onChange={(e) => onChange(e.target.value)}><option value="" disabled>{placeholder}</option>{options.map((opt) => (<option key={opt.id} value={opt.id}>{opt.name}</option>))}</select></div>);
+function SingleSelectDropdown({ options, value, onChange, placeholder, id }: { options: { id: string; name: string }[]; value: string; onChange: (id: string) => void; placeholder: string; id?: string; }) {
+    return (
+        <div className="custom-select">
+            <select id={id} name={id} className="native-select" value={value} onChange={(e) => onChange(e.target.value)}>
+                <option value="" disabled>{placeholder}</option>
+                {options.map((opt) => (<option key={opt.id} value={opt.id}>{opt.name}</option>))}
+            </select>
+        </div>
+    );
 }
+
 function SearchableSelectDropdown({ options, value, onChange, placeholder }: { options: { id: string; name: string }[]; value: string; onChange: (id: string) => void; placeholder: string; }) {
     const [open, setOpen] = useState(false); const [query, setQuery] = useState(''); const ref = useRef<HTMLDivElement>(null); const selected = options.find((o) => o.id === value);
     useEffect(() => { setQuery(selected ? selected.name : ''); }, [value]);
@@ -62,7 +75,6 @@ function SearchableSelectDropdown({ options, value, onChange, placeholder }: { o
 }
 const PersonIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" /></svg>);
 const PlusCircleIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></svg>);
-const ClipboardIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1M9 10h6M9 14h6M9 18h3" /></svg>);
 const ClipboardIconLarge = () => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1M9 10h6M9 14h6M9 18h3" /></svg>);
 
 // --- CONSTANTS ---
@@ -74,8 +86,7 @@ const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
 };
 
 const DOCUMENT_TYPE_VIEW_MAP: Record<string, string> = {
-    'Certified True Copy of the Latest Tax Declaration': 'tax-declaration',
-    'Certified True Copy of Old Tax Declaration': 'tax-declaration',
+    'Certified True Copy of the Tax Declaration': 'tax-declaration',
     'Certificate of Property/Landholding': 'certificate-land-holding',
     'Certificate of No Property/Landholding': 'certificate-no-landholding',
     'Certificate of Landholding': 'certificate-land-holding',
@@ -93,12 +104,6 @@ const PURPOSE_OPTIONS = [
     { id: 'court-legal-purposes', name: 'For Court and other legal purposes', code: 'COURT_LEGAL' },
     { id: 'others', name: 'Others', code: 'OTHERS' },
 ];
-
-function isOthersPurpose(purposeId: string, purposes: any[]): boolean {
-    const p = purposes.find((p) => p.id === purposeId);
-    if (!p) return false;
-    return p.code === 'OTHERS' || (p.name || '').trim().toLowerCase() === 'others';
-}
 
 // ----------------------------------------------
 
@@ -132,25 +137,27 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     }, [isNoLandholdingSelected, formData.propertyLocation]);
 
     // Prefill Logic
-    useEffect(() => {
+    // Replace your existing Prefill useEffect with this one:
+
+useEffect(() => {
     if (prefilledRequestData) {
         setFormData((prev) => ({
             ...prev,
-            // IDs and Reference
+            // ID and Reference Number
             id: prefilledRequestData.id || prefilledRequestData.requestId,
             referenceNumber: prefilledRequestData.reference_number || prefilledRequestData.control_number || prefilledRequestData.referenceNumber,
             
-            // Map Database Names (snake_case) to Form Names (camelCase)
+            // Map Database Names (snake_case) to Frontend Names (camelCase)
             declarantName: prefilledRequestData.declarant_name || prefilledRequestData.declarantName || '',
             requestedByName: prefilledRequestData.requested_by_name || prefilledRequestData.requestedByName || '',
             requestDate: prefilledRequestData.request_date || prefilledRequestData.requestDate || new Date().toISOString().split('T')[0],
             
-            // THIS LINE FIXES THE LOCATION LOSS:
+            // This line specifically fixes the missing Location
             propertyLocation: prefilledRequestData.property_location || prefilledRequestData.propertyLocation || '',
             
             documentTypeIds: prefilledRequestData.documentTypeIds || [],
-            purposeId: prefilledRequestData.purpose_id || prefilledRequestData.purposeId || '',
-            purposeOtherText: prefilledRequestData.purpose_other_text || prefilledRequestData.purposeOtherText || '',
+            // purposeId: prefilledRequestData.purpose_id || prefilledRequestData.purposeId || '',
+            //purposeOtherText: prefilledRequestData.purpose_other_text || prefilledRequestData.purposeOtherText || '',
             
             authRequired: prefilledRequestData.authorization_required ?? prefilledRequestData.authRequired ?? false,
             actionTaken: prefilledRequestData.action_taken || prefilledRequestData.actionTaken || 'PENDING',
@@ -239,16 +246,28 @@ useEffect(() => {
     const handleConfirmForward = async (staffId: string, note: string) => {
     let requestId = formData.id;
 
-    if (!requestId) {
-        const draftPayload = { ...formData, status: 'DRAFT' };
-        const res = await requestService.submitRequest(draftPayload, user.id);
-        const savedRequest = res.data || res;
-        requestId = savedRequest.id;
-        setFormData((prev) => ({
-            ...prev,
-            id: requestId,
-            referenceNumber: savedRequest.control_number || savedRequest.reference_number || prev.referenceNumber,
-        }));
+    try {
+        if (!requestId) {
+            // First-time save — create the request as a draft
+            const draftPayload = { ...formData, status: 'DRAFT' };
+            const res = await requestService.submitRequest(draftPayload, user.id);
+            const savedRequest = res.data || res;
+            requestId = savedRequest.id;
+            setFormData((prev) => ({
+                ...prev,
+                id: requestId,
+                referenceNumber: savedRequest.reference_number || savedRequest.control_number || prev.referenceNumber,
+            }));
+        } else {
+            // Existing draft — persist whatever was just typed/selected before
+            // forwarding. This was previously skipped entirely, which is why
+            // edits made right before hitting "Forward" never reached staff 2.
+            await requestService.updateRequest(requestId, { ...formData, status: 'DRAFT' });
+        }
+    } catch (err) {
+        console.error('Failed to save request before forwarding', err);
+        alert('Failed to save the request. Please try again.');
+        return;
     }
 
     if (!requestId) {
@@ -256,11 +275,15 @@ useEffect(() => {
         return;
     }
 
-    await requestService.forwardRequest(requestId, staffId, note);
-    setShowForwardModal(false);
-    onCancel();
+    try {
+        await requestService.forwardRequest(requestId, staffId, note);
+        setShowForwardModal(false);
+        onCancel();
+    } catch (err) {
+        console.error('Failed to forward request', err);
+        alert('Failed to forward the request. Please try again.');
+    }
 };
-
     const handleProceedToDocument = async () => {
         if (!formData.declarantName || !formData.requestedByName || formData.documentTypeIds.length === 0) {
             setValidationError('Please fill out Declarant, Requester, and select at least one Document Type.');
@@ -434,19 +457,15 @@ useEffect(() => {
                                     />
                                 )}
                             </div>
-                            <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Reason / Purpose</label>{isOthersPurpose(formData.purposeId, metadata.purposes) ? (<div className="input-with-clear"><input className="rfe-input" type="text" autoFocus placeholder="Type purpose here..." value={formData.purposeOtherText} onChange={(e) => setFormData({ ...formData, purposeOtherText: e.target.value })} /><button type="button" className="input-clear-btn" title="Choose a different reason" onClick={() => setFormData({ ...formData, purposeId: '', purposeOtherText: '' })}>×</button></div>) : (<SingleSelectDropdown options={metadata.purposes} value={formData.purposeId} onChange={(val) => setFormData({ ...formData, purposeId: val, purposeOtherText: '' })} placeholder="Select Reason / Purpose..." />)}</div>
+                            {/* <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Reason / Purpose</label>{isOthersPurpose(formData.purposeId, metadata.purposes) ? (<div className="input-with-clear"><input className="rfe-input" type="text" autoFocus placeholder="Type purpose here..." value={formData.purposeOtherText} onChange={(e) => setFormData({ ...formData, purposeOtherText: e.target.value })} /><button type="button" className="input-clear-btn" title="Choose a different reason" onClick={() => setFormData({ ...formData, purposeId: '', purposeOtherText: '' })}>×</button></div>) : (<SingleSelectDropdown options={metadata.purposes} value={formData.purposeId} onChange={(val) => setFormData({ ...formData, purposeId: val, purposeOtherText: '' })} placeholder="Select Reason / Purpose..." />)}</div> */}
                         </div>
 
                         {/* Section 3 */}
                         <div className="rfe-section">
-                            <div className="rfe-section-title"><ClipboardIcon /><span>Action Taken</span></div>
-                            <div className="rfe-field"><ToggleButtonPair leftLabel="APPROVED" rightLabel="DISAPPROVED" value={formData.actionTaken === 'APPROVED' ? true : formData.actionTaken === 'DISAPPROVED' ? false : null} onChange={(val) => setFormData({ ...formData, actionTaken: val ? 'APPROVED' : 'DISAPPROVED', })} /></div>
-                            <div className="rfe-return-archive-box">
-                                <div className="rfe-return-archive-label">Document has been returned to archived:</div>
-                                <div className="rfe-field"><label className="rfe-label">Name of Releasing Staff</label><SingleSelectDropdown options={metadata.staff} value={formData.releasingStaffId} onChange={(val) => setFormData({ ...formData, releasingStaffId: val })} placeholder="Name of Releasing Staff" /></div>
-                                <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Date</label><input className="rfe-input" type="date" value={formData.releaseDate} onChange={(e) => setFormData({ ...formData, releaseDate: e.target.value, })} /></div>
-                            </div>
-                            <div className="rfe-signature-block"><div className="rfe-signature-name">ENGR. VICENTE P. DESOY, REA</div><div className="rfe-signature-title">PROVINCIAL ASSESSOR</div></div>
+                           <div className="rfe-return-archive-box">
+                                <label className="rfe-label" htmlFor="releasing-staff-select">Encoded By: </label>
+<SingleSelectDropdown id="releasing-staff-select" options={metadata.staff} value={formData.releasingStaffId} onChange={(val) => setFormData({ ...formData, releasingStaffId: val })} placeholder="Name of Staff" />
+     </div>
                         </div>
                     </div>
 

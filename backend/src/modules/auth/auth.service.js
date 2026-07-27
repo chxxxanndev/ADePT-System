@@ -99,12 +99,9 @@ class AuthService {
     let email = username;
 
     if (!username.includes('@')) {
-      const { data: staffMember, error: staffError } = await supabase
-    .from('staff')
-    .select('id, first_name, last_name, username, account_status, disabled_at, avatar_url, admin_level, roles(code,name)')
-    .eq('auth_user_id', data.user.id)
-    .single();
-      if (profile) email = profile.email;
+      // FIX: Changed 'profile' to 'staffMemberLookup' to avoid confusion
+      const { data: staffMemberLookup } = await supabase.from('staff').select('email').ilike('username', username).single();
+      if (staffMemberLookup) email = staffMemberLookup.email;
       else throw new Error("Username not found.");
     }
 
