@@ -236,8 +236,19 @@ class RequestService {
             .eq('id', requestId)
             .select()
             .single();
+    const { data, error } = await supabase
+        .from('requests')
+        .update({
+            assigned_staff_id: recipientStaffId,
+            forwarded_by: actorStaffId,
+            forwarded_at: new Date().toISOString(),
+            status: 'FORWARDED',
+        })
+        .eq('id', requestId)
+        .select()
+        .single();
 
-        if (error) throw error;
+    if (error) throw error;
 
         const message = note
             ? `forwarded a request to you — "${note}"`
@@ -252,10 +263,24 @@ class RequestService {
         }]);
         
         if (notifErr) console.error("Notification failed:", notifErr.message);
+    // FIXED: previously `note || 'forwarded a request to you'` replaced the
+    // whole message when a note existed, dropping the "forwarded a request
+    // to you" context entirely — the note is now appended instead.
+    const message = note
+        ? `forwarded a request to you — "${note}"`
+        : 'forwarded a request to you';
 
-        return data;
-    }
+    const { error: notifErr } = await supabase.from('notifications').insert([{
+        request_id: requestId,
+        actor_id: actorStaffId,
+        recipient_id: recipientStaffId,
+        message,
+        is_read: false,
+    }]);
+    if (notifErr) throw notifErr;
 
+    return data;
+}
     async checkOrUniqueness(orNumber, excludeRequestId = null) {
         let query = supabase.from('requests').select('id, reference_number, declarant_name').eq('or_number', orNumber.trim());
         if (excludeRequestId) query = query.neq('id', excludeRequestId);

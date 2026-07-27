@@ -360,49 +360,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                     </div>
                 </div>
             </div>
-
-            {/* Searchable account-requests table — this is what the search bar filters */}
-            <div className="admin-card ar-search-results-card">
-                <h2 className="admin-card-title">Account requests</h2>
-                <div className="admin-table-container">
-                    <table className="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Applicant</th>
-                                <th>Email</th>
-                                <th>Role</th>
-                                <th>Status</th>
-                                <th>Submitted</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading && (
-                                <tr>
-                                    <td colSpan={5} style={{ textAlign: 'center', opacity: 0.6, padding: '20px' }}>
-                                        Loading...
-                                    </td>
-                                </tr>
-                            )}
-                            {!loading && filteredRows.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} style={{ textAlign: 'center', opacity: 0.6, padding: '20px' }}>
-                                        No requests match your search.
-                                    </td>
-                                </tr>
-                            )}
-                            {!loading && filteredRows.map((r) => (
-                                <tr key={r.id}>
-                                    <td><strong>{r.name}</strong></td>
-                                    <td>{r.email}</td>
-                                    <td>{r.role}</td>
-                                    <td style={{ textTransform: 'capitalize' }}>{r.status}</td>
-                                    <td>{r.submitted}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
     );
 }

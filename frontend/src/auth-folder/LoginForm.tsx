@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { View } from './types/auth';
 import { AlertBanner } from './components/AlertBanner';
 import { PasswordInput } from './components/PasswordInput';
@@ -136,7 +137,18 @@ export function LoginForm({ active, loading, onLogin, onReactivate, navigateTo, 
 
             <LockDisclaimer />
 
-            {showReactivatePrompt && (
+            {/* Rendered via portal straight onto document.body — this modal
+                used to be a normal descendant of .form-content-wrapper, but
+                that element (and .auth-form-container above it in signup
+                mode) has a CSS `transform`, which makes it the containing
+                block for any `position: fixed` element inside it. That's
+                why the overlay was rendering confined to the right-hand
+                form panel instead of covering the full screen. A portal
+                mounts this DOM subtree directly under <body>, completely
+                outside any transformed ancestor, so `position: fixed`
+                behaves normally regardless of what animations exist
+                elsewhere on the page. */}
+            {showReactivatePrompt && createPortal(
                 <div className="as-modal-overlay" onClick={handleCancelReactivate}>
                     <div
                         className="as-modal"
@@ -166,7 +178,8 @@ export function LoginForm({ active, loading, onLogin, onReactivate, navigateTo, 
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

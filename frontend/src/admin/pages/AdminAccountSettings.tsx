@@ -46,6 +46,10 @@ export function AdminAccountSettings() {
     const initialUsername = currentUser?.username || currentUser?.email?.split('@')[0] || '';
     const roleLabel = currentUser?.role === 'SUPER_ADMIN' ? 'Super Admin' : currentUser?.role === 'OFFICE_STAFF' ? 'Office Staff' : currentUser?.role || 'Super Admin';
 
+    // Super Admin accounts cannot disable themselves — every other admin
+    // level (however many tiers exist) keeps the Disable Account option.
+    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+
     // --- 1. STAGED PROFILE STATE (requires Save Changes) ---
     const [form, setForm] = useState({
         fullName,
@@ -306,34 +310,37 @@ export function AdminAccountSettings() {
                 </div>
             </div>
 
-            {/* Account status */}
-            <div>
-                <div className="aas-section-header">
-                    <h2 className="aas-section-title">Account Status</h2>
-                </div>
-
-                <div className="aas-status-row">
-                    <span className="aas-status-label">
-                        <ShieldIcon />
-                        Disable Account
-                    </span>
-                    <button
-                        type="button"
-                        className={`aas-toggle ${accountDisabled ? 'is-on' : ''}`}
-                        onClick={() => (accountDisabled ? applyDisableStatus(false) : setShowDisableConfirmModal(true))}
-                        disabled={togglingStatus}
-                        aria-pressed={accountDisabled}
-                        aria-label="Disable account"
-                    >
-                        <span className="aas-toggle-knob" />
-                    </button>
-                </div>
-                {accountDisabled && (
-                    <div className="aas-status-warning">
-                        Your account is disabled. You won't be able to log in until it's re-enabled by an administrator.
+            {/* Account status — Super Admins cannot disable their own account.
+               Every other admin level (regardless of tier) still gets this. */}
+            {!isSuperAdmin && (
+                <div>
+                    <div className="aas-section-header">
+                        <h2 className="aas-section-title">Account Status</h2>
                     </div>
-                )}
-            </div>
+
+                    <div className="aas-status-row">
+                        <span className="aas-status-label">
+                            <ShieldIcon />
+                            Disable Account
+                        </span>
+                        <button
+                            type="button"
+                            className={`aas-toggle ${accountDisabled ? 'is-on' : ''}`}
+                            onClick={() => (accountDisabled ? applyDisableStatus(false) : setShowDisableConfirmModal(true))}
+                            disabled={togglingStatus}
+                            aria-pressed={accountDisabled}
+                            aria-label="Disable account"
+                        >
+                            <span className="aas-toggle-knob" />
+                        </button>
+                    </div>
+                    {accountDisabled && (
+                        <div className="aas-status-warning">
+                            Your account is disabled. You won't be able to log in until it's re-enabled by an administrator.
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* CHANGE PASSWORD MODAL */}
             {showPasswordModal && (
@@ -354,8 +361,10 @@ export function AdminAccountSettings() {
                 </div>
             )}
 
-            {/* DISABLE CONFIRM MODAL */}
-            {showDisableConfirmModal && (
+            {/* DISABLE CONFIRM MODAL — unreachable for Super Admin since
+               showDisableConfirmModal can only be set true from the button
+               above, which no longer renders for them. */}
+            {!isSuperAdmin && showDisableConfirmModal && (
                 <div className="as-modal-overlay" onClick={() => setShowDisableConfirmModal(false)}>
                     <div className="as-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="as-modal-header">
@@ -365,7 +374,7 @@ export function AdminAccountSettings() {
                             </button>
                         </div>
                         <div className="as-modal-body">
-                            <p>Are you sure you want to disable your account? You will be logged out immediately.</p>
+                            <p>Are you sure you want to disable your account? You will be logged out immediately. You can log back in within 7 days to re-enable it.</p>
                         </div>
                         <div className="as-modal-actions">
                             <button type="button" className="as-btn as-btn-discard" onClick={() => setShowDisableConfirmModal(false)}>

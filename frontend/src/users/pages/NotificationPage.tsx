@@ -12,6 +12,16 @@ interface NotificationPageProps {
     onMarkAllRead?: () => void;
 }
 
+// Shows only the document-type prefix + current year + "XXXX" — the real
+// unique reference number is only generated once the request is actually
+// proceeded to document fill-out, so it must never be exposed here.
+function toGenericRef(ref?: string): string {
+    if (!ref) return '';
+    const prefix = ref.split('-')[0] || 'REF';
+    const year = new Date().getFullYear();
+    return `${prefix}-${year}-XXXX`;
+}
+
 export function NotificationPage({
     notifications,
     onOpenRequest,
@@ -59,38 +69,49 @@ export function NotificationPage({
                     </div>
                 ) : (
                     <div className="notif-list">
-                        {notifications.map((n) => (
-                            <div
-                                key={n.id}
-                                className={`notif-bell-item ${!n.is_read ? 'notif-bell-item-unread' : ''}`}
-                                onClick={() => onOpenRequest(n.request_id, n.id)}
-                            >
-                                <div className={`notif-bell-item-icon ${n.is_read ? 'notif-bell-item-icon-read' : 'notif-bell-item-icon-unread'}`}>
-                                    {n.is_read ? <CheckCircle size={20} /> : <Mail size={20} />}
-                                </div>
+                        {notifications.map((n) => {
+                            const senderName = n.actor?.first_name
+                                ? `${n.actor.first_name} ${n.actor.last_name ?? ''}`.trim()
+                                : 'A staff member';
+                            const genericRef = toGenericRef(n.requests?.reference_number || n.requests?.control_number);
 
-                                <div className="notif-bell-item-body">
-                                    <div className={`notif-bell-item-text ${n.is_read ? 'notif-bell-item-text-read' : 'notif-bell-item-text-unread'}`}>
-                                        <strong>{n.actor?.first_name} {n.actor?.last_name}</strong> {n.message}
+                            return (
+                                <div
+                                    key={n.id}
+                                    className={`notif-bell-item ${!n.is_read ? 'notif-bell-item-unread' : ''}`}
+                                    onClick={() => onOpenRequest(n.request_id, n.id)}
+                                >
+                                    <div className={`notif-bell-item-icon ${n.is_read ? 'notif-bell-item-icon-read' : 'notif-bell-item-icon-unread'}`}>
+                                        {n.is_read ? <CheckCircle size={20} /> : <Mail size={20} />}
                                     </div>
-                                    <div className="notif-bell-item-meta-row">
-                                        <span className="notif-bell-item-meta notif-bell-item-ref">
-                                            Ref: <strong>{n.requests?.reference_number || n.requests?.control_number}</strong>
-                                        </span>
-                                        <span className="notif-bell-item-meta">
-                                            Declarant: <strong>{n.requests?.declarant_name}</strong>
-                                        </span>
-                                    </div>
-                                    <div className="notif-bell-item-time">
-                                        <Clock size={12} /> {new Date(n.created_at).toLocaleString()}
-                                    </div>
-                                </div>
 
-                                <div className="notif-bell-item-arrow">
-                                    <ArrowRight size={20} />
+                                    <div className="notif-bell-item-body">
+                                        <div className={`notif-bell-item-text ${n.is_read ? 'notif-bell-item-text-read' : 'notif-bell-item-text-unread'}`}>
+                                            <strong>{senderName}</strong> {n.message}
+                                        </div>
+                                        <div className="notif-bell-item-meta-row">
+                                            {genericRef && (
+                                                <span className="notif-bell-item-meta notif-bell-item-ref">
+                                                    Ref: <strong>{genericRef}</strong>
+                                                </span>
+                                            )}
+                                            {n.requests?.declarant_name && (
+                                                <span className="notif-bell-item-meta">
+                                                    Declarant: <strong>{n.requests.declarant_name}</strong>
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="notif-bell-item-time">
+                                            <Clock size={12} /> {new Date(n.created_at).toLocaleString()}
+                                        </div>
+                                    </div>
+
+                                    <div className="notif-bell-item-arrow">
+                                        <ArrowRight size={20} />
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

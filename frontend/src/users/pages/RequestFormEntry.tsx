@@ -61,9 +61,30 @@ function SingleSelectDropdown({ options, value, onChange, placeholder, id }: { o
 }
 
 function SearchableSelectDropdown({ options, value, onChange, placeholder }: { options: { id: string; name: string }[]; value: string; onChange: (id: string) => void; placeholder: string; }) {
-    const [open, setOpen] = useState(false); const [query, setQuery] = useState(''); const ref = useRef<HTMLDivElement>(null); const selected = options.find((o) => o.id === value);
-    useEffect(() => { setQuery(selected ? selected.name : ''); }, [value]);
-    useEffect(() => { const handleClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setQuery(selected ? selected.name : ''); } }; document.addEventListener('mousedown', handleClick); return () => document.removeEventListener('mousedown', handleClick); }, [selected]);
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const ref = useRef<HTMLDivElement>(null);
+    const selected = options.find((o) => o.id === value);
+
+    // FIXED: added `options` to deps — when a prefill sets `value` before
+    // propertyLocations finishes loading, `selected` is undefined and query
+    // gets stuck at ''. Without this, it only ever recovers on the next
+    // unrelated click (the outside-click handler below recomputes it fresh).
+    useEffect(() => {
+        setQuery(selected ? selected.name : '');
+    }, [value, options]);
+
+    useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) {
+                setOpen(false);
+                setQuery(selected ? selected.name : '');
+            }
+        };
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [selected]);
+
     const filtered = query.trim() === '' ? options : options.filter((o) => o.name.toLowerCase().includes(query.trim().toLowerCase()));
     const handleSelect = (opt: { id: string; name: string }) => { onChange(opt.id); setQuery(opt.name); setOpen(false); };
     return (
@@ -121,6 +142,18 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     });
 
     // Determine if "Certificate of No Landholding" (NLH) is currently selected
+
+    // Add near the other derived values (e.g. next to isNoLandholdingSelected)
+const displayReferenceNumber = (() => {
+    const year = new Date().getFullYear();
+    if (formData.documentTypeIds.length === 0) {
+        return `REF-${year}-XXXX`;
+    }
+    const selectedDoc = metadata.docTypes.find((d) => d.id === formData.documentTypeIds[0]);
+    const prefix = selectedDoc?.prefix || 'REF';
+    return `${prefix}-${year}-XXXX`;
+})();
+
     const isNoLandholdingSelected = formData.documentTypeIds.some((id) => {
         const selectedDoc = metadata.docTypes.find((d) => d.id === id);
         const view = selectedDoc
@@ -135,9 +168,6 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
             setFormData((prev) => ({ ...prev, propertyLocation: '' }));
         }
     }, [isNoLandholdingSelected, formData.propertyLocation]);
-
-    // Prefill Logic
-    // Replace your existing Prefill useEffect with this one:
 
 useEffect(() => {
     if (prefilledRequestData) {
@@ -202,30 +232,25 @@ useEffect(() => {
     // RequestFormEntry.tsx
 
 useEffect(() => {
-    // 1. If we have a saved ID, we NEVER change the reference number. It's permanent.
     if (formData.id) return;
 
-    // 2. If we don't have document types yet, default to REF-XXXX
     if (formData.documentTypeIds.length === 0) {
-        // Only set it if it's currently empty or the default placeholder
         if (!formData.referenceNumber || formData.referenceNumber.endsWith('-0000')) {
             setFormData(prev => ({ ...prev, referenceNumber: `REF-${new Date().getFullYear()}-XXXX` }));
         }
         return;
     }
 
-    // 3. Logic to switch prefix (NLH, LH, TD) when the user changes document types in the dropdown
     const selectedId = formData.documentTypeIds[0];
     const selectedDoc = metadata.docTypes.find((d) => d.id === selectedId);
-    
-    const view = selectedDoc
-        ? (DOCUMENT_TYPE_ID_VIEW_MAP[selectedDoc.id] || DOCUMENT_TYPE_VIEW_MAP[selectedDoc.name])
-        : undefined;
 
-    const newPrefix = (view && VIEW_PREFIX_MAP[view]) || 'REF';
+    // FIXED: use the prefix straight from document_types (already in
+    // metadata) instead of the hardcoded DOCUMENT_TYPE_ID_VIEW_MAP /
+    // DOCUMENT_TYPE_VIEW_MAP name-matching, which never matches real
+    // Supabase UUIDs/names — that's why this always fell back to "REF".
+    const newPrefix = selectedDoc?.prefix || 'REF';
     const currentYear = new Date().getFullYear();
 
-    // Only update if the prefix actually changed and we haven't generated a final random number yet
     if (formData.referenceNumber.includes('XXXX') || formData.referenceNumber.includes('-0000')) {
         const newRef = `${newPrefix}-${currentYear}-XXXX`;
         if (formData.referenceNumber !== newRef) {
@@ -233,7 +258,6 @@ useEffect(() => {
         }
     }
 }, [formData.documentTypeIds, formData.id, metadata.docTypes]);
-
     const handleOpenForwardModal = () => {
         if (!formData.declarantName && !formData.requestedByName) {
             setValidationError('Please enter at least the Requester or Declarant name before forwarding.');
@@ -397,7 +421,7 @@ useEffect(() => {
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                            <span className="rfe-ref-chip">{formData.referenceNumber}</span>
+                            <span className="rfe-ref-chip">{displayReferenceNumber}</span>
                             <button className="btn-reset-form" onClick={handleResetForm} title="Start fresh for a new client">↻ New Client</button>
                         </div>
                     </div>
