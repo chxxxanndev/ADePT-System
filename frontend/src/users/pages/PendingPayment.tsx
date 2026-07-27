@@ -42,19 +42,6 @@ function resolveDocTypeName(req: any): string {
     return 'Certified True Tax Declaration';
 }
 
-// Deterministic, pleasant avatar tint per requester name — purely cosmetic variety,
-// stays within the same low-saturation palette family as the rest of the UI.
-function getAvatarStyle(name: string): React.CSSProperties {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    const hue = Math.abs(hash) % 360;
-    return {
-        backgroundColor: `hsl(${hue}, 60%, 94%)`,
-        color: `hsl(${hue}, 45%, 32%)`,
-        borderColor: `hsl(${hue}, 45%, 82%)`,
-    };
-}
-
 export function PendingPayment({ onSelectPayment }: any) {
     const [groupedPayments, setGroupedPayments] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -306,8 +293,6 @@ export function PendingPayment({ onSelectPayment }: any) {
                                     <tr key={i}>
                                         <td colSpan={columnCount} style={{ padding: 0 }}>
                                             <div className="pp-skeleton-row">
-                                                <div className="pp-skeleton-block" style={{ width: 34, height: 34, borderRadius: '50%' }} />
-
                                                 <div className="pp-skeleton-block" style={{ width: '18%' }} />
                                                 <div className="pp-skeleton-block" style={{ width: '28%' }} />
                                                 <div className="pp-skeleton-block" style={{ width: '10%' }} />
@@ -386,10 +371,8 @@ export function PendingPayment({ onSelectPayment }: any) {
                                         </td>
 
                                         <td className="pp-cell" data-label="Requested By">
+                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
                                             <div className="pp-client-info">
-                                                <div className="pp-avatar" style={getAvatarStyle(group.requesterName)}>
-                                                    {group.requesterName.charAt(0).toUpperCase()}
-                                                </div>
                                                 <span className="pp-client-name" title={group.requesterName}>{group.requesterName}</span>
                                             </div>
                                         </td>
