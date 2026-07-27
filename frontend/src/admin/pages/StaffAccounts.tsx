@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import '../styles/StaffAccounts.css';
 import type { User } from '../../auth-folder/types/auth';
 import { useStaffAccounts, type StaffRow } from '../hooks/useStaffAccounts';
@@ -95,6 +96,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const [formError, setFormError] = useState<string | null>(null);
     const [formSuccess, setFormSuccess] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+    const [roleFilter, setRoleFilter] = useState<'all' | 'staff' | 'admin'>('all');
 
     // ── Promote / Demote / Change-level flow state ────────────────────────────
     const [confirmPromote, setConfirmPromote] = useState<StaffRow | null>(null);
@@ -109,6 +111,19 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
 
     // ── Icon-button menu state ──────────────────────────────────────────────
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+    // Close the portal menu on scroll/resize so it doesn't drift away from its button
+    useEffect(() => {
+        if (!openMenuId) return;
+        const close = () => setOpenMenuId(null);
+        window.addEventListener('scroll', close, true);
+        window.addEventListener('resize', close);
+        return () => {
+            window.removeEventListener('scroll', close, true);
+            window.removeEventListener('resize', close);
+        };
+    }, [openMenuId]);
 
     // ── Pagination state ───────────────────────────────────────────────────────
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -123,7 +138,14 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const currentSignatory = staff.find((s) => s.isSignatory);
 
     // ── Filtered + paginated derived lists ─────────────────────────────────────
-    const filteredStaffList = staff.filter((member) => statusFilter === 'all' || member.status === statusFilter);
+    const filteredStaffList = staff.filter((member) => {
+        const statusMatch = statusFilter === 'all' || member.status === statusFilter;
+        const roleMatch =
+            roleFilter === 'all' ||
+            (roleFilter === 'staff' && member.roleCode === 'OFFICE_STAFF') ||
+            (roleFilter === 'admin' && (member.roleCode === 'ADMIN' || member.roleCode === 'SUPER_ADMIN'));
+        return statusMatch && roleMatch;
+    });
     const totalRows = filteredStaffList.length;
     const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -134,7 +156,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     // so you don't get stuck on an empty page after narrowing the results.
     useEffect(() => {
         setCurrentPage(1);
-    }, [statusFilter, rowsPerPage, searchQuery]);
+    }, [statusFilter, roleFilter, rowsPerPage, searchQuery]);
 
     /**
      * Can the current user toggle active/inactive on this staff member?
@@ -358,7 +380,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
 
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: '#cbd5e1' }}>
-                            <span>Filter</span>
+                            <span>Status</span>
                             <select
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
@@ -367,6 +389,18 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 <option value="all">All</option>
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
+                            </select>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: '#cbd5e1' }}>
+                            <span>Role</span>
+                            <select
+                                value={roleFilter}
+                                onChange={(e) => setRoleFilter(e.target.value as 'all' | 'staff' | 'admin')}
+                                style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', background: '#ffffff', color: '#0f172a', padding: '6px 10px' }}
+                            >
+                                <option value="all">All</option>
+                                <option value="staff">Staff</option>
+                                <option value="admin">Admin</option>
                             </select>
                         </label>
                         <button
@@ -463,6 +497,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 paginatedStaff.map((member) => {
                                     const allowed = canManageStaffMember(member);
                                     const actingOnThis = roleActionLoadingId === member.id;
+                                    const isInactive = member.status !== 'active';
                                     return (
                                         <tr key={member.id}>
                                             <td>
@@ -528,59 +563,94 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                         {member.roleCode !== 'SUPER_ADMIN' && (
                                                             <button
                                                                 type="button"
-                                                                onClick={() =>
-                                                                    member.roleCode === 'ADMIN'
-                                                                        ? setOpenMenuId(openMenuId === member.id ? null : member.id)
-                                                                        : openPromoteConfirm(member)
+                                                                disabled={isInactive}
+                                                                onClick={(e) => {
+                                                                    if (member.roleCode === 'ADMIN') {
+                                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                                        const menuWidth = 190;
+                                                                        setMenuPosition({
+                                                                            top: rect.bottom + 6,
+                                                                            left: Math.min(rect.left, window.innerWidth - menuWidth - 12),
+                                                                        });
+                                                                        setOpenMenuId(openMenuId === member.id ? null : member.id);
+                                                                    } else {
+                                                                        openPromoteConfirm(member);
+                                                                    }
+                                                                }}
+                                                                title={
+                                                                    isInactive
+                                                                        ? 'Reactivate this staff member to manage admin access'
+                                                                        : member.roleCode === 'ADMIN'
+                                                                        ? 'Manage Admin Access'
+                                                                        : 'Promote to Admin'
                                                                 }
-                                                                title={member.roleCode === 'ADMIN' ? 'Manage Admin Access' : 'Promote to Admin'}
                                                                 style={{
                                                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                                     width: '32px', height: '32px', borderRadius: '10px',
-                                                                    border: 'none', background: '#DDF3E4', color: '#14532D', cursor: 'pointer',
+                                                                    border: 'none',
+                                                                    background: isInactive ? '#FDE2E2' : '#DDF3E4',
+                                                                    color: isInactive ? '#DC2626' : '#14532D',
+                                                                    cursor: isInactive ? 'not-allowed' : 'pointer',
+                                                                    opacity: isInactive ? 0.85 : 1,
                                                                 }}
                                                             >
                                                                 <PersonLockIcon size={15} />
                                                             </button>
                                                         )}
 
-                                                        {openMenuId === member.id && member.roleCode === 'ADMIN' && (
-                                                            <div
-                                                                onMouseLeave={() => setOpenMenuId(null)}
-                                                                style={{
-                                                                    position: 'absolute', top: '38px', left: 0, zIndex: 20,
-                                                                    background: '#FFFFFF', borderRadius: '10px',
-                                                                    boxShadow: '0 8px 24px rgba(15,23,42,0.15)',
-                                                                    border: '1px solid #EDEEF3', minWidth: '190px',
-                                                                    display: 'flex', flexDirection: 'column', overflow: 'hidden',
-                                                                }}
-                                                            >
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => { setOpenMenuId(null); openChangeLevel(member); }}
-                                                                    style={menuItemStyle}
+                                                        {openMenuId === member.id && member.roleCode === 'ADMIN' && !isInactive &&
+                                                            createPortal(
+                                                                <div
+                                                                    onMouseLeave={() => setOpenMenuId(null)}
+                                                                    style={{
+                                                                        position: 'fixed',
+                                                                        top: menuPosition.top,
+                                                                        left: menuPosition.left,
+                                                                        zIndex: 9999,
+                                                                        background: '#FFFFFF', borderRadius: '10px',
+                                                                        boxShadow: '0 8px 24px rgba(15,23,42,0.15)',
+                                                                        border: '1px solid #EDEEF3', minWidth: '190px',
+                                                                        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                                                                    }}
                                                                 >
-                                                                    Change Admin Level
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => { setOpenMenuId(null); openDemoteConfirm(member); }}
-                                                                    style={{ ...menuItemStyle, color: '#DC2626', borderBottom: 'none' }}
-                                                                >
-                                                                    Demote to Staff
-                                                                </button>
-                                                            </div>
-                                                        )}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => { setOpenMenuId(null); openChangeLevel(member); }}
+                                                                        style={menuItemStyle}
+                                                                    >
+                                                                        Change Admin Level
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => { setOpenMenuId(null); openDemoteConfirm(member); }}
+                                                                        style={{ ...menuItemStyle, color: '#DC2626', borderBottom: 'none' }}
+                                                                    >
+                                                                        Demote to Staff
+                                                                    </button>
+                                                                </div>,
+                                                                document.body
+                                                            )}
 
-                                                        {canManageSignatory && member.status === 'active' && member.roleCode !== 'SUPER_ADMIN' && (
+                                                        {canManageSignatory && member.roleCode !== 'SUPER_ADMIN' && (
                                                             <button
                                                                 type="button"
+                                                                disabled={isInactive}
                                                                 onClick={() => openSignatoryConfirm(member)}
-                                                                title={member.isSignatory ? 'Remove as Signatory' : 'Assign as Signatory'}
+                                                                title={
+                                                                    isInactive
+                                                                        ? 'Reactivate this staff member to assign as signatory'
+                                                                        : member.isSignatory
+                                                                        ? 'Remove as Signatory'
+                                                                        : 'Assign as Signatory'
+                                                                }
                                                                 style={{
                                                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                                     width: '32px', height: '32px', borderRadius: '10px',
-                                                                    border: 'none', background: '#DDF3E4', color: '#14532D', cursor: 'pointer',
+                                                                    border: 'none',
+                                                                    background: isInactive ? '#FDE2E2' : '#DDF3E4',
+                                                                    color: isInactive ? '#DC2626' : '#14532D',
+                                                                    cursor: isInactive ? 'not-allowed' : 'pointer',
+                                                                    opacity: isInactive ? 0.85 : 1,
                                                                 }}
                                                             >
                                                                 <ClipboardArrowIcon size={15} />
@@ -809,17 +879,73 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                             <button className="staff-modal-close" onClick={() => setLevelPicker(null)}>×</button>
                         </div>
                         <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {(['HIGH', 'MEDIUM', 'LOW'] as AdminLevel[]).map((lvl) => (
-                                <label key={lvl} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', cursor: 'pointer' }}>
-                                    <input
-                                        type="radio"
-                                        name="adminLevel"
-                                        checked={pickedLevel === lvl}
-                                        onChange={() => setPickedLevel(lvl)}
-                                    />
-                                    {lvl.charAt(0) + lvl.slice(1).toLowerCase()}
-                                </label>
-                            ))}
+                            {(['HIGH', 'MEDIUM', 'LOW'] as AdminLevel[]).map((lvl) => {
+                                const levelDescriptions: Record<AdminLevel, string> = {
+                                    HIGH: 'Full access — create staff accounts, activate or deactivate any staff member, and assign or remove the signatory.',
+                                    MEDIUM: 'Can create new staff accounts and activate or deactivate staff members they personally created.',
+                                    LOW: 'View-only access — cannot create staff accounts, manage signatories, or activate/deactivate staff.',
+                                };
+                                const selected = pickedLevel === lvl;
+                                return (
+                                    <label
+                                        key={lvl}
+                                        style={{
+                                            display: 'block',
+                                            cursor: 'pointer',
+                                            borderRadius: '10px',
+                                            border: `1px solid ${selected ? '#3D2E7C' : '#E2E4EC'}`,
+                                            background: selected ? '#F5F3FB' : '#FFFFFF',
+                                            padding: '12px 14px',
+                                            transition: 'border-color 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease',
+                                            boxShadow: selected ? '0 0 0 3px rgba(61, 46, 124, 0.08)' : 'none',
+                                        }}
+                                    >
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <input
+                                                type="radio"
+                                                name="adminLevel"
+                                                checked={selected}
+                                                onChange={() => setPickedLevel(lvl)}
+                                                style={{ accentColor: '#3D2E7C', width: '15px', height: '15px', flexShrink: 0 }}
+                                            />
+                                            <span
+                                                style={{
+                                                    fontSize: selected ? '0.9rem' : '0.75rem',
+                                                    fontWeight: 700,
+                                                    letterSpacing: selected ? 'normal' : '0.4px',
+                                                    textTransform: selected ? 'none' : 'uppercase',
+                                                    color: selected ? '#1F2333' : '#8A8DA0',
+                                                    transition: 'font-size 0.25s ease, color 0.25s ease',
+                                                }}
+                                            >
+                                                {selected ? lvl.charAt(0) + lvl.slice(1).toLowerCase() : lvl}
+                                            </span>
+                                        </span>
+                                        <div
+                                            style={{
+                                                display: 'grid',
+                                                gridTemplateRows: selected ? '1fr' : '0fr',
+                                                transition: 'grid-template-rows 0.25s ease',
+                                            }}
+                                        >
+                                            <div style={{ overflow: 'hidden' }}>
+                                                <p
+                                                    style={{
+                                                        margin: 0,
+                                                        paddingTop: '8px',
+                                                        paddingLeft: '25px',
+                                                        fontSize: '0.8rem',
+                                                        color: '#6B6F80',
+                                                        lineHeight: 1.4,
+                                                    }}
+                                                >
+                                                    {levelDescriptions[lvl]}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </label>
+                                );
+                            })}
                         </div>
                         <div className="staff-modal-actions">
                             <button type="button" className="staff-manage-btn" onClick={() => setLevelPicker(null)} disabled={roleActionLoadingId === levelPicker.member.id}>
