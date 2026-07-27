@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import '../styles/dashboard.css';
-import '../styles/NotificationPage.css';
 import { Sidebar } from '../components/Sidebar';
 import { DashboardHeader, WelcomeBanner } from '../components/DashboardHeader';
 import { DashboardFooter } from '../components/DashboardFooter';
@@ -31,7 +30,7 @@ import type { PendingPaymentRequest } from '../types/PendingPayment';
 import { TransactionRegistry } from './TransactionRegistry';
 import { TransactionSummary } from './request-processing/TransactionSummary';
 import { ROLES } from '../constants/roles';
-import { useNotifications } from '../hooks/useNotifications'; // ADDED
+import { useNotifications } from '../hooks/useNotifications';
 
 import {
     navSections,
@@ -92,22 +91,23 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
     const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
 
-    // ADDED — single shared notifications state + realtime subscription, lives for the whole session
+    // Single shared notifications state + realtime subscription, lives for the whole session
     const {
         notifications,
         unreadCount,
         loading: notifLoading,
+        error: notifError,
+        refetch: refetchNotifications,
         markAsRead,
         markAllAsRead,
     } = useNotifications(user);
 
-    // ADDED — clicking a notification (from the bell OR the full page) lands here
+    // Clicking a notification (from the bell OR the full page) lands here
     const handleOpenNotification = async (requestId: string, notifId: string) => {
         markAsRead(notifId);
         try {
-            // TODO (backend): const request = await requestService.getRequestById(requestId);
-            // setPrefilledRequestData(request);
-            setPrefilledRequestData({ requestId }); // placeholder until getRequestById is wired up
+            const res = await requestService.getRequestById(requestId);
+            setPrefilledRequestData(res.data || res);
             setActiveView('new-request');
         } catch (err) {
             console.error('Failed to load forwarded request', err);
@@ -116,21 +116,23 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     };
 
     const handleSelectNewRequest = async (type: 'tax' | 'landholding' | 'nolandholding') => {
-        try {
-            const meta = await requestService.getMetadata();
-            const docTypes = Array.isArray(meta?.docTypes) ? meta.docTypes : [];
-            let documentTypeIds: string[] = [];
+    try {
+        const meta = await requestService.getMetadata();
+        const docTypes = Array.isArray(meta?.docTypes) ? meta.docTypes : [];
+        let documentTypeIds: string[] = [];
+        let prefix = 'REF'; // Default
 
-            if (type === 'tax') {
-                const found = docTypes.find((d: any) => d.name.toLowerCase().includes('tax declaration') || d.id === 'dt1' || d.id === 'dt2');
-                if (found) documentTypeIds = [found.id];
-            } else if (type === 'landholding') {
-                const found = docTypes.find((d: any) => d.name.toLowerCase().includes('property/landholding') || d.name.toLowerCase().includes('landholding') || d.id === 'dt3');
-                if (found) documentTypeIds = [found.id];
-            } else if (type === 'nolandholding') {
-                const found = docTypes.find((d: any) => d.name.toLowerCase().includes('no property/landholding') || d.name.toLowerCase().includes('no landholding') || d.id === 'dt4');
-                if (found) documentTypeIds = [found.id];
-            }
+        if (type === 'tax') {
+            const found = docTypes.find((d: any) => d.name.toLowerCase().includes('tax declaration') || d.id === 'dt1');
+            if (found) { documentTypeIds = [found.id]; prefix = 'TD'; }
+        } else if (type === 'landholding') {
+            const found = docTypes.find((d: any) => d.name.toLowerCase().includes('landholding') || d.id === 'dt3');
+            if (found) { documentTypeIds = [found.id]; prefix = 'LH'; }
+        } else if (type === 'nolandholding') {
+            const found = docTypes.find((d: any) => d.name.toLowerCase().includes('no landholding') || d.id === 'dt4');
+            if (found) { documentTypeIds = [found.id]; prefix = 'NLH'; }
+        }
+
 
             setPrefilledRequestData({
                 declarantName: '',
@@ -143,7 +145,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 propertyLocation: '',
                 releasingStaffId: '',
                 releaseDate: '',
-                referenceNumber: `REF-${new Date().getFullYear()}-0000`,
+                referenceNumber: `${prefix}-${new Date().getFullYear()}-XXXX`, 
             });
             setActiveView('new-request');
         } catch (err) {
@@ -228,7 +230,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         'no-land-holding', 'account-settings', 'pending-payment',
         'payment-details', 'document-request', 'reports',
         'transaction-registry', 'void-amend', 'certified-true-copy',
-        'archive-management', 'transaction-summary', 'notifications' // ADDED
+        'archive-management', 'transaction-summary', 'notifications'
     ].includes(activeView);
 
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
@@ -324,11 +326,13 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                         <CertifiedTrueCopy />
                     ) : activeView === 'archive-management' ? (
                         <ArchiveManagement />
-                    ) : activeView === 'notifications' ? ( // ADDED
+                    ) : activeView === 'notifications' ? (
                         <NotificationPage
                             notifications={notifications}
                             onOpenRequest={handleOpenNotification}
                             loading={notifLoading}
+                            error={notifError}
+                            onRetry={refetchNotifications}
                             unreadCount={unreadCount}
                             onMarkAllRead={markAllAsRead}
                         />

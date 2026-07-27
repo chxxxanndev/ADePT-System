@@ -107,7 +107,9 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     const [isProceeding, setIsProceeding] = useState(false);
     const [metadata, setMetadata] = useState<{ docTypes: any[]; purposes: any[]; staff: any[]; propertyLocations: { id: string; name: string }[]; }>({ docTypes: [], purposes: PURPOSE_OPTIONS, staff: [], propertyLocations: [], });
     const [validationError, setValidationError] = useState<string>('');
-    const [showForwardModal, setShowForwardModal] = useState(false); // MOVED HERE
+    const [showForwardModal, setShowForwardModal] = useState(false);
+    const [metadataLoading, setMetadataLoading] = useState(true);
+    const [metadataError, setMetadataError] = useState('');
 
     const [formData, setFormData] = useState<ExtendedRequestFormData>({
         declarantName: '', requestedByName: '', requestDate: new Date().toISOString().split('T')[0], purposeId: '', documentTypeIds: [], authRequired: false, actionTaken: 'PENDING', propertyLocation: '', releasingStaffId: '', releaseDate: '', purposeOtherText: '', referenceNumber: `REF-${new Date().getFullYear()}-0000`,
@@ -131,62 +133,100 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
 
     // Prefill Logic
     useEffect(() => {
-        if (prefilledRequestData) {
-            setFormData((prev) => ({
-                ...prev,
-                ...prefilledRequestData,
-                id: prefilledRequestData.id || prefilledRequestData.requestId || undefined,
-                referenceNumber: prefilledRequestData.referenceNumber || prefilledRequestData.control_number || `REF-${new Date().getFullYear()}-0000`,
-                declarantName: prefilledRequestData.declarantName || prefilledRequestData.declarant_name || '',
-                requestedByName: prefilledRequestData.requestedByName || prefilledRequestData.requested_by_name || '',
-                requestDate: prefilledRequestData.requestDate || prefilledRequestData.request_date || new Date().toISOString().split('T')[0],
-                authRequired: prefilledRequestData.authRequired !== undefined ? prefilledRequestData.authRequired : (prefilledRequestData.authorization_required || false),
-                purposeId: prefilledRequestData.purposeId || prefilledRequestData.purpose_id || '',
-                actionTaken: prefilledRequestData.actionTaken || prefilledRequestData.action_taken || 'PENDING',
-                propertyLocation: prefilledRequestData.propertyLocation || prefilledRequestData.property_location || '',
-                documentTypeIds: prefilledRequestData.documentTypeIds || [],
-            }));
-        }
-    }, [prefilledRequestData]);
-
+    if (prefilledRequestData) {
+        setFormData((prev) => ({
+            ...prev,
+            // IDs and Reference
+            id: prefilledRequestData.id || prefilledRequestData.requestId,
+            referenceNumber: prefilledRequestData.reference_number || prefilledRequestData.control_number || prefilledRequestData.referenceNumber,
+            
+            // Map Database Names (snake_case) to Form Names (camelCase)
+            declarantName: prefilledRequestData.declarant_name || prefilledRequestData.declarantName || '',
+            requestedByName: prefilledRequestData.requested_by_name || prefilledRequestData.requestedByName || '',
+            requestDate: prefilledRequestData.request_date || prefilledRequestData.requestDate || new Date().toISOString().split('T')[0],
+            
+            // THIS LINE FIXES THE LOCATION LOSS:
+            propertyLocation: prefilledRequestData.property_location || prefilledRequestData.propertyLocation || '',
+            
+            documentTypeIds: prefilledRequestData.documentTypeIds || [],
+            purposeId: prefilledRequestData.purpose_id || prefilledRequestData.purposeId || '',
+            purposeOtherText: prefilledRequestData.purpose_other_text || prefilledRequestData.purposeOtherText || '',
+            
+            authRequired: prefilledRequestData.authorization_required ?? prefilledRequestData.authRequired ?? false,
+            actionTaken: prefilledRequestData.action_taken || prefilledRequestData.actionTaken || 'PENDING',
+        }));
+    }
+}, [prefilledRequestData]);
     const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
     // Fetch Metadata
+    const fetchMeta = async () => {
+        setMetadataLoading(true);
+        setMetadataError('');
+        try {
+            const data = await requestService.getMetadata();
+            if (data) {
+                const municipalityMap: Record<string, string> = {};
+                (data.municipalities ?? []).forEach((m: any) => { municipalityMap[m.id] = m.name; });
+                const propertyLocations = (data.barangays ?? []).map((b: any) => ({
+                    id: b.id,
+                    name: `${b.name}, ${municipalityMap[b.municipality_id] ?? ''}`.replace(/,\s*$/, ''),
+                }));
+                setMetadata({
+                    docTypes: Array.isArray(data.docTypes) ? data.docTypes : [],
+                    purposes: PURPOSE_OPTIONS,
+                    staff: Array.isArray((data as any).staff) ? (data as any).staff : [],
+                    propertyLocations,
+                });
+            }
+        } catch (err: any) {
+            console.error('Metadata fetch failed', err);
+            setMetadataError('Failed to load document types. Please retry.');
+        } finally {
+            setMetadataLoading(false);
+        }
+    };
+
     useEffect(() => {
-        let isMounted = true;
-        const fetchMeta = async () => {
-            try {
-                const data = await requestService.getMetadata();
-                if (isMounted && data) {
-                    const municipalityMap: Record<string, string> = {};
-                    (data.municipalities ?? []).forEach((m: any) => { municipalityMap[m.id] = m.name; });
-                    const propertyLocations = (data.barangays ?? []).map((b: any) => ({ id: b.id, name: `${b.name}, ${municipalityMap[b.municipality_id] ?? ''}`.replace(/,\s*$/, ''), }));
-                    setMetadata({
-                        docTypes: Array.isArray(data.docTypes) && data.docTypes.length > 0 ? data.docTypes : [],
-                        purposes: PURPOSE_OPTIONS, staff: Array.isArray((data as any).staff) ? (data as any).staff : [], propertyLocations,
-                    });
-                }
-            } catch (err) { console.error('Metadata fetch failed', err); }
-        };
-        fetchMeta(); return () => { isMounted = false; };
+        fetchMeta();
     }, []);
 
     // Reference Number Logic
-    useEffect(() => {
-        if (formData.id) return;
-        if (formData.documentTypeIds.length === 0) { setFormData((prev) => ({ ...prev, referenceNumber: `REF-${new Date().getFullYear()}-XXXX`, })); return; }
-        const selectedId = formData.documentTypeIds[0];
-        const selectedDoc = metadata.docTypes.find((d) => d.id === selectedId);
+    // RequestFormEntry.tsx
 
-        const view = selectedDoc
-            ? (DOCUMENT_TYPE_ID_VIEW_MAP[selectedDoc.id] || DOCUMENT_TYPE_VIEW_MAP[selectedDoc.name])
-            : undefined;
+useEffect(() => {
+    // 1. If we have a saved ID, we NEVER change the reference number. It's permanent.
+    if (formData.id) return;
 
-        const prefix = (view && VIEW_PREFIX_MAP[view]) || 'REF';
-        setFormData((prev) => ({ ...prev, referenceNumber: `${prefix}-${new Date().getFullYear()}-XXXX`, }));
-    }, [formData.documentTypeIds, formData.id, metadata.docTypes]);
+    // 2. If we don't have document types yet, default to REF-XXXX
+    if (formData.documentTypeIds.length === 0) {
+        // Only set it if it's currently empty or the default placeholder
+        if (!formData.referenceNumber || formData.referenceNumber.endsWith('-0000')) {
+            setFormData(prev => ({ ...prev, referenceNumber: `REF-${new Date().getFullYear()}-XXXX` }));
+        }
+        return;
+    }
 
-    // MOVED HERE — place alongside your other handlers, e.g. right before handleProceedToDocument
+    // 3. Logic to switch prefix (NLH, LH, TD) when the user changes document types in the dropdown
+    const selectedId = formData.documentTypeIds[0];
+    const selectedDoc = metadata.docTypes.find((d) => d.id === selectedId);
+    
+    const view = selectedDoc
+        ? (DOCUMENT_TYPE_ID_VIEW_MAP[selectedDoc.id] || DOCUMENT_TYPE_VIEW_MAP[selectedDoc.name])
+        : undefined;
+
+    const newPrefix = (view && VIEW_PREFIX_MAP[view]) || 'REF';
+    const currentYear = new Date().getFullYear();
+
+    // Only update if the prefix actually changed and we haven't generated a final random number yet
+    if (formData.referenceNumber.includes('XXXX') || formData.referenceNumber.includes('-0000')) {
+        const newRef = `${newPrefix}-${currentYear}-XXXX`;
+        if (formData.referenceNumber !== newRef) {
+            setFormData(prev => ({ ...prev, referenceNumber: newRef }));
+        }
+    }
+}, [formData.documentTypeIds, formData.id, metadata.docTypes]);
+
     const handleOpenForwardModal = () => {
         if (!formData.declarantName && !formData.requestedByName) {
             setValidationError('Please enter at least the Requester or Declarant name before forwarding.');
@@ -197,12 +237,29 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     };
 
     const handleConfirmForward = async (staffId: string, note: string) => {
-        // TODO (backend): await requestService.forwardRequest(formData.id, staffId, note)
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        console.log('Forwarding to staff:', staffId, 'note:', note);
-        setShowForwardModal(false);
-        alert('Request forwarded (demo mode — backend not connected yet).');
-    };
+    let requestId = formData.id;
+
+    if (!requestId) {
+        const draftPayload = { ...formData, status: 'DRAFT' };
+        const res = await requestService.submitRequest(draftPayload, user.id);
+        const savedRequest = res.data || res;
+        requestId = savedRequest.id;
+        setFormData((prev) => ({
+            ...prev,
+            id: requestId,
+            referenceNumber: savedRequest.control_number || savedRequest.reference_number || prev.referenceNumber,
+        }));
+    }
+
+    if (!requestId) {
+        alert('Failed to save the request before forwarding. Please try again.');
+        return;
+    }
+
+    await requestService.forwardRequest(requestId, staffId, note);
+    setShowForwardModal(false);
+    onCancel();
+};
 
     const handleProceedToDocument = async () => {
         if (!formData.declarantName || !formData.requestedByName || formData.documentTypeIds.length === 0) {
@@ -325,7 +382,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                     <ForwardToStaffModal
                         open={showForwardModal}
                         staffOptions={metadata.staff}
-                        currentStaffId={user.id}
+                        currentStaffId={user.staffId}
                         referenceNumber={formData.referenceNumber}
                         onClose={() => setShowForwardModal(false)}
                         onConfirm={handleConfirmForward}
@@ -359,7 +416,24 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                         {/* Section 2 */}
                         <div className="rfe-section">
                             <div className="rfe-section-title"><PlusCircleIcon /><span>Request Details</span></div>
-                            <div className="rfe-field"><label className="rfe-label">May I/We request for:</label><MultiSelectDropdown options={metadata.docTypes} selectedIds={formData.documentTypeIds} onChange={(ids) => setFormData({ ...formData, documentTypeIds: ids })} placeholder="Select Document Type(s)..." /></div>
+                            <div className="rfe-field">
+                                <label className="rfe-label">May I/We request for:</label>
+                                {metadataError ? (
+                                    <div className="warning-banner" style={{ margin: '4px 0' }}>
+                                        {metadataError}{' '}
+                                        <button type="button" onClick={fetchMeta} style={{ textDecoration: 'underline', fontWeight: 700 }}>
+                                            Retry
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <MultiSelectDropdown
+                                        options={metadata.docTypes}
+                                        selectedIds={formData.documentTypeIds}
+                                        onChange={(ids) => setFormData({ ...formData, documentTypeIds: ids })}
+                                        placeholder={metadataLoading ? 'Loading document types…' : 'Select Document Type(s)...'}
+                                    />
+                                )}
+                            </div>
                             <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Reason / Purpose</label>{isOthersPurpose(formData.purposeId, metadata.purposes) ? (<div className="input-with-clear"><input className="rfe-input" type="text" autoFocus placeholder="Type purpose here..." value={formData.purposeOtherText} onChange={(e) => setFormData({ ...formData, purposeOtherText: e.target.value })} /><button type="button" className="input-clear-btn" title="Choose a different reason" onClick={() => setFormData({ ...formData, purposeId: '', purposeOtherText: '' })}>×</button></div>) : (<SingleSelectDropdown options={metadata.purposes} value={formData.purposeId} onChange={(val) => setFormData({ ...formData, purposeId: val, purposeOtherText: '' })} placeholder="Select Reason / Purpose..." />)}</div>
                         </div>
 
