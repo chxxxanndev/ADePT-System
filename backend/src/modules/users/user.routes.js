@@ -9,6 +9,8 @@ import {
     setAdminLevel,
     promoteToAdmin,
     demoteToStaff,
+    assignSignatory,
+    unassignSignatory,
 } from './user.controller.js';
 
 const router = express.Router();
@@ -23,5 +25,7 @@ router.patch('/staff/:id/status', updateStaffStatus);
 router.patch('/staff/:id/admin-level', setAdminLevel);
 router.patch('/staff/:id/promote-to-admin', promoteToAdmin);
 router.patch('/staff/:id/demote-to-staff', demoteToStaff);
+router.patch('/staff/:id/assign-signatory', assignSignatory);
+router.patch('/staff/:id/unassign-signatory', unassignSignatory);
 
 export default router;
