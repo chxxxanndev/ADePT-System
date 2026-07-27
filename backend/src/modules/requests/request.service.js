@@ -133,7 +133,7 @@ class RequestService {
             .from('requests')
             .select('*, staff:encoded_by(first_name, last_name)')
             .order('created_at', { ascending: false });
-        
+
         if (reqErr) throw reqErr;
 
         const { data: docLinks } = await supabase
@@ -174,15 +174,15 @@ class RequestService {
                 status: STATUS_MAP[r.status] || 'Pending',
                 payment: {
                     orNumber: r.or_number || null,
-                    amountDue: 0, 
+                    amountDue: 0,
                     amountPaid: 0,
                     paymentDate: r.payment_date || null,
                     paymentMethod: r.or_number ? 'Cash' : 'Unpaid',
                     verifiedBy: r.authorized_signatory || null,
                 },
-                generatedDocuments: [], 
-                activityTimeline: [], 
-                reasonPurpose: r.purpose_other_text || '', 
+                generatedDocuments: [],
+                activityTimeline: [],
+                reasonPurpose: r.purpose_other_text || '',
                 isVoid: r.status === 'VOID',
                 voidReason: r.status === 'VOID' ? (r.or_override_justification || '') : undefined,
             };
@@ -191,7 +191,7 @@ class RequestService {
 
     async updateRequest(id, formData) {
         const updateData = {};
-        
+
         // Handle field mappings from both codes
         if (formData.status) updateData.status = formData.status;
         if (formData.declarantName || formData.declarant_name) {
@@ -225,10 +225,11 @@ class RequestService {
     }
 
     async forwardRequest(requestId, { recipientStaffId, note, actorStaffId }) {
+        // 1. Update the request
         const { data, error } = await supabase
             .from('requests')
             .update({
-                assigned_staff_id: recipientStaffId, // Code 2 uses assigned_staff_id
+                assigned_staff_id: recipientStaffId,
                 forwarded_by: actorStaffId,
                 forwarded_at: new Date().toISOString(),
                 status: 'FORWARDED',
@@ -236,24 +237,15 @@ class RequestService {
             .eq('id', requestId)
             .select()
             .single();
-    const { data, error } = await supabase
-        .from('requests')
-        .update({
-            assigned_staff_id: recipientStaffId,
-            forwarded_by: actorStaffId,
-            forwarded_at: new Date().toISOString(),
-            status: 'FORWARDED',
-        })
-        .eq('id', requestId)
-        .select()
-        .single();
 
-    if (error) throw error;
+        if (error) throw error;
 
+        // 2. Format the notification message
         const message = note
             ? `forwarded a request to you — "${note}"`
             : 'forwarded a request to you';
 
+        // 3. Insert the notification
         const { error: notifErr } = await supabase.from('notifications').insert([{
             request_id: requestId,
             actor_id: actorStaffId,
@@ -261,33 +253,21 @@ class RequestService {
             message,
             is_read: false,
         }]);
-        
-        if (notifErr) console.error("Notification failed:", notifErr.message);
-    // FIXED: previously `note || 'forwarded a request to you'` replaced the
-    // whole message when a note existed, dropping the "forwarded a request
-    // to you" context entirely — the note is now appended instead.
-    const message = note
-        ? `forwarded a request to you — "${note}"`
-        : 'forwarded a request to you';
 
-    const { error: notifErr } = await supabase.from('notifications').insert([{
-        request_id: requestId,
-        actor_id: actorStaffId,
-        recipient_id: recipientStaffId,
-        message,
-        is_read: false,
-    }]);
-    if (notifErr) throw notifErr;
+        if (notifErr) {
+            console.error("Notification failed:", notifErr.message);
+            throw notifErr;
+        }
 
-    return data;
-}
+        return data;
+    }
     async checkOrUniqueness(orNumber, excludeRequestId = null) {
         let query = supabase.from('requests').select('id, reference_number, declarant_name').eq('or_number', orNumber.trim());
         if (excludeRequestId) query = query.neq('id', excludeRequestId);
-        
+
         const { data, error } = await query;
         if (error) throw error;
-        
+
         if (data && data.length > 0) {
             return {
                 isUnique: false,
@@ -311,7 +291,7 @@ class RequestService {
             .eq('id', id)
             .select()
             .single();
-            
+
         if (error) throw error;
         return data;
     }
