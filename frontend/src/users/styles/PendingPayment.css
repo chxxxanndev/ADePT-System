@@ -1,6 +1,6 @@
 /* ==========================================================================
    Cashier Queue Styles (PendingPayment.css)
-   Glassmorphic, responsive redesign — built on ADePT design tokens
+   Glassmorphic, minimalist redesign — built on ADePT design tokens
    ========================================================================== */
 
 .pp-container {
@@ -16,10 +16,7 @@
 /* --- 1. HEADER CARD --- */
 .pp-header-card {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 20px;
-    flex-wrap: wrap;
+    flex-direction: column;
     background-color: var(--db-glass-card-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -29,10 +26,17 @@
     box-shadow: var(--db-shadow-card);
 }
 
-.pp-header-content {
+.pp-header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.pp-header-titles {
     display: flex;
     flex-direction: column;
-    min-width: 220px;
+    min-width: 0;
 }
 
 .pp-suptitle {
@@ -44,13 +48,6 @@
     margin-bottom: 4px;
 }
 
-.pp-title-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
 .pp-title {
     font-size: 1.5rem;
     font-weight: 800;
@@ -59,13 +56,36 @@
     letter-spacing: -0.02em;
 }
 
+/* Select-mode toggle — teal/secondary so it reads as its own distinct action,
+   separate from the primary (indigo) Process action and the destructive (red) Archive action */
+.pp-select-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 32px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 150, 170, 0.3);
+    background-color: rgba(0, 188, 212, 0.08);
+    color: #007A8A;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.pp-select-toggle-btn:hover {
+    background-color: rgba(0, 188, 212, 0.16);
+}
+
 .pp-refresh-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
     border: 1px solid var(--db-glass-border-alt);
     background-color: rgba(255, 255, 255, 0.6);
     color: var(--db-primary);
@@ -94,29 +114,38 @@
     margin: 4px 0 0;
 }
 
-/* Inline quick stats */
+/* Quick stats — stretch evenly across the full card width instead of clustering
+   on the left with empty space beside them */
 .pp-stats-row {
     display: flex;
-    gap: 10px;
-    margin-top: 14px;
-    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 18px;
 }
 
 .pp-stat-chip {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 1px;
-    padding: 8px 14px;
+    gap: 2px;
+    padding: 12px 18px;
     border-radius: var(--db-radius-sm);
     background-color: rgba(41, 35, 122, 0.05);
     border: 1px solid var(--db-glass-border-alt);
-    min-width: 92px;
+    transition: background-color 0.15s ease;
+}
+
+.pp-stat-chip:hover {
+    background-color: rgba(41, 35, 122, 0.08);
 }
 
 .pp-stat-chip strong {
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 800;
     color: var(--db-primary);
+}
+
+.pp-stat-chip--amount strong {
+    color: var(--db-success);
 }
 
 .pp-stat-chip span {
@@ -127,77 +156,89 @@
     color: var(--db-text-muted);
 }
 
-.pp-search-wrapper {
+/* Compact search box that now lives in the table toolbar, right next to the rows it filters */
+.pp-toolbar-search {
     display: flex;
     align-items: center;
     background-color: var(--db-input-bg);
     border: 1px solid var(--db-glass-border-alt);
-    padding: 11px 16px;
+    padding: 8px 14px;
     border-radius: 999px;
-    width: 340px;
+    width: 280px;
     max-width: 100%;
-    gap: 10px;
+    gap: 8px;
     color: var(--db-text-muted);
     transition: all 0.2s ease;
     flex-shrink: 0;
 }
 
-.pp-search-wrapper:focus-within {
+.pp-toolbar-search:focus-within {
     background: #ffffff;
     border-color: var(--db-secondary);
     box-shadow: 0 4px 12px rgba(41, 35, 122, 0.08);
     color: var(--db-primary);
 }
 
-.pp-search-input {
+.pp-toolbar-search svg {
+    flex-shrink: 0;
+}
+
+.pp-toolbar-search-input {
     border: none;
     background: transparent;
     outline: none;
     width: 100%;
-    font-size: 0.87rem;
+    font-size: 0.83rem;
     font-family: inherit;
     font-weight: 600;
     color: var(--db-slate);
 }
 
-.pp-search-input::placeholder {
+.pp-toolbar-search-input::placeholder {
     color: #9CA3AF;
     font-weight: 500;
 }
 
-/* --- 2. BULK ACTION BAR (appears when rows selected) --- */
-.pp-bulk-bar {
+
+/* --- 2. TABLE TOOLBAR — sits inside the table card, above the column headers.
+   Holds "Select" normally, and swaps to the selection summary + Cancel/Archive
+   once Select mode is on, so there's exactly one place staff look for it. --- */
+.pp-table-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
-    background-color: rgba(41, 35, 122, 0.06);
-    border: 1px solid rgba(41, 35, 122, 0.12);
-    border-radius: var(--db-radius-md);
-    padding: 12px 20px;
-    animation: pp-slide-in 0.2s ease;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--db-glass-border-alt);
+    background-color: rgba(41, 35, 122, 0.02);
+    min-height: 30px;
+    transition: background-color 0.15s ease;
 }
 
-@keyframes pp-slide-in {
-    from {
-        opacity: 0;
-        transform: translateY(-6px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.pp-table-toolbar.is-active {
+    background-color: rgba(0, 122, 138, 0.05);
 }
 
-.pp-bulk-bar-text {
-    font-size: 13px;
+.pp-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.pp-table-toolbar-text {
+    font-size: 12.5px;
     font-weight: 700;
-    color: var(--db-primary);
+    color: var(--db-text-muted);
 }
 
-.pp-bulk-bar-actions {
+.pp-table-toolbar.is-active .pp-table-toolbar-text {
+    color: #007A8A;
+}
+
+.pp-table-toolbar-actions {
     display: flex;
     gap: 10px;
 }
@@ -215,14 +256,21 @@
     transition: all 0.15s ease;
 }
 
+/* Archive = red across the app, whether bulk or single, so its meaning stays consistent */
 .pp-bulk-btn--archive {
     background-color: #ffffff;
     color: var(--db-error);
     border-color: rgba(211, 47, 47, 0.25);
 }
 
-.pp-bulk-btn--archive:hover {
+.pp-bulk-btn--archive:hover:not(:disabled) {
     background-color: #fee2e2;
+}
+
+.pp-bulk-btn--archive:disabled {
+    color: #d1a3a3;
+    border-color: #f3d6d6;
+    cursor: not-allowed;
 }
 
 .pp-bulk-btn--clear {
@@ -254,7 +302,7 @@
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    min-width: 700px;
+    min-width: 820px;
 }
 
 .pp-table thead {
@@ -280,19 +328,24 @@
 .pp-row {
     border-bottom: 1px solid var(--db-glass-border-alt);
     transition: background-color 0.15s ease;
-    cursor: pointer;
 }
 
 .pp-row:last-child {
     border-bottom: none;
 }
 
-.pp-row:hover {
+/* Rows are inert by default — the only way to open a payment is the Process button.
+   Only in Select mode does a row itself become a click target (for toggling its checkbox). */
+.pp-row.is-selectable {
+    cursor: pointer;
+}
+
+.pp-row.is-selectable:hover {
     background-color: var(--db-hover-highlight);
 }
 
 .pp-row.is-selected {
-    background-color: rgba(0, 188, 212, 0.06);
+    background-color: rgba(0, 122, 138, 0.07);
 }
 
 .pp-cell {
@@ -303,7 +356,7 @@
 .pp-checkbox {
     width: 17px;
     height: 17px;
-    accent-color: var(--db-primary);
+    accent-color: #007A8A;
     cursor: pointer;
 }
 
@@ -312,13 +365,12 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    min-width: 0;
 }
 
 .pp-avatar {
     width: 34px;
     height: 34px;
-    background-color: #eef2ff;
-    color: var(--db-primary);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -339,53 +391,71 @@
     min-width: 0;
 }
 
-.pp-client-info {
-    min-width: 0;
+/* Reference No. and Declarant columns — split apart (rather than crammed into one
+   chip) so a client with several documents reads as a clean, roomy list, with each
+   reference lined up against its own declarant on the same row. */
+.pp-doc-count-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #9CA3AF;
+    margin-bottom: 10px;
 }
 
-/* Documents column */
-.pp-doc-stack {
+.pp-doc-count-label--spacer {
+    visibility: hidden;
+}
+
+.pp-ref-list,
+.pp-declarant-list {
     display: flex;
     flex-direction: column;
-    gap: 7px;
-    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
 }
 
-.pp-doc-count-badge {
-    background-color: #F3F4F6;
-    color: #374151;
-    padding: 3px 9px;
-    border-radius: 6px;
-    font-size: 0.66rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    border: 1px solid #E5E7EB;
-}
-
-.pp-doc-refs {
+.pp-doc-line {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    align-items: center;
+    min-height: 24px;
 }
 
 .pp-ref-chip {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     font-family: 'SFMono-Regular', 'Courier New', monospace;
-    font-size: 0.76rem;
+    font-size: 0.78rem;
     font-weight: 600;
     background-color: #f1f5f9;
     color: var(--db-text-muted);
-    padding: 3px 8px;
-    border-radius: 4px;
+    padding: 4px 10px;
+    border-radius: 5px;
     border: 1px solid #e2e8f0;
     white-space: nowrap;
 }
 
 .pp-ref-chip svg {
     flex-shrink: 0;
+}
+
+.pp-doc-declarant {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--db-slate);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.pp-doc-declarant svg {
+    flex-shrink: 0;
+    color: #9CA3AF;
 }
 
 /* Color-coded by document type, inferred from the reference number prefix.
@@ -457,7 +527,8 @@
     white-space: nowrap;
 }
 
-/* Actions */
+/* Actions — Process (primary indigo, the only way into the payment screen)
+   and Archive (muted grey by default, turns red on hover to signal its destructive intent) */
 .pp-actions {
     display: flex;
     align-items: center;
@@ -655,12 +726,17 @@
 
 /* --- 5. RESPONSIVE --- */
 @media (max-width: 900px) {
-    .pp-header-card {
+    .pp-header-top {
         flex-direction: column;
-        align-items: stretch;
+        align-items: flex-start;
+        gap: 10px;
     }
 
-    .pp-search-wrapper {
+    .pp-toolbar-left {
+        width: 100%;
+    }
+
+    .pp-toolbar-search {
         width: 100%;
     }
 }
@@ -672,7 +748,6 @@
     }
 
     .pp-stat-chip {
-        flex: 1;
         min-width: 0;
     }
 
