@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { supabase } from '../../auth-folder/services/supabaseClient'; // match the exact path used in useAuth.ts / useNotifications.ts
 
 export interface RequestFormData {
     id?: string;
@@ -15,23 +16,21 @@ export interface RequestFormData {
 
 const API_ROOT = 'http://localhost:5000/api';
 
-// Shared axios instance — every call below goes through this, so the
-// Authorization header is attached automatically instead of each method
-// having to pass identity around by hand.
 const api = axios.create({ baseURL: API_ROOT });
 
-// services/requestService.ts
-
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('adept_token');
+// Always pull the CURRENT, live session token from Supabase itself — not a
+// stale copy written to localStorage once at login. Supabase auto-refreshes
+// the session in the background; getSession() always reflects that, so this
+// interceptor never sends an expired token again.
+api.interceptors.request.use(async (config) => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
     if (token) {
-        // Use .set for better compatibility with modern Axios
-        config.headers.set('Authorization', `Bearer ${token}`);
+        config.headers = config.headers ?? {};
+        (config.headers as any)['Authorization'] = `Bearer ${token}`;
     }
     return config;
-}, (error) => {
-    return Promise.reject(error);
-});
+}, (error) => Promise.reject(error));
 
 export const requestService = {
     getMetadata: async () => {
