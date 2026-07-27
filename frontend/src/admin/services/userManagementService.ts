@@ -15,6 +15,7 @@ export interface StaffMember {
     created_at: string;
     created_by: string | null;
     admin_level: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+    is_signatory: boolean;
     roles: { code: string } | null;
 }
 
@@ -146,6 +147,39 @@ export async function demoteToStaff(staffId: string): Promise<StaffMember> {
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `Failed to demote Admin (${res.status})`);
+    }
+    const data = await res.json();
+    return data.staff as StaffMember;
+}
+
+/**
+ * Assigns this staff member as the sole signatory (replaces any previous one).
+ * Requires SUPER_ADMIN or ADMIN(HIGH).
+ */
+export async function assignSignatory(staffId: string): Promise<StaffMember> {
+    const res = await fetch(`${API_BASE_URL}/staff/${staffId}/assign-signatory`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Failed to assign signatory (${res.status})`);
+    }
+    const data = await res.json();
+    return data.staff as StaffMember;
+}
+
+/**
+ * Removes the signatory designation from this staff member.
+ */
+export async function unassignSignatory(staffId: string): Promise<StaffMember> {
+    const res = await fetch(`${API_BASE_URL}/staff/${staffId}/unassign-signatory`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Failed to remove signatory (${res.status})`);
     }
     const data = await res.json();
     return data.staff as StaffMember;

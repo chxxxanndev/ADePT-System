@@ -262,9 +262,14 @@ export function AdminReports({ user }: AdminReportsProps) {
                 <div className="admin-card ar-bar-card">
                     <div className="ar-bar-card-header">
                         <h2 className="admin-card-title">Requests by month</h2>
-                        <button type="button" className="ar-export-btn no-print" onClick={handleExportPdf}>
-                            Export PDF
-                        </button>
+                        {canExport && (
+                           <div className="ar-bar-card-header">
+                            <h2 className="admin-card-title">Requests by month</h2>
+                            {canExport && (
+                                <button type="button" className="ar-export-btn" onClick={handleExportPdf}>Export</button>
+                            )}
+                        </div>
+                        )}
                     </div>
                     <p className="ar-chart-description">
                         Account requests submitted per month

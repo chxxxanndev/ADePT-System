@@ -9,6 +9,7 @@ const RefreshIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="
 const InboxIcon = () => <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>;
 const CheckSquareIcon = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>;
 const UserIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
+const StaffIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M8 2v4M16 2v4M3 10h18" /></svg>;
 
 // Small same-hue glyphs for each document type, used in both the ref chips and the legend
 const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11 12 3l9 8" /><path d="M5 10v10h14V10" /></svg>;
@@ -39,19 +40,6 @@ function resolveDocTypeName(req: any): string {
     if (ref.startsWith('NLH')) return 'Certificate of No Landholding';
     if (ref.startsWith('LH')) return 'Certificate of Landholding';
     return 'Certified True Tax Declaration';
-}
-
-// Deterministic, pleasant avatar tint per requester name — purely cosmetic variety,
-// stays within the same low-saturation palette family as the rest of the UI.
-function getAvatarStyle(name: string): React.CSSProperties {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    const hue = Math.abs(hash) % 360;
-    return {
-        backgroundColor: `hsl(${hue}, 60%, 94%)`,
-        color: `hsl(${hue}, 45%, 32%)`,
-        borderColor: `hsl(${hue}, 45%, 82%)`,
-    };
 }
 
 export function PendingPayment({ onSelectPayment }: any) {
@@ -91,6 +79,9 @@ export function PendingPayment({ onSelectPayment }: any) {
                         referenceNumber: req.reference_number || "REF-PENDING",
                         declarantName: req.declarant_name || 'N/A',
                         documentType: resolveDocTypeName(req),
+                        // Populated once Request Form Entry captures which staff member encoded
+                        // the request; falls back to a placeholder until that's wired up.
+                        encodedByStaff: req.encoded_by_staff_name || req.encodedByStaffName || null,
                         amountDue: 40.00
                     });
 
@@ -120,9 +111,9 @@ export function PendingPayment({ onSelectPayment }: any) {
         return { clients: groupedPayments.length, docs: totalDocs, amount: totalAmount };
     }, [groupedPayments]);
 
-    // Column count drives colSpan for skeleton / empty rows: 6 fixed columns,
+    // Column count drives colSpan for skeleton / empty rows: 7 fixed columns,
     // +1 more when the Select-mode checkbox column is showing.
-    const columnCount = selectionMode ? 7 : 6;
+    const columnCount = selectionMode ? 8 : 7;
 
     const toggleSelect = (groupId: string) => {
         setSelectedIds(prev => {
@@ -228,7 +219,7 @@ export function PendingPayment({ onSelectPayment }: any) {
             {/* --- TABLE CARD --- */}
             <div className="pp-table-card">
                 {/* Toolbar sits above the column headers, right next to the rows it filters:
-                    search + client count on the left, Select (or Cancel/Archive) on the right. */}
+                    search (now the full-width focal element) on the left, Select (or Cancel/Archive) on the right. */}
                 <div className={`pp-table-toolbar${selectionMode ? ' is-active' : ''}`}>
                     <div className="pp-toolbar-left">
                         <div className="pp-toolbar-search">
@@ -241,13 +232,13 @@ export function PendingPayment({ onSelectPayment }: any) {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
-                        <span className="pp-table-toolbar-text">
-                            {selectionMode
-                                ? (selectedCount > 0
+                        {selectionMode && (
+                            <span className="pp-table-toolbar-text">
+                                {selectedCount > 0
                                     ? `${selectedCount} client${selectedCount !== 1 ? 's' : ''} selected`
-                                    : 'Tap a row to select it for archiving')
-                                : `${filtered.length} client${filtered.length !== 1 ? 's' : ''} in queue`}
-                        </span>
+                                    : 'Tap a row to select it for archiving'}
+                            </span>
+                        )}
                     </div>
                     <div className="pp-table-toolbar-actions">
                         {selectionMode ? (
@@ -287,12 +278,13 @@ export function PendingPayment({ onSelectPayment }: any) {
                                         />
                                     </th>
                                 )}
-                                <th style={{ width: '21%' }}>Client / Requester</th>
                                 <th style={{ width: '15%' }}>Reference No.</th>
-                                <th style={{ width: '22%' }}>Declarant</th>
-                                <th style={{ width: '11%', textAlign: 'right' }}>Total Fee</th>
-                                <th style={{ width: '11%', textAlign: 'center' }}>Date</th>
-                                <th style={{ width: '20%', textAlign: 'right', paddingRight: '32px' }}>Actions</th>
+                                <th style={{ width: '19%' }}>Declarant(s)</th>
+                                <th style={{ width: '15%' }}>Requested By</th>
+                                <th style={{ width: '15%' }}>Encoded By Staff</th>
+                                <th style={{ width: '10%', textAlign: 'right' }}>Total Fee</th>
+                                <th style={{ width: '10%', textAlign: 'center' }}>Date</th>
+                                <th style={{ width: '16%', textAlign: 'right', paddingRight: '32px' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -301,8 +293,6 @@ export function PendingPayment({ onSelectPayment }: any) {
                                     <tr key={i}>
                                         <td colSpan={columnCount} style={{ padding: 0 }}>
                                             <div className="pp-skeleton-row">
-                                                <div className="pp-skeleton-block" style={{ width: 34, height: 34, borderRadius: '50%' }} />
-
                                                 <div className="pp-skeleton-block" style={{ width: '18%' }} />
                                                 <div className="pp-skeleton-block" style={{ width: '28%' }} />
                                                 <div className="pp-skeleton-block" style={{ width: '10%' }} />
@@ -347,15 +337,6 @@ export function PendingPayment({ onSelectPayment }: any) {
                                             </td>
                                         )}
 
-                                        <td className="pp-cell" data-label="Client / Requester">
-                                            <div className="pp-client-info">
-                                                <div className="pp-avatar" style={getAvatarStyle(group.requesterName)}>
-                                                    {group.requesterName.charAt(0).toUpperCase()}
-                                                </div>
-                                                <span className="pp-client-name" title={group.requesterName}>{group.requesterName}</span>
-                                            </div>
-                                        </td>
-
                                         <td className="pp-cell" data-label="Reference No.">
                                             <div className="pp-doc-count-label">
                                                 {group.documents.length} document{group.documents.length !== 1 && 's'}
@@ -375,7 +356,7 @@ export function PendingPayment({ onSelectPayment }: any) {
                                             </div>
                                         </td>
 
-                                        <td className="pp-cell" data-label="Declarant">
+                                        <td className="pp-cell" data-label="Declarant(s)">
                                             <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
                                             <div className="pp-declarant-list">
                                                 {group.documents.map((d: any, i: number) => (
@@ -383,6 +364,27 @@ export function PendingPayment({ onSelectPayment }: any) {
                                                         <span className="pp-doc-declarant" title={d.declarantName}>
                                                             <UserIcon />
                                                             {d.declarantName}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </td>
+
+                                        <td className="pp-cell" data-label="Requested By">
+                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
+                                            <div className="pp-client-info">
+                                                <span className="pp-client-name" title={group.requesterName}>{group.requesterName}</span>
+                                            </div>
+                                        </td>
+
+                                        <td className="pp-cell" data-label="Encoded By Staff">
+                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
+                                            <div className="pp-declarant-list">
+                                                {group.documents.map((d: any, i: number) => (
+                                                    <div className="pp-doc-line" key={i}>
+                                                        <span className="pp-doc-declarant pp-doc-declarant--staff" title={d.encodedByStaff || 'Not yet recorded'}>
+                                                            <StaffIcon />
+                                                            {d.encodedByStaff || '—'}
                                                         </span>
                                                     </div>
                                                 ))}

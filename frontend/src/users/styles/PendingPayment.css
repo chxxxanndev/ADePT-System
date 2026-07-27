@@ -156,7 +156,9 @@
     color: var(--db-text-muted);
 }
 
-/* Compact search box that now lives in the table toolbar, right next to the rows it filters */
+/* Search box that lives in the table toolbar, right next to the rows it filters.
+   Now the sole element on the toolbar's left side (outside selection mode), so it
+   flexes to fill the available space instead of sitting at a fixed, cramped width. */
 .pp-toolbar-search {
     display: flex;
     align-items: center;
@@ -164,12 +166,13 @@
     border: 1px solid var(--db-glass-border-alt);
     padding: 8px 14px;
     border-radius: 999px;
-    width: 280px;
-    max-width: 100%;
+    flex: 1;
+    width: auto;
+    min-width: 240px;
+    max-width: 640px;
     gap: 8px;
     color: var(--db-text-muted);
     transition: all 0.2s ease;
-    flex-shrink: 0;
 }
 
 .pp-toolbar-search:focus-within {
@@ -201,13 +204,13 @@
 
 
 /* --- 2. TABLE TOOLBAR — sits inside the table card, above the column headers.
-   Holds "Select" normally, and swaps to the selection summary + Cancel/Archive
-   once Select mode is on, so there's exactly one place staff look for it. --- */
+   Holds just the search bar normally, and swaps to the selection summary +
+   Cancel/Archive once Select mode is on, so there's exactly one place staff look for it. --- */
 .pp-table-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 16px;
     flex-wrap: wrap;
     padding: 16px 24px;
     border-bottom: 1px solid var(--db-glass-border-alt);
@@ -224,7 +227,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    flex-wrap: wrap;
+    flex: 1;
     min-width: 0;
 }
 
@@ -232,6 +235,7 @@
     font-size: 12.5px;
     font-weight: 700;
     color: var(--db-text-muted);
+    white-space: nowrap;
 }
 
 .pp-table-toolbar.is-active .pp-table-toolbar-text {
@@ -241,6 +245,7 @@
 .pp-table-toolbar-actions {
     display: flex;
     gap: 10px;
+    flex-shrink: 0;
 }
 
 .pp-bulk-btn {
@@ -302,7 +307,7 @@
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    min-width: 820px;
+    min-width: 980px;
 }
 
 .pp-table thead {
@@ -360,40 +365,29 @@
     cursor: pointer;
 }
 
-/* Client column */
+/* Requested By column */
 .pp-client-info {
     display: flex;
     align-items: center;
     gap: 12px;
     min-width: 0;
-}
-
-.pp-avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 800;
-    border: 1px solid rgba(41, 35, 122, 0.12);
-    flex-shrink: 0;
+    min-height: 24px;
 }
 
 .pp-client-name {
-    font-weight: 700;
+    font-weight: 600;
     color: var(--db-slate);
-    font-size: 0.95rem;
+    font-size: 0.86rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     min-width: 0;
 }
 
-/* Reference No. and Declarant columns — split apart (rather than crammed into one
-   chip) so a client with several documents reads as a clean, roomy list, with each
-   reference lined up against its own declarant on the same row. */
+/* Reference No., Declarant(s) and Encoded By Staff columns — split apart (rather
+   than crammed into one chip) so a client with several documents reads as a
+   clean, roomy list, with each reference lined up against its own declarant
+   and encoding staff member on the same row. */
 .pp-doc-count-label {
     font-size: 10.5px;
     font-weight: 700;
@@ -456,6 +450,13 @@
 .pp-doc-declarant svg {
     flex-shrink: 0;
     color: #9CA3AF;
+}
+
+/* Encoded By Staff — same list styling as Declarant, but visually quieter since
+   it's a placeholder until Request Form Entry starts feeding this data in. */
+.pp-doc-declarant--staff {
+    color: var(--db-text-muted);
+    font-weight: 500;
 }
 
 /* Color-coded by document type, inferred from the reference number prefix.
@@ -528,7 +529,8 @@
 }
 
 /* Actions — Process (primary indigo, the only way into the payment screen)
-   and Archive (muted grey by default, turns red on hover to signal its destructive intent) */
+   and Archive (muted grey by default, turns red on hover to signal its destructive intent),
+   both grouped under the single "Actions" column header. */
 .pp-actions {
     display: flex;
     align-items: center;
@@ -737,7 +739,7 @@
     }
 
     .pp-toolbar-search {
-        width: 100%;
+        max-width: none;
     }
 }
 
