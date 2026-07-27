@@ -1,4 +1,4 @@
-import { Mail, Clock, ArrowRight, CheckCircle } from 'lucide-react';
+import { Mail, Clock, ArrowRight, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { NotificationItem } from '../hooks/useNotifications';
 import '../styles/NotificationPage.css';
 
@@ -6,11 +6,21 @@ interface NotificationPageProps {
     notifications: NotificationItem[];
     onOpenRequest: (requestId: string, notifId: string) => void;
     loading: boolean;
+    error?: string;
+    onRetry?: () => void;
     unreadCount?: number;
     onMarkAllRead?: () => void;
 }
 
-export function NotificationPage({ notifications, onOpenRequest, loading, unreadCount = 0, onMarkAllRead }: NotificationPageProps) {
+export function NotificationPage({
+    notifications,
+    onOpenRequest,
+    loading,
+    error,
+    onRetry,
+    unreadCount = 0,
+    onMarkAllRead,
+}: NotificationPageProps) {
     return (
         <div className="page-transition" style={{ padding: '20px' }}>
             <div className="notif-page-header">
@@ -28,6 +38,18 @@ export function NotificationPage({ notifications, onOpenRequest, loading, unread
             <div className="dashboard-card notif-panel">
                 {loading ? (
                     <div className="notif-loading-state">Loading notifications...</div>
+                ) : error ? (
+                    <div className="notif-empty-state">
+                        <div className="notif-empty-icon">
+                            <AlertTriangle size={48} strokeWidth={1} />
+                        </div>
+                        <p className="notif-empty-text">{error}</p>
+                        {onRetry && (
+                            <button className="notif-mark-all-header-btn" style={{ marginTop: 12 }} onClick={onRetry}>
+                                Retry
+                            </button>
+                        )}
+                    </div>
                 ) : notifications.length === 0 ? (
                     <div className="notif-empty-state">
                         <div className="notif-empty-icon">
@@ -43,9 +65,7 @@ export function NotificationPage({ notifications, onOpenRequest, loading, unread
                                 className={`notif-bell-item ${!n.is_read ? 'notif-bell-item-unread' : ''}`}
                                 onClick={() => onOpenRequest(n.request_id, n.id)}
                             >
-                                <div
-                                    className={`notif-bell-item-icon ${n.is_read ? 'notif-bell-item-icon-read' : 'notif-bell-item-icon-unread'}`}
-                                >
+                                <div className={`notif-bell-item-icon ${n.is_read ? 'notif-bell-item-icon-read' : 'notif-bell-item-icon-unread'}`}>
                                     {n.is_read ? <CheckCircle size={20} /> : <Mail size={20} />}
                                 </div>
 

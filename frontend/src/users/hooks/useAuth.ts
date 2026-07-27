@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { User, MockUser } from '../../auth-folder/types/auth';
+import { supabase } from '../../auth-folder/services/supabaseClient';
 
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -48,7 +49,17 @@ export function useAuth() {
         checkHealth();
     }, []);
 
-    // ── In useAuth.ts, replace the `login` function with this, and add `reactivateAccount` ──
+    // Restore the browser's Supabase session on page load/refresh — the React
+    // state above is rehydrated from localStorage automatically, but the
+    // supabase-js client's own session is not, and Realtime subscriptions
+    // (the notification bell) need that session to pass RLS checks.
+    useEffect(() => {
+        const token = localStorage.getItem('adept_token');
+        const refreshToken = localStorage.getItem('adept_refresh_token');
+        if (token && refreshToken) {
+            supabase.auth.setSession({ access_token: token, refresh_token: refreshToken });
+        }
+    }, []);
 
     const login = async (
         username: string,
@@ -77,8 +88,13 @@ export function useAuth() {
 
                 if (res.ok) {
                     localStorage.setItem('adept_token', data.token);
+                    localStorage.setItem('adept_refresh_token', data.refreshToken);
                     localStorage.setItem('adept_user', JSON.stringify(data.user));
                     setCurrentUser(data.user);
+                    await supabase.auth.setSession({
+                        access_token: data.token,
+                        refresh_token: data.refreshToken,
+                    });
                     return { success: true, message: 'Successfully signed in.' };
                 }
                 return { success: false, message: data.error || 'Invalid credentials.' };
@@ -95,6 +111,7 @@ export function useAuth() {
                             const user = mockDb[userIndex];
                             const userObj: User = {
                                 id: 'mock-id',
+                                staffId: 'mock-staff-id',
                                 firstName: user.firstName,
                                 lastName: user.lastName,
                                 email: user.email,
@@ -126,7 +143,7 @@ export function useAuth() {
         });
     };
 
-    // New: called after the user confirms the "log in again?" prompt.
+    // Called after the user confirms the "log in again?" prompt.
     const reactivateAccount = async (
         username: string,
         password: string
@@ -142,8 +159,13 @@ export function useAuth() {
 
             if (res.ok) {
                 localStorage.setItem('adept_token', data.token);
+                localStorage.setItem('adept_refresh_token', data.refreshToken);
                 localStorage.setItem('adept_user', JSON.stringify(data.user));
                 setCurrentUser(data.user);
+                await supabase.auth.setSession({
+                    access_token: data.token,
+                    refresh_token: data.refreshToken,
+                });
                 return { success: true, message: data.message || 'Account reactivated.' };
             }
             return { success: false, message: data.error || 'Failed to reactivate account.' };
@@ -223,9 +245,12 @@ export function useAuth() {
             setLoading(false);
         }
     };
+
     const logout = () => {
         localStorage.removeItem('adept_user');
         localStorage.removeItem('adept_token');
+        localStorage.removeItem('adept_refresh_token');
+        supabase.auth.signOut();
         setCurrentUser(null);
     };
 

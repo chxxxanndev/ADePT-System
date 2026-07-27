@@ -8,6 +8,7 @@ import landholdingRoutes from './modules/landholding/landholding.routes.js';
 import noLandholdingRoutes from './modules/nolandholding/nolandholding.routes.js';
 import userRoutes from './modules/users/user.routes.js';
 import accountRoutes from './modules/account/account.routes.js';
+import notificationRoutes from './modules/notification/notification.routes.js'; 
 
 const app = express();
 
@@ -22,7 +23,20 @@ app.use('/api/requests', requestRoutes);
 app.use('/api/tax-declarations', taxDeclarationRoutes);
 app.use('/api/landholding', landholdingRoutes);
 app.use('/api/nolandholding', noLandholdingRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/account', accountRoutes);
+
+// server.js (at the very bottom, after app.use('/api/...'))
+
+// This is a Global Error Middleware
+app.use((err, req, res, next) => {
+    console.error("❌ GLOBAL ERROR CAUGHT:");
+    console.error(err.stack); // This will print the exact line number of the crash
+    res.status(500).json({
+        error: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : {}
+    });
+});
 
 export default app;

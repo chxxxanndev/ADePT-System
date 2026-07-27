@@ -37,70 +37,73 @@ class AuthService {
     let email = username;
 
     if (!username.includes('@')) {
-      const { data: profile } = await supabase.from('staff').select('email').ilike('username', username).single();
-      if (profile) email = profile.email;
-      else throw new Error("Username not found.");
+        const { data: profile } = await supabase.from('staff').select('email').ilike('username', username).single();
+        if (profile) email = profile.email;
+        else throw new Error("Username not found.");
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
     const { data: staffMember, error: staffError } = await supabase
-      .from('staff')
-      .select('first_name, last_name, username, account_status, disabled_at, avatar_url, admin_level, roles(code,name)')
-      .eq('auth_user_id', data.user.id)
-      .single();
+        .from('staff')
+        .select('id, first_name, last_name, username, account_status, disabled_at, avatar_url, admin_level, roles(code,name)')
+        .eq('auth_user_id', data.user.id)
+        .single();
 
     if (staffError || !staffMember) {
-      await supabase.auth.signOut();
-      throw new Error("Staff profile not found.");
+        await supabase.auth.signOut();
+        throw new Error("Staff profile not found.");
     }
 
     if (staffMember.account_status === 'DISABLED') {
-      await supabase.auth.signOut();
-
-      const disabledAt = staffMember.disabled_at ? new Date(staffMember.disabled_at) : null;
-      const daysSinceDisabled = disabledAt ? (Date.now() - disabledAt.getTime()) / (1000 * 60 * 60 * 24) : Infinity;
-
-      if (daysSinceDisabled <= REACTIVATION_WINDOW_DAYS) {
-        const daysRemaining = Math.max(0, Math.ceil(REACTIVATION_WINDOW_DAYS - daysSinceDisabled));
-        const err = new Error('Account is disabled but eligible for reactivation.');
-        err.reactivatable = true;
-        err.daysRemaining = daysRemaining;
-        throw err;
-      }
-
-      throw new Error('Access Denied. Your account was disabled more than 7 days ago. Please contact an administrator.');
+        await supabase.auth.signOut();
+        const disabledAt = staffMember.disabled_at ? new Date(staffMember.disabled_at) : null;
+        const daysSinceDisabled = disabledAt ? (Date.now() - disabledAt.getTime()) / (1000 * 60 * 60 * 24) : Infinity;
+        if (daysSinceDisabled <= REACTIVATION_WINDOW_DAYS) {
+            const daysRemaining = Math.max(0, Math.ceil(REACTIVATION_WINDOW_DAYS - daysSinceDisabled));
+            const err = new Error('Account is disabled but eligible for reactivation.');
+            err.reactivatable = true;
+            err.daysRemaining = daysRemaining;
+            throw err;
+        }
+        throw new Error('Access Denied. Your account was disabled more than 7 days ago. Please contact an administrator.');
     }
 
     if (staffMember.account_status !== 'ACTIVE') {
-      await supabase.auth.signOut();
-      throw new Error(`Access Denied. Your account is ${staffMember.account_status.replace('_', ' ')}.`);
+        await supabase.auth.signOut();
+        throw new Error(`Access Denied. Your account is ${staffMember.account_status.replace('_', ' ')}.`);
     }
 
     return {
-      token: data.session?.access_token,
-      user: {
-        id: data.user.id,
-        email: data.user.email,
-        firstName: staffMember.first_name,
-        lastName: staffMember.last_name,
-        username: staffMember.username,
-        role: staffMember.roles?.code,
-        roleName: staffMember.roles?.name, // 'Office Staff' (FROM YOUR ROLES TABLE)
-        adminLevel: staffMember.admin_level, // 'HIGH' | 'MEDIUM' | 'LOW' | null
-        status: staffMember.account_status,
-        avatarUrl: staffMember.avatar_url,
-        lastLogin: data.user.last_sign_in_at, // Real timestamp from Supabase Auth
-      }
+        token: data.session?.access_token,
+        refreshToken: data.session?.refresh_token,
+        user: {
+            id: data.user.id,
+            staffId: staffMember.id,
+            email: data.user.email,
+            firstName: staffMember.first_name,
+            lastName: staffMember.last_name,
+            username: staffMember.username,
+            role: staffMember.roles?.code,
+            roleName: staffMember.roles?.name,
+            adminLevel: staffMember.admin_level,
+            status: staffMember.account_status,
+            avatarUrl: staffMember.avatar_url,
+            lastLogin: data.user.last_sign_in_at,
+        }
     };
-  }
+}
 
   async reactivateAccount({ username, password }) {
     let email = username;
 
     if (!username.includes('@')) {
-      const { data: profile } = await supabase.from('staff').select('email').ilike('username', username).single();
+      const { data: staffMember, error: staffError } = await supabase
+    .from('staff')
+    .select('id, first_name, last_name, username, account_status, disabled_at, avatar_url, admin_level, roles(code,name)')
+    .eq('auth_user_id', data.user.id)
+    .single();
       if (profile) email = profile.email;
       else throw new Error("Username not found.");
     }
@@ -144,21 +147,23 @@ class AuthService {
     }
 
     return {
-      token: data.session?.access_token,
-      user: {
+    token: data.session?.access_token,
+    refreshToken: data.session?.refresh_token,
+    user: {
         id: data.user.id,
+        staffId: staffMember.id,
         email: data.user.email,
         firstName: staffMember.first_name,
         lastName: staffMember.last_name,
         username: staffMember.username,
-        role: staffMember.roles?.code, // renamed from roleCode for frontend consistency
+        role: staffMember.roles?.code,
         roleName: staffMember.roles?.name,
-        adminLevel: staffMember.admin_level, // 'HIGH' | 'MEDIUM' | 'LOW' | null
+        adminLevel: staffMember.admin_level,
         status: reactivated.account_status,
         avatarUrl: staffMember.avatar_url,
         lastLogin: data.user.last_sign_in_at,
-      }
-    };
+    }
+};
   }
 
   async forgotPassword(email) {
