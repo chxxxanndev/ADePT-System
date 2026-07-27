@@ -21,7 +21,7 @@ class LandholdingController {
             if (!data.declarantName?.trim()) {
                 return res.status(400).json({ error: 'Declarant / Owner Name is required.' });
             }
-            
+
             // Validate that property rows exist and have the mandatory TD/ARP number
             if (!data.propertyRows?.length || data.propertyRows.some(r => !r.tdArpNumber?.trim())) {
                 return res.status(400).json({ error: 'At least one property row with a TD/ARP No. is required.' });
@@ -33,7 +33,7 @@ class LandholdingController {
 
             // 3. Call Service
             const record = await landholdingService.saveLandholdingCertificate(data, staffAuthId, status);
-            
+
             return res.status(201).json({
                 message: `Certificate successfully saved as ${status}`,
                 data: record
@@ -82,6 +82,18 @@ class LandholdingController {
         } catch (err) {
             console.error('[LandholdingController.getByRequestId]', err);
             return res.status(500).json({ error: err.message || 'Failed to fetch landholding certificate.' });
+        }
+    }
+    async updateDraft(req, res) {
+        try {
+            const { id } = req.params;
+            const updateData = req.body;
+            // Assuming your service has an update method:
+            const updatedRecord = await landholdingService.updateLandholdingCertificate(id, updateData);
+            return res.status(200).json({ message: "Draft updated successfully", data: updatedRecord });
+        } catch (err) {
+            console.error('[LandholdingController.updateDraft]', err);
+            return res.status(500).json({ error: err.message || 'Failed to update draft.' });
         }
     }
 }

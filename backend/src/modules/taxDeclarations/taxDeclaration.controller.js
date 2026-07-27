@@ -58,3 +58,18 @@ export const getTaxDeclaration = async (req, res) => {
         return res.status(500).json({ error: error.message || 'Failed to fetch tax declaration.' });
     }
 };
+
+export const updateDraft = async (req, res) => {
+    try {
+        const { id } = req.params; // In Tax Dec, this might be the requestId or primary ID
+        const updateData = req.body;
+
+        // Assuming your service has an update method:
+        const updatedRecord = await TaxDeclarationService.updateTaxDeclaration(id, updateData);
+
+        return res.status(200).json({ message: 'Draft updated successfully', data: updatedRecord });
+    } catch (error) {
+        console.error('[TaxDeclarationController.updateDraft] Error:', error);
+        return res.status(500).json({ error: error.message || 'Failed to update draft.' });
+    }
+};

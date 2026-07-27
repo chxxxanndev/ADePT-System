@@ -78,4 +78,8 @@ export const landholdingService = {
         const response = await axios.get(`${API_BASE_URL}/request/${requestId}`);
         return response.data;
     },
+    async updateDraft(id: string, updateData: any) {
+        const response = await axios.put(`${API_BASE_URL}/${id}/edit-draft`, updateData);
+        return response.data;
+    },
 };

@@ -1,5 +1,5 @@
 import express from 'express';
-import { createTaxDeclaration, getTaxDeclaration } from './taxDeclaration.controller.js';
+import { createTaxDeclaration, getTaxDeclaration, updateDraft } from './taxDeclaration.controller.js';
 
 const router = express.Router();
 
@@ -8,5 +8,7 @@ router.post('/', createTaxDeclaration);
 
 // GET  /api/tax-declarations/:requestId — Fetch TD by parent request ID
 router.get('/:requestId', getTaxDeclaration);
+
+router.put('/:id/edit-draft', updateDraft);
 
 export default router;
