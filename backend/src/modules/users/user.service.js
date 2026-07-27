@@ -550,6 +550,29 @@ class UserService {
         if (error) throw error;
         return data;
     }
+
+    async unassignSignatory(staffId, actingStaff) {
+        if (!hasAdminLevel(actingStaff, 'HIGH')) {
+            throw new Error('Your admin access level does not permit removing the signatory.');
+        }
+
+        if (useMock || !supabase) {
+            const member = MOCK_STAFF.find((s) => s.id === staffId);
+            if (!member) throw new Error('Staff member not found.');
+            member.is_signatory = false;
+            return member;
+        }
+
+        const { data, error } = await supabase
+            .from('staff')
+            .update({ is_signatory: false })
+            .eq('id', staffId)
+            .select('id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, is_signatory, roles(code)')
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
 }
 
 export default new UserService();

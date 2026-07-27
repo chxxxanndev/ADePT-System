@@ -1,8 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import '../styles/StaffAccounts.css';
 import type { User } from '../../auth-folder/types/auth';
 import { useStaffAccounts, type StaffRow } from '../hooks/useStaffAccounts';
-import { createStaffAccount, promoteToAdmin, demoteToStaff, setAdminLevel } from '../services/userManagementService';
+import {
+    createStaffAccount,
+    promoteToAdmin,
+    demoteToStaff,
+    setAdminLevel,
+    assignSignatory,
+    unassignSignatory,
+} from '../services/userManagementService';
 import { addAdminAuditEntry } from '../services/auditLogService';
 import { hasAdminLevel, isSuperAdmin } from '../../utils/permissions';
 
@@ -13,6 +20,54 @@ interface StaffAccountsProps {
 }
 
 type AdminLevel = 'HIGH' | 'MEDIUM' | 'LOW';
+
+function PersonLockIcon({ size = 16 }: { size?: number }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="8.5" cy="6" r="3.5" fill="currentColor" />
+            <path
+                d="M2 17c0-3.6 2.9-6.2 6.5-6.2 1 0 1.94.2 2.78.56a4.48 4.48 0 00-.78 2.54v.6c0 .9.28 1.74.76 2.5H2z"
+                fill="currentColor"
+            />
+            <rect x="12.5" y="10.5" width="6" height="5.5" rx="1.2" fill="currentColor" />
+            <path
+                d="M13.7 10.5v-1.3a1.8 1.8 0 013.6 0v1.3"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                fill="none"
+            />
+        </svg>
+    );
+}
+
+function ClipboardArrowIcon({ size = 16 }: { size?: number }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="3.5" width="10" height="13" rx="1.4" stroke="currentColor" strokeWidth="1.4" fill="none" />
+            <rect x="6" y="2" width="4" height="2.4" rx="0.6" fill="currentColor" />
+            <path d="M6 8h5M6 11h3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            <path
+                d="M12.5 13l4 4m0 0v-3m0 3h-3"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+        </svg>
+    );
+}
+
+const menuItemStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '10px 14px',
+    fontSize: '0.85rem',
+    fontWeight: 600,
+    color: '#33364A',
+    background: 'none',
+    border: 'none',
+    borderBottom: '1px solid #F4F4F8',
+    cursor: 'pointer',
+};
 
 export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const {
@@ -49,11 +104,37 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const [roleActionLoadingId, setRoleActionLoadingId] = useState<string | null>(null);
     const [roleActionError, setRoleActionError] = useState<string | null>(null);
 
+    // ── Signatory flow state ────────────────────────────────────────────────
+    const [confirmSignatory, setConfirmSignatory] = useState<StaffRow | null>(null);
+
+    // ── Icon-button menu state ──────────────────────────────────────────────
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+    // ── Pagination state ───────────────────────────────────────────────────────
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [currentPage, setCurrentPage] = useState(1);
+
     const activeCount = staff.filter((s) => s.status === 'active').length;
     const initials = `${user.firstName?.[0] || 'A'}${user.lastName?.[0] || 'U'}`;
 
     const canCreateStaff = hasAdminLevel(user, 'MEDIUM');
+    const canManageSignatory = hasAdminLevel(user, 'HIGH');
     const superAdmin = isSuperAdmin(user);
+    const currentSignatory = staff.find((s) => s.isSignatory);
+
+    // ── Filtered + paginated derived lists ─────────────────────────────────────
+    const filteredStaffList = staff.filter((member) => statusFilter === 'all' || member.status === statusFilter);
+    const totalRows = filteredStaffList.length;
+    const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = Math.min(startIndex + rowsPerPage, totalRows);
+    const paginatedStaff = filteredStaffList.slice(startIndex, endIndex);
+
+    // Reset to page 1 whenever the filter, rows-per-page, or search changes,
+    // so you don't get stuck on an empty page after narrowing the results.
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [statusFilter, rowsPerPage, searchQuery]);
 
     /**
      * Can the current user toggle active/inactive on this staff member?
@@ -187,6 +268,42 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
             await refresh();
         } catch (err: unknown) {
             setRoleActionError(err instanceof Error ? err.message : 'Failed to demote admin.');
+        } finally {
+            setRoleActionLoadingId(null);
+        }
+    };
+
+    // ── Signatory flow ──────────────────────────────────────────────────────
+    const openSignatoryConfirm = (member: StaffRow) => {
+        setRoleActionError(null);
+        setConfirmSignatory(member);
+    };
+
+    const handleSignatoryConfirmYes = async () => {
+        if (!confirmSignatory) return;
+        const member = confirmSignatory;
+        setRoleActionLoadingId(member.id);
+        setRoleActionError(null);
+        try {
+            if (member.isSignatory) {
+                await unassignSignatory(member.id);
+                addAdminAuditEntry({
+                    type: 'decline',
+                    actor: actorName,
+                    description: `removed ${member.name} as signatory`,
+                });
+            } else {
+                await assignSignatory(member.id);
+                addAdminAuditEntry({
+                    type: 'approval',
+                    actor: actorName,
+                    description: `assigned ${member.name} as signatory`,
+                });
+            }
+            setConfirmSignatory(null);
+            await refresh();
+        } catch (err: unknown) {
+            setRoleActionError(err instanceof Error ? err.message : 'Failed to update signatory.');
         } finally {
             setRoleActionLoadingId(null);
         }
@@ -336,105 +453,213 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                         ))}
                                     </tr>
                                 ))
-                            ) : staff.length === 0 ? (
+                            ) : totalRows === 0 ? (
                                 <tr>
                                     <td colSpan={superAdmin ? 8 : 7} style={{ textAlign: 'center', opacity: 0.5, padding: '24px' }}>
                                         No staff members found.
                                     </td>
                                 </tr>
                             ) : (
-                                staff
-                                    .filter((member) => statusFilter === 'all' || member.status === statusFilter)
-                                    .map((member) => {
-                                        const allowed = canManageStaffMember(member);
-                                        const actingOnThis = roleActionLoadingId === member.id;
-                                        return (
-                                            <tr key={member.id}>
-                                                <td><strong>{member.name}</strong></td>
-                                                <td>{member.username}</td>
-                                                <td>{member.email}</td>
-                                                <td>
-                                                    {member.role}
-                                                    {member.roleCode === 'ADMIN' && member.adminLevel && (
-                                                        <span style={{ marginLeft: 6, fontSize: '0.72rem', color: '#8b8fa3' }}>
-                                                            · {member.adminLevel}
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td>
-                                                    <span className={`status-indicator ${member.status}`}>
-                                                        <span className="status-dot" />
-                                                        {member.status === 'active' ? 'Active' : member.status === 'pending' ? 'Pending' : 'Inactive'}
+                                paginatedStaff.map((member) => {
+                                    const allowed = canManageStaffMember(member);
+                                    const actingOnThis = roleActionLoadingId === member.id;
+                                    return (
+                                        <tr key={member.id}>
+                                            <td>
+                                                <strong>{member.name}</strong>
+                                                {member.isSignatory && (
+                                                    <span style={{
+                                                        marginLeft: 6,
+                                                        fontSize: '0.68rem',
+                                                        fontWeight: 700,
+                                                        color: '#3D2E7C',
+                                                        background: '#EEF0F7',
+                                                        borderRadius: '999px',
+                                                        padding: '2px 8px',
+                                                    }}>
+                                                        Signatory
                                                     </span>
-                                                </td>
-                                                <td>{member.dateAdded}</td>
+                                                )}
+                                            </td>
+                                            <td>{member.username}</td>
+                                            <td>{member.email}</td>
+                                            <td>
+                                                {member.role}
+                                                {member.roleCode === 'ADMIN' && member.adminLevel && (
+                                                    <span style={{ marginLeft: 6, fontSize: '0.72rem', color: '#8b8fa3' }}>
+                                                        · {member.adminLevel}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td>
+                                                <span className={`status-indicator ${member.status}`}>
+                                                    <span className="status-dot" />
+                                                    {member.status === 'active' ? 'Active' : member.status === 'pending' ? 'Pending' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                            <td>{member.dateAdded}</td>
+                                            <td>
+                                                {allowed ? (
+                                                    <button
+                                                        className={`staff-manage-btn ${member.status === 'active' ? 'deactivate' : 'activate'}`}
+                                                        disabled={updatingId === member.id || member.status === 'pending'}
+                                                        onClick={() => toggleStatus(member.id)}
+                                                        title={
+                                                            member.status === 'active'
+                                                                ? 'Deactivate this staff member'
+                                                                : 'Reactivate this staff member'
+                                                        }
+                                                    >
+                                                        {updatingId === member.id
+                                                            ? 'Saving…'
+                                                            : member.status === 'active'
+                                                            ? 'Deactivate'
+                                                            : 'Activate'}
+                                                    </button>
+                                                ) : (
+                                                    <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                                                        No access
+                                                    </span>
+                                                )}
+                                            </td>
+                                            {superAdmin && (
                                                 <td>
-                                                    {allowed ? (
-                                                        <button
-                                                            className={`staff-manage-btn ${member.status === 'active' ? 'deactivate' : 'activate'}`}
-                                                            disabled={updatingId === member.id || member.status === 'pending'}
-                                                            onClick={() => toggleStatus(member.id)}
-                                                            title={
-                                                                member.status === 'active'
-                                                                    ? 'Deactivate this staff member'
-                                                                    : 'Reactivate this staff member'
-                                                            }
-                                                        >
-                                                            {updatingId === member.id
-                                                                ? 'Saving…'
-                                                                : member.status === 'active'
-                                                                ? 'Deactivate'
-                                                                : 'Activate'}
-                                                        </button>
-                                                    ) : (
-                                                        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                                                            No access
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                {superAdmin && (
-                                                    <td>
-                                                        {member.roleCode === 'OFFICE_STAFF' && (
+                                                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', position: 'relative' }}>
+                                                        {member.roleCode !== 'SUPER_ADMIN' && (
                                                             <button
-                                                                className="staff-manage-btn activate"
-                                                                disabled={actingOnThis}
-                                                                onClick={() => openPromoteConfirm(member)}
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    member.roleCode === 'ADMIN'
+                                                                        ? setOpenMenuId(openMenuId === member.id ? null : member.id)
+                                                                        : openPromoteConfirm(member)
+                                                                }
+                                                                title={member.roleCode === 'ADMIN' ? 'Manage Admin Access' : 'Promote to Admin'}
+                                                                style={{
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                    width: '32px', height: '32px', borderRadius: '10px',
+                                                                    border: 'none', background: '#DDF3E4', color: '#14532D', cursor: 'pointer',
+                                                                }}
                                                             >
-                                                                {actingOnThis ? 'Saving…' : 'Promote to Admin'}
+                                                                <PersonLockIcon size={15} />
                                                             </button>
                                                         )}
-                                                        {member.roleCode === 'ADMIN' && (
-                                                            <div style={{ display: 'flex', gap: '6px' }}>
+
+                                                        {openMenuId === member.id && member.roleCode === 'ADMIN' && (
+                                                            <div
+                                                                onMouseLeave={() => setOpenMenuId(null)}
+                                                                style={{
+                                                                    position: 'absolute', top: '38px', left: 0, zIndex: 20,
+                                                                    background: '#FFFFFF', borderRadius: '10px',
+                                                                    boxShadow: '0 8px 24px rgba(15,23,42,0.15)',
+                                                                    border: '1px solid #EDEEF3', minWidth: '190px',
+                                                                    display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                                                                }}
+                                                            >
                                                                 <button
-                                                                    className="staff-manage-btn"
-                                                                    disabled={actingOnThis}
-                                                                    onClick={() => openChangeLevel(member)}
+                                                                    type="button"
+                                                                    onClick={() => { setOpenMenuId(null); openChangeLevel(member); }}
+                                                                    style={menuItemStyle}
                                                                 >
-                                                                    Change Level
+                                                                    Change Admin Level
                                                                 </button>
                                                                 <button
-                                                                    className="staff-manage-btn deactivate"
-                                                                    disabled={actingOnThis}
-                                                                    onClick={() => openDemoteConfirm(member)}
+                                                                    type="button"
+                                                                    onClick={() => { setOpenMenuId(null); openDemoteConfirm(member); }}
+                                                                    style={{ ...menuItemStyle, color: '#DC2626', borderBottom: 'none' }}
                                                                 >
-                                                                    {actingOnThis ? 'Saving…' : 'Demote to Staff'}
+                                                                    Demote to Staff
                                                                 </button>
                                                             </div>
                                                         )}
-                                                        {(member.roleCode === 'SUPER_ADMIN') && (
-                                                            <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                                                                —
-                                                            </span>
+
+                                                        {canManageSignatory && member.status === 'active' && member.roleCode !== 'SUPER_ADMIN' && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openSignatoryConfirm(member)}
+                                                                title={member.isSignatory ? 'Remove as Signatory' : 'Assign as Signatory'}
+                                                                style={{
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                    width: '32px', height: '32px', borderRadius: '10px',
+                                                                    border: 'none', background: '#DDF3E4', color: '#14532D', cursor: 'pointer',
+                                                                }}
+                                                            >
+                                                                <ClipboardArrowIcon size={15} />
+                                                            </button>
                                                         )}
-                                                    </td>
-                                                )}
-                                            </tr>
-                                        );
-                                    })
+                                                    </div>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination footer */}
+                {!loading && totalRows > 0 && (
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 20px',
+                        borderTop: '1px solid #EDEEF3',
+                        fontSize: '0.85rem',
+                        color: '#64748b',
+                        flexWrap: 'wrap',
+                        gap: '10px',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>Rows per page:</span>
+                            <select
+                                value={rowsPerPage}
+                                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                                style={{ borderRadius: '6px', border: '1px solid #e2e8f0', padding: '4px 8px' }}
+                            >
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                            </select>
+                        </div>
+
+                        <span>
+                            {startIndex + 1}{'\u2013'}{endIndex} of {totalRows}
+                        </span>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: currentPage === 1 ? 'default' : 'pointer',
+                                    color: currentPage === 1 ? '#cbd5e1' : '#3D2E7C',
+                                    fontWeight: 600,
+                                }}
+                            >
+                                Previous
+                            </button>
+                            <span>Page {currentPage} of {totalPages}</span>
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: currentPage === totalPages ? 'default' : 'pointer',
+                                    color: currentPage === totalPages ? '#cbd5e1' : '#3D2E7C',
+                                    fontWeight: 600,
+                                }}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* ── Add Staff modal ─────────────────────────────────────────────── */}
@@ -607,6 +832,40 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                     </div>
                 </div>
             )}
+
+            {/* ── Signatory confirm modal ─────────────────────────────────────── */}
+            {confirmSignatory && (
+                <div className="staff-modal-backdrop" onClick={() => setConfirmSignatory(null)}>
+                    <div className="staff-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+                        <div className="staff-modal-header">
+                            <div>
+                                <h3>{confirmSignatory.isSignatory ? 'Remove Signatory' : 'Assign Signatory'}</h3>
+                            </div>
+                            <button className="staff-modal-close" onClick={() => setConfirmSignatory(null)}>×</button>
+                        </div>
+                        <div style={{ padding: '20px' }}>
+                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#33364A' }}>
+                                {confirmSignatory.isSignatory ? (
+                                    <>Remove <strong>{confirmSignatory.name}</strong> as the signatory? Their name will no longer appear on newly generated documents.</>
+                                ) : currentSignatory ? (
+                                    <>Assign <strong>{confirmSignatory.name}</strong> as the new signatory? This will replace <strong>{currentSignatory.name}</strong>, the current signatory.</>
+                                ) : (
+                                    <>Assign <strong>{confirmSignatory.name}</strong> as the signatory? Their name will appear on generated documents as the approving official.</>
+                                )}
+                            </p>
+                        </div>
+                        <div className="staff-modal-actions">
+                            <button type="button" className="staff-manage-btn" onClick={() => setConfirmSignatory(null)} disabled={roleActionLoadingId === confirmSignatory.id}>
+                                Cancel
+                            </button>
+                            <button type="button" className="admin-add-btn" onClick={handleSignatoryConfirmYes} disabled={roleActionLoadingId === confirmSignatory.id}>
+                                {roleActionLoadingId === confirmSignatory.id ? 'Saving…' : 'Confirm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </>
     );
 }

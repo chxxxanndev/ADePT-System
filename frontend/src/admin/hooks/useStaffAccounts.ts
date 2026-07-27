@@ -19,6 +19,7 @@ export interface StaffRow {
     account_status: StaffMember['account_status'];
     createdBy: string | null;
     adminLevel: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+    isSignatory: boolean;
 }
 
 function formatDate(iso: string): string {
@@ -46,6 +47,7 @@ function mapToRow(member: StaffMember): StaffRow {
         DISABLED:         'inactive',
         PENDING_APPROVAL: 'pending',
         REJECTED:         'inactive',
+
     };
      return {
         id:             member.id,
@@ -59,6 +61,7 @@ function mapToRow(member: StaffMember): StaffRow {
         account_status: member.account_status,
         createdBy:      member.created_by ?? null,
         adminLevel:     member.admin_level ?? null,
+        isSignatory:    member.is_signatory ?? false,
     };
 }
 

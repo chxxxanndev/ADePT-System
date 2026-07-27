@@ -194,4 +194,53 @@ export const demoteToStaff = async (req, res) => {
                 : 400;
         res.status(statusCode).json({ error: error.message });
     }
+
+};
+
+/**
+ * PATCH /api/users/staff/:id/assign-signatory
+ * Assigns this staff member as the sole signatory. SUPER_ADMIN or ADMIN(HIGH).
+ */
+export const assignSignatory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ error: 'Staff ID is required.' });
+        }
+
+        const actingStaff = await UserService.getActingStaff(req.user.id);
+        const updated = await UserService.assignSignatory(id, actingStaff);
+        res.status(200).json({ message: 'Signatory assigned.', staff: updated });
+    } catch (error) {
+        const statusCode = error.message.includes('not found')
+            ? 404
+            : error.message.includes('permit')
+                ? 403
+                : 400;
+        res.status(statusCode).json({ error: error.message });
+    }
+};
+
+/**
+ * PATCH /api/users/staff/:id/unassign-signatory
+ * SUPER_ADMIN or ADMIN(HIGH).
+ */
+export const unassignSignatory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ error: 'Staff ID is required.' });
+        }
+
+        const actingStaff = await UserService.getActingStaff(req.user.id);
+        const updated = await UserService.unassignSignatory(id, actingStaff);
+        res.status(200).json({ message: 'Signatory removed.', staff: updated });
+    } catch (error) {
+        const statusCode = error.message.includes('not found')
+            ? 404
+            : error.message.includes('permit')
+                ? 403
+                : 400;
+        res.status(statusCode).json({ error: error.message });
+    }
 };
