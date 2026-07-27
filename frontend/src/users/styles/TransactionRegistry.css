@@ -1,7 +1,7 @@
 /* ===== Transaction Registry ===== */
 
 .tr-page {
-    background-color: #ECEAF3;
+    background-color: transparent;
     min-height: 100%;
     padding: 0 4px 32px;
 }
@@ -840,4 +840,29 @@
     flex-direction: column;
     justify-content: center;
     gap: 8px;
+}
+
+.td-docitem--clickable {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    cursor: pointer;
+    border: none;
+    text-align: left;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.td-docitem--clickable:hover {
+    background: #f4f3fb;
+    border-color: #4f46e5;
+}
+.td-docitem-arrow {
+    color: #4f46e5;
+    font-weight: 700;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.td-docitem--clickable:hover .td-docitem-arrow {
+    opacity: 1;
+    transform: translateX(2px);
 }

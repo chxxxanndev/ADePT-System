@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RegistrySummarySkeleton, RegistryToolbarSkeleton, RegistryTableSkeleton } from '../components/common/Skeleton';
 import type { Transaction, TransactionFilters } from '../types/transaction';
-import { mockTransactions, computeSummary } from '../data/mockTransactions';
+import { computeSummary } from '../data/mockTransactions';
+import { fetchTransactionRegistry } from '../services/transactionService';
 import { SummaryCards } from '../components/SummaryCards';
 import { SearchBar } from '../components/SearchBar';
 import { FilterBar } from '../components/FilterBar';
@@ -17,8 +18,6 @@ const DEFAULT_FILTERS: TransactionFilters = {
     dateTo: '',
 };
 
-const SOURCE_DATA: Transaction[] = mockTransactions;
-
 function toComparableDate(mmddyyyy: string): string {
     const [m, d, y] = mmddyyyy.split('/');
     return `${y}-${m}-${d}`;
@@ -30,17 +29,28 @@ export function TransactionRegistry() {
     // --- DATA & LOADING STATES ---
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_FILTERS);
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
-    // --- LAZY LOADING SIMULATION ---
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setTransactions(SOURCE_DATA);
+    const loadTransactions = async () => {
+        setIsLoading(true);
+        setLoadError(null);
+        try {
+            const data = await fetchTransactionRegistry();
+            setTransactions(data);
+        } catch (err) {
+            setLoadError(err instanceof Error ? err.message : 'Failed to load transactions.');
+            setTransactions([]);
+        } finally {
             setIsLoading(false);
-        }, 1500);
-        return () => clearTimeout(timer);
+        }
+    };
+
+    // --- REAL DATA LOAD (replaces the old setTimeout mock-data simulation) ---
+    useEffect(() => {
+        loadTransactions();
     }, []);
 
     const summary = useMemo(() => computeSummary(transactions), [transactions]);
@@ -64,12 +74,17 @@ export function TransactionRegistry() {
 
     /** 
      * ACTION HANDLERS (Status-Aware Logic)
+     * NOTE: Void/Archive/Cancel below still only update local state — none
+     * of these call the backend yet. RequestService currently has no
+     * update path for these specific status transitions (releaseRequest()
+     * only handles the payment/release step). Wiring these for real is
+     * part of the "Void & Amend" workflow in the new feature spec, not
+     * this pass.
      */
     const handlePrint = (t: Transaction) => alert(`Printing official copy: ${t.referenceNumber}`);
 
     const handleEdit = (t: Transaction) => {
         const ref = t.referenceNumber;
-        // Logic: Redirect to appropriate encoding form
         if (t.requestedDocuments.includes('Tax Declaration')) navigate(`/encode/tax-declaration/${ref}`);
         else navigate(`/encode/certification/${ref}`);
     };
@@ -109,6 +124,11 @@ export function TransactionRegistry() {
                     <RegistrySummarySkeleton />
                     <RegistryToolbarSkeleton />
                     <RegistryTableSkeleton />
+                </div>
+            ) : loadError ? (
+                <div className="tr-card" style={{ padding: '32px', textAlign: 'center', color: '#B0281C' }}>
+                    <p style={{ margin: '0 0 12px', fontWeight: 600 }}>{loadError}</p>
+                    <button className="tr-filter-reset" onClick={loadTransactions}>Retry</button>
                 </div>
             ) : (
                 <>

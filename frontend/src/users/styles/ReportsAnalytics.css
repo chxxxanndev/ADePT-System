@@ -12,7 +12,6 @@
   --color-secondary-hover: #00aac1;
   --color-secondary-tint: rgba(0, 188, 212, 0.1);
 
-  --color-background: #f3f4f8;
   --color-surface: #ffffff;
   --color-text: #1e2130;
   --color-muted: #6c7086;
@@ -77,14 +76,16 @@
 }
 
 .reports-title {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--color-primary);
   margin: 0;
 }
 
 .reports-subtitle {
-  font-size: 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
   color: var(--color-muted);
   margin: 4px 0 0;
 }
@@ -109,8 +110,8 @@
 .period-btn {
   padding: 6px 16px;
   border-radius: 9999px;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 0.83rem;
+  font-weight: 700;
   text-transform: capitalize;
   background-color: transparent;
   color: var(--color-text);
@@ -142,8 +143,8 @@
   gap: 8px;
   padding: 8px 16px;
   border-radius: 9999px;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 0.8rem;
+  font-weight: 700;
   background-color: var(--color-secondary);
   color: #ffffff;
   border: none;
@@ -185,8 +186,8 @@
 }
 
 .stat-label {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 10.5px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-muted);
@@ -214,7 +215,7 @@
 
 .stat-value {
   font-size: 30px;
-  font-weight: 600;
+  font-weight: 800;
   color: var(--color-text);
 }
 
@@ -227,8 +228,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 700;
   width: fit-content;
 }
 
@@ -282,7 +283,8 @@
 
 .chart-title {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   color: var(--color-primary);
   margin: 0;
 }
@@ -328,7 +330,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--color-muted);
 }
 
@@ -340,7 +343,7 @@
 }
 
 .legend-value {
-  font-weight: 600;
+  font-weight: 800;
   color: var(--color-text);
 }
 
@@ -366,13 +369,15 @@
 
 .table-title {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   color: var(--color-primary);
   margin: 0;
 }
 
 .table-count {
-  font-size: 14px;
+  font-size: 12.5px;
+  font-weight: 700;
   color: var(--color-muted);
   margin: 4px 0 0;
 }
@@ -402,7 +407,9 @@
   max-width: 100%;
   padding: 8px 16px 8px 36px;
   border-radius: 9999px;
-  font-size: 14px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  font-family: inherit;
   outline: none;
   background-color: var(--input-bg);
   border: 1px solid var(--input-border);
@@ -421,7 +428,9 @@
   appearance: none;
   padding: 8px 36px 8px 16px;
   border-radius: 9999px;
-  font-size: 14px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  font-family: inherit;
   outline: none;
   background-color: var(--input-bg);
   border: 1px solid var(--input-border);
@@ -461,8 +470,11 @@
 
 .reports-table th {
   text-align: left;
-  font-weight: 500;
-  color: var(--color-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-primary);
   padding: 12px 16px;
   white-space: nowrap;
 }
@@ -491,33 +503,23 @@
 }
 
 .cell-reference {
-  font-weight: 500;
+  font-family: 'SFMono-Regular', 'Courier New', monospace;
+  font-weight: 600;
   color: var(--color-secondary);
   white-space: nowrap;
 }
 
+.cell-name {
+  font-weight: 600;
+  font-size: 0.86rem;
+  color: var(--color-text);
+}
+
 .cell-muted {
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--color-muted);
   white-space: nowrap;
-}
-
-.declarant-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 9999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: #ffffff;
-  flex-shrink: 0;
 }
 
 .empty-row td {
@@ -534,8 +536,9 @@
   gap: 6px;
   padding: 4px 12px;
   border-radius: 9999px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 

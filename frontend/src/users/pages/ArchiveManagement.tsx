@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Search, ChevronDown, Archive, RotateCcw } from "lucide-react";
+import { Search, ChevronDown, Archive, RotateCcw, Loader2 } from "lucide-react"; // Added Loader2
 import { requestService } from "../services/requestService";
 import "../styles/ArchiveManagement.css";
 
@@ -233,7 +233,12 @@ export default function ArchiveManagement() {
               <tbody>
                 {loading ? (
                   <tr className="arc-empty-row">
-                    <td colSpan={7}>⏳ Loading archives...</td>
+                    <td colSpan={7}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        <Loader2 size={18} className="arc-spinner" style={{ animation: 'spin 1s linear infinite' }} /> 
+                        Loading archives...
+                      </div>
+                    </td>
                   </tr>
                 ) : filteredRecords.length === 0 ? (
                   <tr className="arc-empty-row">

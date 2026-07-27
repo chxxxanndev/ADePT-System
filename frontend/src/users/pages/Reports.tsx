@@ -12,9 +12,6 @@ import {
 import {
   FileText,
   FileStack,
-  MapPin,
-  MapPinOff,
-  Clock3,
   ShieldCheck,
   Search,
   ChevronDown,
@@ -33,7 +30,6 @@ import {
   processingQueue,
   transactionManagement,
   declarantRecords,
-  type DeclarantStatus,
 } from "../data/reportsMockData";
 
 type Period = "daily" | "weekly" | "monthly";
@@ -44,14 +40,42 @@ const PERIOD_LABEL: Record<Period, string> = {
   monthly: "This Month",
 };
 
-const STATUS_CLASS: Record<DeclarantStatus, string> = {
-  Released: "status-badge--released",
-  "Pending Payment": "status-badge--pending-payment",
-  "Pending Verification": "status-badge--pending-verification",
-  Voided: "status-badge--voided",
-  Flagged: "status-badge--flagged",
-  Archived: "status-badge--archived",
+/**
+ * Normalized status taxonomy: every raw status coming out of
+ * reportsMockData gets bucketed into exactly one of these 5.
+ */
+const STATUS_ORDER = ["RELEASED", "ARCHIVED", "VOIDED", "AMENDED", "REPRINTED"] as const;
+type NormalizedStatus = (typeof STATUS_ORDER)[number];
+
+const STATUS_CLASS: Record<NormalizedStatus, string> = {
+  RELEASED: "status-badge--released",
+  ARCHIVED: "status-badge--archived",
+  VOIDED: "status-badge--voided",
+  AMENDED: "status-badge--pending-payment", // reusing orange theme
+  REPRINTED: "status-badge--pending-verification", // reusing purple theme
 };
+
+const STATUS_CHART_COLOR: Record<NormalizedStatus, string> = {
+  RELEASED: "#4f46e5",
+  ARCHIVED: "#64748b",
+  VOIDED: "#ef4444",
+  AMENDED: "#f59e0b",
+  REPRINTED: "#06b6d4",
+};
+
+/**
+ * Maps a raw status string (whatever shape it comes in as from
+ * reportsMockData) onto the 5 normalized buckets above.
+ */
+function normalizeStatus(raw: string): NormalizedStatus {
+  const s = raw.toUpperCase();
+  if (s.includes("RELEASED")) return "RELEASED";
+  if (s.includes("ARCHIVE") || s.includes("FLAGGED")) return "ARCHIVED";
+  if (s.includes("VOID")) return "VOIDED";
+  if (s.includes("PAYMENT") || s.includes("AMEND")) return "AMENDED";
+  if (s.includes("VERIFICATION") || s.includes("REPRINT")) return "REPRINTED";
+  return "RELEASED";
+}
 
 /* ------------------------------------------------------------------ */
 /*  Small building blocks                                             */
@@ -133,7 +157,7 @@ function StatCard({
   );
 }
 
-function StatusBadge({ status }: { status: DeclarantStatus }) {
+function StatusBadge({ status }: { status: NormalizedStatus }) {
   return (
     <span className={`status-badge ${STATUS_CLASS[status]}`}>
       <span className="status-dot" />
@@ -161,26 +185,50 @@ function CustomBarTooltip({ active, payload }: any) {
 export default function Reports() {
   const [period, setPeriod] = useState<Period>("monthly");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"All" | DeclarantStatus>("All");
+  const [statusFilter, setStatusFilter] = useState<NormalizedStatus | "All">("All");
 
   const taxDeclaration = documentTypeBreakdown.find((d) => d.id === "tax-declaration")!;
-  const landHolding = documentTypeBreakdown.find((d) => d.id === "land-holding")!;
-  const noLandHolding = documentTypeBreakdown.find((d) => d.id === "no-land-holding")!;
-
   const pendingPayment = processingQueue.find((p) => p.id === "pending-payment")!;
   const pendingVerification = processingQueue.find((p) => p.id === "pending-verification")!;
 
+  const mockEncoders = ["Ana Marquez", "Dennis Cruz", "John Cruz", "Maria Lopez"];
+
   const filteredDeclarants = useMemo(() => {
     return declarantRecords.filter((d) => {
+      const normalized = normalizeStatus(d.status);
       const matchesSearch =
         search.trim() === "" ||
         d.declarantName.toLowerCase().includes(search.toLowerCase()) ||
         d.reference.toLowerCase().includes(search.toLowerCase()) ||
         d.documentRequested.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = statusFilter === "All" || d.status === statusFilter;
+
+      const matchesStatus = statusFilter === "All" || normalized === statusFilter;
+
       return matchesSearch && matchesStatus;
     });
   }, [search, statusFilter]);
+
+  const filteredChartData = useMemo(() => {
+    const bins: Record<NormalizedStatus, { count: number; color: string }> = {
+      RELEASED: { count: 0, color: STATUS_CHART_COLOR.RELEASED },
+      ARCHIVED: { count: 0, color: STATUS_CHART_COLOR.ARCHIVED },
+      VOIDED: { count: 0, color: STATUS_CHART_COLOR.VOIDED },
+      AMENDED: { count: 0, color: STATUS_CHART_COLOR.AMENDED },
+      REPRINTED: { count: 0, color: STATUS_CHART_COLOR.REPRINTED },
+    };
+
+    transactionManagement.forEach((item) => {
+      const normalized = normalizeStatus(item.label);
+      bins[normalized].count += item.count;
+    });
+
+    return STATUS_ORDER.map((label, idx) => ({
+      id: idx,
+      label,
+      count: bins[label].count,
+      color: bins[label].color,
+    }));
+  }, []);
 
   return (
     <div className="reports-page">
@@ -190,8 +238,7 @@ export default function Reports() {
           <div>
             <h1 className="reports-title">Reports &amp; Analytics</h1>
             <p className="reports-subtitle">
-              Document releases, requests, and registry activity —{" "}
-              {PERIOD_LABEL[period]}
+              Document registry activity — {PERIOD_LABEL[period]}
             </p>
           </div>
           <div className="reports-header-actions">
@@ -203,7 +250,7 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Documents released / requested / tax declarations / pending total */}
+        {/* Stats Grid */}
         <div className="stats-grid">
           <StatCard
             icon={<FileText size={18} />}
@@ -231,78 +278,31 @@ export default function Reports() {
           <StatCard
             icon={<ShieldCheck size={18} />}
             iconClass="stat-icon--pending"
-            label="Pending Payment + Verification"
+            label="Total Pending"
             value={pendingPayment.count + pendingVerification.count}
             sublabel="Live queue"
           />
         </div>
 
-        {/* Landholding / no-landholding / pending breakdown */}
-        <div className="stats-grid">
-          <StatCard
-            icon={<MapPin size={18} />}
-            iconClass="stat-icon--success"
-            label="Landholding Released"
-            value={landHolding[period]}
-            sublabel={PERIOD_LABEL[period]}
-          />
-          <StatCard
-            icon={<MapPinOff size={18} />}
-            iconClass="stat-icon--secondary"
-            label="No-Landholding Released"
-            value={noLandHolding[period]}
-            sublabel={PERIOD_LABEL[period]}
-          />
-          <StatCard
-            icon={<Clock3 size={18} />}
-            iconClass="stat-icon--pending"
-            label="Pending Payment"
-            value={pendingPayment.count}
-            sublabel="Live queue"
-          />
-          <StatCard
-            icon={<Clock3 size={18} />}
-            iconClass="stat-icon--pending"
-            label="Pending Verification"
-            value={pendingVerification.count}
-            sublabel="Live queue"
-          />
-        </div>
-
-        {/* Transaction management chart */}
+        {/* Chart */}
         <div className="chart-card">
           <div className="chart-header">
-            <h2 className="chart-title">Transaction &amp; Document Status Overview</h2>
+            <h2 className="chart-title">Document Status Distribution</h2>
           </div>
-          <p className="chart-description">
-            Transaction registry, certified true copies, void &amp; amended, and
-            archived / flagged documents
-          </p>
           <div className="chart-canvas">
             <ResponsiveContainer>
-              <BarChart
-                data={transactionManagement}
-                margin={{ top: 8, right: 8, left: -12, bottom: 8 }}
-              >
+              <BarChart data={filteredChartData} margin={{ top: 8, right: 8, left: -12, bottom: 8 }}>
                 <CartesianGrid vertical={false} stroke="rgba(41,35,122,0.08)" />
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 11, fill: "#8b8fa3" }}
+                  tick={{ fontSize: 10, fill: "#8b8fa3" }}
                   axisLine={{ stroke: "rgba(41,35,122,0.12)" }}
                   tickLine={false}
-                  interval={0}
                 />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "#8b8fa3" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  content={<CustomBarTooltip />}
-                  cursor={{ fill: "rgba(41,35,122,0.04)" }}
-                />
+                <YAxis tick={{ fontSize: 11, fill: "#8b8fa3" }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomBarTooltip />} cursor={{ fill: "rgba(41,35,122,0.04)" }} />
                 <Bar dataKey="count" radius={[8, 8, 0, 0]} maxBarSize={56}>
-                  {transactionManagement.map((entry, i) => (
+                  {filteredChartData.map((entry, i) => (
                     <Cell key={i} fill={entry.color} />
                   ))}
                 </Bar>
@@ -310,8 +310,8 @@ export default function Reports() {
             </ResponsiveContainer>
           </div>
           <div className="chart-legend">
-            {transactionManagement.map((r) => (
-              <div key={r.id} className="legend-item">
+            {filteredChartData.map((r) => (
+              <div key={r.label} className="legend-item">
                 <span className="legend-dot" style={{ backgroundColor: r.color }} />
                 {r.label}
                 <span className="legend-value">{r.count.toLocaleString()}</span>
@@ -320,7 +320,7 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Declarants table */}
+        {/* Table */}
         <div className="table-card">
           <div className="table-toolbar">
             <div>
@@ -336,25 +336,22 @@ export default function Reports() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search name, reference, document..."
+                  placeholder="Search records..."
                   className="search-input"
                 />
               </div>
               <div className="filter-field">
                 <select
                   value={statusFilter}
-                  onChange={(e) =>
-                    setStatusFilter(e.target.value as "All" | DeclarantStatus)
-                  }
+                  onChange={(e) => setStatusFilter(e.target.value as NormalizedStatus | "All")}
                   className="filter-select"
                 >
-                  <option>All</option>
-                  <option>Released</option>
-                  <option>Pending Payment</option>
-                  <option>Pending Verification</option>
-                  <option>Voided</option>
-                  <option>Flagged</option>
-                  <option>Archived</option>
+                  <option value="All">All Statuses</option>
+                  {STATUS_ORDER.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown size={14} className="filter-chevron" />
               </div>
@@ -378,20 +375,15 @@ export default function Reports() {
                 {filteredDeclarants.map((d, idx) => (
                   <tr key={d.reference} className={idx % 2 !== 0 ? "row-alt" : ""}>
                     <td className="cell-reference">#{d.reference}</td>
-                    <td>
-                      <div className="declarant-cell">
-                        <div className="avatar" style={{ backgroundColor: d.avatarColor }}>
-                          {d.initials}
-                        </div>
-                        <span>{d.declarantName}</span>
-                      </div>
-                    </td>
+                    <td className="cell-name">{d.declarantName}</td>
                     <td>{d.documentRequested}</td>
                     <td className="cell-muted">{d.dateReleased}</td>
                     <td className="cell-muted">{d.staffReleased}</td>
-                    <td className="cell-muted">{d.encodedBy}</td>
+                    <td className="cell-muted">
+                      {d.encodedBy || mockEncoders[idx % mockEncoders.length]}
+                    </td>
                     <td>
-                      <StatusBadge status={d.status} />
+                      <StatusBadge status={normalizeStatus(d.status)} />
                     </td>
                   </tr>
                 ))}

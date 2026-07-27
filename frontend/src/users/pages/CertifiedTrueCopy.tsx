@@ -5,7 +5,8 @@ import "../styles/CertifiedTrueCopy.css";
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
-type CTCStatus = "Pending Payment" | "Pending Verification" | "Released" | "Voided" | "Archived";
+// Removed Pending Payment and Pending Verification
+type CTCStatus = "Released" | "Voided" | "Archived";
 
 interface CertifiedCopyRecord {
   id: string;
@@ -13,20 +14,18 @@ interface CertifiedCopyRecord {
   declarantName: string;
   initials: string;
   avatarColor: string;
-  originalDocument: string; // the document being copied
+  originalDocument: string; 
   purpose: string;
   dateRequested: string;
-  dateReleased: string; // '—' if not yet released
-  releasedBy: string; // '—' if not yet released
+  dateReleased: string; 
+  releasedBy: string; 
   status: CTCStatus;
 }
 
 type StatusFilter = "All statuses" | CTCStatus;
 
 /* ------------------------------------------------------------------ */
-/*  Mock data — inlined here for now.                                  */
-/*  TODO: replace with real data from a useCertifiedTrueCopy hook /    */
-/*  API once a backend endpoint exists (e.g. GET /api/ctc?range=…).    */
+/*  Mock data                                                         */
 /* ------------------------------------------------------------------ */
 const records: CertifiedCopyRecord[] = [
   {
@@ -38,9 +37,9 @@ const records: CertifiedCopyRecord[] = [
     originalDocument: "Tax Declaration TD-2024-00221",
     purpose: "Bank loan requirement",
     dateRequested: "10 Jul 2026",
-    dateReleased: "—",
-    releasedBy: "—",
-    status: "Pending Payment",
+    dateReleased: "14 Jul 2026", // Updated mock data to valid status
+    releasedBy: "Maria Lopez",
+    status: "Released",
   },
   {
     id: "ctc-002",
@@ -77,9 +76,9 @@ const records: CertifiedCopyRecord[] = [
     originalDocument: "No-Landholding Certificate NLH-2025-00033",
     purpose: "Scholarship application",
     dateRequested: "08 Jul 2026",
-    dateReleased: "—",
-    releasedBy: "—",
-    status: "Pending Verification",
+    dateReleased: "11 Jul 2026", // Updated mock data to valid status
+    releasedBy: "John Cruz",
+    status: "Released",
   },
   {
     id: "ctc-005",
@@ -109,9 +108,8 @@ const records: CertifiedCopyRecord[] = [
   },
 ];
 
+// Updated mapping to remove deleted statuses
 const STATUS_CLASS: Record<CTCStatus, string> = {
-  "Pending Payment": "ctc-badge--pending",
-  "Pending Verification": "ctc-badge--pending",
   Released: "ctc-badge--released",
   Voided: "ctc-badge--voided",
   Archived: "ctc-badge--archived",
@@ -182,12 +180,11 @@ export default function CertifiedTrueCopy() {
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
               className="ctc-select"
             >
-              <option>All statuses</option>
-              <option>Pending Payment</option>
-              <option>Pending Verification</option>
-              <option>Released</option>
-              <option>Voided</option>
-              <option>Archived</option>
+              <option value="All statuses">All statuses</option>
+              {/* Removed Pending Payment and Pending Verification options */}
+              <option value="Released">Released</option>
+              <option value="Voided">Voided</option>
+              <option value="Archived">Archived</option>
             </select>
             <ChevronDown size={14} className="ctc-select-chevron" />
           </div>

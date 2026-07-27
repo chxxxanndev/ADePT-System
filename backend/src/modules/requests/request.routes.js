@@ -7,6 +7,7 @@ import {
     createRequest,
     updateRequest,
     getAllRequests,
+    getTransactionRegistry,
     deleteRequest,
     checkOrUniqueness,
     releaseRequest,
@@ -23,6 +24,7 @@ router.get('/', requireAuth, getAllRequests);
 router.post('/', requireAuth, createRequest);
 
 // Specific ID actions
+router.get('/registry', requireAuth, getTransactionRegistry);
 router.get('/:id', requireAuth, getRequestById);
 router.put('/:id', requireAuth, updateRequest);
 router.delete('/:id', requireAuth, deleteRequest);
