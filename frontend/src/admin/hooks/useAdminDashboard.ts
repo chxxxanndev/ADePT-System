@@ -70,9 +70,12 @@ export function useAdminDashboard() {
 
     const loadAccessRequestMetrics = async () => {
         try {
+            const token = localStorage.getItem('adept_token');
             const [staffMembers, requestResponse] = await Promise.all([
                 fetchAllStaff(),
-                fetch(`${API_BASE_URL}/account-requests`),
+                fetch(`${API_BASE_URL}/account-requests`, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                }),
             ]);
 
             if (!requestResponse.ok) {

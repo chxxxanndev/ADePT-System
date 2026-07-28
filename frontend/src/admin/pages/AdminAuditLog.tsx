@@ -11,8 +11,7 @@ import {
 import "../styles/AdminAuditLog.css";
 import { clearStoredAuditEntries, getStoredAuditEntries, type AuditLogEntry as StoredAuditLogEntry } from '../services/auditLogService';
 import { fetchAllStaff, type StaffMember } from '../services/userManagementService';
-import { supabase, STAFF_PRESENCE_CHANNEL } from '../services/supabaseClient';
-
+import { supabase, STAFF_PRESENCE_CHANNEL } from '../../auth-folder/services/supabaseClient';
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */

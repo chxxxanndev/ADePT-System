@@ -70,17 +70,17 @@ export function AdminSidebar({
             <div className={`sidebar-brand-wrapper ${collapsed ? 'collapsed' : ''}`}>
                 <div className="sidebar-brand-info">
                     <img src={logoImg} alt="ADePT Seal" className="sidebar-brand-logo" />
-                    {!collapsed && <span className="sidebar-brand-title">ADePT</span>}
+                    <span className="sidebar-brand-title">ADePT</span>
                 </div>
                 <div>
-                <button
-                    className="sidebar-collapse-trigger"
-                    onClick={onToggleCollapse}
-                    title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-                >
-                    <MenuIcon size={18} />
-                </button>
-            </div>
+                    <button
+                        className="sidebar-collapse-trigger"
+                        onClick={onToggleCollapse}
+                        title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                    >
+                        <MenuIcon size={18} />
+                    </button>
+                </div>
             </div>
 
             {/* Navigation Lists */}
@@ -107,9 +107,9 @@ export function AdminSidebar({
                                             <span className="sidebar-item-icon">
                                                 <IconComponent size={18} />
                                             </span>
-                                            {!collapsed && <span className="sidebar-item-label">{item.label}</span>}
+                                            <span className="sidebar-item-label">{item.label}</span>
                                         </div>
-                                        {!collapsed && hasSubItems && (
+                                        {hasSubItems && (
                                             <span className={`sidebar-chevron ${isExpanded ? 'rotated' : ''}`}>
                                                 <ChevronDownIcon size={14} />
                                             </span>
@@ -143,7 +143,7 @@ export function AdminSidebar({
                     <span className="sidebar-item-icon">
                         <LogoutIcon size={18} />
                     </span>
-                    {!collapsed && <span>Log out</span>}
+                    <span>Log out</span>
                 </button>
             </div>
         </aside>
