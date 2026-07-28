@@ -60,11 +60,13 @@ class RequestService {
     }
 
     async createRequest(formData, authUserId) {
-        // Resolve staff ID from Auth User ID
-        const { data: staff } = await supabase.from('staff').select('id').eq('auth_user_id', authUserId).single();
-        if (!staff) throw new Error('Staff not found');
+        // Resolve staff ID securely from Auth User ID or payload
+        let staffId = formData.encodedBy;
+        if (!staffId && authUserId) {
+            const { data: staff } = await supabase.from('staff').select('id').eq('auth_user_id', authUserId).single();
+            if (staff) staffId = staff.id;
+        }
 
-        // Logic from Code 2: keep manual ref if provided, otherwise generate
         const uniqueRef = (formData.referenceNumber && !formData.referenceNumber.includes('XXXX'))
             ? formData.referenceNumber
             : await this._generateReferenceNumber(formData.documentTypeIds);
@@ -81,7 +83,7 @@ class RequestService {
                 purpose_other_text: formData.purposeOtherText || null,
                 action_taken: formData.actionTaken || 'PENDING',
                 property_location: formData.propertyLocation || null,
-                encoded_by: staff.id,
+                encoded_by: staffId, // Automatically assigning the logged-in staff
                 status: formData.status || 'DRAFT'
             }])
             .select().single();
@@ -96,13 +98,20 @@ class RequestService {
 
     async getRequests() {
         try {
-            const { data: requests, error: reqErr } = await supabase.from('requests').select('*').order('created_at', { ascending: false });
+            // UPDATED: Added the join to the staff table for 'encoded_by'
+            const { data: requests, error: reqErr } = await supabase
+                .from('requests')
+                .select('*, staff:encoded_by(first_name, last_name)')
+                .order('created_at', { ascending: false });
+
             if (reqErr) throw reqErr;
 
             const { data: docLinks } = await supabase.from('request_documents').select('request_id, document_types(name)');
 
             return (requests || []).map(r => ({
                 ...r,
+                // Map the staff name so the Pending Payment frontend can read it!
+                encoded_by_staff_name: r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : null,
                 request_documents: (docLinks || []).filter(d => d.request_id === r.id)
             }));
         } catch (err) { return []; }

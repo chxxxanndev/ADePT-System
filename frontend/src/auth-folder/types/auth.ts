@@ -1,11 +1,12 @@
 export interface User {
-    id: string;         
-      staffId: string;
+    id: string;
+    staffId: string;
     email: string;
     username: string;
     firstName: string;
     lastName: string;
-    role?: string;      
+    role?: string;
+    adminLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | null;
     status?: string;
     avatarUrl?: string;
 }
@@ -18,17 +19,4 @@ export interface MockUser {
     password: string;
 }
 
-
 export type View = 'login' | 'signup' | 'forgotPassword' | 'resetPassword';
-
-export interface User {
-    id: string;
-    email: string;
-    username: string;
-    firstName: string;
-    lastName: string;
-    role?: string;
-    adminLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | null; // ← new
-    status?: string;
-    avatarUrl?: string;
-}

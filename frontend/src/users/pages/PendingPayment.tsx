@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { requestService } from '../services/requestService';
 import '../styles/PendingPayment.css';
 
+// --- ICONS ---
 const SearchIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
 const ArchiveIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>;
 const ProcessIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>;
@@ -10,8 +11,8 @@ const InboxIcon = () => <svg width="44" height="44" viewBox="0 0 24 24" fill="no
 const CheckSquareIcon = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>;
 const UserIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
 const StaffIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M8 2v4M16 2v4M3 10h18" /></svg>;
+const XIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 
-// Small same-hue glyphs for each document type, used in both the ref chips and the legend
 const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11 12 3l9 8" /><path d="M5 10v10h14V10" /></svg>;
 const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><line x1="6" y1="18" x2="18" y2="6" /></svg>;
 const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2h9l3 3v17H6z" /><line x1="9" y1="13" x2="15" y2="13" /><line x1="9" y1="17" x2="15" y2="17" /></svg>;
@@ -47,10 +48,16 @@ export function PendingPayment({ onSelectPayment }: any) {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Selection states
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [confirmTarget, setConfirmTarget] = useState<{ groups: any[]; label: string } | null>(null);
     const [isArchiving, setIsArchiving] = useState(false);
+
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const fetchLivePayments = async (isManualRefresh = false) => {
         try {
@@ -79,8 +86,6 @@ export function PendingPayment({ onSelectPayment }: any) {
                         referenceNumber: req.reference_number || "REF-PENDING",
                         declarantName: req.declarant_name || 'N/A',
                         documentType: resolveDocTypeName(req),
-                        // Populated once Request Form Entry captures which staff member encoded
-                        // the request; falls back to a placeholder until that's wired up.
                         encodedByStaff: req.encoded_by_staff_name || req.encodedByStaffName || null,
                         amountDue: 40.00
                     });
@@ -90,7 +95,8 @@ export function PendingPayment({ onSelectPayment }: any) {
                 }, {});
 
                 setGroupedPayments(Object.values(grouped));
-                setSelectedIds(new Set());
+                // Only reset selection if it's a hard fresh load, otherwise keep selected (for UX)
+                if (!isManualRefresh) setSelectedIds(new Set());
             }
         } finally {
             setLoading(false);
@@ -100,10 +106,28 @@ export function PendingPayment({ onSelectPayment }: any) {
 
     useEffect(() => { fetchLivePayments(); }, []);
 
+    // Filter by search
     const filtered = groupedPayments.filter(p =>
         p.requesterName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.documents.some((d: any) => d.referenceNumber.toLowerCase().includes(searchQuery.toLowerCase()) || d.declarantName.toLowerCase().includes(searchQuery.toLowerCase()))
     );
+
+    // Reset pagination when search query or items per page changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, itemsPerPage]);
+
+    // Pagination Logic
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedGroups = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+    // Fix edge case where archiving the last item on a page leaves you on an empty page
+    useEffect(() => {
+        if (currentPage > totalPages && totalPages > 0) {
+            setCurrentPage(totalPages);
+        }
+    }, [totalPages, currentPage]);
 
     const summary = useMemo(() => {
         const totalDocs = groupedPayments.reduce((sum, g) => sum + g.documents.length, 0);
@@ -111,8 +135,6 @@ export function PendingPayment({ onSelectPayment }: any) {
         return { clients: groupedPayments.length, docs: totalDocs, amount: totalAmount };
     }, [groupedPayments]);
 
-    // Column count drives colSpan for skeleton / empty rows: 7 fixed columns,
-    // +1 more when the Select-mode checkbox column is showing.
     const columnCount = selectionMode ? 8 : 7;
 
     const toggleSelect = (groupId: string) => {
@@ -123,10 +145,20 @@ export function PendingPayment({ onSelectPayment }: any) {
         });
     };
 
-    const toggleSelectAll = () => {
+    // SMART SELECT ALL: Only toggles visible items on the current page
+    const toggleSelectCurrentPage = () => {
+        const allVisibleSelected = paginatedGroups.every(g => selectedIds.has(g.groupId));
+
         setSelectedIds(prev => {
-            if (filtered.length > 0 && prev.size === filtered.length) return new Set();
-            return new Set(filtered.map(g => g.groupId));
+            const next = new Set(prev);
+            if (allVisibleSelected) {
+                // Deselect visible
+                paginatedGroups.forEach(g => next.delete(g.groupId));
+            } else {
+                // Select visible
+                paginatedGroups.forEach(g => next.add(g.groupId));
+            }
+            return next;
         });
     };
 
@@ -170,12 +202,11 @@ export function PendingPayment({ onSelectPayment }: any) {
     };
 
     const selectedCount = selectedIds.size;
-    const allFilteredSelected = filtered.length > 0 && selectedCount === filtered.length;
+    const allVisibleSelected = paginatedGroups.length > 0 && paginatedGroups.every(g => selectedIds.has(g.groupId));
     const currency = (n: number) => `\u20B1 ${n.toFixed(2)}`;
 
     return (
         <div className="pp-container page-transition">
-
             {/* --- HEADER CARD --- */}
             <div className="pp-header-card">
                 <div className="pp-header-top">
@@ -218,24 +249,29 @@ export function PendingPayment({ onSelectPayment }: any) {
 
             {/* --- TABLE CARD --- */}
             <div className="pp-table-card">
-                {/* Toolbar sits above the column headers, right next to the rows it filters:
-                    search (now the full-width focal element) on the left, Select (or Cancel/Archive) on the right. */}
                 <div className={`pp-table-toolbar${selectionMode ? ' is-active' : ''}`}>
                     <div className="pp-toolbar-left">
                         <div className="pp-toolbar-search">
                             <SearchIcon />
                             <input
+                                id="paymentSearch"
+                                name="paymentSearch"
                                 type="text"
                                 className="pp-toolbar-search-input"
                                 placeholder="Search by Client, Declarant, or Ref No..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
+                            {searchQuery && (
+                                <button className="pp-search-clear-btn" onClick={() => setSearchQuery('')} title="Clear search">
+                                    <XIcon />
+                                </button>
+                            )}
                         </div>
                         {selectionMode && (
                             <span className="pp-table-toolbar-text">
                                 {selectedCount > 0
-                                    ? `${selectedCount} client${selectedCount !== 1 ? 's' : ''} selected`
+                                    ? `${selectedCount} client${selectedCount !== 1 ? 's' : ''} selected across all pages`
                                     : 'Tap a row to select it for archiving'}
                             </span>
                         )}
@@ -272,9 +308,10 @@ export function PendingPayment({ onSelectPayment }: any) {
                                         <input
                                             type="checkbox"
                                             className="pp-checkbox"
-                                            checked={allFilteredSelected}
-                                            onChange={toggleSelectAll}
-                                            aria-label="Select all"
+                                            checked={allVisibleSelected}
+                                            onChange={toggleSelectCurrentPage}
+                                            aria-label="Select visible"
+                                            title="Select all on this page"
                                         />
                                     </th>
                                 )}
@@ -289,7 +326,7 @@ export function PendingPayment({ onSelectPayment }: any) {
                         </thead>
                         <tbody>
                             {loading ? (
-                                Array.from({ length: 4 }).map((_, i) => (
+                                Array.from({ length: Math.min(itemsPerPage, 4) }).map((_, i) => (
                                     <tr key={i}>
                                         <td colSpan={columnCount} style={{ padding: 0 }}>
                                             <div className="pp-skeleton-row">
@@ -301,7 +338,7 @@ export function PendingPayment({ onSelectPayment }: any) {
                                         </td>
                                     </tr>
                                 ))
-                            ) : filtered.length === 0 ? (
+                            ) : paginatedGroups.length === 0 ? (
                                 <tr>
                                     <td colSpan={columnCount}>
                                         <div className="pp-empty-state">
@@ -318,7 +355,7 @@ export function PendingPayment({ onSelectPayment }: any) {
                                     </td>
                                 </tr>
                             ) : (
-                                filtered.map((group) => (
+                                paginatedGroups.map((group) => (
                                     <tr
                                         key={group.groupId}
                                         className={`pp-row${selectionMode ? ' is-selectable' : ''}${selectedIds.has(group.groupId) ? ' is-selected' : ''}`}
@@ -426,6 +463,53 @@ export function PendingPayment({ onSelectPayment }: any) {
                         </tbody>
                     </table>
                 </div>
+
+                {/* --- PAGINATION FOOTER (REDESIGNED) --- */}
+                {!loading && filtered.length > 0 && (
+                    <div className="pp-pagination-footer">
+
+                        <div className="pp-pagination-left">
+                            <span className="pp-pagination-label">Rows per page:</span>
+                            <select
+                                className="pp-items-per-page"
+                                value={itemsPerPage}
+                                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                            >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                                <option value={150}>150</option>
+                            </select>
+                        </div>
+
+                        <div className="pp-pagination-center">
+                            {startIndex + 1}–{Math.min(startIndex + itemsPerPage, filtered.length)} of {filtered.length}
+                        </div>
+
+                        <div className="pp-pagination-right">
+                            <button
+                                className="pp-page-btn-text"
+                                onClick={() => setCurrentPage(p => p - 1)}
+                                disabled={currentPage === 1}
+                            >
+                                Previous
+                            </button>
+
+                            <span className="pp-page-current">Page {currentPage} of {totalPages || 1}</span>
+
+                            <button
+                                className="pp-page-btn-text"
+                                onClick={() => setCurrentPage(p => p + 1)}
+                                disabled={currentPage === totalPages || totalPages === 0}
+                            >
+                                Next
+                            </button>
+                        </div>
+
+                    </div>
+                )}
             </div>
 
             {/* --- ARCHIVE CONFIRM MODAL --- */}

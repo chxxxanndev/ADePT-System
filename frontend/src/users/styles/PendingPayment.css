@@ -173,6 +173,7 @@
     gap: 8px;
     color: var(--db-text-muted);
     transition: all 0.2s ease;
+    position: relative;
 }
 
 .pp-toolbar-search:focus-within {
@@ -195,6 +196,7 @@
     font-family: inherit;
     font-weight: 600;
     color: var(--db-slate);
+    padding-right: 24px;
 }
 
 .pp-toolbar-search-input::placeholder {
@@ -202,6 +204,24 @@
     font-weight: 500;
 }
 
+/* Clear Search Button */
+.pp-search-clear-btn {
+    background: transparent;
+    border: none;
+    color: #9CA3AF;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.pp-search-clear-btn:hover {
+    background-color: #f1f5f9;
+    color: var(--db-error);
+}
 
 /* --- 2. TABLE TOOLBAR — sits inside the table card, above the column headers.
    Holds just the search bar normally, and swaps to the selection summary +
@@ -452,16 +472,13 @@
     color: #9CA3AF;
 }
 
-/* Encoded By Staff — same list styling as Declarant, but visually quieter since
-   it's a placeholder until Request Form Entry starts feeding this data in. */
+/* Encoded By Staff */
 .pp-doc-declarant--staff {
     color: var(--db-text-muted);
     font-weight: 500;
 }
 
-/* Color-coded by document type, inferred from the reference number prefix.
-   Desaturated tint + high-contrast same-hue text: legible, and distinguishable
-   under low light or common color-vision deficiencies. */
+/* Color-coded by document type */
 .pp-ref-chip--lh {
     background-color: #E0F2FE;
     color: #0369A1;
@@ -480,7 +497,7 @@
     border-color: #BBF7D0;
 }
 
-/* Legend under the header stats — icon + color match the chips exactly */
+/* Legend */
 .pp-legend-row {
     display: flex;
     align-items: center;
@@ -528,9 +545,7 @@
     white-space: nowrap;
 }
 
-/* Actions — Process (primary indigo, the only way into the payment screen)
-   and Archive (muted grey by default, turns red on hover to signal its destructive intent),
-   both grouped under the single "Actions" column header. */
+/* Actions */
 .pp-actions {
     display: flex;
     align-items: center;
@@ -632,182 +647,104 @@
     max-width: 320px;
 }
 
-/* --- 4. CONFIRM MODAL --- */
-.pp-modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(22, 22, 31, 0.45);
-    backdrop-filter: blur(2px);
+/* --- 4. PAGINATION CONTROLS (REDESIGNED TO MATCH SCREENSHOT) --- */
+.pp-pagination-footer {
     display: flex;
     align-items: center;
-    justify-content: center;
-    z-index: 200;
-    padding: 20px;
-    animation: pp-fade-in 0.15s ease;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background-color: var(--db-table-header, #f8fafc);
+    border-top: 1px solid var(--db-glass-border-alt);
 }
 
-@keyframes pp-fade-in {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
-.pp-modal {
-    background-color: #ffffff;
-    border-radius: var(--db-radius-lg);
-    padding: 28px;
-    width: 100%;
-    max-width: 380px;
-    box-shadow: 0 20px 60px rgba(22, 22, 31, 0.25);
-    animation: pp-modal-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes pp-modal-in {
-    from {
-        opacity: 0;
-        transform: translateY(10px) scale(0.98);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-.pp-modal-title {
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: var(--db-slate);
-    margin: 0 0 8px;
-}
-
-.pp-modal-body {
-    font-size: 0.88rem;
-    color: var(--db-text-muted);
-    line-height: 1.5;
-    margin: 0 0 22px;
-}
-
-.pp-modal-actions {
+.pp-pagination-left {
     display: flex;
-    justify-content: flex-end;
-    gap: 10px;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
 }
 
-.pp-modal-btn {
-    padding: 10px 18px;
-    border-radius: 8px;
+.pp-pagination-label {
     font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--db-text-muted, #64748b);
+}
+
+.pp-items-per-page {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 32px 6px 12px;
+    font-size: 0.88rem;
     font-weight: 700;
-    border: none;
+    color: var(--db-primary, #29237a);
+    background-color: #ffffff;
+    cursor: pointer;
+    outline: none;
+    /* Keeps standard browser chevron but styles the box exactly like your image */
+}
+
+.pp-items-per-page:focus {
+    border-color: var(--db-primary);
+}
+
+.pp-pagination-center {
+    flex: 1;
+    text-align: center;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--db-primary, #29237a);
+}
+
+.pp-pagination-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    flex: 1;
+}
+
+.pp-page-current {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--db-text-muted, #64748b);
+}
+
+.pp-page-btn-text {
+    padding: 6px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    color: var(--db-primary, #29237a);
     cursor: pointer;
     transition: all 0.15s ease;
 }
 
-.pp-modal-btn--cancel {
-    background-color: #f1f5f9;
-    color: var(--db-slate);
+.pp-page-btn-text:hover:not(:disabled) {
+    background-color: var(--db-hover-highlight);
+    border-color: var(--db-secondary);
 }
 
-.pp-modal-btn--cancel:hover {
-    background-color: #e2e8f0;
+.pp-page-btn-text:disabled {
+    color: #94a3b8;
+    background-color: #f8fafc;
+    border-color: #e2e8f0;
+    cursor: not-allowed;
 }
 
-.pp-modal-btn--confirm {
-    background-color: var(--db-error);
-    color: #ffffff;
-}
-
-.pp-modal-btn--confirm:hover {
-    background-color: #b32424;
-}
-
-/* --- 5. RESPONSIVE --- */
+/* Update Responsive rules for the new layout */
 @media (max-width: 900px) {
-    .pp-header-top {
+    .pp-pagination-footer {
         flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
+        gap: 16px;
+        align-items: stretch;
     }
 
-    .pp-toolbar-left {
-        width: 100%;
-    }
-
-    .pp-toolbar-search {
-        max-width: none;
-    }
-}
-
-/* Below 640px, drop the table for a stacked card layout so nothing is clipped */
-@media (max-width: 640px) {
-    .pp-stats-row {
-        gap: 8px;
-    }
-
-    .pp-stat-chip {
-        min-width: 0;
-    }
-
-    .pp-table-scroll {
-        overflow-x: visible;
-    }
-
-    .pp-table,
-    .pp-table thead,
-    .pp-table tbody,
-    .pp-table th,
-    .pp-table td,
-    .pp-table tr {
-        display: block;
-        width: 100%;
-        min-width: 0;
-    }
-
-    .pp-table thead {
-        display: none;
-    }
-
-    .pp-row {
-        border: none;
-        border-bottom: 1px solid var(--db-glass-border-alt);
-        padding: 14px 16px;
-        position: relative;
-    }
-
-    .pp-cell {
-        padding: 4px 0;
-    }
-
-    .pp-cell[data-label]::before {
-        content: attr(data-label);
-        display: block;
-        font-size: 10px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--db-text-muted);
-        margin-bottom: 4px;
-    }
-
-    .pp-cell-checkbox {
-        position: absolute;
-        top: 14px;
-        right: 16px;
-        padding: 0;
-    }
-
-    .pp-actions {
-        justify-content: flex-start;
-        margin-top: 6px;
-    }
-
-    .pp-btn-process {
-        flex: 1;
+    .pp-pagination-left,
+    .pp-pagination-center,
+    .pp-pagination-right {
         justify-content: center;
+        flex: none;
     }
 }
