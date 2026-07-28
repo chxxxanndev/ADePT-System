@@ -9,8 +9,6 @@ import { CheckIcon, SaveIcon, LightbulbIcon } from '../components/icons';
 interface ExtendedRequestFormData extends RequestFormData {
     id?: string;
     propertyLocation: string;
-    releasingStaffId: string;
-    releaseDate: string;
     referenceNumber: string;
     purposeOtherText: string;
 }
@@ -32,6 +30,7 @@ function ToggleButtonPair({ leftLabel, rightLabel, value, onChange }: { leftLabe
         </div>
     );
 }
+
 function MultiSelectDropdown({ options, selectedIds, onChange, placeholder }: { options: { id: string; name: string }[]; selectedIds: string[]; onChange: (ids: string[]) => void; placeholder: string; }) {
     const [open, setOpen] = useState(false); const ref = useRef<HTMLDivElement>(null);
     useEffect(() => { const handleClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }; document.addEventListener('mousedown', handleClick); return () => document.removeEventListener('mousedown', handleClick); }, []);
@@ -41,21 +40,11 @@ function MultiSelectDropdown({ options, selectedIds, onChange, placeholder }: { 
         <div className="custom-select" ref={ref}>
             <button type="button" className="custom-select-trigger" onClick={() => setOpen((o) => !o)}><span className={selectedIds.length === 0 ? 'placeholder-text' : ''}>{label}</span><span className={`chevron ${open ? 'chevron-up' : ''}`}>▾</span></button>
             {open && (<div className="custom-select-menu">{options.length === 0 && <div className="custom-select-empty">No options available</div>}{options.map((opt) => (
-    <label key={opt.id} className="custom-select-option" htmlFor={`doc-type-${opt.id}`}>
-        <input id={`doc-type-${opt.id}`} name={`doc-type-${opt.id}`} type="checkbox" checked={selectedIds.includes(opt.id)} onChange={() => toggleOption(opt.id)} />
-        {opt.name}
-    </label>
-))}</div>)}
-        </div>
-    );
-}
-function SingleSelectDropdown({ options, value, onChange, placeholder, id }: { options: { id: string; name: string }[]; value: string; onChange: (id: string) => void; placeholder: string; id?: string; }) {
-    return (
-        <div className="custom-select">
-            <select id={id} name={id} className="native-select" value={value} onChange={(e) => onChange(e.target.value)}>
-                <option value="" disabled>{placeholder}</option>
-                {options.map((opt) => (<option key={opt.id} value={opt.id}>{opt.name}</option>))}
-            </select>
+                <label key={opt.id} className="custom-select-option" htmlFor={`doc-type-${opt.id}`}>
+                    <input id={`doc-type-${opt.id}`} name={`doc-type-${opt.id}`} type="checkbox" checked={selectedIds.includes(opt.id)} onChange={() => toggleOption(opt.id)} />
+                    {opt.name}
+                </label>
+            ))}</div>)}
         </div>
     );
 }
@@ -66,10 +55,6 @@ function SearchableSelectDropdown({ options, value, onChange, placeholder }: { o
     const ref = useRef<HTMLDivElement>(null);
     const selected = options.find((o) => o.id === value);
 
-    // FIXED: added `options` to deps — when a prefill sets `value` before
-    // propertyLocations finishes loading, `selected` is undefined and query
-    // gets stuck at ''. Without this, it only ever recovers on the next
-    // unrelated click (the outside-click handler below recomputes it fresh).
     useEffect(() => {
         setQuery(selected ? selected.name : '');
     }, [value, options]);
@@ -94,6 +79,7 @@ function SearchableSelectDropdown({ options, value, onChange, placeholder }: { o
         </div>
     );
 }
+
 const PersonIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" /></svg>);
 const PlusCircleIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></svg>);
 const ClipboardIconLarge = () => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1M9 10h6M9 14h6M9 18h3" /></svg>);
@@ -114,12 +100,6 @@ const DOCUMENT_TYPE_VIEW_MAP: Record<string, string> = {
     'Certificate of No Landholding': 'certificate-no-landholding',
 };
 
-const VIEW_PREFIX_MAP: Record<string, string> = {
-    'tax-declaration': 'TD',
-    'certificate-land-holding': 'LH',
-    'certificate-no-landholding': 'NLH',
-};
-
 const PURPOSE_OPTIONS = [
     { id: 'settling-tax-obligation', name: 'For Settling of Tax Obligation', code: 'TAX_OBLIGATION' },
     { id: 'court-legal-purposes', name: 'For Court and other legal purposes', code: 'COURT_LEGAL' },
@@ -138,21 +118,18 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     const [metadataError, setMetadataError] = useState('');
 
     const [formData, setFormData] = useState<ExtendedRequestFormData>({
-        declarantName: '', requestedByName: '', requestDate: new Date().toISOString().split('T')[0], purposeId: '', documentTypeIds: [], authRequired: false, actionTaken: 'PENDING', propertyLocation: '', releasingStaffId: '', releaseDate: '', purposeOtherText: '', referenceNumber: `REF-${new Date().getFullYear()}-0000`,
+        declarantName: '', requestedByName: '', requestDate: new Date().toISOString().split('T')[0], purposeId: '', documentTypeIds: [], authRequired: false, actionTaken: 'PENDING', propertyLocation: '', purposeOtherText: '', referenceNumber: `REF-${new Date().getFullYear()}-0000`,
     });
 
-    // Determine if "Certificate of No Landholding" (NLH) is currently selected
-
-    // Add near the other derived values (e.g. next to isNoLandholdingSelected)
-const displayReferenceNumber = (() => {
-    const year = new Date().getFullYear();
-    if (formData.documentTypeIds.length === 0) {
-        return `REF-${year}-XXXX`;
-    }
-    const selectedDoc = metadata.docTypes.find((d) => d.id === formData.documentTypeIds[0]);
-    const prefix = selectedDoc?.prefix || 'REF';
-    return `${prefix}-${year}-XXXX`;
-})();
+    const displayReferenceNumber = (() => {
+        const year = new Date().getFullYear();
+        if (formData.documentTypeIds.length === 0) {
+            return `REF-${year}-XXXX`;
+        }
+        const selectedDoc = metadata.docTypes.find((d) => d.id === formData.documentTypeIds[0]);
+        const prefix = selectedDoc?.prefix || 'REF';
+        return `${prefix}-${year}-XXXX`;
+    })();
 
     const isNoLandholdingSelected = formData.documentTypeIds.some((id) => {
         const selectedDoc = metadata.docTypes.find((d) => d.id === id);
@@ -162,41 +139,31 @@ const displayReferenceNumber = (() => {
         return view === 'certificate-no-landholding';
     });
 
-    // Cleanup logic: If NLH is selected, reset propertyLocation to prevent sending redundant values
     useEffect(() => {
         if (isNoLandholdingSelected && formData.propertyLocation !== '') {
             setFormData((prev) => ({ ...prev, propertyLocation: '' }));
         }
     }, [isNoLandholdingSelected, formData.propertyLocation]);
 
-useEffect(() => {
-    if (prefilledRequestData) {
-        setFormData((prev) => ({
-            ...prev,
-            // ID and Reference Number
-            id: prefilledRequestData.id || prefilledRequestData.requestId,
-            referenceNumber: prefilledRequestData.reference_number || prefilledRequestData.control_number || prefilledRequestData.referenceNumber,
-            
-            // Map Database Names (snake_case) to Frontend Names (camelCase)
-            declarantName: prefilledRequestData.declarant_name || prefilledRequestData.declarantName || '',
-            requestedByName: prefilledRequestData.requested_by_name || prefilledRequestData.requestedByName || '',
-            requestDate: prefilledRequestData.request_date || prefilledRequestData.requestDate || new Date().toISOString().split('T')[0],
-            
-            // This line specifically fixes the missing Location
-            propertyLocation: prefilledRequestData.property_location || prefilledRequestData.propertyLocation || '',
-            
-            documentTypeIds: prefilledRequestData.documentTypeIds || [],
-            // purposeId: prefilledRequestData.purpose_id || prefilledRequestData.purposeId || '',
-            //purposeOtherText: prefilledRequestData.purpose_other_text || prefilledRequestData.purposeOtherText || '',
-            
-            authRequired: prefilledRequestData.authorization_required ?? prefilledRequestData.authRequired ?? false,
-            actionTaken: prefilledRequestData.action_taken || prefilledRequestData.actionTaken || 'PENDING',
-        }));
-    }
-}, [prefilledRequestData]);
+    useEffect(() => {
+        if (prefilledRequestData) {
+            setFormData((prev) => ({
+                ...prev,
+                id: prefilledRequestData.id || prefilledRequestData.requestId,
+                referenceNumber: prefilledRequestData.reference_number || prefilledRequestData.control_number || prefilledRequestData.referenceNumber,
+                declarantName: prefilledRequestData.declarant_name || prefilledRequestData.declarantName || '',
+                requestedByName: prefilledRequestData.requested_by_name || prefilledRequestData.requestedByName || '',
+                requestDate: prefilledRequestData.request_date || prefilledRequestData.requestDate || new Date().toISOString().split('T')[0],
+                propertyLocation: prefilledRequestData.property_location || prefilledRequestData.propertyLocation || '',
+                documentTypeIds: prefilledRequestData.documentTypeIds || [],
+                authRequired: prefilledRequestData.authorization_required ?? prefilledRequestData.authRequired ?? false,
+                actionTaken: prefilledRequestData.action_taken || prefilledRequestData.actionTaken || 'PENDING',
+            }));
+        }
+    }, [prefilledRequestData]);
+
     const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-    // Fetch Metadata
     const fetchMeta = async () => {
         setMetadataLoading(true);
         setMetadataError('');
@@ -228,36 +195,29 @@ useEffect(() => {
         fetchMeta();
     }, []);
 
-    // Reference Number Logic
-    // RequestFormEntry.tsx
+    useEffect(() => {
+        if (formData.id) return;
 
-useEffect(() => {
-    if (formData.id) return;
-
-    if (formData.documentTypeIds.length === 0) {
-        if (!formData.referenceNumber || formData.referenceNumber.endsWith('-0000')) {
-            setFormData(prev => ({ ...prev, referenceNumber: `REF-${new Date().getFullYear()}-XXXX` }));
+        if (formData.documentTypeIds.length === 0) {
+            if (!formData.referenceNumber || formData.referenceNumber.endsWith('-0000')) {
+                setFormData(prev => ({ ...prev, referenceNumber: `REF-${new Date().getFullYear()}-XXXX` }));
+            }
+            return;
         }
-        return;
-    }
 
-    const selectedId = formData.documentTypeIds[0];
-    const selectedDoc = metadata.docTypes.find((d) => d.id === selectedId);
+        const selectedId = formData.documentTypeIds[0];
+        const selectedDoc = metadata.docTypes.find((d) => d.id === selectedId);
+        const newPrefix = selectedDoc?.prefix || 'REF';
+        const currentYear = new Date().getFullYear();
 
-    // FIXED: use the prefix straight from document_types (already in
-    // metadata) instead of the hardcoded DOCUMENT_TYPE_ID_VIEW_MAP /
-    // DOCUMENT_TYPE_VIEW_MAP name-matching, which never matches real
-    // Supabase UUIDs/names — that's why this always fell back to "REF".
-    const newPrefix = selectedDoc?.prefix || 'REF';
-    const currentYear = new Date().getFullYear();
-
-    if (formData.referenceNumber.includes('XXXX') || formData.referenceNumber.includes('-0000')) {
-        const newRef = `${newPrefix}-${currentYear}-XXXX`;
-        if (formData.referenceNumber !== newRef) {
-            setFormData(prev => ({ ...prev, referenceNumber: newRef }));
+        if (formData.referenceNumber.includes('XXXX') || formData.referenceNumber.includes('-0000')) {
+            const newRef = `${newPrefix}-${currentYear}-XXXX`;
+            if (formData.referenceNumber !== newRef) {
+                setFormData(prev => ({ ...prev, referenceNumber: newRef }));
+            }
         }
-    }
-}, [formData.documentTypeIds, formData.id, metadata.docTypes]);
+    }, [formData.documentTypeIds, formData.id, metadata.docTypes]);
+
     const handleOpenForwardModal = () => {
         if (!formData.declarantName && !formData.requestedByName) {
             setValidationError('Please enter at least the Requester or Declarant name before forwarding.');
@@ -268,46 +228,43 @@ useEffect(() => {
     };
 
     const handleConfirmForward = async (staffId: string, note: string) => {
-    let requestId = formData.id;
+        let requestId = formData.id;
 
-    try {
-        if (!requestId) {
-            // First-time save — create the request as a draft
-            const draftPayload = { ...formData, status: 'DRAFT' };
-            const res = await requestService.submitRequest(draftPayload, user.id);
-            const savedRequest = res.data || res;
-            requestId = savedRequest.id;
-            setFormData((prev) => ({
-                ...prev,
-                id: requestId,
-                referenceNumber: savedRequest.reference_number || savedRequest.control_number || prev.referenceNumber,
-            }));
-        } else {
-            // Existing draft — persist whatever was just typed/selected before
-            // forwarding. This was previously skipped entirely, which is why
-            // edits made right before hitting "Forward" never reached staff 2.
-            await requestService.updateRequest(requestId, { ...formData, status: 'DRAFT' });
+        try {
+            if (!requestId) {
+                const draftPayload = { ...formData, status: 'DRAFT', staffAuthId: user.id, encodedBy: user.staffId };
+                const res = await requestService.submitRequest(draftPayload, user.id);
+                const savedRequest = res.data || res;
+                requestId = savedRequest.id;
+                setFormData((prev) => ({
+                    ...prev,
+                    id: requestId,
+                    referenceNumber: savedRequest.reference_number || savedRequest.control_number || prev.referenceNumber,
+                }));
+            } else {
+                await requestService.updateRequest(requestId, { ...formData, status: 'DRAFT' });
+            }
+        } catch (err) {
+            console.error('Failed to save request before forwarding', err);
+            alert('Failed to save the request. Please try again.');
+            return;
         }
-    } catch (err) {
-        console.error('Failed to save request before forwarding', err);
-        alert('Failed to save the request. Please try again.');
-        return;
-    }
 
-    if (!requestId) {
-        alert('Failed to save the request before forwarding. Please try again.');
-        return;
-    }
+        if (!requestId) {
+            alert('Failed to save the request before forwarding. Please try again.');
+            return;
+        }
 
-    try {
-        await requestService.forwardRequest(requestId, staffId, note);
-        setShowForwardModal(false);
-        onCancel();
-    } catch (err) {
-        console.error('Failed to forward request', err);
-        alert('Failed to forward the request. Please try again.');
-    }
-};
+        try {
+            await requestService.forwardRequest(requestId, staffId, note);
+            setShowForwardModal(false);
+            onCancel();
+        } catch (err) {
+            console.error('Failed to forward request', err);
+            alert('Failed to forward the request. Please try again.');
+        }
+    };
+
     const handleProceedToDocument = async () => {
         if (!formData.declarantName || !formData.requestedByName || formData.documentTypeIds.length === 0) {
             setValidationError('Please fill out Declarant, Requester, and select at least one Document Type.');
@@ -330,7 +287,7 @@ useEffect(() => {
         setIsProceeding(true);
         try {
             let savedRequest;
-            const requestPayload = { ...formData, status: 'IN_PROGRESS' };
+            const requestPayload = { ...formData, status: 'IN_PROGRESS', staffAuthId: user.id, encodedBy: user.staffId };
 
             if (formData.id) {
                 const res = await requestService.updateRequest(formData.id, requestPayload);
@@ -367,7 +324,7 @@ useEffect(() => {
         if (!formData.declarantName && !formData.requestedByName) return alert('Please enter at least the Requester or Declarant name to save a draft.');
         setIsSavingDraft(true);
         try {
-            const draftPayload = { ...formData, status: 'DRAFT' };
+            const draftPayload = { ...formData, status: 'DRAFT', staffAuthId: user.id, encodedBy: user.staffId };
             if (formData.id) {
                 await requestService.updateRequest(formData.id, draftPayload);
             } else {
@@ -400,8 +357,6 @@ useEffect(() => {
                 authRequired: false,
                 actionTaken: 'PENDING',
                 propertyLocation: '',
-                releasingStaffId: '',
-                releaseDate: '',
                 purposeOtherText: '',
                 referenceNumber: `REF-${new Date().getFullYear()}-0000`,
             });
@@ -481,17 +436,24 @@ useEffect(() => {
                                     />
                                 )}
                             </div>
-                            {/* <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Reason / Purpose</label>{isOthersPurpose(formData.purposeId, metadata.purposes) ? (<div className="input-with-clear"><input className="rfe-input" type="text" autoFocus placeholder="Type purpose here..." value={formData.purposeOtherText} onChange={(e) => setFormData({ ...formData, purposeOtherText: e.target.value })} /><button type="button" className="input-clear-btn" title="Choose a different reason" onClick={() => setFormData({ ...formData, purposeId: '', purposeOtherText: '' })}>×</button></div>) : (<SingleSelectDropdown options={metadata.purposes} value={formData.purposeId} onChange={(val) => setFormData({ ...formData, purposeId: val, purposeOtherText: '' })} placeholder="Select Reason / Purpose..." />)}</div> */}
                         </div>
 
                         {/* Section 3 */}
                         <div className="rfe-section">
-                           <div className="rfe-return-archive-box">
+                            <div className="rfe-return-archive-box">
                                 <label className="rfe-label" htmlFor="releasing-staff-select">Encoded By: </label>
-<SingleSelectDropdown id="releasing-staff-select" options={metadata.staff} value={formData.releasingStaffId} onChange={(val) => setFormData({ ...formData, releasingStaffId: val })} placeholder="Name of Staff" />
-     </div>
+                                {/* Automatically displays the logged-in user's name in a read-only format */}
+                                <input
+                                    id="releasing-staff-select"
+                                    className="rfe-input"
+                                    type="text"
+                                    value={`${user.firstName} ${user.lastName}`}
+                                    disabled
+                                    style={{ backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed', fontWeight: 500 }}
+                                />
+                            </div>
                         </div>
-                    </div>
+                    </div> {/* <--- THIS IS THE DIV THAT WAS MISSING! */}
 
                     {/* SESSION BANNER */}
                     <div className="form-reuse-notice">
