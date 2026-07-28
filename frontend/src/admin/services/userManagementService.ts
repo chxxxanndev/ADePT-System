@@ -1,3 +1,5 @@
+import { supabase } from '../../auth-folder/services/supabaseClient';
+
 const API_BASE_URL = 'http://localhost:5000/api/users';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -30,8 +32,12 @@ export interface CreateStaffPayload {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function authHeaders(extra: Record<string, string> = {}) {
-    const token = localStorage.getItem('adept_token');
+// Pulls the current access token straight from supabase-js's own session
+// (kept fresh by its built-in autoRefreshToken) rather than a hand-rolled
+// localStorage copy — see useAuth.ts for why that copy was removed.
+async function authHeaders(extra: Record<string, string> = {}): Promise<Record<string, string>> {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
     return {
         ...extra,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -45,7 +51,7 @@ function authHeaders(extra: Record<string, string> = {}) {
  */
 export async function fetchAllStaff(): Promise<StaffMember[]> {
     const res = await fetch(`${API_BASE_URL}/staff`, {
-        headers: authHeaders(),
+        headers: await authHeaders(),
     });
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -58,7 +64,7 @@ export async function fetchAllStaff(): Promise<StaffMember[]> {
 export async function createStaffAccount(payload: CreateStaffPayload): Promise<StaffMember> {
     const res = await fetch(`${API_BASE_URL}/staff`, {
         method: 'POST',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
     });
     if (!res.ok) {
@@ -81,7 +87,7 @@ export async function updateStaffStatus(
 ): Promise<StaffMember> {
     const res = await fetch(`${API_BASE_URL}/staff/${staffId}/status`, {
         method: 'PATCH',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ status, reason }),
     });
     if (!res.ok) {
@@ -104,7 +110,7 @@ export async function setAdminLevel(
 ): Promise<StaffMember> {
     const res = await fetch(`${API_BASE_URL}/staff/${staffId}/admin-level`, {
         method: 'PATCH',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ adminLevel }),
     });
     if (!res.ok) {
@@ -125,7 +131,7 @@ export async function promoteToAdmin(
 ): Promise<StaffMember> {
     const res = await fetch(`${API_BASE_URL}/staff/${staffId}/promote-to-admin`, {
         method: 'PATCH',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ adminLevel }),
     });
     if (!res.ok) {
@@ -142,7 +148,7 @@ export async function promoteToAdmin(
 export async function demoteToStaff(staffId: string): Promise<StaffMember> {
     const res = await fetch(`${API_BASE_URL}/staff/${staffId}/demote-to-staff`, {
         method: 'PATCH',
-        headers: authHeaders(),
+        headers: await authHeaders(),
     });
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -159,7 +165,7 @@ export async function demoteToStaff(staffId: string): Promise<StaffMember> {
 export async function assignSignatory(staffId: string): Promise<StaffMember> {
     const res = await fetch(`${API_BASE_URL}/staff/${staffId}/assign-signatory`, {
         method: 'PATCH',
-        headers: authHeaders(),
+        headers: await authHeaders(),
     });
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -175,7 +181,7 @@ export async function assignSignatory(staffId: string): Promise<StaffMember> {
 export async function unassignSignatory(staffId: string): Promise<StaffMember> {
     const res = await fetch(`${API_BASE_URL}/staff/${staffId}/unassign-signatory`, {
         method: 'PATCH',
-        headers: authHeaders(),
+        headers: await authHeaders(),
     });
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));

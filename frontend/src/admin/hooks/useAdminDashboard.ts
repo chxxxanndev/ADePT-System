@@ -6,12 +6,18 @@ import {
     staffPerformanceMock,
     activitiesMock,
     type AdminStatItem,
+    type AdminActivityItem,
 } from '../data/dashboardMockData';
 import { fetchAllStaff, type StaffMember } from '../services/userManagementService';
+import { getStoredAuditEntries, type AuditLogEntry } from '../services/auditLogService';
 
 // Simulated network delay for refresh actions so the spinning state is visible.
 const REFRESH_DELAY_MS = 700;
 const API_BASE_URL = 'http://localhost:5000/api/users';
+
+// The Overview widget always shows at least this many rows — real audit
+// entries first, padded with mock entries only when real activity is thin.
+const MIN_ACTIVITY_ITEMS = 5;
 
 interface AccountRequestSummary {
     id: string;
@@ -44,6 +50,38 @@ function buildAccessRequestItems(staff: StaffMember[], requests: AccountRequestS
     ];
 }
 
+// Audit entry types -> the widget's color-coded statuses.
+const AUDIT_STATUS_MAP: Record<AuditLogEntry['type'], AdminActivityItem['status']> = {
+    approval: 'approved',
+    decline: 'declined',
+    system: 'system',
+    login: 'login',
+    logout: 'logout',
+};
+
+function capitalize(text: string) {
+    return text.length ? text[0].toUpperCase() + text.slice(1) : text;
+}
+
+function auditEntryToActivityItem(entry: AuditLogEntry): AdminActivityItem {
+    return {
+        id: entry.id,
+        title: capitalize(entry.description),
+        actor: entry.actor,
+        time: `${entry.date}, ${entry.time}`,
+        status: AUDIT_STATUS_MAP[entry.type],
+    };
+}
+
+function buildActivityFeed(): AdminActivityItem[] {
+    const real = getStoredAuditEntries().map(auditEntryToActivityItem);
+    if (real.length >= MIN_ACTIVITY_ITEMS) return real;
+    // Real entries always come first and are never displaced — mock
+    // entries only fill the remainder so the widget never looks empty.
+    const padding = activitiesMock.slice(0, MIN_ACTIVITY_ITEMS - real.length);
+    return [...real, ...padding];
+}
+
 export function useAdminDashboard() {
     // Navigation / layout state
     const [activeView, setActiveView] = useState('overview');
@@ -59,7 +97,7 @@ export function useAdminDashboard() {
     const [requestQueue] = useState(requestQueueMock);
     const [transactions] = useState(transactionsMock);
     const [staffPerformance] = useState(staffPerformanceMock);
-    const [activities] = useState(activitiesMock);
+    const [activities, setActivities] = useState<AdminActivityItem[]>(() => buildActivityFeed());
 
     // Per-section refresh indicators
     const [refreshingTransactions, setRefreshingTransactions] = useState(false);
@@ -92,6 +130,14 @@ export function useAdminDashboard() {
 
     useEffect(() => {
         void loadAccessRequestMetrics();
+    }, []);
+
+    // Keep the Overview activity feed live — refresh the instant a new
+    // audit entry is written anywhere in the app (approvals, declines, etc.).
+    useEffect(() => {
+        const handleAuditUpdate = () => setActivities(buildActivityFeed());
+        window.addEventListener('admin-audit-log:updated', handleAuditUpdate);
+        return () => window.removeEventListener('admin-audit-log:updated', handleAuditUpdate);
     }, []);
 
     const withSpinner = (

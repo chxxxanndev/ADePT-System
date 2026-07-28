@@ -2,9 +2,10 @@ import type { AdminActivityItem } from '../data/dashboardMockData';
 
 interface AdminRecentActivityProps {
     activities: AdminActivityItem[];
+    onViewFullLog?: () => void;
 }
 
-export function AdminRecentActivity({ activities }: AdminRecentActivityProps) {
+export function AdminRecentActivity({ activities, onViewFullLog }: AdminRecentActivityProps) {
     return (
         <div className="admin-card">
             {/* Card Header */}
@@ -12,7 +13,7 @@ export function AdminRecentActivity({ activities }: AdminRecentActivityProps) {
                 <span className="admin-card-title">Recent Activity</span>
                 <button
                     className="activity-full-log-btn"
-                    onClick={() => console.log('Open full activity log')}
+                    onClick={() => onViewFullLog?.()}
                 >
                     Full Log
                 </button>
@@ -26,7 +27,7 @@ export function AdminRecentActivity({ activities }: AdminRecentActivityProps) {
                     </p>
                 ) : (
                     activities.map((activity) => (
-                        <div className={`activity-item ${activity.status}`} key={activity.id}>
+                        <div className="activity-item" key={activity.id}>
                             <div className={`activity-color-block ${activity.status}`} />
                             <div className="activity-details">
                                 <span className="activity-title">{activity.title}</span>

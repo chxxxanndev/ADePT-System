@@ -1668,6 +1668,18 @@
     border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.activity-color-block.login {
+    background-color: rgba(15, 163, 196, 0.28);
+}
+
+.activity-color-block.logout {
+    background-color: rgba(100, 116, 139, 0.28);
+}
+
+.activity-color-block.system {
+    background-color: rgba(124, 58, 237, 0.22);
+}
+
 /* --- RESPONSIVE STYLES --- */
 @media (max-width: 1100px) {
     .admin-stats-grid {
