@@ -342,31 +342,31 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     const renderNoLandholdingEdit = () => (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
-                <label style={editLabelStyle}>Pronoun</label>
-                <select value={editData?.pronoun || ''} onChange={(e) => setEditData({ ...editData, pronoun: e.target.value })} style={inputStyle}>
+                <label htmlFor="nlh-pronoun" style={editLabelStyle}>Pronoun</label>
+                <select id="nlh-pronoun" name="pronoun" value={editData?.pronoun || ''} onChange={(e) => setEditData({ ...editData, pronoun: e.target.value })} style={inputStyle}>
                     <option value="His">His</option>
                     <option value="Her">Her</option>
                     <option value="Their">Their</option>
                 </select>
             </div>
             <div>
-                <label style={editLabelStyle}>Property Count</label>
-                <select value={editData?.propertyCount || ''} onChange={(e) => setEditData({ ...editData, propertyCount: e.target.value })} style={inputStyle}>
+                <label htmlFor="nlh-property-count" style={editLabelStyle}>Property Count</label>
+                <select id="nlh-property-count" name="propertyCount" value={editData?.propertyCount || ''} onChange={(e) => setEditData({ ...editData, propertyCount: e.target.value })} style={inputStyle}>
                     <option value="singular">Singular (Property/Name)</option>
                     <option value="plural">Plural (Properties/Names)</option>
                 </select>
             </div>
             <div>
-                <label style={editLabelStyle}>Date Given</label>
-                <input type="date" value={editData?.dateGiven || editData?.date_given || ''} onChange={(e) => setEditData({ ...editData, dateGiven: e.target.value })} style={inputStyle} />
+                <label htmlFor="nlh-date-given" style={editLabelStyle}>Date Given</label>
+                <input id="nlh-date-given" name="dateGiven" type="date" value={editData?.dateGiven || editData?.date_given || ''} onChange={(e) => setEditData({ ...editData, dateGiven: e.target.value })} style={inputStyle} />
             </div>
             <div>
-                <label style={editLabelStyle}>Given At</label>
-                <input type="text" value={editData?.givenAt || editData?.given_at || ''} onChange={(e) => setEditData({ ...editData, givenAt: e.target.value })} style={inputStyle} />
+                <label htmlFor="nlh-given-at" style={editLabelStyle}>Given At</label>
+                <input id="nlh-given-at" name="givenAt" type="text" value={editData?.givenAt || editData?.given_at || ''} onChange={(e) => setEditData({ ...editData, givenAt: e.target.value })} style={inputStyle} />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-                <label style={editLabelStyle}>Purpose / Intent</label>
-                <input type="text" value={editData?.purpose || ''} onChange={(e) => setEditData({ ...editData, purpose: e.target.value })} style={inputStyle} />
+                <label htmlFor="nlh-purpose" style={editLabelStyle}>Purpose / Intent</label>
+                <input id="nlh-purpose" name="purpose" type="text" value={editData?.purpose || ''} onChange={(e) => setEditData({ ...editData, purpose: e.target.value })} style={inputStyle} />
             </div>
         </div>
     );
@@ -375,35 +375,35 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                    <label style={editLabelStyle}>Ownership Type</label>
-                    <select value={editData?.ownershipType || ''} onChange={(e) => setEditData({ ...editData, ownershipType: e.target.value })} style={inputStyle}>
+                    <label htmlFor="lh-ownership-type" style={editLabelStyle}>Ownership Type</label>
+                    <select id="lh-ownership-type" name="ownershipType" value={editData?.ownershipType || ''} onChange={(e) => setEditData({ ...editData, ownershipType: e.target.value })} style={inputStyle}>
                         <option value="single">Single Owner</option>
                         <option value="multiple">Multiple Owners</option>
                     </select>
                 </div>
                 <div>
-                    <label style={editLabelStyle}>Date Given</label>
-                    <input type="date" value={editData?.dateGiven || editData?.date_given || ''} onChange={(e) => setEditData({ ...editData, dateGiven: e.target.value })} style={inputStyle} />
+                    <label htmlFor="lh-date-given" style={editLabelStyle}>Date Given</label>
+                    <input id="lh-date-given" name="dateGiven" type="date" value={editData?.dateGiven || editData?.date_given || ''} onChange={(e) => setEditData({ ...editData, dateGiven: e.target.value })} style={inputStyle} />
                 </div>
                 <div>
-                    <label style={editLabelStyle}>Given At</label>
-                    <input type="text" value={editData?.givenAt || editData?.given_at || ''} onChange={(e) => setEditData({ ...editData, givenAt: e.target.value })} style={inputStyle} />
+                    <label htmlFor="lh-given-at" style={editLabelStyle}>Given At</label>
+                    <input id="lh-given-at" name="givenAt" type="text" value={editData?.givenAt || editData?.given_at || ''} onChange={(e) => setEditData({ ...editData, givenAt: e.target.value })} style={inputStyle} />
                 </div>
                 <div>
-                    <label style={editLabelStyle}>Purpose / Intent</label>
-                    <input type="text" value={editData?.purpose || ''} onChange={(e) => setEditData({ ...editData, purpose: e.target.value })} style={inputStyle} />
+                    <label htmlFor="lh-purpose" style={editLabelStyle}>Purpose / Intent</label>
+                    <input id="lh-purpose" name="purpose" type="text" value={editData?.purpose || ''} onChange={(e) => setEditData({ ...editData, purpose: e.target.value })} style={inputStyle} />
                 </div>
             </div>
             <div>
                 <label style={editLabelStyle}>Declared Properties</label>
                 {(editData?.properties || []).map((p: any, i: number) => (
                     <div key={i} style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px', marginBottom: '8px', padding: '12px', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
-                        <div><label style={{ fontSize: '10px', color: '#6b7280' }}>TD/ARP No.</label><input type="text" value={p.td_arp_number || p.tdArpNumber || ''} onChange={(e) => updateProperty(i, 'tdArpNumber', e.target.value)} style={inputStyle} /></div>
-                        <div><label style={{ fontSize: '10px', color: '#6b7280' }}>Location</label><input type="text" value={p.location_of_property || p.locationOfProperty || ''} onChange={(e) => updateProperty(i, 'locationOfProperty', e.target.value)} style={inputStyle} /></div>
-                        <div><label style={{ fontSize: '10px', color: '#6b7280' }}>Lot No.</label><input type="text" value={p.lot_number || p.lotNumber || ''} onChange={(e) => updateProperty(i, 'lotNumber', e.target.value)} style={inputStyle} /></div>
-                        <div><label style={{ fontSize: '10px', color: '#6b7280' }}>Title No.</label><input type="text" value={p.title_number || p.titleNumber || ''} onChange={(e) => updateProperty(i, 'titleNumber', e.target.value)} style={inputStyle} /></div>
-                        <div><label style={{ fontSize: '10px', color: '#6b7280' }}>Area</label><input type="text" value={p.area || ''} onChange={(e) => updateProperty(i, 'area', e.target.value)} style={inputStyle} /></div>
-                        <div><label style={{ fontSize: '10px', color: '#6b7280' }}>Assessed Val.</label><input type="number" value={p.assessed_value || p.assessedValue || ''} onChange={(e) => updateProperty(i, 'assessedValue', e.target.value)} style={inputStyle} /></div>
+                        <div><label htmlFor={`lh-property-${i}-td-arp-number`} style={{ fontSize: '10px', color: '#6b7280' }}>TD/ARP No.</label><input id={`lh-property-${i}-td-arp-number`} name={`property-${i}-tdArpNumber`} type="text" value={p.td_arp_number || p.tdArpNumber || ''} onChange={(e) => updateProperty(i, 'tdArpNumber', e.target.value)} style={inputStyle} /></div>
+                        <div><label htmlFor={`lh-property-${i}-location`} style={{ fontSize: '10px', color: '#6b7280' }}>Location</label><input id={`lh-property-${i}-location`} name={`property-${i}-locationOfProperty`} type="text" value={p.location_of_property || p.locationOfProperty || ''} onChange={(e) => updateProperty(i, 'locationOfProperty', e.target.value)} style={inputStyle} /></div>
+                        <div><label htmlFor={`lh-property-${i}-lot-number`} style={{ fontSize: '10px', color: '#6b7280' }}>Lot No.</label><input id={`lh-property-${i}-lot-number`} name={`property-${i}-lotNumber`} type="text" value={p.lot_number || p.lotNumber || ''} onChange={(e) => updateProperty(i, 'lotNumber', e.target.value)} style={inputStyle} /></div>
+                        <div><label htmlFor={`lh-property-${i}-title-number`} style={{ fontSize: '10px', color: '#6b7280' }}>Title No.</label><input id={`lh-property-${i}-title-number`} name={`property-${i}-titleNumber`} type="text" value={p.title_number || p.titleNumber || ''} onChange={(e) => updateProperty(i, 'titleNumber', e.target.value)} style={inputStyle} /></div>
+                        <div><label htmlFor={`lh-property-${i}-area`} style={{ fontSize: '10px', color: '#6b7280' }}>Area</label><input id={`lh-property-${i}-area`} name={`property-${i}-area`} type="text" value={p.area || ''} onChange={(e) => updateProperty(i, 'area', e.target.value)} style={inputStyle} /></div>
+                        <div><label htmlFor={`lh-property-${i}-assessed-value`} style={{ fontSize: '10px', color: '#6b7280' }}>Assessed Val.</label><input id={`lh-property-${i}-assessed-value`} name={`property-${i}-assessedValue`} type="number" value={p.assessed_value || p.assessedValue || ''} onChange={(e) => updateProperty(i, 'assessedValue', e.target.value)} style={inputStyle} /></div>
                     </div>
                 ))}
             </div>
@@ -413,24 +413,24 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     const renderTaxDecEdit = () => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', backgroundColor: '#f0fdf4', padding: '16px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                <div><label style={editLabelStyle}>ARP No.</label><input type="text" value={editData?.taxDeclarationNumber || editData?.tax_declaration_number || ''} onChange={(e) => setEditData({ ...editData, taxDeclarationNumber: e.target.value })} style={inputStyle} /></div>
-                <div><label style={editLabelStyle}>PIN</label><input type="text" value={editData?.propertyIndexNumber || editData?.property_index_number || ''} onChange={(e) => setEditData({ ...editData, propertyIndexNumber: e.target.value })} style={inputStyle} /></div>
+                <div><label htmlFor="taxdec-arp-no" style={editLabelStyle}>ARP No.</label><input id="taxdec-arp-no" name="taxDeclarationNumber" type="text" value={editData?.taxDeclarationNumber || editData?.tax_declaration_number || ''} onChange={(e) => setEditData({ ...editData, taxDeclarationNumber: e.target.value })} style={inputStyle} /></div>
+                <div><label htmlFor="taxdec-pin" style={editLabelStyle}>PIN</label><input id="taxdec-pin" name="propertyIndexNumber" type="text" value={editData?.propertyIndexNumber || editData?.property_index_number || ''} onChange={(e) => setEditData({ ...editData, propertyIndexNumber: e.target.value })} style={inputStyle} /></div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div><label style={editLabelStyle}>Owner Name</label><input type="text" value={editData?.ownerName || editData?.owner_name || ''} onChange={(e) => setEditData({ ...editData, ownerName: e.target.value })} style={inputStyle} /></div>
-                <div><label style={editLabelStyle}>Owner Address</label><input type="text" value={editData?.ownerAddress || editData?.owner_address || ''} onChange={(e) => setEditData({ ...editData, ownerAddress: e.target.value })} style={inputStyle} /></div>
-                <div><label style={editLabelStyle}>Administrator Name</label><input type="text" value={editData?.administratorName || editData?.administrator_name || ''} onChange={(e) => setEditData({ ...editData, administratorName: e.target.value })} style={inputStyle} /></div>
-                <div><label style={editLabelStyle}>Administrator Address</label><input type="text" value={editData?.administratorAddress || editData?.administrator_address || ''} onChange={(e) => setEditData({ ...editData, administratorAddress: e.target.value })} style={inputStyle} /></div>
+                <div><label htmlFor="taxdec-owner-name" style={editLabelStyle}>Owner Name</label><input id="taxdec-owner-name" name="ownerName" type="text" value={editData?.ownerName || editData?.owner_name || ''} onChange={(e) => setEditData({ ...editData, ownerName: e.target.value })} style={inputStyle} /></div>
+                <div><label htmlFor="taxdec-owner-address" style={editLabelStyle}>Owner Address</label><input id="taxdec-owner-address" name="ownerAddress" type="text" value={editData?.ownerAddress || editData?.owner_address || ''} onChange={(e) => setEditData({ ...editData, ownerAddress: e.target.value })} style={inputStyle} /></div>
+                <div><label htmlFor="taxdec-admin-name" style={editLabelStyle}>Administrator Name</label><input id="taxdec-admin-name" name="administratorName" type="text" value={editData?.administratorName || editData?.administrator_name || ''} onChange={(e) => setEditData({ ...editData, administratorName: e.target.value })} style={inputStyle} /></div>
+                <div><label htmlFor="taxdec-admin-address" style={editLabelStyle}>Administrator Address</label><input id="taxdec-admin-address" name="administratorAddress" type="text" value={editData?.administratorAddress || editData?.administrator_address || ''} onChange={(e) => setEditData({ ...editData, administratorAddress: e.target.value })} style={inputStyle} /></div>
             </div>
 
             <div style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
                 <label style={editLabelStyle}>Boundaries</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div><label style={{ fontSize: '10px', color: '#6b7280' }}>NORTH</label><input type="text" value={editData?.boundaryNorth || editData?.boundary_north || ''} onChange={(e) => setEditData({ ...editData, boundaryNorth: e.target.value })} style={inputStyle} /></div>
-                    <div><label style={{ fontSize: '10px', color: '#6b7280' }}>SOUTH</label><input type="text" value={editData?.boundarySouth || editData?.boundary_south || ''} onChange={(e) => setEditData({ ...editData, boundarySouth: e.target.value })} style={inputStyle} /></div>
-                    <div><label style={{ fontSize: '10px', color: '#6b7280' }}>EAST</label><input type="text" value={editData?.boundaryEast || editData?.boundary_east || ''} onChange={(e) => setEditData({ ...editData, boundaryEast: e.target.value })} style={inputStyle} /></div>
-                    <div><label style={{ fontSize: '10px', color: '#6b7280' }}>WEST</label><input type="text" value={editData?.boundaryWest || editData?.boundary_west || ''} onChange={(e) => setEditData({ ...editData, boundaryWest: e.target.value })} style={inputStyle} /></div>
+                    <div><label htmlFor="taxdec-boundary-north" style={{ fontSize: '10px', color: '#6b7280' }}>NORTH</label><input id="taxdec-boundary-north" name="boundaryNorth" type="text" value={editData?.boundaryNorth || editData?.boundary_north || ''} onChange={(e) => setEditData({ ...editData, boundaryNorth: e.target.value })} style={inputStyle} /></div>
+                    <div><label htmlFor="taxdec-boundary-south" style={{ fontSize: '10px', color: '#6b7280' }}>SOUTH</label><input id="taxdec-boundary-south" name="boundarySouth" type="text" value={editData?.boundarySouth || editData?.boundary_south || ''} onChange={(e) => setEditData({ ...editData, boundarySouth: e.target.value })} style={inputStyle} /></div>
+                    <div><label htmlFor="taxdec-boundary-east" style={{ fontSize: '10px', color: '#6b7280' }}>EAST</label><input id="taxdec-boundary-east" name="boundaryEast" type="text" value={editData?.boundaryEast || editData?.boundary_east || ''} onChange={(e) => setEditData({ ...editData, boundaryEast: e.target.value })} style={inputStyle} /></div>
+                    <div><label htmlFor="taxdec-boundary-west" style={{ fontSize: '10px', color: '#6b7280' }}>WEST</label><input id="taxdec-boundary-west" name="boundaryWest" type="text" value={editData?.boundaryWest || editData?.boundary_west || ''} onChange={(e) => setEditData({ ...editData, boundaryWest: e.target.value })} style={inputStyle} /></div>
                 </div>
             </div>
 
@@ -439,25 +439,25 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
                 {(editData?.assessments || []).length === 0 && <div style={{ fontSize: '13px', color: '#6b7280' }}>No assessments recorded.</div>}
                 {(editData?.assessments || []).map((a: any, i: number) => (
                     <div key={i} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '8px', padding: '12px', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
-                        <div><label style={{ fontSize: '10px', color: '#6b7280' }}>Classification</label><input type="text" value={a.classificationLabel || a.classification_label || a.kindOfProperty || ''} onChange={(e) => updateAssessment(i, 'classificationLabel', e.target.value)} style={inputStyle} /></div>
-                        <div><label style={{ fontSize: '10px', color: '#6b7280' }}>Area</label><input type="text" value={a.area || ''} onChange={(e) => updateAssessment(i, 'area', e.target.value)} style={inputStyle} /></div>
-                        <div><label style={{ fontSize: '10px', color: '#6b7280' }}>Market Value</label><input type="number" value={a.marketValue || a.market_value || ''} onChange={(e) => updateAssessment(i, 'marketValue', e.target.value)} style={inputStyle} /></div>
-                        <div><label style={{ fontSize: '10px', color: '#6b7280' }}>Level (%)</label><input type="number" value={a.assessmentLevel || a.assessment_level || ''} onChange={(e) => updateAssessment(i, 'assessmentLevel', e.target.value)} style={inputStyle} /></div>
+                        <div><label htmlFor={`taxdec-assessment-${i}-classification`} style={{ fontSize: '10px', color: '#6b7280' }}>Classification</label><input id={`taxdec-assessment-${i}-classification`} name={`assessment-${i}-classificationLabel`} type="text" value={a.classificationLabel || a.classification_label || a.kindOfProperty || ''} onChange={(e) => updateAssessment(i, 'classificationLabel', e.target.value)} style={inputStyle} /></div>
+                        <div><label htmlFor={`taxdec-assessment-${i}-area`} style={{ fontSize: '10px', color: '#6b7280' }}>Area</label><input id={`taxdec-assessment-${i}-area`} name={`assessment-${i}-area`} type="text" value={a.area || ''} onChange={(e) => updateAssessment(i, 'area', e.target.value)} style={inputStyle} /></div>
+                        <div><label htmlFor={`taxdec-assessment-${i}-market-value`} style={{ fontSize: '10px', color: '#6b7280' }}>Market Value</label><input id={`taxdec-assessment-${i}-market-value`} name={`assessment-${i}-marketValue`} type="number" value={a.marketValue || a.market_value || ''} onChange={(e) => updateAssessment(i, 'marketValue', e.target.value)} style={inputStyle} /></div>
+                        <div><label htmlFor={`taxdec-assessment-${i}-level`} style={{ fontSize: '10px', color: '#6b7280' }}>Level (%)</label><input id={`taxdec-assessment-${i}-level`} name={`assessment-${i}-assessmentLevel`} type="number" value={a.assessmentLevel || a.assessment_level || ''} onChange={(e) => updateAssessment(i, 'assessmentLevel', e.target.value)} style={inputStyle} /></div>
                     </div>
                 ))}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                    <label style={editLabelStyle}>Taxability</label>
-                    <select value={editData?.taxability || 'TAXABLE'} onChange={(e) => setEditData({ ...editData, taxability: e.target.value })} style={inputStyle}>
+                    <label htmlFor="taxdec-taxability" style={editLabelStyle}>Taxability</label>
+                    <select id="taxdec-taxability" name="taxability" value={editData?.taxability || 'TAXABLE'} onChange={(e) => setEditData({ ...editData, taxability: e.target.value })} style={inputStyle}>
                         <option value="TAXABLE">TAXABLE</option>
                         <option value="EXEMPT">EXEMPT</option>
                     </select>
                 </div>
                 <div>
-                    <label style={editLabelStyle}>Effectivity Year</label>
-                    <input type="number" value={editData?.effectivityYear || editData?.effectivity_year || ''} onChange={(e) => setEditData({ ...editData, effectivityYear: e.target.value })} style={inputStyle} />
+                    <label htmlFor="taxdec-effectivity-year" style={editLabelStyle}>Effectivity Year</label>
+                    <input id="taxdec-effectivity-year" name="effectivityYear" type="number" value={editData?.effectivityYear || editData?.effectivity_year || ''} onChange={(e) => setEditData({ ...editData, effectivityYear: e.target.value })} style={inputStyle} />
                 </div>
             </div>
         </div>
@@ -521,18 +521,21 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
                             {/* Base Fields */}
                             <div style={{ display: 'grid', gridTemplateColumns: docType === 'NO_LANDHOLDING' ? '1fr 1fr' : '1fr 1fr 1fr', gap: '16px', backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
                                 <div>
-                                    <label style={editLabelStyle}>Declarant / Owner Name *</label>
-                                    <input type="text" value={formData.declarantName} onChange={(e) => setFormData({ ...formData, declarantName: e.target.value })} style={inputStyle} />
+                                    <label htmlFor="base-declarant-name" style={editLabelStyle}>Declarant / Owner Name *</label>
+                                    <input id="base-declarant-name" name="declarantName" type="text" value={formData.declarantName} onChange={(e) => setFormData({ ...formData, declarantName: e.target.value })} style={inputStyle} />
                                 </div>
                                 <div>
-                                    <label style={editLabelStyle}>Requested By Name</label>
-                                    <input type="text" value={formData.requestedByName} onChange={(e) => setFormData({ ...formData, requestedByName: e.target.value })} style={inputStyle} />
+                                    <label htmlFor="base-requested-by-name" style={editLabelStyle}>Requested By Name</label>
+                                    <input id="base-requested-by-name" name="requestedByName" type="text" value={formData.requestedByName} onChange={(e) => setFormData({ ...formData, requestedByName: e.target.value })} style={inputStyle} />
                                 </div>
                                 {docType !== 'NO_LANDHOLDING' && (
                                     <div style={{ position: 'relative' }}>
-                                        <label style={editLabelStyle}>Property Location</label>
+                                        <label htmlFor="base-property-location" style={editLabelStyle}>Property Location</label>
                                         <input
+                                            id="base-property-location"
+                                            name="propertyLocation"
                                             type="text"
+                                            autoComplete="off"
                                             value={formData.propertyLocation}
                                             onChange={(e) => { setFormData({ ...formData, propertyLocation: e.target.value }); setShowSuggestions(true); }}
                                             onFocus={() => setShowSuggestions(true)}

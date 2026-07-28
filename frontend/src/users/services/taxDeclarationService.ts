@@ -117,7 +117,15 @@ export const taxDeclarationService = {
                     assessedValue: row.assessed_value
                 }))
             };
-        } catch (error) {
+        } catch (error: any) {
+            // A 404 means no tax declaration has been encoded for this
+            // request yet (or this document type doesn't require one) —
+            // that's an expected state, not a failure. Return null so
+            // callers can render an empty/placeholder state instead of
+            // treating it as an error.
+            if (error?.response?.status === 404) {
+                return null;
+            }
             console.error("[taxDeclarationService] Error fetching details:", error);
             throw error;
         }
