@@ -397,7 +397,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                             <div className="rfe-field">
                                 <label className="rfe-label">Name of Declarant</label>
                                 <div className="input-with-clear">
-                                    <input className="rfe-input" type="text" placeholder="e.g. Juan D. Cruz" value={formData.declarantName} onChange={(e) => setFormData({ ...formData, declarantName: e.target.value })} />
+                                    <input id="declarantName" name="declarantName" className="rfe-input" type="text" placeholder="e.g. Juan D. Cruz" value={formData.declarantName} onChange={(e) => setFormData({ ...formData, declarantName: e.target.value })} />
                                     {formData.declarantName && (<button type="button" className="input-clear-btn" onClick={() => setFormData({ ...formData, declarantName: '' })} title="Clear Name">×</button>)}
                                 </div>
                             </div>
