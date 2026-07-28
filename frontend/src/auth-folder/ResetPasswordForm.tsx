@@ -3,7 +3,7 @@ import type { View } from './types/auth';
 import { PasswordInput } from './components/PasswordInput';
 import { AlertBanner } from './components/AlertBanner';
 import { LockDisclaimer } from './components/LockDisclaimer';
-import { supabase } from './services/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import sealImg from './assets/seal.png';
 import logoImg from './assets/logo.png';
 

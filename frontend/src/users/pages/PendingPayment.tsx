@@ -85,6 +85,8 @@ export function PendingPayment({ onSelectPayment }: any) {
                         id: req.id,
                         referenceNumber: req.reference_number || "REF-PENDING",
                         declarantName: req.declarant_name || 'N/A',
+                        requestedByName: req.requested_by_name || req.requestedByName || requester, // ADDED THIS
+                        propertyLocation: req.property_location || '', // ADDED THIS
                         documentType: resolveDocTypeName(req),
                         encodedByStaff: req.encoded_by_staff_name || req.encodedByStaffName || null,
                         amountDue: 40.00

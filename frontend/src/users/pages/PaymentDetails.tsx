@@ -1,23 +1,19 @@
 import { useState, useEffect } from 'react';
 import { requestService } from '../services/requestService';
-import { taxDeclarationService } from '../services/taxDeclarationService';
-import { landholdingService } from '../services/landholdingService';
-import { noLandholdingService } from '../services/noLandholdingService';
-import { DocumentPreviewModal, type DocumentItem } from '../components/DocumentPreviewModal';
+import { InitialDocumentPreviewModal } from '../components/InitialDocumentPreviewModal';
 import '../styles/PaymentDetails.css';
 
 interface PaymentDetailsProps {
     payment: any | null;
     onBack: () => void;
-    onEditDocument: (referenceNumber: string) => void;
+    onEditDocument?: (referenceNumber: string) => void;
 }
 
-export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetailsProps) {
+export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
     const [orNumber, setOrNumber] = useState('');
-    const [signatory, setSignatory] = useState('');
     const [isVerified, setIsVerified] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
-    const [fieldErrors, setFieldErrors] = useState<{ orNumber?: string; signatory?: string }>({});
+    const [fieldErrors, setFieldErrors] = useState<{ orNumber?: string }>({});
     const [banner, setBanner] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
     const [showOverrideModal, setShowOverrideModal] = useState(false);
@@ -26,13 +22,9 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
     const [justificationError, setJustificationError] = useState('');
     const [existingRequestInfo, setExistingRequestInfo] = useState<{ referenceNumber?: string; declarantName?: string } | null>(null);
 
-    const [showPreview, setShowPreview] = useState(false);
-    const [previewDocuments, setPreviewDocuments] = useState<DocumentItem[]>([]);
-    const [isLoadingPreview, setIsLoadingPreview] = useState(false);
-
     const [documents, setDocuments] = useState<any[]>([]);
+    const [selectedDocForPreview, setSelectedDocForPreview] = useState<any | null>(null);
 
-    // Load initial documents
     useEffect(() => {
         if (payment && payment.documents) {
             setDocuments(payment.documents);
@@ -54,20 +46,15 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
     const requesterName = payment.requesterName;
     const totalAmount = payment.totalAmountDue;
     const currency = (n: number) => `\u20B1 ${n.toFixed(2)}`;
-    const getOrdinal = (d: number) => {
-        if (d > 3 && d < 21) return 'th';
-        switch (d % 10) { case 1: return "st"; case 2: return "nd"; case 3: return "rd"; default: return "th"; }
-    };
 
-    // --- O.R. VERIFICATION ---
+    // --- O.R. VERIFICATION (SIGNATORY COMPLETELY REMOVED) ---
     const handleVerify = async () => {
-        const errors: { orNumber?: string; signatory?: string } = {};
+        const errors: { orNumber?: string } = {};
         if (!orNumber.trim()) errors.orNumber = 'Enter the Treasurer O.R. number.';
-        if (!signatory) errors.signatory = 'Select an authorized signatory.';
         setFieldErrors(errors);
 
         if (Object.keys(errors).length > 0) {
-            setBanner({ type: 'error', text: 'Please complete the verification details.' });
+            setBanner({ type: 'error', text: 'Please enter a valid O.R. number.' });
             return;
         }
 
@@ -113,95 +100,29 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
         setBanner(null);
     };
 
-    // --- GENERATE PREVIEW ---
-    const handleOpenPreview = async () => {
-        setIsLoadingPreview(true);
-        setBanner(null);
-
-        try {
-            const items: DocumentItem[] = [];
-
-            for (const doc of documents) {
-                const typeStr = doc.documentType?.toLowerCase() || '';
-                let docType: 'TAX_DEC' | 'LANDHOLDING' | 'NO_LANDHOLDING' = 'TAX_DEC';
-                let rawBackendData: any = null;
-
-                if (typeStr.includes('no landholding')) docType = 'NO_LANDHOLDING';
-                else if (typeStr.includes('landholding')) docType = 'LANDHOLDING';
-                else docType = 'TAX_DEC';
-
-                try {
-                    if (docType === 'TAX_DEC') rawBackendData = await taxDeclarationService.getTaxDeclaration(doc.id);
-                    else if (docType === 'LANDHOLDING') rawBackendData = await landholdingService.getByRequestId(doc.id);
-                    else rawBackendData = await noLandholdingService.getByRequestId(doc.id);
-                } catch (fetchErr) {
-                    console.error(`Could not hydrate document ${doc.referenceNumber}`, fetchErr);
-                    rawBackendData = doc;
-                }
-
-                let templateData: any = {};
-                if (docType === 'TAX_DEC') {
-                    templateData = rawBackendData;
-                } else if (docType === 'LANDHOLDING') {
-                    const dateObj = rawBackendData.date_given ? new Date(rawBackendData.date_given) : new Date();
-                    const dayNum = dateObj.getDate();
-                    templateData = {
-                        ownerName: rawBackendData.declarant_name || doc.declarantName || requesterName,
-                        day: `${dayNum}${getOrdinal(dayNum)}`,
-                        monthYear: dateObj.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
-                        certFee: rawBackendData.amountDue ? rawBackendData.amountDue.toFixed(2) : '40.00',
-                        properties: (rawBackendData.properties || []).map((p: any) => ({
-                            tdNo: p.td_arp_number, location: p.location_of_property, lotNo: p.lot_number,
-                            titleNo: p.title_number, area: p.area, assdValue: p.assessed_value ? Number(p.assessed_value).toLocaleString(undefined, { minimumFractionDigits: 2 }) : ''
-                        }))
-                    };
-                } else {
-                    const dateObj = new Date();
-                    templateData = {
-                        ownerName: rawBackendData.declarantName || doc.declarantName || requesterName,
-                        day: `${dateObj.getDate()}${getOrdinal(dateObj.getDate())}`,
-                        monthYear: dateObj.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
-                        certFee: '40.00'
-                    };
-                }
-
-                items.push({
-                    id: doc.id || doc.referenceNumber,
-                    type: docType,
-                    title: `${doc.documentType} (${doc.referenceNumber})`,
-                    data: templateData
-                });
-            }
-
-            setPreviewDocuments(items);
-            setShowPreview(true);
-        } catch (err: any) {
-            setBanner({ type: 'error', text: 'Failed to prepare documents for preview.' });
-        } finally {
-            setIsLoadingPreview(false);
-        }
+    // --- UPDATE LOCAL STATE WHEN DB EDIT SUCCEEDS ---
+    const handleUpdateSuccess = (updatedDoc: any) => {
+        setDocuments(prev => prev.map(d => d.id === updatedDoc.id ? updatedDoc : d));
+        setBanner({ type: 'success', text: `Successfully updated details for ${updatedDoc.referenceNumber}.` });
+        setSelectedDocForPreview(null);
     };
 
+    // --- RELEASE TRANSACTION (NO SIGNATORY REQUIRED FOR NOW) ---
     const handleFinalRelease = async () => {
         setBanner(null);
         try {
             await Promise.all(documents.map((doc: any) =>
                 requestService.releaseRequest(doc.id, {
-                    orNumber: orNumber.trim(), signatory, isOverridden, justification: isOverridden ? justification : undefined
+                    orNumber: orNumber.trim(),
+                    isOverridden,
+                    justification: isOverridden ? justification : undefined
                 })
             ));
-            setBanner({ type: 'success', text: 'Documents recorded and released successfully. Returning to queue...' });
-            setShowPreview(false);
+            setBanner({ type: 'success', text: 'Documents recorded successfully. Returning to queue...' });
             setTimeout(() => onBack(), 2000);
         } catch (err: any) {
             setBanner({ type: 'error', text: err?.response?.data?.error || err?.message || 'Failed to update transaction in database.' });
-            setShowPreview(false);
         }
-    };
-
-    const getFormattedDate = () => {
-        const d = new Date();
-        return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}-${d.getFullYear()}`;
     };
 
     return (
@@ -219,7 +140,7 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
                     {banner && <div className={`pd-banner pd-banner--${banner.type}`}>{banner.text}</div>}
 
                     <div className="pd-split-layout">
-                        {/* LEFT COLUMN: REVIEW & REDIRECT EDIT */}
+                        {/* LEFT COLUMN: REVIEW & PREVIEW/EDIT */}
                         <div className="pd-col-left">
                             <div className="pd-section-label">Verify Document Details ({documents.length})</div>
                             <div className="pd-doc-table-wrap">
@@ -237,11 +158,10 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
                                             <tr key={doc.id || i}>
                                                 <td className="pd-doc-ref">{doc.referenceNumber}</td>
                                                 <td className="pd-doc-type">{doc.documentType}</td>
-                                                <td className="pd-doc-declarant">{doc.declarantName}</td>
+                                                <td className="pd-doc-declarant">{doc.declarantName || doc.declarant_name}</td>
                                                 <td style={{ textAlign: 'right' }}>
                                                     <button
-                                                        onClick={() => onEditDocument(doc.referenceNumber)}
-                                                        disabled={isVerified}
+                                                        onClick={() => setSelectedDocForPreview(doc)}
                                                         style={{
                                                             color: '#4f46e5',
                                                             backgroundColor: '#e0e7ff',
@@ -249,12 +169,11 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
                                                             padding: '6px 12px',
                                                             borderRadius: '6px',
                                                             fontWeight: 500,
-                                                            cursor: isVerified ? 'not-allowed' : 'pointer',
-                                                            opacity: isVerified ? 0.5 : 1
+                                                            cursor: 'pointer'
                                                         }}
-                                                        title="Redirect to form to edit details"
+                                                        title="Preview initial form details & edit typos"
                                                     >
-                                                        ✎ Edit Details
+                                                        👁 Preview / Edit Details
                                                     </button>
                                                 </td>
                                             </tr>
@@ -268,7 +187,7 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
                             </div>
                         </div>
 
-                        {/* RIGHT COLUMN: RECEIPT & GENERATE */}
+                        {/* RIGHT COLUMN: RECEIPT */}
                         <div className="pd-col-right">
                             <div className="pd-receipt-card">
                                 <div className="pd-section-label">Treasurer Receipt Details</div>
@@ -291,20 +210,6 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
                                     {fieldErrors.orNumber && <span className="pd-field-error">{fieldErrors.orNumber}</span>}
                                 </div>
 
-                                <div className="pd-form-group">
-                                    <label className="pd-field-label">Authorized Signatory</label>
-                                    <select
-                                        value={signatory} onChange={(e) => setSignatory(e.target.value)} disabled={isVerified}
-                                        className="pd-field-select"
-                                    >
-                                        <option value="">-- Select Signatory --</option>
-                                        <option value="ENGR. VICENTE P. DESOY">ENGR. VICENTE P. DESOY</option>
-                                        <option value="ELVIRA T. ENAO, REA">ELVIRA T. ENAO, REA</option>
-                                        <option value="CHINA CHAN-OLARIO, RN, REA, REB, Enp">CHINA CHAN-OLARIO, RN, REA, REB, Enp</option>
-                                    </select>
-                                    {fieldErrors.signatory && <span className="pd-field-error">{fieldErrors.signatory}</span>}
-                                </div>
-
                                 <div className="pd-actions-row">
                                     {!isVerified ? (
                                         <button onClick={handleVerify} disabled={isVerifying} className="pd-btn pd-btn--verify">
@@ -314,12 +219,11 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
                                         <div className="pd-verified-actions">
                                             <button onClick={handleEditVerify} className="pd-btn pd-btn--edit-verify">Edit OR Info</button>
                                             <button
-                                                onClick={handleOpenPreview}
-                                                disabled={isLoadingPreview}
+                                                onClick={handleFinalRelease}
                                                 className="pd-btn pd-btn--print"
                                                 style={{ backgroundColor: '#22c55e', color: 'white' }}
                                             >
-                                                {isLoadingPreview ? 'Preparing Preview...' : `Verify Data & Lock PDF`}
+                                                Lock & Complete Payment
                                             </button>
                                         </div>
                                     )}
@@ -330,7 +234,16 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
                 </div>
             </div>
 
-            {/* MODALS */}
+            {/* INITIAL PREVIEW & EDIT MODAL */}
+            {selectedDocForPreview && (
+                <InitialDocumentPreviewModal
+                    documentItem={selectedDocForPreview}
+                    onClose={() => setSelectedDocForPreview(null)}
+                    onUpdateSuccess={handleUpdateSuccess}
+                />
+            )}
+
+            {/* OVERRIDE MODAL */}
             {showOverrideModal && (
                 <div className="pd-modal-overlay">
                     <div className="pd-modal">
@@ -349,17 +262,6 @@ export function PaymentDetails({ payment, onBack, onEditDocument }: PaymentDetai
                         </div>
                     </div>
                 </div>
-            )}
-
-            {showPreview && (
-                <DocumentPreviewModal
-                    documents={previewDocuments}
-                    orNumber={orNumber}
-                    datePaid={getFormattedDate()}
-                    signatory1Name={signatory}
-                    onClose={() => setShowPreview(false)}
-                    onConfirmRelease={handleFinalRelease}
-                />
             )}
         </div>
     );

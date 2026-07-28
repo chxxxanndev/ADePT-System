@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { User, MockUser } from '../../auth-folder/types/auth';
-import { supabase } from '../../auth-folder/services/supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 
 const API_BASE_URL = 'http://localhost:5000';
 

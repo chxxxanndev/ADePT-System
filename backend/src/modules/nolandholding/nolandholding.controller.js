@@ -32,10 +32,12 @@ class NoLandholdingController {
     async updateDraft(req, res) {
         try {
             const { id } = req.params;
-            const updateData = req.body;
-            // Assuming your service has this method to update the DB:
-            const updatedRecord = await noLandholdingService.updateNoLandholdingCertificate(id, updateData);
-            return res.status(200).json({ message: "Draft updated successfully", data: updatedRecord });
+            const formData = req.body;
+
+            if (!id) return res.status(400).json({ error: 'id is required.' });
+
+            const updated = await noLandholdingService.updateDraft(id, formData);
+            return res.json(updated);
         } catch (err) {
             console.error('[NoLandholdingController.updateDraft]', err);
             return res.status(500).json({ error: err.message || 'Failed to update draft.' });

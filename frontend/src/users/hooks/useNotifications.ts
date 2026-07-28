@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { User } from '../../auth-folder/types/auth';
-import { supabase } from '../../auth-folder/services/supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 import { requestService } from '../services/requestService';
 
 export interface NotificationItem {

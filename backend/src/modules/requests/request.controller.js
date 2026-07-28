@@ -104,8 +104,12 @@ export const releaseRequest = async (req, res) => {
 export const forwardRequest = async (req, res) => {
     try {
         const { id } = req.params;
-        const { targetStaffId, staffId } = req.body; // accepts either key name
-        const result = await RequestService.forwardRequest(id, targetStaffId || staffId, req.user?.id);
+        const { recipientStaffId, targetStaffId, note } = req.body;
+        const result = await RequestService.forwardRequest(id, {
+            recipientStaffId: recipientStaffId || targetStaffId,
+            note,
+            actorStaffId: req.user?.id
+        });
         res.status(200).json({ message: 'Request forwarded.', request: result });
     } catch (error) {
         const statusCode = error.message.includes('not found') ? 404 : 400;

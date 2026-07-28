@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { supabase } from '../../auth-folder/services/supabaseClient'; // match the exact path used in useAuth.ts / useNotifications.ts
+import { supabase } from '../../lib/supabaseClient';
 
 export interface RequestFormData {
     id?: string;
@@ -12,22 +12,21 @@ export interface RequestFormData {
     actionTaken: string;
     status?: string;
     referenceNumber?: string;
+    propertyLocation?: string;
+    purposeOtherText?: string;
 }
 
 const API_ROOT = 'http://localhost:5000/api';
 
 const api = axios.create({ baseURL: API_ROOT });
 
-// Always pull the CURRENT, live session token from Supabase itself — not a
-// stale copy written to localStorage once at login. Supabase auto-refreshes
-// the session in the background; getSession() always reflects that, so this
-// interceptor never sends an expired token again.
+// Always pull the CURRENT, live session token from Supabase itself
 api.interceptors.request.use(async (config) => {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
     if (token) {
-        config.headers = config.headers ?? {};
-        (config.headers as any)['Authorization'] = `Bearer ${token}`;
+        // Bypass strict AxiosHeaders type check by casting to any
+        (config.headers as any).Authorization = `Bearer ${token}`;
     }
     return config;
 }, (error) => Promise.reject(error));
@@ -48,16 +47,12 @@ export const requestService = {
         return response.data;
     },
 
-    // NOTE: still unguarded on the backend (no requireAuth on POST /requests
-    // yet) — staffAuthId is passed explicitly here because createRequest's
-    // route hasn't been locked down like /forward and /:id have. Worth
-    // revisiting once you get to hardening the rest of the routes.
     submitRequest: async (formData: RequestFormData, staffAuthId: string) => {
         const response = await api.post('/requests', { ...formData, staffAuthId });
         return response.data;
     },
 
-    updateRequest: async (id: string, formData: any) => {
+    updateRequest: async (id: string, formData: Partial<RequestFormData>) => {
         const response = await api.put(`/requests/${id}`, formData);
         return response.data;
     },
@@ -71,7 +66,7 @@ export const requestService = {
 
     releaseRequest: async (id: string, paymentData: {
         orNumber: string;
-        signatory: string;
+        signatory?: string;
         isOverridden?: boolean;
         justification?: string;
     }) => {
@@ -84,8 +79,6 @@ export const requestService = {
         return response.data;
     },
 
-    // Identity comes from the Bearer token now (via requireAuth on the
-    // backend), so only recipientStaffId + note are sent — no actorAuthId.
     forwardRequest: async (requestId: string, recipientStaffId: string, note: string) => {
         const response = await api.post(`/requests/${requestId}/forward`, { recipientStaffId, note });
         return response.data;

@@ -65,7 +65,7 @@ export const updateDraft = async (req, res) => {
         const updateData = req.body;
 
         // Assuming your service has an update method:
-        const updatedRecord = await TaxDeclarationService.updateTaxDeclaration(id, updateData);
+        const updatedRecord = await TaxDeclarationService.updateDraft(id, updateData);
 
         return res.status(200).json({ message: 'Draft updated successfully', data: updatedRecord });
     } catch (error) {

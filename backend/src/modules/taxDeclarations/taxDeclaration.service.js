@@ -208,7 +208,7 @@ class TaxDeclarationService {
         // actually requires a tax declaration to this TD record.
         const { data: reqDocs, error: rdErr } = await supabase
             .from('request_documents')
-            .select('id, document_types!fk_document_types(requires_tax_declaration)') 
+            .select('id, document_types!fk_document_types(requires_tax_declaration)')
             .eq('request_id', data.requestId);
 
         if (rdErr) throw rdErr;
@@ -244,6 +244,10 @@ class TaxDeclarationService {
             .from('encoded_tax_declarations')
             .select(`
                 *,
+                request:requests (
+                    requested_by_name,
+                    property_location
+                ),
                 encoded_assessment_rows ( * ),
                 encoded_property_types ( * )
             `)
@@ -274,6 +278,47 @@ class TaxDeclarationService {
         mockStore.set(id, record);
         console.log('[MOCK] Tax Declaration saved:', id);
         return record;
+    }
+    async updateDraft(id, formData) {
+        const { data, error } = await supabase.from('encoded_tax_declarations').update({
+            tax_declaration_number: formData.taxDeclarationNumber || formData.tax_declaration_number,
+            property_identification_number: formData.propertyIndexNumber || formData.property_index_number,
+            owner_name: formData.ownerName || formData.owner_name,
+            owner_address: formData.ownerAddress || formData.owner_address,
+            administrator_name: formData.administratorName || formData.administrator_name,
+            administrator_address: formData.administratorAddress || formData.administrator_address,
+            boundary_north: formData.boundaryNorth || formData.boundary_north,
+            boundary_south: formData.boundarySouth || formData.boundary_south,
+            boundary_east: formData.boundaryEast || formData.boundary_east,
+            boundary_west: formData.boundaryWest || formData.boundary_west,
+            oct_tct_cloa_number: formData.octTctNumber || formData.oct_tct_cloa_number,
+            lot_number: formData.lotNumber || formData.lot_number,
+            total_market_value: formData.totalMarketValue || formData.total_market_value,
+            total_assessed_value: formData.totalAssessedValue || formData.total_assessed_value,
+            taxability: formData.taxability,
+            effectivity_year: formData.effectivityYear || formData.effectivity_year
+        }).eq('id', id).select().single();
+
+        if (error) throw error;
+
+        if (formData.assessments) {
+            await supabase.from('encoded_assessment_rows').delete().eq('encoded_tax_declaration_id', id);
+
+            const newRows = formData.assessments.map((row, idx) => ({
+                encoded_tax_declaration_id: id,
+                row_order: idx,
+                classification_id: row.classificationLabel || row.classification_label || row.kindOfProperty,
+                area: row.area,
+                market_value: row.marketValue || row.market_value,
+                assessment_level: row.assessmentLevel || row.assessment_level,
+                assessed_value: row.assessedValue || row.assessed_value
+            }));
+
+            if (newRows.length > 0) {
+                await supabase.from('encoded_assessment_rows').insert(newRows);
+            }
+        }
+        return data;
     }
 }
 

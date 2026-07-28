@@ -87,23 +87,31 @@ export const taxDeclarationService = {
 
             // TRANSLATOR: Maps database snake_case to PDF camelCase
             return {
+                id: dbData.id,
+                request: dbData.request,
                 taxDeclarationNumber: dbData.tax_declaration_number,
                 propertyIndexNumber: dbData.property_identification_number,
                 arpNumber: dbData.arp_number,
                 ownerName: dbData.owner_name,
                 ownerAddress: dbData.owner_address,
-                barangay: dbData.barangay_id, // Note: update if you store text
+                administratorName: dbData.administrator_name,
+                administratorAddress: dbData.administrator_address,
+                barangay: dbData.barangay_id,
                 municipality: dbData.municipality_id,
                 boundaryNorth: dbData.boundary_north,
                 boundarySouth: dbData.boundary_south,
                 boundaryEast: dbData.boundary_east,
                 boundaryWest: dbData.boundary_west,
+                totalMarketValue: dbData.total_market_value,
                 totalAssessedValue: dbData.total_assessed_value,
                 amountInWords: dbData.amount_in_words,
+                taxability: dbData.taxability,
+                effectivityYear: dbData.effectivity_year,
 
-                // Map the child rows for the PDF table
-                assessmentRows: (dbData.encoded_assessment_rows || []).map((row: any) => ({
+                assessments: (dbData.encoded_assessment_rows || []).map((row: any) => ({
                     classificationLabel: row.classification_id || 'LAND',
+                    kindOfProperty: row.classification_id,
+                    area: row.area,
                     marketValue: row.market_value,
                     assessmentLevel: row.assessment_level,
                     assessedValue: row.assessed_value

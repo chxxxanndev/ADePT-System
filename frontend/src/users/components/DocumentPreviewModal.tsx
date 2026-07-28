@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { createPortal } from 'react-dom'; // <--- IMPORT THIS
+import { createPortal } from 'react-dom';
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 
-// CORRECT PATH based on your screenshot
 import '../styles/DocumentPreviewModal.css';
 
-// Import your 3 templates
 import { TaxDeclarationPDF } from './templates/TaxDeclarationPDF';
 import { CertOfLandholdingPDF } from './templates/LandholdingPDF';
 import { CertOfNoLandholdingPDF } from './templates/NoLandholdingPDF';
@@ -21,23 +19,24 @@ interface DocumentPreviewModalProps {
     documents: DocumentItem[];
     orNumber: string;
     datePaid: string;
-    signatory1Name: string;
+    signatory1Name?: string;
     signatory1Title?: string;
     onClose: () => void;
-    onConfirmRelease: () => void;
+    onConfirmRelease: (selectedSignatory: string) => void;
 }
 
 export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     documents,
     orNumber,
     datePaid,
-    signatory1Name,
     signatory1Title = 'Municipal Assessor',
     onClose,
     onConfirmRelease
 }) => {
     const [isReleased, setIsReleased] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
+    const [selectedSignatory, setSelectedSignatory] = useState('ELVIRA T. ENAO, REA');
+    const [signatoryError, setSignatoryError] = useState('');
 
     const activeDocument = documents[activeIndex];
 
@@ -49,7 +48,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                         data={doc.data}
                         orNumber={orNumber}
                         datePaid={datePaid}
-                        signatory={signatory1Name}
+                        signatory={selectedSignatory}
                     />
                 );
             case 'LANDHOLDING':
@@ -58,7 +57,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                         {...doc.data}
                         orNumber={orNumber}
                         datePaid={datePaid}
-                        signatory1Name={signatory1Name}
+                        signatory1Name={selectedSignatory}
                         signatory1Title={signatory1Title}
                     />
                 );
@@ -68,7 +67,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                         {...doc.data}
                         orNumber={orNumber}
                         datePaid={datePaid}
-                        signatory1Name={signatory1Name}
+                        signatory1Name={selectedSignatory}
                         signatory1Title={signatory1Title}
                     />
                 );
@@ -80,18 +79,19 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     const activePDFComponent = renderDocumentTemplate(activeDocument);
 
     const handleRelease = () => {
-        onConfirmRelease();
+        if (!selectedSignatory) {
+            setSignatoryError('Please select an authorized signatory before generating and releasing.');
+            return;
+        }
+        setSignatoryError('');
+        onConfirmRelease(selectedSignatory);
         setIsReleased(true);
     };
 
-    // The actual modal UI
     const modalContent = (
         <div className="preview-modal-overlay">
-
             {/* LEFT SIDE: Tabs and PDF Viewer */}
             <div className="preview-modal-left">
-
-                {/* TABS: Only show if there is more than 1 document */}
                 {documents.length > 1 && (
                     <div className="preview-modal-tabs">
                         {documents.map((doc, index) => (
@@ -106,7 +106,6 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                     </div>
                 )}
 
-                {/* The Actual PDF Viewer window */}
                 <div className="preview-viewer-container">
                     {activePDFComponent && (
                         <PDFViewer width="100%" height="100%" style={{ border: 'none', width: '100%', height: '100%' }}>
@@ -116,22 +115,45 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                 </div>
             </div>
 
-            {/* RIGHT SIDE: Action Panel */}
+            {/* RIGHT SIDE: Action & Final Lock Panel */}
             <div className="preview-modal-right">
-                <h2 className="pm-title">Document Actions</h2>
+                <h2 className="pm-title">Final Signatory & Lock</h2>
 
                 <div className="pm-info-box">
                     Viewing Document {activeIndex + 1} of {documents.length}: <br />
                     <strong>{activeDocument.title}</strong>
                 </div>
 
+                {/* SIGNATORY SELECTION AT FINAL LOCKING STAGE */}
+                <div style={{ margin: '16px 0' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+                        Select Authorized Signatory *
+                    </label>
+                    <select
+                        value={selectedSignatory}
+                        onChange={(e) => setSelectedSignatory(e.target.value)}
+                        style={{
+                            width: '100%',
+                            padding: '10px',
+                            borderRadius: '6px',
+                            border: '1px solid #d1d5db',
+                            fontSize: '14px',
+                            fontWeight: 500
+                        }}
+                    >
+                        <option value="">-- Select Signatory --</option>
+                        <option value="ELVIRA T. ENAO, REA">ELVIRA T. ENAO, REA</option>
+                        <option value="ENGR. VICENTE P. DESOY">ENGR. VICENTE P. DESOY</option>
+                        <option value="CHINA CHAN-OLARIO, RN, REA, REB, Enp">CHINA CHAN-OLARIO, RN, REA, REB, Enp</option>
+                    </select>
+                    {signatoryError && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{signatoryError}</span>}
+                </div>
+
                 <p className="pm-description">
-                    Please review the generated document(s) carefully. You can use the built-in viewer controls to print.
+                    Review the generated document. Selecting a signatory updates the PDF live before locking.
                 </p>
 
                 <div className="pm-actions-wrapper">
-
-                    {/* Dedicated Download Button for the currently viewed tab */}
                     {activePDFComponent && (
                         <PDFDownloadLink
                             document={activePDFComponent}
@@ -144,26 +166,21 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
 
                     <div className="pm-divider"></div>
 
-                    {/* Confirm & Release Transaction */}
                     <button
                         onClick={handleRelease}
                         disabled={isReleased}
                         className={`pm-btn ${isReleased ? 'pm-btn-disabled' : 'pm-btn-success'}`}
                     >
-                        {isReleased ? 'Transaction Released ✓' : `Confirm & Release All (${documents.length})`}
+                        {isReleased ? 'Transaction Released ✓' : `Confirm Signatory & Lock (${documents.length})`}
                     </button>
 
-                    {/* Cancel/Close Button */}
                     <button onClick={onClose} className="pm-btn pm-btn-text">
                         Close & Edit Details
                     </button>
                 </div>
             </div>
-
         </div>
     );
 
-    // THIS IS THE MAGIC: createPortal injects the modal directly into the <body> tag, 
-    // bypassing all layout issues!
     return createPortal(modalContent, document.body);
 };

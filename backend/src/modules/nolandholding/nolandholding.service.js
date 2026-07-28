@@ -50,12 +50,37 @@ class NoLandholdingService {
         }
     }
 
+    // nolandholding.service.js
     async getByRequestId(requestId) {
-        const { data, error } = await supabase
+        const { data: cert, error: certErr } = await supabase
             .from('encoded_no_landholding_certificates')
             .select('*')
             .eq('request_id', requestId)
             .maybeSingle();
+
+        if (certErr) throw certErr;
+        if (!cert) return null;
+
+        const { data: request, error: reqErr } = await supabase
+            .from('requests')
+            .select('requested_by_name, property_location')
+            .eq('id', cert.request_id)
+            .maybeSingle();
+
+        if (reqErr) throw reqErr;
+
+        return { ...cert, request: request || null };
+    }
+
+    async updateDraft(id, formData) {
+        const { data, error } = await supabase.from('encoded_no_landholding_certificates').update({
+            declarant_name: formData.declarantName || formData.declarant_name,
+            pronoun: formData.pronoun,
+            property_count: formData.propertyCount || formData.property_count,
+            date_given: formData.dateGiven || formData.date_given,
+            given_at: formData.givenAt || formData.given_at,
+            purpose: formData.purpose
+        }).eq('id', id).select().single();
 
         if (error) throw error;
         return data;
