@@ -11,7 +11,7 @@ import {
 import "../styles/AdminAuditLog.css";
 import { clearStoredAuditEntries, getStoredAuditEntries, type AuditLogEntry as StoredAuditLogEntry } from '../services/auditLogService';
 import { fetchAllStaff, type StaffMember } from '../services/userManagementService';
-import { supabase, STAFF_PRESENCE_CHANNEL } from '../services/supabaseClient';
+import { onStaffPresence, getStaffPresenceChannel } from '../services/staffPresenceChannel';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -25,16 +25,19 @@ interface AuditLogEntry extends StoredAuditLogEntry {
   description: string;
   date: string; // 'Today', 'Yesterday', or an explicit date label
   time: string; // '8:40 AM'
+  timestamp?: number; // epoch ms, if the source ever stamps it — used for sorting when present
 }
 
 interface StaffPresence {
-  id: string;
+  id: string;            // stable key for React + display
+  authUserId?: string;   // separate field used specifically for presence matching
   name: string;
   role: string;
   initials: string;
   avatarColor: string;
   online: boolean;
-  lastSeen: string; // 'Just now', '12 min ago', 'Yesterday, 5:02 PM'
+  accountActive: boolean;
+  lastSeen: string; // 'Just now', 'Offline', 'Inactive account'
 }
 
 type TimeRange = "Today" | "This Week" | "This Month" | "All Time";
@@ -81,6 +84,47 @@ const ICON_CLASS_MAP: Record<AuditActionType, string> = {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Sorting helper                                                     */
+/* ------------------------------------------------------------------ */
+/**
+ * Returns a sortable epoch-ms value for an entry. Prefers a real
+ * `timestamp` if the entry has one; otherwise falls back to parsing
+ * the display `date` ('Today' / 'Yesterday' / explicit date) + `time`
+ * ('8:40 AM') strings. The fallback only has minute precision, so
+ * same-minute entries may tie — for exact ordering, stamp
+ * `timestamp: Date.now()` when entries are created in auditLogService.
+ */
+function getEntrySortValue(entry: AuditLogEntry): number {
+  if (typeof entry.timestamp === "number" && !Number.isNaN(entry.timestamp)) {
+    return entry.timestamp;
+  }
+
+  const now = new Date();
+  let base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (entry.date === "Yesterday") {
+    base.setDate(base.getDate() - 1);
+  } else if (entry.date !== "Today") {
+    const parsed = new Date(entry.date);
+    if (!Number.isNaN(parsed.getTime())) {
+      base = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+    }
+  }
+
+  const match = entry.time?.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (match) {
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const isPM = match[3].toUpperCase() === "PM";
+    if (isPM && hours !== 12) hours += 12;
+    if (!isPM && hours === 12) hours = 0;
+    base.setHours(hours, minutes, 0, 0);
+  }
+
+  return base.getTime();
+}
+
+/* ------------------------------------------------------------------ */
 /*  Small building blocks                                             */
 /* ------------------------------------------------------------------ */
 function AuditRow({ entry }: { entry: AuditLogEntry }) {
@@ -102,13 +146,19 @@ function AuditRow({ entry }: { entry: AuditLogEntry }) {
 }
 
 function PresenceRow({ staff }: { staff: StaffPresence }) {
+  const dotClass = !staff.accountActive
+    ? '' // no dot for inactive accounts
+    : staff.online
+      ? ' presence-dot--online'
+      : ' presence-dot--offline';
+
   return (
     <div className="presence-row">
       <div className="presence-avatar-wrap">
         <div className="presence-avatar" style={{ backgroundColor: staff.avatarColor }}>
           {staff.initials}
         </div>
-        <span className={`presence-dot${staff.online ? " presence-dot--online" : ""}`} />
+        {staff.accountActive && <span className={`presence-dot${dotClass}`} />}
       </div>
       <div className="presence-info">
         <p className="presence-name">{staff.name}</p>
@@ -133,34 +183,50 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
   const [staffPresence, setStaffPresence] = useState<StaffPresence[]>([]);
 
   // ---- Real presence via Supabase Realtime ----
-  // This channel only *listens*; the actual "I'm online" announcement
-  // happens wherever useOnlinePresence(user) is mounted (AdminDashboard.tsx).
+  // This component only *listens* to the shared presence channel; the
+  // actual "I'm online" announcement happens in useOnlinePresence(user),
+  // mounted higher up in AdminDashboard.tsx. Both consumers go through the
+  // staffPresenceChannel singleton, so it doesn't matter which one mounts
+  // first or creates the underlying channel.
   useEffect(() => {
     let isMounted = true;
-    const channel = supabase.channel(STAFF_PRESENCE_CHANNEL);
 
-    // NOTE: presence keys are each user's Supabase Auth id (see
-    // useOnlinePresence.ts). For this to match correctly, StaffMember /
-    // fetchAllStaff() needs to expose each row's `auth_user_id` — the
-    // fallback to `member.id` below only works if your staff table's
-    // primary key happens to equal the auth user id.
     const applyPresenceState = () => {
-      const state = channel.presenceState();
-      const onlineIds = new Set(Object.keys(state));
+      const ch = getStaffPresenceChannel();
+      const state = ch.presenceState();
+
+      // Only trust `user_id` — this is the field useOnlinePresence.ts
+      // actually tracks. (Avoid also reading `p.id`: Supabase presence
+      // payloads carry internal fields like presence_ref that can
+      // coincidentally collide with staff row ids and produce false
+      // "online" matches.)
+      const onlineUserIds = new Set<string>();
+      Object.values(state)
+        .flat()
+        .forEach((p: any) => {
+          if (p.user_id) onlineUserIds.add(String(p.user_id));
+        });
+
       setStaffPresence((prev) =>
-        prev.map((s) => ({
-          ...s,
-          online: onlineIds.has(s.id),
-          lastSeen: onlineIds.has(s.id) ? "Just now" : s.lastSeen,
-        }))
+        prev.map((s) => {
+          // Match against both possible id fields for this staff row,
+          // since we don't rely on a single fallback id chosen once
+          // at roster-build time.
+          const isOnline =
+            onlineUserIds.has(String(s.id)) ||
+            (!!s.authUserId && onlineUserIds.has(String(s.authUserId)));
+          return {
+            ...s,
+            online: isOnline,
+            lastSeen: isOnline ? "Just now" : (s.online ? "Just now" : s.lastSeen),
+          };
+        })
       );
     };
 
-    channel
-      .on("presence", { event: "sync" }, applyPresenceState)
-      .on("presence", { event: "join" }, applyPresenceState)
-      .on("presence", { event: "leave" }, applyPresenceState)
-      .subscribe();
+    const offSync = onStaffPresence('sync', applyPresenceState);
+    const offJoin = onStaffPresence('join', applyPresenceState);
+    const offLeave = onStaffPresence('leave', applyPresenceState);
 
     const loadStaffPresence = async () => {
       try {
@@ -181,12 +247,14 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
               : 'Staff';
 
           return {
-            id: member.auth_user_id || member.id,
+            id: member.id,
+            authUserId: member.auth_user_id,
             name: fullName || member.username || member.email,
             role,
             initials,
             avatarColor: ['#3D2E7C', '#00BCD4', '#1976D2', '#4CAF50', '#607D8B'][index % 5],
             online: false, // corrected immediately by applyPresenceState() below
+            accountActive: member.account_status === 'ACTIVE',
             lastSeen: member.account_status === 'ACTIVE' ? 'Offline' : 'Inactive account',
           } satisfies StaffPresence;
         });
@@ -212,9 +280,14 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
     void loadStaffPresence();
     window.addEventListener('admin-audit-log:updated', handleAuditUpdate);
     window.addEventListener('staff-directory:updated', handleStaffDirectoryUpdate);
+
     return () => {
       isMounted = false;
-      supabase.removeChannel(channel);
+      offSync();
+      offJoin();
+      offLeave();
+      // Don't remove the shared channel here — useOnlinePresence (or another
+      // consumer) may still depend on it. The singleton owns its own lifecycle.
       window.removeEventListener('admin-audit-log:updated', handleAuditUpdate);
       window.removeEventListener('staff-directory:updated', handleStaffDirectoryUpdate);
     };
@@ -222,18 +295,17 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
 
   const filteredEntries = useMemo(() => {
     const typeFilter = ACTIVITY_FILTER_TO_TYPE[activityFilter];
-    return entries.filter((entry) => {
-      const matchesType = typeFilter === null || entry.type === typeFilter;
-      const matchesSearch =
-        search.trim() === "" ||
-        entry.actor.toLowerCase().includes(search.toLowerCase()) ||
-        entry.description.toLowerCase().includes(search.toLowerCase());
-      const matchesTimeRange =
-        timeRange === "All Time" ||
-        entry.date === timeRange ||
-        (timeRange === "Today" && entry.date === "Today");
-      return matchesType && matchesSearch && matchesTimeRange;
-    });
+    return entries
+      .filter((entry) => {
+        const matchesType = typeFilter === null || entry.type === typeFilter;
+        const matchesSearch =
+          search.trim() === "" ||
+          entry.actor.toLowerCase().includes(search.toLowerCase()) ||
+          entry.description.toLowerCase().includes(search.toLowerCase());
+        const matchesTimeRange = timeRange === "All Time" || entry.date === timeRange || (timeRange === "Today" && entry.date === "Today");
+        return matchesType && matchesSearch && matchesTimeRange;
+      })
+      .sort((a, b) => getEntrySortValue(b) - getEntrySortValue(a)); // newest first (top), oldest last (bottom)
   }, [entries, search, timeRange, activityFilter]);
 
   const onlineCount = staffPresence.filter((s) => s.online).length;

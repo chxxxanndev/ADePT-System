@@ -36,7 +36,7 @@ export interface AdminActivityItem {
     title: string;
     actor: string;
     time: string;
-    status: 'approved' | 'pending' | 'declined';
+    status: 'approved' | 'pending' | 'declined' | 'login' | 'logout' | 'system';
 }
 
 export interface DocumentDistributionSlice {
@@ -175,6 +175,9 @@ export const documentDistributionMock: DocumentDistributionSlice[] = [
 export const totalDocumentsCount = 8976;
 
 /* ------------------------------------ Activity -------------------------------------- */
+// Fallback padding only — used by useAdminDashboard.ts to top up the
+// Overview widget to a minimum of 5 rows when real audit activity is thin.
+// Never shown on the Audit Log page itself, which is real data only.
 
 export const activitiesMock: AdminActivityItem[] = [
     { id: 'act-1', title: 'Approved Staff Account', actor: 'Super Admin', time: '7:58 AM', status: 'approved' },

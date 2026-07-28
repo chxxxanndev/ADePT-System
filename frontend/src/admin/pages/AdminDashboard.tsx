@@ -14,6 +14,7 @@ import { StaffAccounts } from '../pages/StaffAccounts';
 import { RequestQueue } from '../pages/RequestQueue';
 import { AdminReports } from '../pages/AdminReports';
 import { AdminAuditLog } from '../pages/AdminAuditLog';
+import { useOnlinePresence } from '../services/useOnlinePresence';
 import { AdminAccountSettings } from '../pages/AdminAccountSettings';
 
 // User Icon for Access Requests Header
@@ -43,6 +44,8 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
+    useOnlinePresence(user);
+
     const {
         activeView,
         setActiveView,
@@ -155,6 +158,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                     />
                                     <AdminRecentActivity
                                         activities={activities}
+                                        onViewFullLog={() => setActiveView('audit-log')}
                                     />
                                 </div>
                             </div>

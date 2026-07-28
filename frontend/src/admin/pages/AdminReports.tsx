@@ -10,7 +10,6 @@ import {
     Cell,
 } from 'recharts';
 import '../styles/AdminReports.css';
-import { SearchIcon } from '../components/icons';
 import type { User } from '../../auth-folder/types/auth';
 import { hasAdminLevel } from '../../utils/permissions';
 
@@ -49,7 +48,7 @@ function toReportRow(payload: RawAccountRequest): ReportRow {
     const status: ReportRow['status'] =
         payload.status === 'approved' ? 'approved'
             : payload.status === 'declined' || payload.status === 'disapproved' || payload.status === 'rejected' ? 'disapproved'
-            : 'pending';
+                : 'pending';
     const submittedRaw = payload.submitted || payload.created_at || new Date().toISOString();
     const submittedDate = new Date(submittedRaw);
     return {
@@ -133,12 +132,9 @@ interface AdminReportsProps {
 }
 
 export function AdminReports({ user }: AdminReportsProps) {
-    const [searchQuery, setSearchQuery] = useState('');
     const [rows, setRows] = useState<ReportRow[]>([]);
-    const [loading, setLoading] = useState(false);
-    // TODO: replace with a real total-documents count once a documents
-    // endpoint exists — account requests alone don't tell us this number.
     const [totalDocuments] = useState(8984);
+    const [loading, setLoading] = useState(false);
 
     const fullName = `${user.firstName || 'Mommy'} ${user.lastName || 'Dionisia'}`;
     const initials = `${user.firstName?.[0] || 'M'}${user.lastName?.[0] || 'D'}`;
@@ -176,19 +172,7 @@ export function AdminReports({ user }: AdminReportsProps) {
 
     const monthlyRequests = useMemo(() => buildMonthlyBuckets(rows), [rows]);
 
-    const filteredRows = useMemo(() => {
-        const q = searchQuery.trim().toLowerCase();
-        if (!q) return rows;
-        return rows.filter(
-            (r) =>
-                r.name.toLowerCase().includes(q) ||
-                r.email.toLowerCase().includes(q) ||
-                r.role.toLowerCase().includes(q) ||
-                r.status.toLowerCase().includes(q)
-        );
-    }, [rows, searchQuery]);
-
-    const canExport = hasAdminLevel(user, 'MEDIUM'); 
+    const canExport = hasAdminLevel(user, 'MEDIUM');
 
     const radius = 68;
     const segments = buildDonutSegments(distribution, radius);
@@ -221,27 +205,10 @@ export function AdminReports({ user }: AdminReportsProps) {
                         </div>
                     </div>
                 </div>
-
-                <div className="rq-search-wrapper">
-                    <input
-                        type="text"
-                        className="rq-search-input"
-                        placeholder="Search applicants, roles, or status"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    <span className="rq-search-icon">
-                        <SearchIcon size={16} />
-                    </span>
-                </div>
             </div>
 
             {/* Stat cards */}
             <div className="ar-stats-row">
-                <div className="ar-stat-card ar-stat-card--plain">
-                    <span className="ar-stat-label">Total documents</span>
-                    <span className="ar-stat-value">{totalDocuments.toLocaleString()}</span>
-                </div>
                 <div className="ar-stat-card ar-stat-card--gold">
                     <span className="ar-stat-label">Total request accounts</span>
                     <span className="ar-stat-value">{totalRequestAccounts.toLocaleString()}</span>
@@ -263,12 +230,12 @@ export function AdminReports({ user }: AdminReportsProps) {
                     <div className="ar-bar-card-header">
                         <h2 className="admin-card-title">Requests by month</h2>
                         {canExport && (
-                           <div className="ar-bar-card-header">
-                            <h2 className="admin-card-title">Requests by month</h2>
-                            {canExport && (
-                                <button type="button" className="ar-export-btn" onClick={handleExportPdf}>Export</button>
-                            )}
-                        </div>
+                            <div className="ar-bar-card-header">
+                                <h2 className="admin-card-title">Requests by month</h2>
+                                {canExport && (
+                                    <button type="button" className="ar-export-btn" onClick={handleExportPdf}>Export</button>
+                                )}
+                            </div>
                         )}
                     </div>
                     <p className="ar-chart-description">
