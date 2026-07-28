@@ -1,4 +1,4 @@
-import { supabase, STAFF_PRESENCE_CHANNEL } from '../../auth-folder/services/supabaseClient';
+import { supabase, STAFF_PRESENCE_CHANNEL } from '../../lib/supabaseClient';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 type PresenceEvent = 'sync' | 'join' | 'leave';

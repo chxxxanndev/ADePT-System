@@ -1,221 +1,72 @@
 import { Font, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 
-// 1. REGISTER THE CASTELLAR FONT
+// REGISTER THE CASTELLAR FONT
 Font.register({
   family: 'Castellar',
-  src: window.location.origin + '/fonts/castellar.ttf' 
+  src: window.location.origin + '/fonts/castellar.ttf'
 });
 
 const styles = StyleSheet.create({
-  page: {
-    padding: 0,
-    fontFamily: 'Times-Roman',
-    position: 'relative',
-    fontSize: 11, 
-    lineHeight: 1.1,
-  },
-  background: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    width: '100%', height: '100%',
-    objectFit: 'fill', zIndex: -1,
-  },
-  formNoTag: {
-    position: 'absolute',
-    top: 15, left: 36,
-    fontSize: 8,
-  },
-  content: {
-    paddingHorizontal: 40,
-    paddingTop: 15, // Reduced from 20 to save space
-    paddingBottom: 15, // Reduced from 20 to save space
-  },
-  headerCenter: { 
-    textAlign: 'center', 
-    marginBottom: 35, // Reduced from 40 to move ARP/PIN closer to logos
-  },
+  page: { padding: 0, fontFamily: 'Times-Roman', position: 'relative', fontSize: 11, lineHeight: 1.1 },
+  background: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', objectFit: 'fill', zIndex: -1 },
+  formNoTag: { position: 'absolute', top: 15, left: 36, fontSize: 8 },
+  content: { paddingHorizontal: 40, paddingTop: 15, paddingBottom: 15 },
+  headerCenter: { textAlign: 'center', marginBottom: 35 },
   h8: { fontSize: 8 },
   h10: { fontSize: 10, fontFamily: 'Times-Bold' },
   h11: { fontSize: 11, fontFamily: 'Times-Bold' },
   h7: { fontSize: 7 },
-
-  refRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12, // Reduced from 15
-  },
-  refItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    flex: 1,
-  },
-  refUnderline: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#000',
-    flex: 1, 
-    textAlign: 'center',
-    fontFamily: 'Times-Bold',
-    fontSize: 11,
-    paddingBottom: 1,
-  },
-
-  title: {
-    fontSize: 16,
-    fontFamily: 'Castellar',
-    textAlign: 'center',
-    marginTop: 5,
-    marginBottom: 20, // Reduced from 30 to pull content up
-  },
-
-  fieldRow: {
-    flexDirection: 'row',
-    marginBottom: 5,
-    alignItems: 'flex-end',
-  },
+  refRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  refItem: { flexDirection: 'row', alignItems: 'flex-end', flex: 1 },
+  refUnderline: { borderBottomWidth: 1, borderBottomColor: '#000', flex: 1, textAlign: 'center', fontFamily: 'Times-Bold', fontSize: 11, paddingBottom: 1 },
+  title: { fontSize: 16, fontFamily: 'Castellar', textAlign: 'center', marginTop: 5, marginBottom: 20 },
+  fieldRow: { flexDirection: 'row', marginBottom: 5, alignItems: 'flex-end' },
   label11: { fontSize: 11 },
-
-  underlineData: {
-    flex: 1,
-    borderBottomWidth: 1,
-    borderBottomColor: '#000',
-    paddingLeft: 4,
-    fontSize: 11,
-    fontFamily: 'Times-Bold',
-    minHeight: 14,
-  },
-
-  locationContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  locationColumn: {
-    width: '32%',
-    alignItems: 'center',
-  },
-  locationLine: {
-    borderBottomWidth: 1,
-    width: '100%',
-    textAlign: 'center',
-    fontFamily: 'Times-Bold',
-    fontSize: 11,
-    minHeight: 15,
-  },
-  locationSubLabel: {
-    fontSize: 10,
-    marginTop: 1,
-  },
-  gridItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  descriptionText: {
-    fontSize: 10,
-    textAlign: 'left',
-    marginTop: 5,
-    marginBottom: 2,
-  },
-  doubleLine: {
-    borderBottomWidth: 1,
-    borderTopWidth: 1,
-    height: 3,
-    width: '100%',
-    marginBottom: 8,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
+  underlineData: { flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', paddingLeft: 4, fontSize: 11, fontFamily: 'Times-Bold', minHeight: 14 },
+  locationContainer: { flex: 1, flexDirection: 'row', justifyContent: 'space-between' },
+  locationColumn: { width: '32%', alignItems: 'center' },
+  locationLine: { borderBottomWidth: 1, width: '100%', textAlign: 'center', fontFamily: 'Times-Bold', fontSize: 11, minHeight: 15 },
+  locationSubLabel: { fontSize: 10, marginTop: 1 },
+  gridItem: { flexDirection: 'row', alignItems: 'flex-end' },
+  descriptionText: { fontSize: 10, textAlign: 'left', marginTop: 5, marginBottom: 2 },
+  doubleLine: { borderBottomWidth: 1, borderTopWidth: 1, height: 3, width: '100%', marginBottom: 8 },
+  tableHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   thCell: { fontSize: 10, textAlign: 'center' },
-  tableRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 1,
-    height: 16,
-  },
-  tdCell: {
-    width: '19%',
-    borderBottomWidth: 1,
-    fontSize: 10,
-    fontFamily: 'Times-Bold',
-    paddingLeft: 2,
-    flexDirection: 'row',
-  },
-  totalLabel: {
-    fontSize: 10,
-    fontFamily: 'Times-Bold',
-    width: '40%',
-    textAlign: 'right',
-    paddingRight: 10,
-    marginTop: 2,
-  },
-  signatureSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    marginBottom: 5,
-  },
+  tableRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 1, height: 16 },
+  tdCell: { width: '19%', borderBottomWidth: 1, fontSize: 10, fontFamily: 'Times-Bold', paddingLeft: 2, flexDirection: 'row' },
+  totalLabel: { fontSize: 10, fontFamily: 'Times-Bold', width: '40%', textAlign: 'right', paddingRight: 10, marginTop: 2 },
+
+  // Signature & Memo Styles
+  signatureSection: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, marginBottom: 5 },
   verifiedBlock: { width: '45%' },
   assessorBlock: { width: '45%', alignItems: 'center' },
-  signatureUnderline: {
-    borderBottomWidth: 1,
-    width: '100%',
-    textAlign: 'center',
-    fontFamily: 'Times-Bold',
-    fontSize: 11,
-    minHeight: 14,
-    paddingBottom: 1,
-  },
-  signatureSubLabel: {
-    fontSize: 10,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  memoContainer: {
-    marginTop: 5,
-    marginBottom: 5,
-  },
-  memoLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  memoLine: {
-    borderBottomWidth: 1,
-    width: '100%',
-    height: 14,
-  },
-  certifiedBox: {
-    borderWidth: 1,
-    padding: 8,
-    marginTop: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  certRightRow: {
-    flexDirection: 'row',
-    marginBottom: 2,
-  },
-  certValueUnderline: {
-    borderBottomWidth: 1,
-    flex: 1,
-    fontFamily: 'Times-Bold',
-    fontSize: 10,
-    paddingLeft: 4,
-  },
-  importantText: {
-    fontSize: 10,
-    marginTop: 8,
-    textAlign: 'justify',
-  }
+  signatureUnderline: { borderBottomWidth: 1, width: '100%', textAlign: 'center', fontFamily: 'Times-Bold', fontSize: 11, minHeight: 14, paddingBottom: 1 },
+  signatureSubLabel: { fontSize: 10, marginTop: 2, textAlign: 'center' },
+  memoContainer: { marginTop: 5, marginBottom: 5 },
+  memoLabelRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  memoLine: { borderBottomWidth: 1, width: '100%', height: 14 },
+
+  // Certified Box Styles
+  certifiedBox: { borderWidth: 1, padding: 8, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between' },
+  certLeftBlock: { width: '60%', flexDirection: 'row' },
+  certSignatoryBlock: { flex: 1, alignItems: 'center', paddingRight: 15, paddingTop: 5 },
+  certRightRow: { flexDirection: 'row', marginBottom: 2 },
+  certValueUnderline: { borderBottomWidth: 1, flex: 1, fontFamily: 'Times-Bold', fontSize: 10, paddingLeft: 4 },
+  importantText: { fontSize: 10, marginTop: 8, textAlign: 'justify' }
 });
 
 const peso = (n: any) => (n ? Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '');
 
-export const TaxDeclarationPDF = ({ data = {}, orNumber = '', datePaid = '', signatory = '' }: any) => {
+export const TaxDeclarationPDF = ({
+  data = {},
+  orNumber = '',
+  datePaid = '',
+  certifiedByName = '',
+  certifiedByTitle = ''
+}: any) => {
   const rows = data.assessmentRows || [];
   const tableRows = [...rows, ...Array(Math.max(0, 4 - rows.length)).fill({})];
-  
+
   const totalMarketValue = rows.reduce((sum: any, r: any) => sum + (Number(r.marketValue) || 0), 0);
   const totalAssessedValue = rows.reduce((sum: any, r: any) => sum + (Number(r.assessedValue) || 0), 0);
 
@@ -348,15 +199,16 @@ export const TaxDeclarationPDF = ({ data = {}, orNumber = '', datePaid = '', sig
             <Text>Exempt  [ {!data.taxable ? 'X' : ' '} ]</Text>
           </View>
 
+          {/* VERIFIED BY & ASSESSOR (Data driven by encoder) */}
           <View style={styles.signatureSection}>
             <View style={styles.verifiedBlock}>
               <Text style={{ marginBottom: 2 }}>Verified by:</Text>
-              <View style={styles.signatureUnderline} />
+              <View style={styles.signatureUnderline}><Text>{data.verifiedByName || ''}</Text></View>
             </View>
             <View style={styles.assessorBlock}>
-              <Text>{signatory ? signatory.toUpperCase() : ' '}</Text>
+              <Text style={{ fontFamily: 'Times-Bold' }}>{data.assessorName ? `(SGD) ${data.assessorName}` : ' '}</Text>
               <View style={styles.signatureUnderline} />
-              <Text style={styles.signatureSubLabel}>Municipal Assessor</Text>
+              <Text style={styles.signatureSubLabel}>{data.assessorTitle || 'Municipal Assessor'}</Text>
             </View>
           </View>
 
@@ -366,36 +218,43 @@ export const TaxDeclarationPDF = ({ data = {}, orNumber = '', datePaid = '', sig
           </View>
 
           <View style={styles.memoContainer}>
-             <View style={styles.memoLabelRow}>
-                <Text style={{ fontSize: 10 }}>Memoranda: </Text>
-                <View style={[styles.memoLine, { flex: 1 }]}>
-                   <Text style={{ fontFamily: 'Times-Bold', fontSize: 10 }}>{data.memoranda}</Text>
-                </View>
-             </View>
-             <View style={styles.memoLine} />
-             <View style={styles.memoLine} />
-          </View>
-
-          <View style={styles.certifiedBox}>
-            <View style={{ width: '50%' }}>
-              <Text style={{ marginBottom: 15 }}>Certified copy:</Text>
-              <View style={{ borderTopWidth: 1, width: 200, textAlign: 'center' }}>
-                <Text style={{ fontSize: 9, marginTop: 2 }}>Authorized Signatory</Text>
+            <View style={styles.memoLabelRow}>
+              <Text style={{ fontSize: 10 }}>Memoranda: </Text>
+              <View style={[styles.memoLine, { flex: 1 }]}>
+                <Text style={{ fontFamily: 'Times-Bold', fontSize: 10 }}>{data.memoranda}</Text>
               </View>
             </View>
-            
-            <View style={{ width: '45%', gap: 2 }}>
+            <View style={styles.memoLine} />
+            <View style={styles.memoLine} />
+          </View>
+
+          {/* CERTIFIED COPY BOX (Driven by dropdown selection) */}
+          <View style={styles.certifiedBox}>
+            <View style={styles.certLeftBlock}>
+              <Text style={{ width: 60, fontSize: 10 }}>Certified copy:</Text>
+
+              <View style={styles.certSignatoryBlock}>
+                <Text style={{ fontFamily: 'Times-Bold', fontSize: 10 }}>{certifiedByName}</Text>
+                <Text style={{ fontSize: 9, marginBottom: 2 }}>{certifiedByTitle}</Text>
+
+                <View style={{ borderTopWidth: 1, width: '100%', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 9, marginTop: 2 }}>Authorized Signatory</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={{ width: '40%', paddingLeft: 5 }}>
               <View style={styles.certRightRow}>
-                 <Text style={{ fontSize: 10 }}>Certification Fee: </Text>
-                 <Text style={styles.certValueUnderline}>Php. 40.00</Text>
+                <Text style={{ fontSize: 10 }}>Certification Fee: </Text>
+                <Text style={styles.certValueUnderline}>Php. 40.00</Text>
               </View>
               <View style={styles.certRightRow}>
-                 <Text style={{ fontSize: 10 }}>O.R. No.: </Text>
-                 <Text style={styles.certValueUnderline}>{orNumber}</Text>
+                <Text style={{ fontSize: 10 }}>O.R. No.: </Text>
+                <Text style={styles.certValueUnderline}>{orNumber}</Text>
               </View>
               <View style={styles.certRightRow}>
-                 <Text style={{ fontSize: 10 }}>Date paid: </Text>
-                 <Text style={styles.certValueUnderline}>{datePaid}</Text>
+                <Text style={{ fontSize: 10 }}>Date paid: </Text>
+                <Text style={styles.certValueUnderline}>{datePaid}</Text>
               </View>
             </View>
           </View>

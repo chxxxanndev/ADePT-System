@@ -4,7 +4,8 @@
 
 .pd-page {
     width: 100%;
-    max-width: 1100px;
+    max-width: 1150px;
+    /* Slightly wider for split-screen optimal viewing */
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -279,9 +280,12 @@
     gap: 8px;
     transition: all 0.18s ease;
     width: 100%;
+    box-sizing: border-box;
+    text-decoration: none;
 }
 
-.pd-btn:disabled {
+.pd-btn:disabled,
+.pd-btn.disabled {
     opacity: 0.6;
     cursor: not-allowed;
 }
@@ -316,10 +320,6 @@
     background-color: rgba(0, 0, 0, 0.03);
     color: var(--db-primary);
 }
-
-/* ==========================================================================
-   NEW STYLES: OVERRIDE BADGE, TEXTAREA & DUPLICATE WARNING MODAL
-   ========================================================================== */
 
 /* --- Shared Receipt Warning Badge inside Card --- */
 .pd-override-badge-card {
@@ -430,12 +430,6 @@
     line-height: 1.5;
 }
 
-.pd-modal-subtext {
-    margin-top: 8px;
-    font-size: 0.82rem;
-    color: var(--db-text-muted);
-}
-
 .pd-modal-footer {
     padding: 16px 24px;
     background-color: #f8fafc;
@@ -467,11 +461,334 @@
     background-color: #bf360c;
 }
 
+
+/* ==========================================================================
+   NEW STYLES: SIGNATORY ASSIGNMENT VIEW
+   ========================================================================== */
+
+.pd-signatory-view {
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.pd-helper-text {
+    color: var(--db-text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 24px;
+}
+
+.pd-sig-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.pd-sig-card {
+    background: #ffffff;
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: var(--db-radius-md);
+    box-shadow: 0 4px 12px rgba(41, 35, 122, 0.04);
+    overflow: hidden;
+}
+
+.pd-sig-card-header {
+    background-color: var(--db-table-header);
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--db-glass-border-alt);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pd-sig-selectors {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    padding: 24px;
+}
+
+.pd-field-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2329237a%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px top 50%;
+    background-size: 10px auto;
+}
+
+.pd-sig-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 20px;
+    border-top: 1px solid var(--db-glass-border-alt);
+}
+
+
+/* ==========================================================================
+   NEW STYLES: INLINE SPLIT PDF VIEWER (COMPLETED STEP)
+   ========================================================================== */
+
+.animation-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+.pd-split-layout--viewer {
+    grid-template-columns: 1.6fr 1fr;
+    /* Make left side wider for better PDF viewing */
+    gap: 24px;
+    height: 700px;
+    /* Increased slightly for better A4 visibility */
+    align-items: stretch;
+    /* FIX: Overrides 'align-items: start' to force full height */
+}
+
+/* FIX: Ensure the grid columns actually fill the stretched height */
+.pd-split-layout--viewer .pd-col-left,
+.pd-split-layout--viewer .pd-col-right {
+    height: 100%;
+    min-height: 100%;
+}
+
+/* --- Left Side: PDF Container --- */
+.pd-pdf-viewer-container {
+    background-color: #323639;
+    /* Standard grey for PDF viewer wrappers */
+    border-radius: var(--db-radius-md);
+    border: 1px solid var(--db-glass-border-alt);
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.pd-pdf-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background-color: white;
+    display: block;
+    /* FIX: removes bottom gap reserved for inline elements */
+}
+
+.pd-pdf-placeholder {
+    color: #9ca3af;
+    font-weight: 600;
+    text-align: center;
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* --- Right Side: Sidebar Controls --- */
+.pd-sidebar-controls {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #ffffff;
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: var(--db-radius-md);
+    padding: 24px;
+    box-shadow: 0 4px 15px rgba(41, 35, 122, 0.03);
+    box-sizing: border-box;
+    /* Ensure padding doesn't affect 100% height */
+}
+
+/* Success Header matching your old UI but compact */
+.pd-success-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(34, 197, 94, 0.1);
+    padding: 16px 20px;
+    border-radius: var(--db-radius-md);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    margin-bottom: 20px;
+}
+
+.pd-success-icon-small {
+    background: #22c55e;
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 18px;
+    box-shadow: 0 4px 8px rgba(34, 197, 94, 0.25);
+    flex-shrink: 0;
+}
+
+.pd-success-header h3 {
+    margin: 0 0 4px 0;
+    color: #166534;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.pd-success-header p {
+    margin: 0;
+    color: #15803d;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* List of generated files */
+.pd-print-list-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    padding-right: 4px;
+    margin-bottom: 20px;
+    flex-grow: 1;
+    /* allow it to take available space pushing buttons down */
+}
+
+/* Scrollbar styling for list */
+.pd-print-list-compact::-webkit-scrollbar {
+    width: 6px;
+}
+
+.pd-print-list-compact::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.pd-print-list-compact::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 10px;
+}
+
+.pd-compact-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: var(--db-radius-sm);
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pd-compact-card:hover {
+    border-color: #cbd5e1;
+    background: #f1f5f9;
+}
+
+.pd-compact-card--active {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.1);
+}
+
+.pd-compact-card--active:hover {
+    background: #eef2ff;
+    border-color: #a5b4fc;
+}
+
+.pd-compact-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pd-compact-action {
+    display: flex;
+    align-items: center;
+}
+
+.pd-status-text {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--db-text-muted);
+}
+
+.pd-status-text.active-text {
+    color: var(--db-primary);
+}
+
+.pd-btn--tiny-view {
+    background: transparent;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.pd-compact-card:hover .pd-btn--tiny-view {
+    background: #e2e8f0;
+}
+
+/* Sidebar Bottom Actions */
+.pd-sidebar-actions-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: auto;
+    border-top: 1px solid var(--db-glass-border-alt);
+    padding-top: 20px;
+}
+
+.pd-btn--download-large {
+    background-color: var(--db-primary);
+    color: white;
+    font-size: 15px;
+    padding: 16px;
+    box-shadow: 0 4px 12px rgba(41, 35, 122, 0.2);
+}
+
+.pd-btn--download-large:hover {
+    background-color: var(--db-primary-hover);
+    transform: translateY(-1px);
+}
+
+.pd-btn--secondary-outline {
+    background: transparent;
+    border: 2px solid var(--db-glass-border-alt);
+    color: var(--db-slate);
+}
+
+.pd-btn--secondary-outline:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
 /* --- Responsive Adjustments --- */
-@media (max-width: 880px) {
-    .pd-split-layout {
+@media (max-width: 980px) {
+
+    .pd-split-layout,
+    .pd-split-layout--viewer {
         grid-template-columns: 1fr;
         gap: 24px;
+        height: auto;
+    }
+
+    .pd-pdf-viewer-container {
+        height: 500px;
+        /* Give it a fixed height on mobile/tablet */
     }
 
     .pd-header-banner {
@@ -488,5 +805,10 @@
 
     .pd-doc-table-wrap {
         overflow-x: auto;
+    }
+
+    .pd-sig-selectors {
+        grid-template-columns: 1fr;
+        gap: 16px;
     }
 }
