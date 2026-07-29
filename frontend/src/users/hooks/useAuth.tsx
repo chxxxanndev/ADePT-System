@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { User, MockUser } from '../../auth-folder/types/auth';
 import { supabase } from '../../lib/supabaseClient';
 
 const API_BASE_URL = 'http://localhost:5000';
 
-export function useAuth() {
+// ─── The actual auth logic — UNCHANGED from before, just renamed and no ───────
+// ─── longer exported directly. Only the AuthProvider below calls this,   ───────
+// ─── so there is exactly ONE instance of this state for the whole app.   ───────
+function useAuthState() {
     const [currentUser, setCurrentUser] = useState<User | null>(() => {
         const saved = localStorage.getItem('adept_user');
         return saved ? JSON.parse(saved) : null;
@@ -76,8 +79,6 @@ export function useAuth() {
                 const data = await res.json();
 
                 if (data.reactivatable) {
-                    // Correct credentials, but the account was disabled within the
-                    // last 7 days. Let the LoginForm show the confirmation prompt.
                     return {
                         success: false,
                         reactivatable: true,
@@ -99,7 +100,6 @@ export function useAuth() {
                 }
                 return { success: false, message: data.error || 'Invalid credentials.' };
             } else {
-                // ...unchanged mock-mode branch stays as-is
                 return await new Promise((resolve) => {
                     setTimeout(() => {
                         const userIndex = mockDb.findIndex(
@@ -143,7 +143,6 @@ export function useAuth() {
         });
     };
 
-    // Called after the user confirms the "log in again?" prompt.
     const reactivateAccount = async (
         username: string,
         password: string
@@ -265,4 +264,35 @@ export function useAuth() {
         forgotPassword,
         logout,
     };
+}
+
+// ─── Context wiring ────────────────────────────────────────────────────────────
+type AuthContextValue = ReturnType<typeof useAuthState>;
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+/**
+ * Wrap your whole app in this ONCE (in App.tsx). Every component that calls
+ * useAuth() below will then share this exact same state instance — so
+ * updateCurrentUser() called from ANY page (Settings, Admin Settings, etc.)
+ * immediately reflects everywhere else too (header, sidebar, other pages),
+ * instead of each component silently keeping its own disconnected copy.
+ */
+export function AuthProvider({ children }: { children: ReactNode }) {
+    const authState = useAuthState();
+    return <AuthContext.Provider value={authState}>{children}</AuthContext.Provider>;
+}
+
+/**
+ * Same name, same import path as before — every existing
+ * `import { useAuth } from '../../users/hooks/useAuth'` across your codebase
+ * keeps working with ZERO changes. It now pulls from the shared context
+ * instead of creating an isolated state instance.
+ */
+export function useAuth(): AuthContextValue {
+    const ctx = useContext(AuthContext);
+    if (!ctx) {
+        throw new Error('useAuth must be used within an <AuthProvider>. Wrap your app root (App.tsx) in <AuthProvider>.');
+    }
+    return ctx;
 }

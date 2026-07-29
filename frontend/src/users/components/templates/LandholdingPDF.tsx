@@ -1,6 +1,6 @@
 import { Font, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 
-// Register Georgia
+// Register Georgia Font
 Font.register({
   family: 'Georgia',
   fonts: [
@@ -8,6 +8,20 @@ Font.register({
     { src: window.location.origin + '/fonts/georgiab.ttf', fontWeight: 'bold' } 
   ]
 });
+
+// Helper function to convert numeric day into ordinal form
+const getOrdinalSuffix = (dayInput: string | number) => {
+    const num = parseInt(String(dayInput), 10);
+    if (isNaN(num)) return dayInput; 
+
+    const j = num % 10;
+    const k = num % 100;
+
+    if (j === 1 && k !== 11) return `${num}st`;
+    if (j === 2 && k !== 12) return `${num}nd`;
+    if (j === 3 && k !== 13) return `${num}rd`;
+    return `${num}th`;
+};
 
 const styles = StyleSheet.create({
     page: {
@@ -32,7 +46,7 @@ const styles = StyleSheet.create({
         zIndex: -1,
     },
     content: {
-        paddingHorizontal: 70,
+        paddingHorizontal: 50,
         paddingTop: 15,
         paddingBottom: 40, 
     },
@@ -42,50 +56,57 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         textAlign: 'center',
         marginTop: 20,
-        marginBottom: 40, 
+        marginBottom: 50, 
     },
     salutation: {
         fontWeight: 'bold',
-        marginBottom: 15,
-        fontSize: 12,
-        marginLeft: 35,
+        marginBottom: 40,
+        fontSize: 11,
+        marginLeft: 30,
     },
     officialParagraph: {
         textAlign: 'justify',
-        marginBottom: 12,
-        fontSize: 12,
-        textIndent: 63,
+        marginBottom: 5,
+        fontSize: 11,
+        lineHeight: 1.5,
+        hyphenationCallback: () => [],
     },
     underlineText: {
         fontWeight: 'bold',
         textDecoration: 'underline',
     },
 
-    // --- FIXED TABLE LOGIC ---
+    // --- TABLE LOGIC ---
     table: {
         width: '100%',
-        marginTop: 10,
+        marginTop: 8,
         marginBottom: 20,
-        borderTopWidth: 1,    // Outer top border
-        borderLeftWidth: 1,   // Outer left border
+        borderTopWidth: 0.75,
+        borderLeftWidth: 0.75,
         borderColor: '#000',
     },
     tableRow: {
         flexDirection: 'row',
-        borderBottomWidth: 1, // Horizontal lines
-        borderColor: '#000',
         minHeight: 22,
-        alignItems: 'stretch', // Ensures vertical lines connect
+        alignItems: 'stretch',
+        position: 'relative',
+    },
+    // Double horizontal line under every row
+    doubleRowDivider: {
+        width: '100%',
+        borderBottomWidth: 0.75,
+        borderColor: '#000',
+        paddingBottom: 1.5, // Creates gap between double lines
     },
     cell: {
-        borderRightWidth: 1,  // Vertical lines
+        borderRightWidth: 0.75,
         borderColor: '#000',
-        padding: 4,
+        padding: 3,
         justifyContent: 'center',
     },
     thText: { 
         fontWeight: 'bold', 
-        fontSize: 11, 
+        fontSize: 10, 
         textAlign: 'center' 
     },
     tdText: { 
@@ -95,26 +116,25 @@ const styles = StyleSheet.create({
     },
 
     signatoryContainer: {
-        marginTop: 20,
+        marginTop: 60,
         width: '100%',
         alignItems: 'flex-end',
     },
     signatoryBlock: {
-        marginBottom: 25,
+        marginBottom: 60,
         textAlign: 'center',
         width: 250,
     },
     signatoryName: {
         fontWeight: 'bold',
-        fontSize: 12,
-        textDecoration: 'underline',
+        fontSize: 11,
     },
 
     receiptContainer: {
         position: 'absolute',
         bottom: 100, 
-        left: 70,
-        width: 220,
+        left: 80,
+        width: 150,
     },
     receiptRow: {
         flexDirection: 'row',
@@ -143,14 +163,16 @@ export const CertOfLandholdingPDF = ({
     signatory1Name = 'ENGR. VICENTE P. DESUY',
     signatory1Title = 'Municipal Assessor',
     signatory2Name = 'CHINA CHAN-OLARIO, RN, REA, REB, Enp',
-    signatory2Title = 'Assistant Provincial Assessor'
+    signatory2Title = 'Assistant Provincial Assessor',
+    paperSizeOverride
 }: any) => {
 
-    const displayProperties = properties.length > 0 ? properties : [{}, {}];
+    const selectedPageSize = paperSizeOverride || (properties.length > 4 ? 'LEGAL' : 'LETTER');
+    const INDENT = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0';
 
     return (
         <Document>
-            <Page size="LETTER" style={styles.page}>
+            <Page size={selectedPageSize} style={styles.page}>
                 <Image src={window.location.origin + '/images/landholding_header.png'} style={styles.headerImage} />
                 <Image fixed src={window.location.origin + '/images/landholding_bg.png'} style={styles.bottomBackground} />
 
@@ -159,7 +181,9 @@ export const CertOfLandholdingPDF = ({
 
                     <Text style={styles.salutation}>TO WHOM IT MAY CONCERN:</Text>
 
+                    {/* Paragraph 1 */}
                     <Text style={styles.officialParagraph}>
+                        <Text>{INDENT}</Text>
                         <Text style={{fontWeight: 'bold'}}>THIS IS TO CERTIFY</Text>
                         <Text> that </Text>
                         <Text style={styles.underlineText}>{String(ownerName).toUpperCase()}</Text>
@@ -169,33 +193,48 @@ export const CertOfLandholdingPDF = ({
                     {/* Properties Table */}
                     <View style={styles.table}>
                         {/* Header Row */}
-                        <View style={styles.tableRow}>
-                            <View style={[styles.cell, {width: '20%'}]}><Text style={styles.thText}>TD/ARP No.</Text></View>
-                            <View style={[styles.cell, {width: '24%'}]}><Text style={styles.thText}>Location of Prop.</Text></View>
-                            <View style={[styles.cell, {width: '12%'}]}><Text style={styles.thText}>Lot No.</Text></View>
-                            <View style={[styles.cell, {width: '12%'}]}><Text style={styles.thText}>Title No.</Text></View>
-                            <View style={[styles.cell, {width: '12%'}]}><Text style={styles.thText}>Area</Text></View>
-                            <View style={[styles.cell, {width: '20%'}]}><Text style={styles.thText}>Assd. Value</Text></View>
+                        <View style={styles.doubleRowDivider}>
+                            <View style={[styles.tableRow, { borderBottomWidth: 0.75, borderColor: '#000' }]}>
+                                <View style={[styles.cell, { width: '18%' }]}><Text style={styles.thText}>TD/ARP No.</Text></View>
+                                <View style={[styles.cell, { width: '26%' }]}><Text style={styles.thText}>Location of Prop.</Text></View>
+                                <View style={[styles.cell, { width: '12%' }]}><Text style={styles.thText}>Lot No.</Text></View>
+                                <View style={[styles.cell, { width: '12%' }]}><Text style={styles.thText}>Title No.</Text></View>
+                                <View style={[styles.cell, { width: '14%' }]}><Text style={styles.thText}>Area</Text></View>
+                                <View style={[styles.cell, { width: '18%' }]}><Text style={styles.thText}>Assd. Value</Text></View>
+                            </View>
                         </View>
 
-                        {/* Data Rows */}
-                        {displayProperties.map((prop: any, index: number) => (
-                            <View key={index} style={styles.tableRow}>
-                                <View style={[styles.cell, {width: '20%', alignItems: 'center'}]}><Text style={styles.tdText}>{prop.tdNo || ''}</Text></View>
-                                <View style={[styles.cell, {width: '24%', alignItems: 'center'}]}><Text style={styles.tdText}>{prop.location || ''}</Text></View>
-                                <View style={[styles.cell, {width: '12%', alignItems: 'center'}]}><Text style={styles.tdText}>{prop.lotNo || ''}</Text></View>
-                                <View style={[styles.cell, {width: '12%', alignItems: 'center'}]}><Text style={styles.tdText}>{prop.titleNo || ''}</Text></View>
-                                <View style={[styles.cell, {width: '12%', alignItems: 'center'}]}><Text style={styles.tdText}>{prop.area || ''}</Text></View>
-                                <View style={[styles.cell, {width: '20%', paddingLeft: 5, alignItems: 'flex-start'}]}>
-                                    <Text style={styles.tdText}>PHP {prop.assdValue || ''}</Text>
+                        {/* Data Rows mapped strictly from properties */}
+                        {properties.map((prop: any, index: number) => (
+                            <View key={index} style={styles.doubleRowDivider}>
+                                <View style={[styles.tableRow, { borderBottomWidth: 0.75, borderColor: '#000' }]} wrap={false}>
+                                    <View style={[styles.cell, { width: '18%', alignItems: 'center' }]}>
+                                        <Text style={styles.tdText}>{prop.tdNo || ''}</Text>
+                                    </View>
+                                    <View style={[styles.cell, { width: '26%', alignItems: 'center', paddingHorizontal: 2 }]}>
+                                        <Text style={styles.tdText}>{prop.location || ''}</Text>
+                                    </View>
+                                    <View style={[styles.cell, { width: '12%', alignItems: 'center' }]}>
+                                        <Text style={styles.tdText}>{prop.lotNo || ''}</Text>
+                                    </View>
+                                    <View style={[styles.cell, { width: '12%', alignItems: 'center' }]}>
+                                        <Text style={styles.tdText}>{prop.titleNo || ''}</Text>
+                                    </View>
+                                    <View style={[styles.cell, { width: '14%', alignItems: 'center' }]}>
+                                        <Text style={styles.tdText}>{prop.area || ''}</Text>
+                                    </View>
+                                    <View style={[styles.cell, { width: '18%', alignItems: 'center' }]}>
+                                        <Text style={styles.tdText}>{prop.assdValue ? `PHP ${prop.assdValue}` : ''}</Text>
+                                    </View>
                                 </View>
                             </View>
                         ))}
                     </View>
 
+                    {/* Paragraph 2 */}
                     <Text style={styles.officialParagraph}>
                         <Text>Given this </Text>
-                        <Text style={styles.underlineText}>{day}</Text>
+                        <Text style={styles.underlineText}>{getOrdinalSuffix(day)}</Text>
                         <Text> day of </Text>
                         <Text style={styles.underlineText}>{monthYear}</Text>
                         <Text>, at Dipolog City for whatever legal purpose/intent it may serve best.</Text>

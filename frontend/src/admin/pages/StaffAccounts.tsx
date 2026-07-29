@@ -343,7 +343,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
 
                     <div className="admin-profile-widget audit-user-chip">
                         <div className="profile-widget-avatar-container audit-user-avatar">
-                            {initials}
+                            {user.avatarUrl ? <img src={user.avatarUrl} alt={`${user.firstName || ''} ${user.lastName || ''}`.trim()} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : initials}
                         </div>
                         <div className="profile-widget-info audit-user-info">
                             <span className="profile-widget-name audit-user-name">{`${user.firstName || ''} ${user.lastName || ''}`.trim()}</span>

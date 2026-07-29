@@ -1,23 +1,12 @@
-import type { TransactionFilters, TransactionStatus, DocumentType } from '../types/transaction';
+import type { TransactionFilters, DocumentType } from '../types/transaction';
 
-const STATUS_OPTIONS: (TransactionStatus | 'All')[] = [
-    'All',
-    'Pending',
-    'For Payment',
-    'Payment Verified',
-    'Processing',
-    'Ready for Release',
-    'Released',
-    'Void',
-    'Archived',
-];
+const STATUS_OPTIONS: TransactionFilters['status'][] = ['Released', 'Reprinted'];
 
 const DOC_TYPE_OPTIONS: (DocumentType | 'All')[] = [
     'All',
     'Tax Declaration',
     'Certificate of Land Holding',
     'Certificate of No Landholding',
-    'Certified True Copy',
 ];
 
 interface FilterBarProps {
@@ -32,11 +21,11 @@ export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
             <select
                 className="tr-filter-select"
                 value={filters.status}
-                onChange={(e) => onChange({ ...filters, status: e.target.value as TransactionStatus | 'All' })}
+                onChange={(e) => onChange({ ...filters, status: e.target.value as TransactionFilters['status'] })}
                 aria-label="Filter by status"
             >
                 {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{s === 'All' ? 'All Statuses' : s}</option>
+                    <option key={s} value={s}>{s}</option>
                 ))}
             </select>
 

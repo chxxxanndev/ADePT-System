@@ -47,6 +47,7 @@ interface CurrentUser {
   name: string;
   role: string;
   initials: string;
+  avatarUrl?: string;
 }
 
 interface AuditLogProps {
@@ -322,7 +323,17 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
             </p>
           </div>
           <div className="audit-user-chip">
-            <div className="audit-user-avatar">{currentUser.initials}</div>
+            <div className="audit-user-avatar">
+              {currentUser.avatarUrl ? (
+                <img
+                  src={currentUser.avatarUrl}
+                  alt={currentUser.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                />
+              ) : (
+                currentUser.initials
+              )}
+            </div>
             <div className="audit-user-info">
               <p className="audit-user-name">{currentUser.name}</p>
               <p className="audit-user-role">{currentUser.role}</p>

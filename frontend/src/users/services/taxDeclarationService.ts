@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { TaxDeclarationFormData } from '../types/taxDeclaration';
+import { requestService } from './requestService';
 
 const API_BASE = 'http://localhost:5000/api/tax-declarations';
 
@@ -28,8 +29,8 @@ export const taxDeclarationService = {
             administratorTin: formData.administratorTin,
             administratorTelephone: formData.administratorTelephone,
             propertyStreet: formData.propertyStreet,
-            barangayId: formData.barangayId,
-            municipalityId: formData.municipalityId,
+            barangay: formData.barangayId,
+            municipality: formData.municipalityId,
             octTctNumber: formData.octTctNumber,
             surveyNumber: formData.surveyNumber,
             lotNumber: formData.lotNumber,
@@ -51,7 +52,7 @@ export const taxDeclarationService = {
                 classificationId: row.classificationId || null,
                 actualUseId: row.actualUseId || null,
                 actualUseOtherText: row.actualUseOtherText || null,
-                area: row.area ? Number(row.area) : null,
+                area: row.area || null,
                 areaUnit: row.areaUnit,
                 marketValue: row.marketValue ? Number(row.marketValue) : null,
                 assessmentLevel: row.assessmentLevel ? Number(row.assessmentLevel) : null,
@@ -80,10 +81,18 @@ export const taxDeclarationService = {
      */
     getTaxDeclaration: async (requestId: string) => {
         try {
-            const res = await axios.get(`${API_BASE}/${requestId}`);
-            const dbData = res.data.data; // Extracts the record from { data: { ... } }
+            const [res, meta] = await Promise.all([
+                axios.get(`${API_BASE}/${requestId}`),
+                requestService.getMetadata(),
+            ]);
+            const dbData = res.data.data;
 
             if (!dbData) return null;
+
+            const classificationMap: Record<string, string> = {};
+            (meta?.classifications || []).forEach((c: any) => {
+                classificationMap[c.id] = c.label;
+            });
 
             // TRANSLATOR: Maps database snake_case to PDF camelCase
             return {
@@ -96,8 +105,8 @@ export const taxDeclarationService = {
                 ownerAddress: dbData.owner_address,
                 administratorName: dbData.administrator_name,
                 administratorAddress: dbData.administrator_address,
-                barangay: dbData.barangay_id,
-                municipality: dbData.municipality_id,
+                barangay: dbData.barangay?.name || '',
+                municipality: dbData.municipality?.name || '',
                 boundaryNorth: dbData.boundary_north,
                 boundarySouth: dbData.boundary_south,
                 boundaryEast: dbData.boundary_east,
@@ -109,7 +118,7 @@ export const taxDeclarationService = {
                 effectivityYear: dbData.effectivity_year,
 
                 assessments: (dbData.encoded_assessment_rows || []).map((row: any) => ({
-                    classificationLabel: row.classification_id || 'LAND',
+                    classificationLabel: classificationMap[row.classification_id] || row.classification_id || 'N/A',
                     kindOfProperty: row.classification_id,
                     area: row.area,
                     marketValue: row.market_value,

@@ -1,17 +1,15 @@
 // ===== Transaction Registry — Type Definitions =====
-// Mirrors the shape we expect from Supabase later.
-// Replace mockTransactions.ts with an API/service call and these types stay the same.
 
 export type TransactionStatus =
-    | 'Pending'            // Request created, no details encoded yet
-    | 'For Payment'        // Details encoded, waiting for OR number
-    | 'Payment Verified'   // OR entered, ready to be processed/printed
-    | 'Processing'         // Currently being worked on
-    | 'Ready for Release'  // Printed and signed, sitting in the "Outbox"
-    | 'Released'           // Handed to client
-    | 'Void'               // Cancelled after being released (errors found)
-    | 'Cancelled'          // Terminated by client before payment
-    | 'Archived';          // Old records
+    | 'Pending'
+    | 'For Payment'
+    | 'Payment Verified'
+    | 'Processing'
+    | 'Ready for Release'
+    | 'Released'
+    | 'Void'
+    | 'Cancelled'
+    | 'Archived';
 
 export type DocumentType =
     | 'Tax Declaration'
@@ -21,10 +19,10 @@ export type DocumentType =
 
 export interface ActivityLogEntry {
     id: string;
-    time: string; // e.g. "09:05 AM"
-    date: string; // e.g. "07/17/2026"
-    action: string; // e.g. "Request Created"
-    actor?: string; // e.g. "Che Ann Abal"
+    time: string;
+    date: string;
+    action: string;
+    actor?: string;
     note?: string;
 }
 
@@ -34,7 +32,22 @@ export interface GeneratedDocument {
     documentType: DocumentType;
     dateGenerated: string;
     generatedBy: string;
-    fileRef: string; // mock filename / control ref
+    fileRef: string;
+}
+
+/**
+ * One requested document within a request/reference number.
+ * TODO: `id` is a client-generated placeholder (`${transactionId}-doc-${index}`)
+ * because request_documents doesn't expose its own row id in
+ * getTransactionRegistry() yet — swap it for the real id once it does.
+ * TODO: `reprintCount` has no backing DB column yet (confirmed — none exists).
+ * It lives only in local state for the current session and resets on reload
+ * until a backend field/endpoint is added.
+ */
+export interface RequestedDocumentItem {
+    id: string;
+    documentType: DocumentType | string;
+    reprintCount: number;
 }
 
 export interface PaymentInfo {
@@ -66,11 +79,11 @@ export interface ClientInfo {
 
 export interface Transaction {
     id: string;
-    referenceNumber: string; // REF-2026-0001
+    referenceNumber: string;
     client: ClientInfo;
     property: PropertyInfo;
-    requestedDocuments: DocumentType[];
-    dateRequested: string; // MM/DD/YYYY
+    requestedDocuments: RequestedDocumentItem[]; // was DocumentType[]
+    dateRequested: string;
     assignedStaff: string;
     status: TransactionStatus;
     payment: PaymentInfo;
@@ -81,8 +94,19 @@ export interface Transaction {
     voidReason?: string;
 }
 
+/**
+ * Frontend-only grouping used by the Transaction Registry table: one row per
+ * declarant, bundling every Released request that declarant has.
+ * NOTE: grouped by client.declarantName since no client id is exposed by the
+ * backend yet — two different people sharing an exact name would merge here.
+ */
+export interface DeclarantGroup {
+    declarantName: string;
+    transactions: Transaction[]; // most recent first
+}
+
 export interface TransactionFilters {
-    status: TransactionStatus | 'All';
+    status: 'Released' | 'Reprinted'; // was TransactionStatus | 'All' — registry is Released-only now
     documentType: DocumentType | 'All';
     dateFrom?: string;
     dateTo?: string;

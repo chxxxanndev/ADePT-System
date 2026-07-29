@@ -1,44 +1,39 @@
-import React from 'react';
 
 // Base component
 export const SkeletonBox = ({ width = '100%', height = '20px', borderRadius = '4px', margin = '0' }) => (
     <div className="skeleton-item" style={{ width, height, borderRadius, margin }} />
 );
 
-// 1. CARDS: reuses the real .tr-summary-grid class so it collapses to
-// 3 columns at 1100px and 2 columns at 720px exactly like the loaded cards do.
+// 1. CARDS: mirrors the real SummaryCards — a single Total card now,
+// reusing .tr-summary-grid--single so it sizes/positions exactly like
+// the loaded card does.
 export const RegistrySummarySkeleton = () => {
     return (
-        <div className="tr-summary-grid">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="skeleton-card-ghost">
-                    {/* Ghost Label */}
-                    <SkeletonBox width="60%" height="10px" margin="0 0 8px 0" />
-                    {/* Ghost Number */}
-                    <SkeletonBox width="35%" height="22px" />
-                </div>
-            ))}
+        <div className="tr-summary-grid tr-summary-grid--single">
+            <div className="skeleton-card-ghost">
+                <SkeletonBox width="60%" height="10px" margin="0 0 8px 0" />
+                <SkeletonBox width="35%" height="22px" />
+            </div>
         </div>
     );
 };
 
-// 2. TOOLBAR: mirrors the real .tr-toolbar's 5 controls (search, 2 selects,
-// date range, reset) inside the same .tr-toolbar-skeleton row container.
+// 2. TOOLBAR: mirrors the real .tr-toolbar's 4 controls (search, status
+// select, doc type select, date range — Reset omitted since it's a plain
+// button, not data-dependent) inside the same .tr-toolbar-skeleton row.
 export const RegistryToolbarSkeleton = () => (
     <div className="tr-toolbar-skeleton">
-        <SkeletonBox width="32%" height="42px" borderRadius="10px" />
-        <SkeletonBox width="15%" height="42px" borderRadius="10px" />
+        <SkeletonBox width="36%" height="42px" borderRadius="10px" />
         <SkeletonBox width="15%" height="42px" borderRadius="10px" />
         <SkeletonBox width="18%" height="42px" borderRadius="10px" />
-        <SkeletonBox width="10%" height="42px" borderRadius="10px" />
+        <SkeletonBox width="20%" height="42px" borderRadius="10px" />
     </div>
 );
 
 const COLUMNS = [
-    'Control Number',
+    'Reference Number',
     'Declarant',
     'Requested By',
-    'Requested Documents',
     'Date Requested',
     'Assigned Staff',
     'Current Status',
@@ -70,12 +65,6 @@ export const RegistryTableSkeleton = ({ rows = 6 }: { rows?: number }) => (
                             <SkeletonBox width="60%" height="10px" />
                         </td>
                         <td><SkeletonBox width="70%" height="12px" /></td>
-                        <td>
-                            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                                <SkeletonBox width="70px" height="20px" borderRadius="999px" />
-                                <SkeletonBox width="70px" height="20px" borderRadius="999px" />
-                            </div>
-                        </td>
                         <td><SkeletonBox width="60%" height="12px" /></td>
                         <td><SkeletonBox width="70%" height="12px" /></td>
                         <td><SkeletonBox width="80px" height="22px" borderRadius="999px" /></td>
