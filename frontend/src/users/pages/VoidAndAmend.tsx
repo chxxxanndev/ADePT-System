@@ -2,10 +2,7 @@ import { useMemo, useState } from "react";
 import { Search, ChevronDown, Ban, PencilLine } from "lucide-react";
 import "../styles/VoidAndAmend.css";
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
-type ActionType = "void" | "amended";
+type ActionType = "void";
 
 interface VoidAmendRecord {
   id: string;
@@ -13,21 +10,24 @@ interface VoidAmendRecord {
   declarantName: string;
   documentType: string;
   actionType: ActionType;
-  detail: string; // reason for void, or description of what changed for amended
+  detail: string;
   actionedBy: string;
-  actionedAt: string; // ISO date-time string, e.g. "2026-07-20T09:10:00"
+  actionedAt: string;
 }
 
-type ActionFilter = "All actions" | "Void" | "Amended";
 type TimeRange = "Today" | "Yesterday" | "This Week" | "This Month" | "All Time";
 
-/* ------------------------------------------------------------------ */
-/*  Mock data — inlined here for now.                                  */
-/*  TODO: replace with real data from a useVoidAndAmend hook / API     */
-/*  once a backend endpoint exists (e.g. GET /api/void-amend?range=…). */
-/*  actionedAt is a real ISO timestamp so the table can show an actual */
-/*  calendar date instead of relative labels like "Today"/"Yesterday". */
-/* ------------------------------------------------------------------ */
+interface VoidAndAmendProps {
+  // Called when staff clicks the pencil on a row. The record here only has
+  // display fields (reference, declarant, document type, reason) — it does
+  // NOT carry the full original request (property info, purpose, payment,
+  // document type ids), so this can't clone anything by itself yet. The
+  // parent is expected to fetch the full request by reference/id and hand
+  // it to RequestFormEntry as prefilled data, generating a fresh reference
+  // number the same way handleSelectNewRequest already does in Dashboard.
+  onAmend?: (record: VoidAmendRecord) => void;
+}
+
 const records: VoidAmendRecord[] = [
   {
     id: "va-001",
@@ -44,7 +44,7 @@ const records: VoidAmendRecord[] = [
     reference: "LH-2026-04791",
     declarantName: "Harriett Johnson",
     documentType: "Certificate of Land Holding",
-    actionType: "amended",
+    actionType: "void",
     detail: "Corrected property boundary description",
     actionedBy: "John Cruz",
     actionedAt: "2026-07-20T08:45:00",
@@ -64,7 +64,7 @@ const records: VoidAmendRecord[] = [
     reference: "NLH-2026-00423",
     declarantName: "Sophia Rodriguez",
     documentType: "No-Landholding Certificate",
-    actionType: "amended",
+    actionType: "void",
     detail: "Updated declarant civil status on record",
     actionedBy: "Dennis Cruz",
     actionedAt: "2026-07-19T14:05:00",
@@ -84,7 +84,7 @@ const records: VoidAmendRecord[] = [
     reference: "LH-2026-09725",
     declarantName: "Tom Hanson",
     documentType: "Certificate of Land Holding",
-    actionType: "amended",
+    actionType: "void",
     detail: "Corrected total assessed land area",
     actionedBy: "Vicente Desoy",
     actionedAt: "2026-07-16T15:15:00",
@@ -104,7 +104,7 @@ const records: VoidAmendRecord[] = [
     reference: "NLH-2026-05553",
     declarantName: "Victor Wilkins",
     documentType: "No-Landholding Certificate",
-    actionType: "amended",
+    actionType: "void",
     detail: "Updated property location details",
     actionedBy: "John Cruz",
     actionedAt: "2026-07-14T09:40:00",
@@ -124,27 +124,13 @@ const records: VoidAmendRecord[] = [
     reference: "LH-2026-03390",
     declarantName: "Miguel Santos",
     documentType: "Certificate of Land Holding",
-    actionType: "amended",
+    actionType: "void",
     detail: "Updated declarant contact information",
     actionedBy: "Dennis Cruz",
     actionedAt: "2026-06-10T10:35:00",
   },
 ];
 
-const ACTION_FILTER_TO_TYPE: Record<ActionFilter, ActionType | null> = {
-  "All actions": null,
-  Void: "void",
-  Amended: "amended",
-};
-
-/* ------------------------------------------------------------------ */
-/*  Date helpers                                                       */
-/* ------------------------------------------------------------------ */
-
-/**
- * Formats an ISO date-time string into a real, readable calendar date
- * and time, e.g. "20 Jul 2026, 9:10 AM" — instead of a relative label.
- */
 function formatDateTime(isoString: string): string {
   const date = new Date(isoString);
   const datePart = date.toLocaleDateString("en-GB", {
@@ -160,12 +146,6 @@ function formatDateTime(isoString: string): string {
   return `${datePart}, ${timePart}`;
 }
 
-/**
- * TODO: once wired to a real backend, "now" should just be `new Date()`.
- * It's pulled out as a constant here so the mock data above (dated around
- * mid-to-late July 2026) falls into predictable Today/Yesterday/This Week
- * buckets for demo purposes.
- */
 const NOW = new Date("2026-07-20T12:00:00");
 
 function isSameCalendarDay(a: Date, b: Date): boolean {
@@ -204,32 +184,22 @@ function matchesTimeRange(isoString: string, range: TimeRange): boolean {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Small building blocks                                             */
-/* ------------------------------------------------------------------ */
-function ActionBadge({ actionType }: { actionType: ActionType }) {
-  const isVoid = actionType === "void";
+function ActionBadge() {
   return (
-    <span className={`va-badge ${isVoid ? "va-badge--void" : "va-badge--amended"}`}>
-      {isVoid ? <Ban size={14} /> : <PencilLine size={14} />}
-      {isVoid ? "Void" : "Amended"}
+    <span className="va-badge va-badge--void">
+      <Ban size={14} />
+      Void
     </span>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Page component                                                    */
-/* ------------------------------------------------------------------ */
-export default function VoidAndAmend() {
+export default function VoidAndAmend({ onAmend }: VoidAndAmendProps) {
   const [search, setSearch] = useState("");
-  const [actionFilter, setActionFilter] = useState<ActionFilter>("All actions");
   const [timeRange, setTimeRange] = useState<TimeRange>("All Time");
 
   const filteredRecords = useMemo(() => {
-    const typeFilter = ACTION_FILTER_TO_TYPE[actionFilter];
     return records
       .filter((record) => {
-        const matchesType = typeFilter === null || record.actionType === typeFilter;
         const matchesSearch =
           search.trim() === "" ||
           record.reference.toLowerCase().includes(search.toLowerCase()) ||
@@ -237,25 +207,33 @@ export default function VoidAndAmend() {
           record.documentType.toLowerCase().includes(search.toLowerCase()) ||
           record.detail.toLowerCase().includes(search.toLowerCase());
         const matchesTime = matchesTimeRange(record.actionedAt, timeRange);
-        return matchesType && matchesSearch && matchesTime;
+        return matchesSearch && matchesTime;
       })
       .sort((a, b) => new Date(b.actionedAt).getTime() - new Date(a.actionedAt).getTime());
-  }, [search, actionFilter, timeRange]);
+  }, [search, timeRange]);
+
+  const handleAmendClick = (record: VoidAmendRecord) => {
+    if (onAmend) {
+      onAmend(record);
+    } else {
+      alert(
+        `Amend "${record.reference}" isn't wired to the backend yet — cloning needs the full original request (property, purpose, document type), not just what's shown in this table.`
+      );
+    }
+  };
 
   return (
     <div className="va-page">
       <div className="va-container">
-        {/* Header */}
         <div className="va-header">
           <div>
             <h1 className="va-title">Void and Amended Records</h1>
             <p className="va-subtitle">
-              Every voided or amended document, with the reason and who actioned it.
+              Every voided document, with the reason and who actioned it.
             </p>
           </div>
         </div>
 
-        {/* Filters */}
         <div className="va-filters">
           <div className="va-search-field">
             <Search size={16} className="va-search-icon" />
@@ -265,18 +243,6 @@ export default function VoidAndAmend() {
               placeholder="Search reference, declarant, or reason"
               className="va-search-input"
             />
-          </div>
-          <div className="va-select-field">
-            <select
-              value={actionFilter}
-              onChange={(e) => setActionFilter(e.target.value as ActionFilter)}
-              className="va-select"
-            >
-              <option>All actions</option>
-              <option>Void</option>
-              <option>Amended</option>
-            </select>
-            <ChevronDown size={14} className="va-select-chevron" />
           </div>
           <div className="va-select-field">
             <select
@@ -294,7 +260,6 @@ export default function VoidAndAmend() {
           </div>
         </div>
 
-        {/* Table */}
         <div className="va-card">
           <div className="va-table-scroll">
             <table className="va-table">
@@ -303,10 +268,10 @@ export default function VoidAndAmend() {
                   <th>Reference No.</th>
                   <th>Declarant</th>
                   <th>Document Type</th>
-                  <th>Action</th>
                   <th>Reason / Change</th>
                   <th>Actioned By</th>
                   <th>Date &amp; Time</th>
+                  <th style={{ textAlign: "center" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -315,13 +280,24 @@ export default function VoidAndAmend() {
                     <td className="va-cell-reference">#{record.reference}</td>
                     <td className="va-cell-name">{record.declarantName}</td>
                     <td className="va-cell-muted">{record.documentType}</td>
-                    <td>
-                      <ActionBadge actionType={record.actionType} />
-                    </td>
                     <td className="va-cell-muted">{record.detail}</td>
                     <td className="va-cell-muted">{record.actionedBy}</td>
                     <td className="va-cell-muted va-cell-nowrap">
                       {formatDateTime(record.actionedAt)}
+                    </td>
+                    <td>
+                      <div className="va-action-cell">
+                        <ActionBadge />
+                        <button
+                          type="button"
+                          className="va-amend-btn"
+                          title={`Amend ${record.reference}`}
+                          aria-label={`Amend ${record.reference}`}
+                          onClick={() => handleAmendClick(record)}
+                        >
+                          <PencilLine size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

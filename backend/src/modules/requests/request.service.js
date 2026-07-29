@@ -150,13 +150,14 @@ class RequestService {
             .select('request_id, document_types(name)');
 
         const STATUS_MAP = {
-            DRAFT: 'Pending',
-            IN_PROGRESS: 'Processing',
-            PAID: 'Payment Verified',
-            VOID: 'Void',
-            CANCELLED: 'Cancelled',
-            ARCHIVED: 'Archived',
-        };
+    DRAFT: 'Pending',
+    IN_PROGRESS: 'Processing',
+    PAID: 'Payment Verified',
+    RELEASED: 'Released',   // ← added
+    VOID: 'Void',
+    CANCELLED: 'Cancelled',
+    ARCHIVED: 'Archived',
+};
 
         return (requests || []).map((r) => {
             const documentNames = (docLinks || [])

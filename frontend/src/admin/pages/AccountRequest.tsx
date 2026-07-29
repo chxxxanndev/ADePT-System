@@ -161,9 +161,13 @@ export default function AccountRequest({ user }: AccountRequestProps) {
       // Backend still expects 'rejected' for a disapproval — only the
       // frontend wording changed to Approve/Disapprove.
       const normalizedDecision = decision === 'disapproved' ? 'rejected' : decision;
+      const token = localStorage.getItem('adept_token');
       const res = await fetch(`${API_BASE_URL}/account-requests/${id}/decision`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ decision: normalizedDecision, reason: decision === 'approved' ? 'Approved by super admin.' : 'Disapproved by super admin.' }),
       });
 
@@ -180,8 +184,8 @@ export default function AccountRequest({ user }: AccountRequestProps) {
 
       window.dispatchEvent(new Event('staff-directory:updated'));
       await loadRequests();
-    } catch {
-      setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status: decision } : r)));
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to save the decision. Please try again.');
     }
   }
 
@@ -197,7 +201,7 @@ export default function AccountRequest({ user }: AccountRequestProps) {
           </div>
 
           <div className="admin-profile-widget audit-user-chip">
-            <div className="profile-widget-avatar-container audit-user-avatar">
+            <div className="profile-widget-avatar-container">
                 {safeUser.avatarUrl ? (
                   <img
                     src={safeUser.avatarUrl}
@@ -281,22 +285,21 @@ export default function AccountRequest({ user }: AccountRequestProps) {
                 <th>Email</th>
                 <th>Requested role</th>
                 <th>Submitted</th>
-                <th>Decided on</th>
-                <th>Account status</th>
+                {activeTab !== 'pending' && <th>Decided on</th>}
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={8} className="account-request-empty-row">
+                  <td colSpan={activeTab !== 'pending' ? 7 : 6} className="account-request-empty-row">
                     Loading requests...
                   </td>
                 </tr>
               )}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="account-request-empty-row">
+                  <td colSpan={activeTab !== 'pending' ? 7 : 6} className="account-request-empty-row">
                     No {activeTab} requests to show.
                   </td>
                 </tr>
@@ -319,8 +322,9 @@ export default function AccountRequest({ user }: AccountRequestProps) {
                   <td className="account-request-cell-muted">{r.email}</td>
                   <td>{r.requestedRole}</td>
                   <td className="account-request-cell-muted">{r.submitted}</td>
-                  <td className="account-request-cell-muted">{r.decidedOn || '—'}</td>
-                  <td className="account-request-cell-muted">{r.accountStatus || '—'}</td>
+                  {activeTab !== 'pending' && (
+                    <td className="account-request-cell-muted">{r.decidedOn || '—'}</td>
+                  )}
                   <td>
                     {r.status === "pending" ? (
                       <div className="account-request-actions">

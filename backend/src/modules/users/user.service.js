@@ -1,5 +1,4 @@
 import { supabase, useMock } from '../../config/supabase.js';
-import { supabaseAdmin } from '../../config/supabaseAdmin.js';
 import { validatePassword } from '../../utils/validators.js';
 
 // ─── Mock fallback ────────────────────────────────────────────────────────────
@@ -69,24 +68,6 @@ function hasAdminLevel(actingStaff, minLevel) {
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
-// NOTE ON supabaseAdmin USAGE BELOW:
-// This backend uses a single, shared, module-level `supabase` client. Its
-// underlying Postgres session identity (auth.uid(), used by RLS policies)
-// gets overwritten every time ANY user logs in via authService.loginUser()
-// (which calls supabase.auth.signInWithPassword() on that same shared
-// client). requireAuth's supabase.auth.getUser(token) correctly identifies
-// the calling user per-request WITHOUT touching that shared session — but
-// that means the shared client's actual RLS identity can silently belong to
-// a completely different, unrelated user by the time a write happens here.
-//
-// Every method below already receives `actingStaff` (resolved via
-// getActingStaff, itself given a authUserId taken from the verified
-// per-request token) and does its own explicit JS-level permission checks
-// BEFORE touching the database. RLS is therefore redundant here — and
-// actively broken by the shared-session issue. So all staff/roles reads and
-// writes in this file use `supabaseAdmin` (service role key), which
-// bypasses RLS entirely and has no session state to be stolen by a
-// concurrent login elsewhere.
 class UserService {
     /**
      * Resolves the acting user's staff row (id, roleCode, adminLevel) from
@@ -98,7 +79,7 @@ class UserService {
             return { id: 'mock-actor', roleCode: 'SUPER_ADMIN', adminLevel: null };
         }
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('staff')
             .select('id, admin_level, roles(code)')
             .eq('auth_user_id', authUserId)
@@ -117,7 +98,7 @@ class UserService {
         if (useMock || !supabase) {
             return MOCK_STAFF.filter((member) => member.account_status !== 'PENDING_APPROVAL');
         }
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('staff')
             .select('id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)')
             .is('deleted_at', null)
@@ -129,6 +110,12 @@ class UserService {
 
     async getAccountRequests() {
         const toRequestView = (member) => {
+            // updated_at auto-bumps on any row edit, but for a request that's
+            // still PENDING_APPROVAL there's nothing decided yet, so we only
+            // surface it once the row has actually moved to approved/rejected —
+            // that's the moment updated_at reflects the decision itself.
+            const decidedAt = member.account_status !== 'PENDING_APPROVAL' ? member.updated_at : null;
+
             if (member.account_status === 'ACTIVE') {
                 return {
                     id: member.id,
@@ -137,6 +124,7 @@ class UserService {
                     username: member.username,
                     requestedRole: member.roles?.code === 'SUPER_ADMIN' ? 'Super Admin' : 'Office Staff',
                     submitted: member.created_at,
+                    decided_at: decidedAt,
                     status: 'approved',
                 };
             }
@@ -149,6 +137,7 @@ class UserService {
                     username: member.username,
                     requestedRole: member.roles?.code === 'SUPER_ADMIN' ? 'Super Admin' : 'Office Staff',
                     submitted: member.created_at,
+                    decided_at: decidedAt,
                     status: 'declined',
                 };
             }
@@ -161,6 +150,7 @@ class UserService {
                     username: member.username,
                     requestedRole: member.roles?.code === 'SUPER_ADMIN' ? 'Super Admin' : 'Office Staff',
                     submitted: member.created_at,
+                    decided_at: null,
                     status: 'pending',
                 };
             }
@@ -175,9 +165,9 @@ class UserService {
                 .filter(Boolean);
         }
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('staff')
-            .select('id, first_name, last_name, email, username, account_status, created_at, roles(code), disable_reason')
+            .select('id, first_name, last_name, email, username, account_status, created_at, updated_at, roles(code), disable_reason')
             .in('account_status', ['PENDING_APPROVAL', 'ACTIVE', 'DISABLED', 'REJECTED'])
             .is('deleted_at', null)
             .order('created_at', { ascending: false });
@@ -216,7 +206,7 @@ class UserService {
             };
         }
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('staff')
             .update({
                 account_status: normalizedDecision,
@@ -225,7 +215,7 @@ class UserService {
             .eq('id', requestId)
             .eq('account_status', 'PENDING_APPROVAL')
             .is('deleted_at', null)
-            .select('id, first_name, last_name, email, username, account_status, created_at, roles(code)');
+            .select('id, first_name, last_name, email, username, account_status, created_at, updated_at, roles(code)');
 
         if (error) throw error;
         const updatedMember = Array.isArray(data) ? data[0] : data;
@@ -236,6 +226,7 @@ class UserService {
             email: updatedMember.email,
             username: updatedMember.username,
             requestedRole: updatedMember.roles?.code === 'SUPER_ADMIN' ? 'Super Admin' : 'Office Staff',
+            decided_at: updatedMember.updated_at,
             status: decision,
         };
     }
@@ -287,7 +278,7 @@ class UserService {
             return created;
         }
 
-        const { data: roleData, error: roleError } = await supabaseAdmin
+        const { data: roleData, error: roleError } = await supabase
             .from('roles')
             .select('id')
             .eq('code', roleCode)
@@ -297,12 +288,7 @@ class UserService {
             throw new Error('Selected role was not found.');
         }
 
-        // Creating a NEW auth user via signUp still uses supabaseAdmin.auth.
-        // (If you have supabaseAdmin.auth.admin.createUser available, that's
-        // an even better fit here since it doesn't require email
-        // confirmation flows or touch the shared client's session at all —
-        // worth switching to if it's set up in your supabaseAdmin config.)
-        const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
+        const { data: authData, error: authError } = await supabase.auth.signUp({
             email,
             password,
             options: {
@@ -318,7 +304,7 @@ class UserService {
             throw new Error(authError?.message || 'Unable to create authentication account.');
         }
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('staff')
             .insert([{
                 auth_user_id: authData.user.id,
@@ -367,7 +353,7 @@ class UserService {
             return member;
         }
 
-        const { data: target, error: fetchError } = await supabaseAdmin
+        const { data: target, error: fetchError } = await supabase
             .from('staff')
             .select('id, created_by, roles(code)')
             .eq('id', staffId)
@@ -378,7 +364,7 @@ class UserService {
 
         this._assertCanManageTarget(target, actingStaff);
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('staff')
             .update({
                 account_status: newStatus,
@@ -440,7 +426,7 @@ class UserService {
             return member;
         }
 
-        const { data: target, error: fetchError } = await supabaseAdmin
+        const { data: target, error: fetchError } = await supabase
             .from('staff')
             .select('id, roles(code)')
             .eq('id', staffId)
@@ -451,7 +437,7 @@ class UserService {
             throw new Error('Admin level only applies to Admin accounts.');
         }
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('staff')
             .update({ admin_level: newLevel })
             .eq('id', staffId)
@@ -485,7 +471,7 @@ class UserService {
             return member;
         }
 
-        const { data: target, error: fetchError } = await supabaseAdmin
+        const { data: target, error: fetchError } = await supabase
             .from('staff')
             .select('id, roles(code)')
             .eq('id', staffId)
@@ -496,7 +482,7 @@ class UserService {
             throw new Error('Only Office Staff accounts can be promoted to Admin.');
         }
 
-        const { data: roleData, error: roleError } = await supabaseAdmin
+        const { data: roleData, error: roleError } = await supabase
             .from('roles')
             .select('id')
             .eq('code', 'ADMIN')
@@ -506,7 +492,7 @@ class UserService {
             throw new Error('Admin role was not found. Make sure it exists in the roles table.');
         }
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('staff')
             .update({
                 role_id: roleData.id,
@@ -540,7 +526,7 @@ class UserService {
             return member;
         }
 
-        const { data: target, error: fetchError } = await supabaseAdmin
+        const { data: target, error: fetchError } = await supabase
             .from('staff')
             .select('id, roles(code)')
             .eq('id', staffId)
@@ -551,7 +537,7 @@ class UserService {
             throw new Error('Only Admin accounts can be demoted.');
         }
 
-        const { data: roleData, error: roleError } = await supabaseAdmin
+        const { data: roleData, error: roleError } = await supabase
             .from('roles')
             .select('id')
             .eq('code', 'OFFICE_STAFF')
@@ -561,7 +547,7 @@ class UserService {
             throw new Error('Office Staff role was not found.');
         }
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('staff')
             .update({
                 role_id: roleData.id,
@@ -587,7 +573,7 @@ class UserService {
             return member;
         }
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('staff')
             .update({ is_signatory: false })
             .eq('id', staffId)

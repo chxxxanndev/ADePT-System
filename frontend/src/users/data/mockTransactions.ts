@@ -1,8 +1,21 @@
-import type { Transaction, TransactionSummary } from '../types/transaction';
+import type { Transaction, TransactionSummary, DocumentType, RequestedDocumentItem } from '../types/transaction';
 
 // ===== Mock Transaction Records =====
 // Swap this file for a Supabase/service call later.
 // Shape matches Transaction[] exactly so no component changes are needed.
+
+/**
+ * Converts a plain document-name list into the RequestedDocumentItem[] shape
+ * the Transaction type now expects (id + reprintCount added for the
+ * per-document reprint feature). reprintCount starts at 0 for all mock data.
+ */
+function toDocs(transactionId: string, names: DocumentType[]): RequestedDocumentItem[] {
+    return names.map((documentType, idx) => ({
+        id: `${transactionId}-doc-${idx}`,
+        documentType,
+        reprintCount: 0,
+    }));
+}
 
 export const mockTransactions: Transaction[] = [
     {
@@ -24,7 +37,7 @@ export const mockTransactions: Transaction[] = [
             classification: 'Residential',
             assessedValue: 185000,
         },
-        requestedDocuments: ['Certified True Copy', 'Certificate of Land Holding', 'Certificate of No Landholding'],
+        requestedDocuments: toDocs('t-0001', ['Certified True Copy', 'Certificate of Land Holding', 'Certificate of No Landholding']),
         dateRequested: '07/16/2026',
         assignedStaff: 'Jomar Villaruel',
         status: 'Processing',
@@ -62,7 +75,7 @@ export const mockTransactions: Transaction[] = [
             classification: 'Agricultural',
             assessedValue: 92000,
         },
-        requestedDocuments: ['Certified True Copy'],
+        requestedDocuments: toDocs('t-0002', ['Certified True Copy']),
         dateRequested: '07/16/2026',
         assignedStaff: 'Ariel Buenaflor',
         status: 'For Payment',
@@ -99,7 +112,7 @@ export const mockTransactions: Transaction[] = [
             classification: 'Residential',
             assessedValue: 210000,
         },
-        requestedDocuments: ['Certificate of Land Holding'],
+        requestedDocuments: toDocs('t-0003', ['Certificate of Land Holding']),
         dateRequested: '07/15/2026',
         assignedStaff: 'Jomar Villaruel',
         status: 'Payment Verified',
@@ -136,7 +149,7 @@ export const mockTransactions: Transaction[] = [
             ownerOnRecord: 'Jose Dela Cruz',
             classification: 'Residential',
         },
-        requestedDocuments: ['Certificate of No Landholding'],
+        requestedDocuments: toDocs('t-0004', ['Certificate of No Landholding']),
         dateRequested: '07/14/2026',
         assignedStaff: 'Ariel Buenaflor',
         status: 'Ready for Release',
@@ -177,7 +190,7 @@ export const mockTransactions: Transaction[] = [
             classification: 'Agricultural',
             assessedValue: 156000,
         },
-        requestedDocuments: ['Tax Declaration', 'Certified True Copy'],
+        requestedDocuments: toDocs('t-0005', ['Tax Declaration', 'Certified True Copy']),
         dateRequested: '07/13/2026',
         assignedStaff: 'Jomar Villaruel',
         status: 'Released',
@@ -218,7 +231,7 @@ export const mockTransactions: Transaction[] = [
             classification: 'Commercial',
             assessedValue: 430000,
         },
-        requestedDocuments: ['Certificate of Land Holding'],
+        requestedDocuments: toDocs('t-0006', ['Certificate of Land Holding']),
         dateRequested: '07/12/2026',
         assignedStaff: 'Ariel Buenaflor',
         status: 'Pending',
@@ -253,7 +266,7 @@ export const mockTransactions: Transaction[] = [
             ownerOnRecord: 'Teresita Ampatuan',
             classification: 'Residential',
         },
-        requestedDocuments: ['Certificate of No Landholding'],
+        requestedDocuments: toDocs('t-0007', ['Certificate of No Landholding']),
         dateRequested: '07/11/2026',
         assignedStaff: 'Jomar Villaruel',
         status: 'Void',
@@ -293,7 +306,7 @@ export const mockTransactions: Transaction[] = [
             classification: 'Residential',
             assessedValue: 128000,
         },
-        requestedDocuments: ['Certified True Copy'],
+        requestedDocuments: toDocs('t-0008', ['Certified True Copy']),
         dateRequested: '07/10/2026',
         assignedStaff: 'Ariel Buenaflor',
         status: 'Archived',
@@ -333,7 +346,7 @@ export const mockTransactions: Transaction[] = [
             classification: 'Agricultural',
             assessedValue: 76000,
         },
-        requestedDocuments: ['Certificate of Land Holding', 'Certificate of No Landholding'],
+        requestedDocuments: toDocs('t-0009', ['Certificate of Land Holding', 'Certificate of No Landholding']),
         dateRequested: '07/17/2026',
         assignedStaff: 'Jomar Villaruel',
         status: 'Processing',
@@ -370,7 +383,7 @@ export const mockTransactions: Transaction[] = [
             classification: 'Residential',
             assessedValue: 165000,
         },
-        requestedDocuments: ['Tax Declaration'],
+        requestedDocuments: toDocs('t-0010', ['Tax Declaration']),
         dateRequested: '07/09/2026',
         assignedStaff: 'Ariel Buenaflor',
         status: 'Released',
@@ -408,7 +421,7 @@ export const mockTransactions: Transaction[] = [
             ownerOnRecord: 'Wilma Nacional',
             classification: 'Residential',
         },
-        requestedDocuments: ['Certificate of No Landholding'],
+        requestedDocuments: toDocs('t-0011', ['Certificate of No Landholding']),
         dateRequested: '07/17/2026',
         assignedStaff: 'Jomar Villaruel',
         status: 'For Payment',
@@ -444,7 +457,7 @@ export const mockTransactions: Transaction[] = [
             classification: 'Commercial',
             assessedValue: 610000,
         },
-        requestedDocuments: ['Certified True Copy', 'Certificate of Land Holding'],
+        requestedDocuments: toDocs('t-0012', ['Certified True Copy', 'Certificate of Land Holding']),
         dateRequested: '07/08/2026',
         assignedStaff: 'Ariel Buenaflor',
         status: 'Ready for Release',
@@ -485,7 +498,7 @@ export const mockTransactions: Transaction[] = [
             classification: 'Agricultural',
             assessedValue: 143000,
         },
-        requestedDocuments: ['Certificate of Land Holding'],
+        requestedDocuments: toDocs('t-0013', ['Certificate of Land Holding']),
         dateRequested: '07/17/2026',
         assignedStaff: 'Jomar Villaruel',
         status: 'Payment Verified',
@@ -522,7 +535,7 @@ export const mockTransactions: Transaction[] = [
             ownerOnRecord: 'Bienvenido Catubig',
             classification: 'Residential',
         },
-        requestedDocuments: ['Certificate of No Landholding'],
+        requestedDocuments: toDocs('t-0014', ['Certificate of No Landholding']),
         dateRequested: '07/07/2026',
         assignedStaff: 'Ariel Buenaflor',
         status: 'Released',
@@ -561,7 +574,7 @@ export const mockTransactions: Transaction[] = [
             classification: 'Agricultural',
             assessedValue: 98000,
         },
-        requestedDocuments: ['Tax Declaration', 'Certificate of Land Holding'],
+        requestedDocuments: toDocs('t-0015', ['Tax Declaration', 'Certificate of Land Holding']),
         dateRequested: '07/17/2026',
         assignedStaff: 'Jomar Villaruel',
         status: 'Pending',
@@ -597,7 +610,7 @@ export const mockTransactions: Transaction[] = [
             classification: 'Residential',
             assessedValue: 112000,
         },
-        requestedDocuments: ['Certified True Copy'],
+        requestedDocuments: toDocs('t-0016', ['Certified True Copy']),
         dateRequested: '07/06/2026',
         assignedStaff: 'Ariel Buenaflor',
         status: 'Archived',
