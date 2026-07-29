@@ -105,7 +105,14 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
     // --- O.R. VERIFICATION ---
     const handleVerify = async () => {
         const errors: { orNumber?: string } = {};
-        if (!orNumber.trim()) errors.orNumber = 'Enter the Treasurer O.R. number.';
+        const trimmed = orNumber.trim();
+
+        if (!trimmed) {
+            errors.orNumber = 'Enter the Treasurer O.R. number.';
+        } else if (!/^\d+$/.test(trimmed)) {
+            errors.orNumber = 'O.R. number must contain digits only.';
+        }
+
         setFieldErrors(errors);
 
         if (Object.keys(errors).length > 0) {
@@ -339,8 +346,17 @@ export function PaymentDetails({ payment, onBack }: PaymentDetailsProps) {
                                     <div className="pd-form-group">
                                         <label className="pd-field-label">Official Receipt (O.R.) Number</label>
                                         <input
-                                            type="text" placeholder="e.g. 1234567" value={orNumber}
-                                            onChange={(e) => { setOrNumber(e.target.value); setIsVerified(false); setIsOverridden(false); }}
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            placeholder="e.g. 1234567"
+                                            value={orNumber}
+                                            onChange={(e) => {
+                                                const digitsOnly = e.target.value.replace(/\D/g, '');
+                                                setOrNumber(digitsOnly);
+                                                setIsVerified(false);
+                                                setIsOverridden(false);
+                                            }}
                                             disabled={isVerified}
                                             className={`pd-field-input${fieldErrors.orNumber ? ' pd-field-invalid' : ''}`}
                                         />
