@@ -116,22 +116,22 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     };
 
     const handleSelectNewRequest = async (type: 'tax' | 'landholding' | 'nolandholding') => {
-    try {
-        const meta = await requestService.getMetadata();
-        const docTypes = Array.isArray(meta?.docTypes) ? meta.docTypes : [];
-        let documentTypeIds: string[] = [];
-        let prefix = 'REF'; // Default
+        try {
+            const meta = await requestService.getMetadata();
+            const docTypes = Array.isArray(meta?.docTypes) ? meta.docTypes : [];
+            let documentTypeIds: string[] = [];
+            let prefix = 'REF'; // Default
 
-        if (type === 'tax') {
-            const found = docTypes.find((d: any) => d.name.toLowerCase().includes('tax declaration') || d.id === 'dt1');
-            if (found) { documentTypeIds = [found.id]; prefix = 'TD'; }
-        } else if (type === 'landholding') {
-            const found = docTypes.find((d: any) => d.name.toLowerCase().includes('landholding') || d.id === 'dt3');
-            if (found) { documentTypeIds = [found.id]; prefix = 'LH'; }
-        } else if (type === 'nolandholding') {
-            const found = docTypes.find((d: any) => d.name.toLowerCase().includes('no landholding') || d.id === 'dt4');
-            if (found) { documentTypeIds = [found.id]; prefix = 'NLH'; }
-        }
+            if (type === 'tax') {
+                const found = docTypes.find((d: any) => d.name.toLowerCase().includes('tax declaration') || d.id === 'dt1');
+                if (found) { documentTypeIds = [found.id]; prefix = 'TD'; }
+            } else if (type === 'landholding') {
+                const found = docTypes.find((d: any) => d.name.toLowerCase().includes('landholding') || d.id === 'dt3');
+                if (found) { documentTypeIds = [found.id]; prefix = 'LH'; }
+            } else if (type === 'nolandholding') {
+                const found = docTypes.find((d: any) => d.name.toLowerCase().includes('no landholding') || d.id === 'dt4');
+                if (found) { documentTypeIds = [found.id]; prefix = 'NLH'; }
+            }
 
 
             setPrefilledRequestData({
@@ -140,12 +140,13 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 requestDate: new Date().toISOString().split('T')[0],
                 purposeId: '',
                 documentTypeIds,
+                lockedDocType: true,
                 authRequired: false,
                 actionTaken: 'PENDING',
                 propertyLocation: '',
                 releasingStaffId: '',
                 releaseDate: '',
-                referenceNumber: `${prefix}-${new Date().getFullYear()}-XXXX`, 
+                referenceNumber: `${prefix}-${new Date().getFullYear()}-XXXX`,
             });
             setActiveView('new-request');
         } catch (err) {
@@ -155,7 +156,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     };
 
     const handleSelectDraft = (draft: any) => {
-        setPrefilledRequestData(draft);
+        setPrefilledRequestData({ ...draft, lockedDocType: false });
         setActiveView('new-request');
     };
 
@@ -200,6 +201,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 id: undefined,
                 requestId: undefined,
                 documentTypeIds: [],
+                lockedDocType: false,
                 referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
             });
             setCompletedEntryData(null);
