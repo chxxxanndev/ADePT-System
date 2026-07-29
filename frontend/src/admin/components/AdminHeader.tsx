@@ -117,7 +117,15 @@ export function AdminHeader({
 
                 <div className="admin-profile-widget">
                     <div className="profile-widget-avatar-container">
-                        {initials}
+                        {user.avatarUrl ? (
+                            <img
+                                src={user.avatarUrl}
+                                alt={fullName}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                            />
+                        ) : (
+                            initials
+                        )}
                     </div>
                     <div className="profile-widget-info">
                         <span className="profile-widget-name">{fullName}</span>
