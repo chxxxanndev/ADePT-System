@@ -7,9 +7,17 @@ const API_BASE_URL = 'http://localhost:5000';
 // ─── The actual auth logic — UNCHANGED from before, just renamed and no ───────
 // ─── longer exported directly. Only the AuthProvider below calls this,   ───────
 // ─── so there is exactly ONE instance of this state for the whole app.   ───────
+//
+// SESSION STORAGE CHANGE: adept_token / adept_refresh_token / adept_user now
+// live in sessionStorage instead of localStorage. sessionStorage is scoped to
+// a single tab and is automatically cleared by the browser when that tab (or
+// window) closes — so closing the tab logs the user out with no extra code,
+// while a normal page refresh (which also fires beforeunload) keeps them
+// signed in. adept_mock_db stays in localStorage since it's just demo seed
+// data, not a live session.
 function useAuthState() {
     const [currentUser, setCurrentUser] = useState<User | null>(() => {
-        const saved = localStorage.getItem('adept_user');
+        const saved = sessionStorage.getItem('adept_user');
         return saved ? JSON.parse(saved) : null;
     });
 
@@ -53,12 +61,12 @@ function useAuthState() {
     }, []);
 
     // Restore the browser's Supabase session on page load/refresh — the React
-    // state above is rehydrated from localStorage automatically, but the
+    // state above is rehydrated from sessionStorage automatically, but the
     // supabase-js client's own session is not, and Realtime subscriptions
     // (the notification bell) need that session to pass RLS checks.
     useEffect(() => {
-        const token = localStorage.getItem('adept_token');
-        const refreshToken = localStorage.getItem('adept_refresh_token');
+        const token = sessionStorage.getItem('adept_token');
+        const refreshToken = sessionStorage.getItem('adept_refresh_token');
         if (token && refreshToken) {
             supabase.auth.setSession({ access_token: token, refresh_token: refreshToken });
         }
@@ -88,9 +96,9 @@ function useAuthState() {
                 }
 
                 if (res.ok) {
-                    localStorage.setItem('adept_token', data.token);
-                    localStorage.setItem('adept_refresh_token', data.refreshToken);
-                    localStorage.setItem('adept_user', JSON.stringify(data.user));
+                    sessionStorage.setItem('adept_token', data.token);
+                    sessionStorage.setItem('adept_refresh_token', data.refreshToken);
+                    sessionStorage.setItem('adept_user', JSON.stringify(data.user));
                     setCurrentUser(data.user);
                     await supabase.auth.setSession({
                         access_token: data.token,
@@ -118,7 +126,7 @@ function useAuthState() {
                                 username: user.username,
                                 role: userIndex === 0 ? 'SUPER_ADMIN' : 'OFFICE_STAFF',
                             };
-                            localStorage.setItem('adept_user', JSON.stringify(userObj));
+                            sessionStorage.setItem('adept_user', JSON.stringify(userObj));
                             setCurrentUser(userObj);
                             resolve({ success: true, message: 'Successfully signed in (Standalone Demo Mode).' });
                         } else {
@@ -138,7 +146,7 @@ function useAuthState() {
         setCurrentUser((prev) => {
             if (!prev) return prev;
             const updated = { ...prev, ...patch };
-            localStorage.setItem('adept_user', JSON.stringify(updated));
+            sessionStorage.setItem('adept_user', JSON.stringify(updated));
             return updated;
         });
     };
@@ -157,9 +165,9 @@ function useAuthState() {
             const data = await res.json();
 
             if (res.ok) {
-                localStorage.setItem('adept_token', data.token);
-                localStorage.setItem('adept_refresh_token', data.refreshToken);
-                localStorage.setItem('adept_user', JSON.stringify(data.user));
+                sessionStorage.setItem('adept_token', data.token);
+                sessionStorage.setItem('adept_refresh_token', data.refreshToken);
+                sessionStorage.setItem('adept_user', JSON.stringify(data.user));
                 setCurrentUser(data.user);
                 await supabase.auth.setSession({
                     access_token: data.token,
@@ -246,9 +254,9 @@ function useAuthState() {
     };
 
     const logout = () => {
-        localStorage.removeItem('adept_user');
-        localStorage.removeItem('adept_token');
-        localStorage.removeItem('adept_refresh_token');
+        sessionStorage.removeItem('adept_user');
+        sessionStorage.removeItem('adept_token');
+        sessionStorage.removeItem('adept_refresh_token');
         supabase.auth.signOut();
         setCurrentUser(null);
     };

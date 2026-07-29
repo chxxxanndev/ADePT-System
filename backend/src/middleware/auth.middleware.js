@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '../config/supabaseAdmin.js';
 
 // Verifies the Supabase access token sent from the frontend
-// (the one stored in localStorage as 'adept_token') and attaches
+// (the one stored in sessionStorage as 'adept_token') and attaches
 // the resolved auth user to req.user.
 export async function requireAuth(req, res, next) {
     try {

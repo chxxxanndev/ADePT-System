@@ -111,7 +111,7 @@ export default function AccountRequest({ user }: AccountRequestProps) {
   const loadRequests = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('adept_token');
+      const token = sessionStorage.getItem('adept_token');
       const res = await fetch(`${API_BASE_URL}/account-requests`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -161,7 +161,7 @@ export default function AccountRequest({ user }: AccountRequestProps) {
       // Backend still expects 'rejected' for a disapproval — only the
       // frontend wording changed to Approve/Disapprove.
       const normalizedDecision = decision === 'disapproved' ? 'rejected' : decision;
-      const token = localStorage.getItem('adept_token');
+      const token = sessionStorage.getItem('adept_token');
       const res = await fetch(`${API_BASE_URL}/account-requests/${id}/decision`, {
         method: 'PATCH',
         headers: {

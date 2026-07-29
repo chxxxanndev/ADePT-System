@@ -108,7 +108,7 @@ export function useAdminDashboard() {
 
     const loadAccessRequestMetrics = async () => {
         try {
-            const token = localStorage.getItem('adept_token');
+            const token = sessionStorage.getItem('adept_token');
             const [staffMembers, requestResponse] = await Promise.all([
                 fetchAllStaff(),
                 fetch(`${API_BASE_URL}/account-requests`, {

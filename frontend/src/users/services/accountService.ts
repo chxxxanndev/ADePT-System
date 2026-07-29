@@ -3,7 +3,7 @@ import axios from 'axios';
 const API_BASE_URL = 'http://localhost:5000';
 
 function authHeaders(extra: Record<string, string> = {}) {
-    const token = localStorage.getItem('adept_token');
+    const token = sessionStorage.getItem('adept_token');
     return { Authorization: `Bearer ${token}`, ...extra };
 }
 

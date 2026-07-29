@@ -1,7 +1,7 @@
 const API_BASE_URL = 'http://localhost:5000/api/account';
 
 function authHeaders(extra: Record<string, string> = {}) {
-    const token = localStorage.getItem('adept_token');
+    const token = sessionStorage.getItem('adept_token');
     return {
         ...extra,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
