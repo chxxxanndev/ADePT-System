@@ -1,26 +1,28 @@
+import { supabase } from '../lib/supabaseClient';
+
 const API_BASE_URL = "http://localhost:5000";
 
 interface ApiFetchOptions extends RequestInit {
     skipAuth?: boolean;
 }
 
-/**
- * fetch wrapper that automatically attaches the adept_token (if present)
- * and throws a normalized Error on non-2xx responses.
- */
 export async function apiFetch<T = unknown>(
     path: string,
     options: ApiFetchOptions = {}
 ): Promise<T> {
     const { skipAuth, headers, ...rest } = options;
 
-    const token = localStorage.getItem("adept_token");
+    let token: string | null = null;
+    if (!skipAuth) {
+        const { data: { session } } = await supabase.auth.getSession();
+        token = session?.access_token ?? null;
+    }
 
     const res = await fetch(`${API_BASE_URL}${path}`, {
         ...rest,
         headers: {
             "Content-Type": "application/json",
-            ...(token && !skipAuth ? { Authorization: `Bearer ${token}` } : {}),
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
             ...headers,
         },
     });

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RegistrySummarySkeleton, RegistryToolbarSkeleton, RegistryTableSkeleton } from '../components/common/Skeleton';
-import type { Transaction, TransactionFilters } from '../types/transaction';
+import type { Transaction, TransactionFilters, DeclarantGroup } from '../types/transaction';
 import { computeSummary } from '../data/mockTransactions';
 import { fetchTransactionRegistry } from '../services/transactionService';
 import { SummaryCards } from '../components/SummaryCards';
@@ -9,10 +9,11 @@ import { SearchBar } from '../components/SearchBar';
 import { FilterBar } from '../components/FilterBar';
 import { TransactionTable } from '../components/TransactionTable';
 import { TransactionDetails } from './TransactionDetails';
+import { VoidDocumentSelectModal } from '../components/DocumentSelectModal';
 import '../styles/TransactionRegistry.css';
 
 const DEFAULT_FILTERS: TransactionFilters = {
-    status: 'All',
+    status: 'Released',
     documentType: 'All',
     dateFrom: '',
     dateTo: '',
@@ -26,13 +27,13 @@ function toComparableDate(mmddyyyy: string): string {
 export function TransactionRegistry() {
     const navigate = useNavigate();
 
-    // --- DATA & LOADING STATES ---
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_FILTERS);
-    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+    const [selectedGroup, setSelectedGroup] = useState<DeclarantGroup | null>(null);
+    const [voidGroupTarget, setVoidGroupTarget] = useState<DeclarantGroup | null>(null);
 
     const loadTransactions = async () => {
         setIsLoading(true);
@@ -48,21 +49,29 @@ export function TransactionRegistry() {
         }
     };
 
-    // --- REAL DATA LOAD (replaces the old setTimeout mock-data simulation) ---
     useEffect(() => {
         loadTransactions();
     }, []);
 
-    const summary = useMemo(() => computeSummary(transactions), [transactions]);
+    const releasedTransactions = useMemo(
+        () => transactions.filter((t) => t.status === 'Released'),
+        [transactions]
+    );
+
+    const summary = useMemo(() => computeSummary(releasedTransactions), [releasedTransactions]);
 
     const filteredTransactions = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
-        return transactions.filter((t) => {
+        return releasedTransactions.filter((t) => {
             const matchesQuery = query === '' ||
                 t.referenceNumber.toLowerCase().includes(query) ||
                 t.client.declarantName.toLowerCase().includes(query);
-            const matchesStatus = filters.status === 'All' || t.status === filters.status;
-            const matchesDocType = filters.documentType === 'All' || t.requestedDocuments.includes(filters.documentType);
+
+            const hasReprint = t.requestedDocuments.some((d) => d.reprintCount > 0);
+            const matchesStatus = filters.status === 'Released' ? true : hasReprint;
+
+            const matchesDocType = filters.documentType === 'All' ||
+                t.requestedDocuments.some((d) => d.documentType === filters.documentType);
 
             const requestDate = toComparableDate(t.dateRequested);
             const matchesDateFrom = !filters.dateFrom || requestDate >= filters.dateFrom;
@@ -70,44 +79,70 @@ export function TransactionRegistry() {
 
             return matchesQuery && matchesStatus && matchesDocType && matchesDateFrom && matchesDateTo;
         });
-    }, [transactions, searchQuery, filters]);
+    }, [releasedTransactions, searchQuery, filters]);
 
-    /** 
-     * ACTION HANDLERS (Status-Aware Logic)
-     * NOTE: Void/Archive/Cancel below still only update local state — none
-     * of these call the backend yet. RequestService currently has no
-     * update path for these specific status transitions (releaseRequest()
-     * only handles the payment/release step). Wiring these for real is
-     * part of the "Void & Amend" workflow in the new feature spec, not
-     * this pass.
-     */
-    const handlePrint = (t: Transaction) => alert(`Printing official copy: ${t.referenceNumber}`);
+    const declarantGroups = useMemo<DeclarantGroup[]>(() => {
+        const map = new Map<string, Transaction[]>();
+        for (const t of filteredTransactions) {
+            const key = t.client.declarantName;
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(t);
+        }
+        return Array.from(map.entries())
+            .map(([declarantName, txns]) => ({
+                declarantName,
+                transactions: [...txns].sort(
+                    (a, b) => new Date(toComparableDate(b.dateRequested)).getTime() -
+                              new Date(toComparableDate(a.dateRequested)).getTime()
+                ),
+            }))
+            .sort(
+                (a, b) => new Date(toComparableDate(b.transactions[0].dateRequested)).getTime() -
+                          new Date(toComparableDate(a.transactions[0].dateRequested)).getTime()
+            );
+    }, [filteredTransactions]);
 
-    const handleEdit = (t: Transaction) => {
-        const ref = t.referenceNumber;
-        if (t.requestedDocuments.includes('Tax Declaration')) navigate(`/encode/tax-declaration/${ref}`);
-        else navigate(`/encode/certification/${ref}`);
+    const handleReprint = (transactionId: string, docId: string) => {
+        setTransactions((prev) => prev.map((t) => {
+            if (t.id !== transactionId) return t;
+            return {
+                ...t,
+                requestedDocuments: t.requestedDocuments.map((d) =>
+                    d.id === docId ? { ...d, reprintCount: d.reprintCount + 1 } : d
+                ),
+            };
+        }));
     };
 
-    const handleIssueCTC = (t: Transaction) => alert(`Issuing Certified True Copy for ${t.referenceNumber}`);
+    // Opens the checklist for the whole declarant group — voiding now
+    // targets one or more of that declarant's documents/reference numbers,
+    // not necessarily all of them.
+    const handleVoidGroup = (group: DeclarantGroup) => setVoidGroupTarget(group);
 
-    const handleVoid = (t: Transaction) => {
-        const reason = prompt(`Reason for voiding ${t.referenceNumber}:`);
-        if (reason) {
-            setTransactions(prev => prev.map(item => item.id === t.id ? { ...item, status: 'Void', voidReason: reason } : item));
-        }
-    };
+    // TODO: once backend supports per-document void, this should call a real
+    // endpoint (e.g. voidDocuments(transactionIds, reason)) instead of this
+    // client-side status flip. For now it mirrors the previous single-void
+    // behavior across every selected transaction.
+    const confirmVoidGroup = (transactionIds: string[], reason: string) => {
+        const idSet = new Set(transactionIds);
+        setTransactions((prev) => prev.map((item) =>
+            idSet.has(item.id) ? { ...item, status: 'Void', voidReason: reason } : item
+        ));
 
-    const handleArchive = (t: Transaction) => {
-        if (confirm("Move this transaction to Archive?")) {
-            setTransactions(prev => prev.map(item => item.id === t.id ? { ...item, status: 'Archived' } : item));
-        }
-    };
+        const voidedRefs = transactions
+            .filter((t) => idSet.has(t.id))
+            .map((t) => t.referenceNumber);
 
-    const handleCancel = (t: Transaction) => {
-        if (confirm("Cancel this request?")) {
-            setTransactions(prev => prev.map(item => item.id === t.id ? { ...item, status: 'Cancelled' } : item));
-        }
+        setVoidGroupTarget(null);
+        // '/void-and-amend' is a placeholder route for now — point this at the
+        // real route once it's registered in your router.
+        navigate('/void-and-amend', {
+            state: {
+                declarantName: voidGroupTarget?.declarantName,
+                referenceNumbers: voidedRefs,
+                reason,
+            },
+        });
     };
 
     return (
@@ -115,7 +150,7 @@ export function TransactionRegistry() {
             <div className="tr-header">
                 <div>
                     <h2>Transaction Registry</h2>
-                    <p>Manage and monitor all document requests.</p>
+                    <p>Manage and monitor all released document requests.</p>
                 </div>
             </div>
 
@@ -146,28 +181,29 @@ export function TransactionRegistry() {
                     </div>
 
                     <TransactionTable
-                        transactions={filteredTransactions}
-                        onViewDetails={setSelectedTransaction}
-                        onPrint={handlePrint}
-                        onIssueCTC={handleIssueCTC}
-                        onVoid={handleVoid}
-                        onEdit={handleEdit}
-                        onArchive={handleArchive}
-                        onCancel={handleCancel}
+                        groups={declarantGroups}
+                        onViewDetails={setSelectedGroup}
+                        onReprint={handleReprint}
+                        onVoidGroup={handleVoidGroup}
                     />
                 </>
             )}
 
-            {selectedTransaction && (
+            {selectedGroup && (
                 <TransactionDetails
-                    transaction={selectedTransaction}
-                    onClose={() => setSelectedTransaction(null)}
-                    onViewClientHistory={(name) => {
-                        setSearchQuery(name);
-                        setSelectedTransaction(null);
-                    }}
+                    group={selectedGroup}
+                    onClose={() => setSelectedGroup(null)}
+                    onReprint={handleReprint}
+                    onVoid={(t) => setVoidGroupTarget({ declarantName: selectedGroup.declarantName, transactions: [t] })}
                 />
             )}
+
+            <VoidDocumentSelectModal
+                open={!!voidGroupTarget}
+                group={voidGroupTarget}
+                onClose={() => setVoidGroupTarget(null)}
+                onConfirm={confirmVoidGroup}
+            />
         </div>
     );
 }

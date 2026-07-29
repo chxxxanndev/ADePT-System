@@ -1,23 +1,18 @@
 import { useState, useMemo } from 'react';
-import type { Transaction } from '../types/transaction';
+import type { DeclarantGroup } from '../types/transaction';
 import { TransactionRow } from './TransactionRow';
 
 interface TransactionTableProps {
-    transactions: Transaction[];
-    onViewDetails: (transaction: Transaction) => void;
-    onPrint: (transaction: Transaction) => void;
-    onIssueCTC: (transaction: Transaction) => void; // New
-    onVoid: (transaction: Transaction) => void;
-    onEdit: (transaction: Transaction) => void;   // New
-    onArchive: (transaction: Transaction) => void;
-    onCancel: (transaction: Transaction) => void;  // New
+    groups: DeclarantGroup[];
+    onViewDetails: (group: DeclarantGroup) => void;
+    onReprint: (transactionId: string, docId: string) => void;
+    onVoidGroup: (group: DeclarantGroup) => void;
 }
 
 const COLUMNS = [
-    'Control Number',
+    'Reference Number',
     'Declarant',
     'Requested By',
-    'Requested Documents',
     'Date Requested',
     'Assigned Staff',
     'Current Status',
@@ -26,26 +21,17 @@ const COLUMNS = [
 
 const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
-export function TransactionTable({ 
-    transactions, 
-    onViewDetails, 
-    onPrint, 
-    onIssueCTC, 
-    onVoid, 
-    onEdit, 
-    onArchive, 
-    onCancel 
-}: TransactionTableProps) {
+export function TransactionTable({ groups, onViewDetails, onReprint, onVoidGroup }: TransactionTableProps) {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [page, setPage] = useState(1);
 
-    const totalPages = Math.max(1, Math.ceil(transactions.length / rowsPerPage));
+    const totalPages = Math.max(1, Math.ceil(groups.length / rowsPerPage));
     const currentPage = Math.min(page, totalPages);
 
     const pageItems = useMemo(() => {
         const start = (currentPage - 1) * rowsPerPage;
-        return transactions.slice(start, start + rowsPerPage);
-    }, [transactions, currentPage, rowsPerPage]);
+        return groups.slice(start, start + rowsPerPage);
+    }, [groups, currentPage, rowsPerPage]);
 
     const handleRowsPerPageChange = (value: number) => {
         setRowsPerPage(value);
@@ -69,22 +55,18 @@ export function TransactionTable({
                         {pageItems.length === 0 ? (
                             <tr>
                                 <td className="tr-table-empty" colSpan={COLUMNS.length}>
-                                    <strong>No Transactions Found</strong>
+                                    <strong>No Released Transactions Found</strong>
                                     Try adjusting your search or filters.
                                 </td>
                             </tr>
                         ) : (
-                            pageItems.map((t) => (
+                            pageItems.map((g) => (
                                 <TransactionRow
-                                    key={t.id}
-                                    transaction={t}
+                                    key={g.declarantName}
+                                    group={g}
                                     onViewDetails={onViewDetails}
-                                    onPrint={onPrint}
-                                    onIssueCTC={onIssueCTC}
-                                    onVoid={onVoid}
-                                    onEdit={onEdit}
-                                    onArchive={onArchive}
-                                    onCancel={onCancel}
+                                    onReprint={onReprint}
+                                    onVoidGroup={onVoidGroup}
                                 />
                             ))
                         )}
@@ -106,9 +88,9 @@ export function TransactionTable({
                 </div>
 
                 <span className="tr-pagination-label">
-                    {transactions.length === 0
+                    {groups.length === 0
                         ? '0 of 0'
-                        : `${(currentPage - 1) * rowsPerPage + 1}–${Math.min(currentPage * rowsPerPage, transactions.length)} of ${transactions.length}`}
+                        : `${(currentPage - 1) * rowsPerPage + 1}–${Math.min(currentPage * rowsPerPage, groups.length)} of ${groups.length}`}
                 </span>
 
                 <div className="tr-pagination-controls">
