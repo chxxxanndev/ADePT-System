@@ -307,16 +307,9 @@ export default function AccountRequest({ user }: AccountRequestProps) {
               {filtered.map((r) => (
                 <tr key={r.id}>
                   <td>
-                    <div className="account-request-applicant">
-                      <div
-                        className={`account-request-applicant-avatar ${r.avatarColor}`}
-                      >
-                        {r.initials}
-                      </div>
-                      <span className="account-request-applicant-name">
-                        {r.applicantName}
-                      </span>
-                    </div>
+                    <span className="account-request-applicant-name">
+                      {r.applicantName}
+                    </span>
                   </td>
                   <td className="account-request-cell-muted">{r.username}</td>
                   <td className="account-request-cell-muted">{r.email}</td>

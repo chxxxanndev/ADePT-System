@@ -206,11 +206,14 @@ class UserService {
             };
         }
 
+        const decidedAtNow = new Date().toISOString();
+
         const { data, error } = await supabase
             .from('staff')
             .update({
                 account_status: normalizedDecision,
                 disable_reason: normalizedReason,
+                updated_at: decidedAtNow,
             })
             .eq('id', requestId)
             .eq('account_status', 'PENDING_APPROVAL')
@@ -226,7 +229,7 @@ class UserService {
             email: updatedMember.email,
             username: updatedMember.username,
             requestedRole: updatedMember.roles?.code === 'SUPER_ADMIN' ? 'Super Admin' : 'Office Staff',
-            decided_at: updatedMember.updated_at,
+            decided_at: updatedMember.updated_at || decidedAtNow,
             status: decision,
         };
     }
