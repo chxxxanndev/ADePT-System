@@ -66,20 +66,38 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
                 let determinedType: 'NO_LANDHOLDING' | 'LANDHOLDING' | 'TAX_DEC' = 'TAX_DEC';
                 let data = null;
 
+                // Treat a 404 as "nothing encoded for this request yet" — not a hard failure.
+                const fetchOrNull = async (fn: () => Promise<any>) => {
+                    try {
+                        return await fn();
+                    } catch (err: any) {
+                        if (err?.response?.status === 404) {
+                            return null; // valid state: not encoded yet
+                        }
+                        throw err; // real error (network, 500, etc.) — bubble up
+                    }
+                };
+
                 if (typeStr.includes('no landholding')) {
                     determinedType = 'NO_LANDHOLDING';
-                    data = await noLandholdingService.getByRequestId(documentItem.id);
+                    data = await fetchOrNull(() => noLandholdingService.getByRequestId(documentItem.id));
                 } else if (typeStr.includes('landholding')) {
                     determinedType = 'LANDHOLDING';
-                    data = await landholdingService.getByRequestId(documentItem.id);
+                    data = await fetchOrNull(() => landholdingService.getByRequestId(documentItem.id));
                 } else {
                     determinedType = 'TAX_DEC';
-                    data = await taxDeclarationService.getTaxDeclaration(documentItem.id);
+                    data = await fetchOrNull(() => taxDeclarationService.getTaxDeclaration(documentItem.id));
                 }
 
                 setDocType(determinedType);
                 setFullData(data);
-                setEditData(data || {});
+                // Default editData to an empty shape matching the doc type, so "Edit Full Document"
+                // still works even when nothing has been encoded yet.
+                setEditData(data || (determinedType === 'LANDHOLDING'
+                    ? { properties: [] }
+                    : determinedType === 'TAX_DEC'
+                        ? { assessments: [] }
+                        : {}));
 
                 if (data) {
                     const reqByName = data.request?.requested_by_name || data.requestedByName || data.requested_by_name || documentItem.requestedByName || '';
@@ -506,10 +524,19 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
 
                                 <hr style={{ borderTop: '1px dashed #d1d5db', borderBottom: 'none' }} />
 
-                                {fetchError && <div style={{ color: '#b91c1c', padding: 12, backgroundColor: '#fee2e2', borderRadius: 6 }}>{fetchError}</div>}
-                                {!fetchError && docType === 'NO_LANDHOLDING' && renderNoLandholdingPreview()}
-                                {!fetchError && docType === 'LANDHOLDING' && renderLandholdingPreview()}
-                                {!fetchError && docType === 'TAX_DEC' && renderTaxDecPreview()}
+                                {fetchError && (
+                                    <div style={{ color: '#b91c1c', padding: 12, backgroundColor: '#fee2e2', borderRadius: 6 }}>
+                                        {fetchError}
+                                    </div>
+                                )}
+                                {!fetchError && !fullData && (
+                                    <div style={{ color: '#92400e', padding: 16, backgroundColor: '#fffbeb', borderRadius: 6, border: '1px solid #fde68a' }}>
+                                        This document hasn't been encoded yet. Click <strong>Edit Full Document</strong> below to fill in the details.
+                                    </div>
+                                )}
+                                {!fetchError && fullData && docType === 'NO_LANDHOLDING' && renderNoLandholdingPreview()}
+                                {!fetchError && fullData && docType === 'LANDHOLDING' && renderLandholdingPreview()}
+                                {!fetchError && fullData && docType === 'TAX_DEC' && renderTaxDecPreview()}
                             </div>
                         )
                     ) : (
