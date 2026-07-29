@@ -69,22 +69,26 @@ class RequestService {
         };
     }
 
-    async createRequest(formData, authUserId) {
+    // Change this name in your BACKEND service file
+// Inside your Backend RequestService class
+async createRequest(formData, authUserId) {
     let staffId = formData.encodedBy;
+    
+    // Fallback if staffId is missing
     if (!staffId && authUserId) {
         const { data: staff } = await supabase.from('staff').select('id').eq('auth_user_id', authUserId).single();
         if (staff) staffId = staff.id;
     }
 
-     const validDocTypeIds = (formData.documentTypeIds || []).filter(id => 
-        id && !id.startsWith('dt') && id.length > 5 // Simple check to ensure it looks like a real ID/UUID
-    );
+    // FIX: Allow all IDs (especially those starting with 'dt')
+    const validDocTypeIds = (formData.documentTypeIds || []).filter(id => !!id);
 
     if (validDocTypeIds.length === 0) {
-        throw new Error("Invalid Document Type ID selected. Please refresh and try again.");
+        throw new Error("Please select at least one Document Type.");
     }
 
-        const uniqueRef = (formData.referenceNumber && !formData.referenceNumber.includes('XXXX'))
+    // Reference Number Logic
+    const uniqueRef = (formData.referenceNumber && !formData.referenceNumber.includes('XXXX'))
         ? formData.referenceNumber
         : await this._generateReferenceNumber(validDocTypeIds);
 
@@ -105,12 +109,13 @@ class RequestService {
 
     if (reqError) throw reqError;
 
-    // Use the cleaned IDs
+    // Link documents
     if (validDocTypeIds.length) {
         await this._syncRequestDocuments(request.id, validDocTypeIds);
     }
     return request;
 }
+
     async getRequests() {
         try {
             // UPDATED: Added the join to the staff table for 'encoded_by'

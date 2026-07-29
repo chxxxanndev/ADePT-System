@@ -24,9 +24,13 @@ export const getRequestById = async (req, res) => {
 
 export const createRequest = async (req, res) => {
     try {
+        // req.body.staffAuthId comes from your frontend axios call
         const result = await RequestService.createRequest(req.body, req.body.staffAuthId);
         res.status(201).json(result);
-    } catch (error) { res.status(500).json({ error: error.message }); }
+    } catch (error) {
+        console.error('Controller Error:', error);
+        res.status(500).json({ error: error.message });
+    }
 };
 
 export const getAllRequests = async (req, res) => {
@@ -62,6 +66,18 @@ export const updateRequest = async (req, res) => {
         const result = await RequestService.updateRequest(req.params.id, req.body);
         res.status(200).json(result);
     } catch (error) { res.status(500).json({ error: error.message }); }
+};
+
+export const updateStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        // This calls the updateStatus method you already have in your Backend RequestService class
+        const result = await RequestService.updateStatus(id, req.body);
+        res.json(result);
+    } catch (error) {
+        console.error('Update Status Error:', error);
+        res.status(500).json({ error: error.message });
+    }
 };
 
 export const deleteRequest = async (req, res) => {

@@ -12,6 +12,7 @@ import {
     checkOrUniqueness,
     releaseRequest,
     voidRequest,
+     updateStatus,
 } from './request.controller.js';
 
 const router = express.Router();
@@ -34,5 +35,5 @@ router.delete('/:id', requireAuth, deleteRequest);
 router.post('/:id/release', requireAuth, releaseRequest);
 router.post('/:id/void', requireAuth, voidRequest);
 router.post('/:id/forward', requireAuth, forwardRequest); // Cleaned up logic here
-
+router.patch('/:id/status', requireAuth, updateStatus);
 export default router;

@@ -85,6 +85,18 @@ export const requestService = {
         return response.data;
     },
 
+    updateStatus: async (id: string, updateData: { 
+        status: string; 
+        releasedBy: string; 
+        releasedAt: string; 
+        signatories?: any 
+    }) => {
+        // We call the generic update route or a specialized status route
+        // For now, let's use a dedicated status endpoint
+        const response = await api.patch(`/requests/${id}/status`, updateData);
+        return response.data;
+    },
+
     checkOrUniqueness: async (orNumber: string, currentRequestId?: string) => {
         const response = await api.get('/requests/check-or', {
             params: { orNumber, requestId: currentRequestId }
@@ -126,4 +138,6 @@ export const requestService = {
         const response = await api.patch('/notifications/mark-all-read');
         return response.data;
     },
+
+
 };
