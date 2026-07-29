@@ -160,6 +160,17 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         setActiveView('new-request');
     };
 
+    const handleAmendRecord = (record: any) => {
+        setPrefilledRequestData({
+            declarantName: record.declarantName || '',
+            requestedByName: record.declarantName || '',
+            referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
+            purposeOtherText: `Amended from ${record.reference}: ${record.detail || ''}`,
+            lockedDocType: false,
+        });
+        setActiveView('new-request');
+    };
+
     const handleCancelEntry = () => {
         setPrefilledRequestData(null);
         setActiveView('document-request');
@@ -390,6 +401,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                         <PaymentDetails
                             payment={selectedPayment}
                             onBack={() => setActiveView('pending-payment')}
+                            onReleased={() => setActiveView('transaction-registry')}
                             onEditDocument={(_controlNumber) => {
                                 if (selectedPayment?.documentType.toLowerCase().includes('landholding')) setActiveView('certificate-land-holding');
                                 else if (selectedPayment?.documentType.toLowerCase().includes('no landholding')) setActiveView('certificate-no-landholding');
@@ -397,9 +409,9 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             }}
                         />
                     ) : activeView === 'transaction-registry' ? (
-                        <TransactionRegistry />
+                        <TransactionRegistry onNavigateToVoid={() => setActiveView('void-amend')} />
                     ) : activeView === 'void-amend' ? (
-                        <VoidAndAmend />
+                        <VoidAndAmend onAmend={handleAmendRecord} />
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
                             <h2>{VIEW_LABELS[activeView] ?? activeView}</h2>

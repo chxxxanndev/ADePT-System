@@ -1,5 +1,7 @@
 // ===== Transaction Registry — Type Definitions =====
 
+export type PropertySource = 'TAX_DECLARATION' | 'LAND_HOLDING' | 'NO_LANDHOLDING' | 'UNKNOWN';
+
 export type TransactionStatus =
     | 'Pending'
     | 'For Payment'
@@ -47,6 +49,8 @@ export interface GeneratedDocument {
 export interface RequestedDocumentItem {
     id: string;
     documentType: DocumentType | string;
+    documentTypeId?: string;
+    requiresTaxDeclaration?: boolean;
     reprintCount: number;
 }
 
@@ -60,12 +64,22 @@ export interface PaymentInfo {
 }
 
 export interface PropertyInfo {
-    taxDeclarationNo: string;
-    location: string;
+    /** Which encoded record this data came from — drives which fields are populated vs dashed. */
+    source?: PropertySource;
+    taxDeclarationNo: string;      // Assessment/TD/ARP No.
+    pin?: string;                  // Property Identification Number
+    octTctNumber?: string;         // OCT/TCT/CLOA No.
+    surveyNumber?: string;
     lotNo?: string;
+    blockNumber?: string;
+    titleNumber?: string;          // populated for Land Holding rows
+    location: string;
     ownerOnRecord: string;
     classification?: string;
-    assessedValue?: number;
+    area?: string;
+    marketValue?: number | null;
+    assessedValue?: number | null;
+    taxability?: string;
 }
 
 export interface ClientInfo {

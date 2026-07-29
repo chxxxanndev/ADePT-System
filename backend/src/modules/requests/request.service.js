@@ -117,12 +117,14 @@ class RequestService {
 
             if (reqErr) throw reqErr;
 
-            const { data: docLinks } = await supabase.from('request_documents').select('request_id, document_types(name)');
+            const { data: docLinks } = await supabase
+                .from('request_documents')
+                .select('request_id, document_type_id, document_types(name)');
 
             return (requests || []).map(r => ({
                 ...r,
-                // Map the staff name so the Pending Payment frontend can read it!
                 encoded_by_staff_name: r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : null,
+                documentTypeIds: (docLinks || []).filter(d => d.request_id === r.id).map(d => d.document_type_id),
                 request_documents: (docLinks || []).filter(d => d.request_id === r.id)
             }));
         } catch (err) { return []; }
@@ -149,32 +151,188 @@ class RequestService {
      * Combines logic from Code 1 with additional schema safety.
      */
     async getTransactionRegistry() {
-        const { data: requests, error: reqErr } = await supabase
-            .from('requests')
-            .select('*, staff:encoded_by(first_name, last_name)')
-            .order('created_at', { ascending: false });
+        const [
+            { data: requests, error: reqErr },
+            { data: docLinks },
+            { data: barangays },
+            { data: municipalities },
+            { data: taxDeclarations },
+            { data: assessmentRows },
+            { data: lookupValues },
+            { data: landholdingCerts },
+            { data: landholdingRows },
+            { data: noLandholdingCerts },
+        ] = await Promise.all([
+            supabase.from('requests').select('*, staff:encoded_by(first_name, last_name)').order('created_at', { ascending: false }),
+            supabase.from('request_documents').select('id, request_id, document_type_id, encoded_tax_declaration_id, document_types(id, name, prefix, requires_tax_declaration)'),
+            supabase.from('barangays').select('id, name, municipality_id'),
+            supabase.from('municipalities').select('id, name'),
+            supabase.from('encoded_tax_declarations').select('id, request_id, tax_declaration_number, property_identification_number, arp_number, oct_tct_cloa_number, survey_number, lot_number, block_number, owner_name, property_street, barangay_id, municipality_id, total_market_value, total_assessed_value, taxability'),
+            supabase.from('encoded_assessment_rows').select('id, encoded_tax_declaration_id, row_order, classification_id, area'),
+            supabase.from('lookup_values').select('id, category, code, label'),
+            supabase.from('encoded_landholding_certificates').select('id, request_id'),
+            supabase.from('encoded_landholding_property_rows').select('id, encoded_landholding_certificate_id, row_order, td_arp_number, location_of_property, lot_number, title_number, area, assessed_value'),
+            supabase.from('encoded_no_landholding_certificates').select('id, request_id'),
+        ]);
 
         if (reqErr) throw reqErr;
 
-        const { data: docLinks } = await supabase
-            .from('request_documents')
-            .select('request_id, document_types(name)');
+        // UUID pattern check
+        const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(v || '');
+
+        // Resolve barangay UUID → "Barangay, Municipality" label
+        const resolveLocation = (raw) => {
+            if (!raw || !isUuid(raw)) return raw || '';
+            const barangay = (barangays || []).find((b) => b.id === raw);
+            if (!barangay) return raw;
+            const municipality = (municipalities || []).find((m) => m.id === barangay.municipality_id);
+            return `${barangay.name}${municipality ? ', ' + municipality.name : ''}`;
+        };
+
+        const toNum = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
+
+        // ── lookup maps for the new property sources ──
+        const docsByRequestId = new Map();
+        (docLinks || []).forEach((d) => {
+            const list = docsByRequestId.get(d.request_id) || [];
+            list.push(d);
+            docsByRequestId.set(d.request_id, list);
+        });
+
+        const taxDecById = new Map((taxDeclarations || []).map((td) => [td.id, td]));
+        const taxDecByRequestId = new Map();
+        (taxDeclarations || []).forEach((td) => {
+            if (!taxDecByRequestId.has(td.request_id)) taxDecByRequestId.set(td.request_id, td);
+        });
+
+        const assessmentRowsByTdId = new Map();
+        [...(assessmentRows || [])]
+            .sort((a, b) => (a.row_order || 0) - (b.row_order || 0))
+            .forEach((row) => {
+                const list = assessmentRowsByTdId.get(row.encoded_tax_declaration_id) || [];
+                list.push(row);
+                assessmentRowsByTdId.set(row.encoded_tax_declaration_id, list);
+            });
+        const lookupById = new Map((lookupValues || []).map((l) => [l.id, l]));
+
+        const landholdingCertByRequestId = new Map();
+        (landholdingCerts || []).forEach((c) => {
+            if (!landholdingCertByRequestId.has(c.request_id)) landholdingCertByRequestId.set(c.request_id, c);
+        });
+        const landholdingRowsByCertId = new Map();
+        [...(landholdingRows || [])]
+            .sort((a, b) => (a.row_order || 0) - (b.row_order || 0))
+            .forEach((row) => {
+                const list = landholdingRowsByCertId.get(row.encoded_landholding_certificate_id) || [];
+                list.push(row);
+                landholdingRowsByCertId.set(row.encoded_landholding_certificate_id, list);
+            });
+
+        const noLandholdingRequestIds = new Set((noLandholdingCerts || []).map((c) => c.request_id));
 
         const STATUS_MAP = {
-    DRAFT: 'Pending',
-    IN_PROGRESS: 'Processing',
-    PAID: 'Payment Verified',
-    RELEASED: 'Released',   // ← added
-    VOID: 'Void',
-    CANCELLED: 'Cancelled',
-    ARCHIVED: 'Archived',
-};
+            DRAFT: 'Pending',
+            IN_PROGRESS: 'Processing',
+            PAID: 'Released',
+            RELEASED: 'Released',
+            RELEASED_PENDING_VERIFICATION: 'Released',
+            VOID: 'Void',
+            VOIDED: 'Void',
+            CANCELLED: 'Cancelled',
+            ARCHIVED: 'Archived',
+        };
 
         return (requests || []).map((r) => {
-            const documentNames = (docLinks || [])
-                .filter((d) => d.request_id === r.id)
-                .map((d) => d.document_types?.name)
-                .filter(Boolean);
+            const reqDocs = docsByRequestId.get(r.id) || [];
+
+            // Live document types (id + name + whether it needs a tax dec),
+            // instead of hardcoded strings.
+            const documentEntries = reqDocs.map((d) => ({
+                id: d.id,
+                documentTypeId: d.document_type_id,
+                name: d.document_types?.name || 'Document',
+                requiresTaxDeclaration: !!d.document_types?.requires_tax_declaration,
+            }));
+
+            // ── Resolve Property Information ──
+            let property = {
+                source: 'UNKNOWN',
+                taxDeclarationNo: '',
+                pin: '',
+                octTctNumber: '',
+                surveyNumber: '',
+                lotNo: '',
+                blockNumber: '',
+                titleNumber: '',
+                location: resolveLocation(r.property_location),
+                ownerOnRecord: r.declarant_name,
+                classification: '',
+                area: '',
+                marketValue: null,
+                assessedValue: null,
+                taxability: '',
+            };
+
+            // Prefer the tax declaration a specific requested document points to
+            // (request_documents.encoded_tax_declaration_id); fall back to any
+            // tax dec on this request.
+            const directTdId = reqDocs.map((d) => d.encoded_tax_declaration_id).find(Boolean);
+            const td = (directTdId && taxDecById.get(directTdId)) || taxDecByRequestId.get(r.id);
+
+            if (td) {
+                const rows = assessmentRowsByTdId.get(td.id) || [];
+                const firstRow = rows[0]; // primary row, matching the "first available" pattern used elsewhere
+                const classification = firstRow
+                    ? (lookupById.get(firstRow.classification_id)?.label || firstRow.classification_id || '')
+                    : '';
+
+                const barangay = (barangays || []).find((b) => b.id === td.barangay_id);
+                const municipality = (municipalities || []).find((m) => m.id === td.municipality_id);
+                const tdLocationParts = [td.property_street, barangay?.name, municipality?.name].filter(Boolean);
+
+                property = {
+                    ...property,
+                    source: 'TAX_DECLARATION',
+                    taxDeclarationNo: td.tax_declaration_number || td.arp_number || '',
+                    pin: td.property_identification_number || '',
+                    octTctNumber: td.oct_tct_cloa_number || '',
+                    surveyNumber: td.survey_number || '',
+                    lotNo: td.lot_number || '',
+                    blockNumber: td.block_number || '',
+                    titleNumber: td.oct_tct_cloa_number || '',
+                    location: tdLocationParts.length ? tdLocationParts.join(', ') : property.location,
+                    ownerOnRecord: td.owner_name || r.declarant_name,
+                    classification,
+                    area: firstRow?.area || '',
+                    marketValue: toNum(td.total_market_value),
+                    assessedValue: toNum(td.total_assessed_value),
+                    taxability: td.taxability || '',
+                };
+            } else {
+                const lhCert = landholdingCertByRequestId.get(r.id);
+                if (lhCert) {
+                    const rows = landholdingRowsByCertId.get(lhCert.id) || [];
+                    const first = rows[0];
+                    property = {
+                        ...property,
+                        source: 'LAND_HOLDING',
+                        taxDeclarationNo: first?.td_arp_number || '',
+                        lotNo: first?.lot_number || '',
+                        titleNumber: first?.title_number || '',
+                        location: first?.location_of_property || property.location,
+                        area: first?.area || '',
+                        assessedValue: toNum(first?.assessed_value),
+                        ownerOnRecord: r.declarant_name,
+                    };
+                } else if (noLandholdingRequestIds.has(r.id)) {
+                    property = {
+                        ...property,
+                        source: 'NO_LANDHOLDING',
+                        location: '',
+                        ownerOnRecord: '',
+                    };
+                }
+            }
 
             return {
                 id: r.id,
@@ -184,15 +342,11 @@ class RequestService {
                     requestedBy: r.requested_by_name,
                     authorizationOnFile: !!r.authorization_required,
                 },
-                property: {
-                    taxDeclarationNo: '', // TODO: Join tax_declarations
-                    location: r.property_location || '',
-                    ownerOnRecord: r.declarant_name,
-                },
-                requestedDocuments: documentNames,
+                property,
+                requestedDocuments: documentEntries,
                 dateRequested: r.request_date,
                 assignedStaff: r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : 'Unassigned',
-                status: STATUS_MAP[r.status] || 'Pending',
+                status: STATUS_MAP[r.status] || 'Released',
                 payment: {
                     orNumber: r.or_number || null,
                     amountDue: 0,
@@ -204,11 +358,12 @@ class RequestService {
                 generatedDocuments: [],
                 activityTimeline: [],
                 reasonPurpose: r.purpose_other_text || '',
-                isVoid: r.status === 'VOID',
-                voidReason: r.status === 'VOID' ? (r.or_override_justification || '') : undefined,
+                isVoid: r.status === 'VOID' || r.status === 'VOIDED',
+                voidReason: (r.status === 'VOID' || r.status === 'VOIDED') ? (r.or_override_justification || '') : undefined,
             };
         });
     }
+
 
     async updateRequest(id, formData) {
         const updateData = {};
@@ -306,8 +461,44 @@ class RequestService {
                 authorized_signatory: paymentData.signatory,
                 is_or_overridden: paymentData.isOverridden || false,
                 or_override_justification: paymentData.justification || null,
-                status: 'PAID',
+                status: 'RELEASED',
                 payment_date: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
+
+    // Inside your RequestService class in the backend file
+
+    async updateStatus(id, updateData) {
+        const { data, error } = await supabase
+            .from('requests')
+            .update({
+                // Match the UI request to your DB columns
+                status: updateData.status,
+                authorized_signatory: updateData.releasedBy,
+                payment_date: updateData.releasedAt,
+                // You can also store the specific signatory IDs if you have columns for them
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
+
+    async voidRequest(id, reason) {
+        const { data, error } = await supabase
+            .from('requests')
+            .update({
+                status: 'VOID',
+                or_override_justification: reason || 'Voided by staff',
+                updated_at: new Date().toISOString()
             })
             .eq('id', id)
             .select()

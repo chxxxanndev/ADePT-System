@@ -11,6 +11,7 @@ import {
     deleteRequest,
     checkOrUniqueness,
     releaseRequest,
+    voidRequest,
 } from './request.controller.js';
 
 const router = express.Router();
@@ -31,6 +32,7 @@ router.delete('/:id', requireAuth, deleteRequest);
 
 // Specialized Status updates
 router.post('/:id/release', requireAuth, releaseRequest);
+router.post('/:id/void', requireAuth, voidRequest);
 router.post('/:id/forward', requireAuth, forwardRequest); // Cleaned up logic here
 
 export default router;

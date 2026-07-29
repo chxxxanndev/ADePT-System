@@ -74,6 +74,30 @@ export const requestService = {
         return response.data;
     },
 
+    /**
+     * updateStatus
+     * This method finalizes the release by updating the database record.
+     * We use POST /release because the backend Code 4 'releaseRequest' 
+     * is the only confirmed endpoint that handles signatories and payment_date correctly.
+     */
+    updateStatus: async (id: string, updateData: {
+        status: string;
+        releasedBy: string;
+        releasedAt: string;
+        signatories?: any
+    }) => {
+        // We call the release endpoint specifically because it maps 
+        // signatories and dates correctly in your backend Code 4 logic.
+        const response = await api.post(`/requests/${id}/release`, {
+            status: updateData.status,
+            signatory: updateData.releasedBy,
+            paymentDate: updateData.releasedAt,
+            // Pass override as false by default for standard release
+            isOverridden: false
+        });
+        return response.data;
+    },
+
     deleteRequest: async (id: string) => {
         const response = await api.delete(`/requests/${id}`);
         return response.data;

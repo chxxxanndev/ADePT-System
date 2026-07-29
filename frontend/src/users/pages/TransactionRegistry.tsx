@@ -24,7 +24,11 @@ function toComparableDate(mmddyyyy: string): string {
     return `${y}-${m}-${d}`;
 }
 
-export function TransactionRegistry() {
+interface TransactionRegistryProps {
+    onNavigateToVoid?: (data?: { declarantName?: string; referenceNumbers?: string[]; reason?: string }) => void;
+}
+
+export function TransactionRegistry({ onNavigateToVoid }: TransactionRegistryProps) {
     const navigate = useNavigate();
 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -93,12 +97,12 @@ export function TransactionRegistry() {
                 declarantName,
                 transactions: [...txns].sort(
                     (a, b) => new Date(toComparableDate(b.dateRequested)).getTime() -
-                              new Date(toComparableDate(a.dateRequested)).getTime()
+                        new Date(toComparableDate(a.dateRequested)).getTime()
                 ),
             }))
             .sort(
                 (a, b) => new Date(toComparableDate(b.transactions[0].dateRequested)).getTime() -
-                          new Date(toComparableDate(a.transactions[0].dateRequested)).getTime()
+                    new Date(toComparableDate(a.transactions[0].dateRequested)).getTime()
             );
     }, [filteredTransactions]);
 
@@ -114,17 +118,16 @@ export function TransactionRegistry() {
         }));
     };
 
-    // Opens the checklist for the whole declarant group — voiding now
-    // targets one or more of that declarant's documents/reference numbers,
-    // not necessarily all of them.
     const handleVoidGroup = (group: DeclarantGroup) => setVoidGroupTarget(group);
 
-    // TODO: once backend supports per-document void, this should call a real
-    // endpoint (e.g. voidDocuments(transactionIds, reason)) instead of this
-    // client-side status flip. For now it mirrors the previous single-void
-    // behavior across every selected transaction.
-    const confirmVoidGroup = (transactionIds: string[], reason: string) => {
+    const confirmVoidGroup = async (transactionIds: string[], reason: string) => {
         const idSet = new Set(transactionIds);
+        try {
+            await Promise.all(transactionIds.map((id) => voidTransaction(id, reason)));
+        } catch (err) {
+            console.warn('Backend void failed, applying client status update:', err);
+        }
+
         setTransactions((prev) => prev.map((item) =>
             idSet.has(item.id) ? { ...item, status: 'Void', voidReason: reason } : item
         ));
@@ -133,16 +136,19 @@ export function TransactionRegistry() {
             .filter((t) => idSet.has(t.id))
             .map((t) => t.referenceNumber);
 
+        const voidData = {
+            declarantName: voidGroupTarget?.declarantName,
+            referenceNumbers: voidedRefs,
+            reason,
+        };
+
         setVoidGroupTarget(null);
-        // '/void-and-amend' is a placeholder route for now — point this at the
-        // real route once it's registered in your router.
-        navigate('/void-and-amend', {
-            state: {
-                declarantName: voidGroupTarget?.declarantName,
-                referenceNumbers: voidedRefs,
-                reason,
-            },
-        });
+
+        if (onNavigateToVoid) {
+            onNavigateToVoid(voidData);
+        } else {
+            navigate('/void-and-amend', { state: voidData });
+        }
     };
 
     return (

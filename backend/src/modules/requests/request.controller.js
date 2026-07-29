@@ -94,6 +94,17 @@ export const releaseRequest = async (req, res) => {
     }
 };
 
+export const voidRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+        const result = await RequestService.voidRequest(id, reason);
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 /**
  * RESTORED (best-effort reconstruction) — required by request.routes.js
  * (POST /:id/forward) but missing from the version pasted into this

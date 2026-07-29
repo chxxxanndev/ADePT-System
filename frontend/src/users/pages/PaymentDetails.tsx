@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // Added for navigation
 import { requestService } from '../services/requestService';
 import { InitialDocumentPreviewModal } from '../components/InitialDocumentPreviewModal';
 import { DocumentVerificationPanel } from '../pages/DocumentVerificationPanel';
@@ -35,6 +36,7 @@ const getFormattedDates = () => {
 };
 
 export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsProps) {
+    const navigate = useNavigate();
     const [orNumber, setOrNumber] = useState('');
     const [isVerified, setIsVerified] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
@@ -252,15 +254,33 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
     };
 
     // --- RELEASE: PERSIST STATUS, THEN HAND OFF TO TRANSACTION REGISTRY ---
+    // Inside PaymentDetails.tsx
+
     const handleMarkAsReleased = async (releasedBy: string) => {
-        await Promise.all(documents.map((doc: any) =>
-            requestService.updateStatus(doc.id, {
-                status: 'released_pending_verification',
-                releasedBy,
-                releasedAt: new Date().toISOString(),
-                signatories: docSignatories[doc.id],
-            })
-        ));
+        setBanner(null); // Clear previous errors
+        try {
+            await Promise.all(documents.map((doc: any) =>
+                requestService.updateStatus(doc.id, {
+                    status: 'RELEASED', // MUST BE 'RELEASED' for backend mapping
+                    releasedBy: releasedBy,
+                    releasedAt: new Date().toISOString(),
+                    signatories: docSignatories[doc.id],
+                })
+            ));
+
+            // This triggers the Dashboard to switch to 'transaction-registry'
+            if (onReleased) {
+                onReleased();
+            } else {
+                navigate('/transaction-registry');
+            }
+        } catch (err: any) {
+            console.error("Release Error:", err);
+            setBanner({
+                type: 'error',
+                text: err.response?.data?.error || 'Failed to finalize release. Please try again.'
+            });
+        }
     };
 
     return (
@@ -318,7 +338,7 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
                             onSignatoryChange={handleSignatoryChange}
                             releaseStaffOptions={ACTIVE_SIGNATORIES}
                             onMarkAsReleased={handleMarkAsReleased}
-                            onReleased={onReleased ?? onBack}
+                            onReleased={() => { /* Handled inside handleMarkAsReleased */ }}
                         />
                     )}
                 </div>
