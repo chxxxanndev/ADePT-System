@@ -87,13 +87,12 @@ const ClipboardIconLarge = () => (<svg width="28" height="28" viewBox="0 0 24 24
 // --- CONSTANTS ---
 const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
     'ctc-latest-tax-dec': 'tax-declaration',
-    'ctc-old-tax-dec': 'tax-declaration',
     'cert-property': 'certificate-land-holding',
     'cert-no-property': 'certificate-no-landholding',
 };
 
 const DOCUMENT_TYPE_VIEW_MAP: Record<string, string> = {
-    'Certified True Copy of the Tax Declaration': 'tax-declaration',
+    'Tax Declaration': 'tax-declaration',
     'Certificate of Property/Landholding': 'certificate-land-holding',
     'Certificate of No Property/Landholding': 'certificate-no-landholding',
     'Certificate of Landholding': 'certificate-land-holding',

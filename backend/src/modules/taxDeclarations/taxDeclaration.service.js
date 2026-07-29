@@ -248,6 +248,8 @@ class TaxDeclarationService {
                     requested_by_name,
                     property_location
                 ),
+                barangay:barangays ( name ),
+                municipality:municipalities ( name ),
                 encoded_assessment_rows ( * ),
                 encoded_property_types ( * )
             `)
