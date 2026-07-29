@@ -181,6 +181,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                 name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
                                 role: user.role || 'Staff',
                                 initials: `${(user.firstName || '')[0] || ''}${(user.lastName || '')[0] || ''}`.toUpperCase(),
+                                avatarUrl: user.avatarUrl,
                             }}
                         />
                     ) : activeView === 'settings' ? (

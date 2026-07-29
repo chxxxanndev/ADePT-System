@@ -76,7 +76,7 @@ export function RequestQueue({ user }: RequestQueueProps) {
 
                     <div className="admin-profile-widget audit-user-chip">
                         <div className="profile-widget-avatar-container audit-user-avatar">
-                            {initials}
+                            {user.avatarUrl ? <img src={user.avatarUrl} alt={fullName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : initials}
                         </div>
                         <div className="profile-widget-info audit-user-info">
                             <span className="profile-widget-name audit-user-name">{fullName}</span>
