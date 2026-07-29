@@ -38,24 +38,35 @@ class RequestService {
             { data: municipalities },
             { data: barangays },
             { data: docTypes, error: docErr },
-            { data: purposes },
+            { data: lookupValues, error: lookupErr },
             { data: staffRows }
         ] = await Promise.all([
             supabase.from('municipalities').select('id, name'),
             supabase.from('barangays').select('id, name, municipality_id'),
             supabase.from('document_types').select('id, name, prefix'),
-            supabase.from('lookup_values').select('id, label, code'),
+            supabase.from('lookup_values').select('id, category, code, label').eq('is_active', true),
             supabase.from('staff').select('id, first_name, last_name'),
         ]);
 
         if (docErr) throw new Error(`Failed to load document types: ${docErr.message}`);
+        if (lookupErr) throw new Error(`Failed to load lookup values: ${lookupErr.message}`);
+
+        const classifications = (lookupValues || [])
+            .filter((l) => l.category === 'CLASSIFICATION')
+            .map((l) => ({ id: l.id, label: l.label, code: l.code }));
+
+        const propertyTypes = (lookupValues || [])
+            .filter((l) => l.category === 'PROPERTY_TYPE')
+            .map((l) => ({ id: l.id, label: l.label, code: l.code }));
 
         return {
             municipalities: municipalities || [],
             barangays: barangays || [],
             docTypes: docTypes || [],
-            purposes: purposes || [],
+            purposes: [],
             staff: (staffRows || []).map(s => ({ id: s.id, name: `${s.first_name} ${s.last_name}` })),
+            classifications,
+            propertyTypes,
         };
     }
 

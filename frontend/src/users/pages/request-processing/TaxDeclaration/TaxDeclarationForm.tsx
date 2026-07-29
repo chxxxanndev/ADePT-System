@@ -42,10 +42,17 @@ function formatPeso(val: number): string {
     return val.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Rounds an assessed value to the nearest ₱10 (round-half-up), matching
+// the province's official Declaration of Real Property form convention.
+function calcAssessedValue(marketValue: number, assessmentLevel: number): number {
+    const raw = (marketValue * assessmentLevel) / 100;
+    return Math.round(raw / 10) * 10;
+}
+
 function AssessmentRowItem({ row, onUpdate, onRemove, canRemove, classificationOptions, propertyTypeOptions }: { row: AssessmentRow; onUpdate: (id: string, field: keyof AssessmentRow, value: string) => void; onRemove: (id: string) => void; canRemove: boolean; classificationOptions: { id: string; label: string; code: string }[]; propertyTypeOptions: { id: string; label: string; code: string }[]; }) {
     const mv = parseFloat(row.marketValue) || 0;
     const al = parseFloat(row.assessmentLevel) || 0;
-    const av = (mv * al) / 100;
+    const av = calcAssessedValue(mv, al);
     return (
         <tr>
             <td>
@@ -94,7 +101,7 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
 
     const [form, setForm] = useState<TaxDeclarationFormData>(() => ({
         ...EMPTY_TAX_DECLARATION(),
-        ownerName: entryData?.declarantName || '', // Added ?. safety
+        ownerName: entryData?.declarantName || '',
     }));
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
@@ -108,25 +115,65 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
         const fetchMeta = async () => {
             try {
                 const data = await requestService.getMetadata();
-                if (isMounted && data) {
-                    setMetadata({ classifications: Array.isArray(data.classifications) ? data.classifications : [], propertyTypes: Array.isArray(data.propertyTypes) ? data.propertyTypes : [], });
+                if (!isMounted || !data) return;
+
+                setMetadata({
+                    classifications: Array.isArray((data as any).classifications) ? (data as any).classifications : [],
+                    propertyTypes: Array.isArray((data as any).propertyTypes) ? (data as any).propertyTypes : [],
+                });
+
+                // Resolve the barangay UUID stored on the request into its
+                // actual barangay/municipality names, so Location of Property
+                // auto-reflects what was chosen on the Request Entry form.
+                const barangays = Array.isArray((data as any).barangays) ? (data as any).barangays : [];
+                const municipalities = Array.isArray((data as any).municipalities) ? (data as any).municipalities : [];
+                const municipalityMap: Record<string, string> = {};
+                municipalities.forEach((m: any) => { municipalityMap[m.id] = m.name; });
+
+                const matchedBarangay = barangays.find((b: any) => b.id === entryData?.propertyLocation);
+                if (matchedBarangay) {
+                    setForm((prev) => ({
+                        ...prev,
+                        barangayId: matchedBarangay.name,
+                        municipalityId: municipalityMap[matchedBarangay.municipality_id] || '',
+                    }));
                 }
             } catch (err) { console.error('Failed to fetch meta', err); }
         };
         fetchMeta(); return () => { isMounted = false; };
-    }, []);
+    }, [entryData?.propertyLocation]);
 
     const classificationOptions = metadata.classifications.length > 0 ? metadata.classifications : [{ id: 'AGRICULTURAL', label: 'Agricultural', code: 'AGRICULTURAL' }, { id: 'RESIDENTIAL', label: 'Residential', code: 'RESIDENTIAL' }];
     const propertyTypeOptions = metadata.propertyTypes.length > 0 ? metadata.propertyTypes : [{ id: 'LAND', label: 'Land', code: 'LAND' }, { id: 'BUILDING', label: 'Building', code: 'BUILDING' }];
 
     const totalMarketValue = form.assessmentRows.reduce((sum, r) => sum + (parseFloat(r.marketValue) || 0), 0);
-    const totalAssessedValue = form.assessmentRows.reduce((sum, r) => { const mv = parseFloat(r.marketValue) || 0; const al = parseFloat(r.assessmentLevel) || 0; return sum + (mv * al) / 100; }, 0);
+    const totalAssessedValue = form.assessmentRows.reduce((sum, r) => {
+        const mv = parseFloat(r.marketValue) || 0;
+        const al = parseFloat(r.assessmentLevel) || 0;
+        return sum + calcAssessedValue(mv, al);
+    }, 0);
     const amountInWords = numberToWords(totalAssessedValue);
 
     useEffect(() => { setForm((prev) => ({ ...prev, totalMarketValue, totalAssessedValue, amountInWords })); }, [totalMarketValue, totalAssessedValue, amountInWords]);
 
     const set = (field: keyof TaxDeclarationFormData, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
-    const updateRow = useCallback((id: string, field: keyof AssessmentRow, value: string) => { setForm((prev) => ({ ...prev, assessmentRows: prev.assessmentRows.map((r) => r.id === id ? { ...r, [field]: value } : r), })); }, []);
+
+    const updateRow = useCallback((id: string, field: keyof AssessmentRow, value: string) => {
+        setForm((prev) => ({
+            ...prev,
+            assessmentRows: prev.assessmentRows.map((r) => {
+                if (r.id !== id) return r;
+                const updated = { ...r, [field]: value };
+                if (field === 'marketValue' || field === 'assessmentLevel') {
+                    const mv = parseFloat(updated.marketValue) || 0;
+                    const al = parseFloat(updated.assessmentLevel) || 0;
+                    updated.assessedValue = mv && al ? String(calcAssessedValue(mv, al)) : '';
+                }
+                return updated;
+            }),
+        }));
+    }, []);
+
     const addRow = () => setForm((prev) => ({ ...prev, assessmentRows: [...prev.assessmentRows, EMPTY_ASSESSMENT_ROW()] }));
 
     // 3. FIXED SYNTAX ERROR HERE
@@ -211,9 +258,18 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
                         <div className="td-section">
                             <div className="td-section-title">Location of Property</div>
                             <div className="td-location-strip">
-                                <div className="td-location-cell"><input id="td-barangay" className="td-input" placeholder="Barangay" value={form.barangayId} onChange={(e) => set('barangayId', e.target.value)} /><span className="td-location-sub">(Barangay)</span></div>
-                                <div className="td-location-cell"><input id="td-municipality" className="td-input" placeholder="Municipality" value={form.municipalityId} onChange={(e) => set('municipalityId', e.target.value)} /><span className="td-location-sub">(Municipality)</span></div>
-                                <div className="td-location-cell td-province-fixed"><input className="td-input" readOnly value="ZAMBOANGA DEL NORTE" /><span className="td-location-sub">(Province)</span></div>
+                                <div className="td-location-cell td-province-fixed">
+                                    <input className="td-input" readOnly value={form.barangayId || '—'} />
+                                    <span className="td-location-sub">(Barangay)</span>
+                                </div>
+                                <div className="td-location-cell td-province-fixed">
+                                    <input className="td-input" readOnly value={form.municipalityId || '—'} />
+                                    <span className="td-location-sub">(Municipality)</span>
+                                </div>
+                                <div className="td-location-cell td-province-fixed">
+                                    <input className="td-input" readOnly value="ZAMBOANGA DEL NORTE" />
+                                    <span className="td-location-sub">(Province)</span>
+                                </div>
                             </div>
                         </div>
 

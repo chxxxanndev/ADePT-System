@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { User } from '../../../../auth-folder/types/auth';
 import type { CompletedEntryData } from '../../../types/taxDeclaration';
 import type { LandholdingFormData, LandholdingPropertyRow } from '../../../types/landholding';
 import { EMPTY_LANDHOLDING_FORM, EMPTY_LANDHOLDING_ROW } from '../../../types/landholding';
+import { requestService } from '../../../services/requestService';
 
 import '../../../styles/LandholdingCertificate.css';
 import { landholdingService } from '../../../services/landholdingService';
@@ -30,6 +31,18 @@ function formatCertDate(isoDate: string): { day: string; month: string; year: st
         month: d.toLocaleString('en-US', { month: 'long' }),
         year: d.getFullYear().toString(),
     };
+}
+
+function resolvePropertyLocationLabel(
+    barangayId: string | undefined,
+    barangays: { id: string; name: string; municipality_id: string }[],
+    municipalityMap: Record<string, string>
+): string {
+    if (!barangayId) return '';
+    const barangay = barangays.find((b) => b.id === barangayId);
+    if (!barangay) return '';
+    const municipalityName = municipalityMap[barangay.municipality_id] || '';
+    return `${barangay.name}, ${municipalityName}, Z.N.`;
 }
 
 
@@ -62,6 +75,36 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
+
+    useEffect(() => {
+        let isMounted = true;
+        const fetchAndApplyLocation = async () => {
+            if (!entryData?.propertyLocation) return;
+            try {
+                const data = await requestService.getMetadata();
+                if (!isMounted || !data) return;
+
+                const barangays = Array.isArray((data as any).barangays) ? (data as any).barangays : [];
+                const municipalities = Array.isArray((data as any).municipalities) ? (data as any).municipalities : [];
+                const municipalityMap: Record<string, string> = {};
+                municipalities.forEach((m: any) => { municipalityMap[m.id] = m.name; });
+
+                const label = resolvePropertyLocationLabel(entryData.propertyLocation, barangays, municipalityMap);
+                if (!label) return;
+
+                setForm((prev) => ({
+                    ...prev,
+                    propertyRows: prev.propertyRows.map((r, idx) =>
+                        idx === 0 && !r.locationOfProperty ? { ...r, locationOfProperty: label } : r
+                    ),
+                }));
+            } catch (err) {
+                console.error('Failed to resolve property location', err);
+            }
+        };
+        fetchAndApplyLocation();
+        return () => { isMounted = false; };
+    }, [entryData?.propertyLocation]);
 
     const set = (field: keyof LandholdingFormData, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
     const updateRow = useCallback((id: string, field: keyof LandholdingPropertyRow, value: string) => { setForm((prev) => ({ ...prev, propertyRows: prev.propertyRows.map((r) => r.id === id ? { ...r, [field]: value } : r) })); }, []);
