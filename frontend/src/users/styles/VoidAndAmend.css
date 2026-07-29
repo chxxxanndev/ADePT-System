@@ -234,3 +234,53 @@
   background-color: var(--color-pending-bg);
   color: var(--color-pending-text);
 }
+
+.va-action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.va-amend-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background-color: #ffffff;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.va-amend-btn:hover {
+  background-color: rgba(41, 35, 122, 0.06);
+  border-color: var(--color-primary);
+}.va-action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.va-amend-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background-color: #ffffff;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.va-amend-btn:hover {
+  background-color: rgba(41, 35, 122, 0.06);
+  border-color: var(--color-primary);
+}
