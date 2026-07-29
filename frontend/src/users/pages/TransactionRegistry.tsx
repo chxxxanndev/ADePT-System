@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { RegistrySummarySkeleton, RegistryToolbarSkeleton, RegistryTableSkeleton } from '../components/common/Skeleton';
 import type { Transaction, TransactionFilters, DeclarantGroup } from '../types/transaction';
 import { computeSummary } from '../data/mockTransactions';
-import { fetchTransactionRegistry } from '../services/transactionService';
+import { fetchTransactionRegistry, voidTransaction } from '../services/transactionService';
 import { SummaryCards } from '../components/SummaryCards';
 import { SearchBar } from '../components/SearchBar';
 import { FilterBar } from '../components/FilterBar';
@@ -107,15 +107,37 @@ export function TransactionRegistry({ onNavigateToVoid }: TransactionRegistryPro
     }, [filteredTransactions]);
 
     const handleReprint = (transactionId: string, docId: string) => {
+        let ctcPayload: {
+            reference: string;
+            declarantName: string;
+            originalDocument: string;
+            purpose: string;
+            dateRequested: string;
+        } | null = null;
+
         setTransactions((prev) => prev.map((t) => {
             if (t.id !== transactionId) return t;
-            return {
+
+            const updated = {
                 ...t,
                 requestedDocuments: t.requestedDocuments.map((d) =>
                     d.id === docId ? { ...d, reprintCount: d.reprintCount + 1 } : d
                 ),
             };
+            const doc = updated.requestedDocuments.find((d) => d.id === docId);
+            ctcPayload = {
+                reference: t.referenceNumber,
+                declarantName: t.client.declarantName,
+                originalDocument: `${doc?.documentType ?? 'Document'} ${t.referenceNumber}`,
+                purpose: t.reasonPurpose || 'Reprint request',
+                dateRequested: t.dateRequested,
+            };
+            return updated;
         }));
+
+        if (ctcPayload) {
+            navigate('/certified-true-copy', { state: { newRecord: ctcPayload } });
+        }
     };
 
     const handleVoidGroup = (group: DeclarantGroup) => setVoidGroupTarget(group);
@@ -132,14 +154,15 @@ export function TransactionRegistry({ onNavigateToVoid }: TransactionRegistryPro
             idSet.has(item.id) ? { ...item, status: 'Void', voidReason: reason } : item
         ));
 
-        const voidedRefs = transactions
+        const voidedTransactions = transactions
             .filter((t) => idSet.has(t.id))
-            .map((t) => t.referenceNumber);
+            .map((t) => ({ ...t, status: 'Void' as const, voidReason: reason }));
 
         const voidData = {
             declarantName: voidGroupTarget?.declarantName,
-            referenceNumbers: voidedRefs,
+            referenceNumbers: voidedTransactions.map((t) => t.referenceNumber),
             reason,
+            voidedTransactions, // full records, needed so Void & Amend can clone them on Amend
         };
 
         setVoidGroupTarget(null);

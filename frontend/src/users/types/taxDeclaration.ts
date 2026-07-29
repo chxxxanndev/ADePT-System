@@ -89,7 +89,6 @@ export interface CompletedEntryData {
     declarantName: string;
     requestedByName: string;
     requestDate: string;
-    purposeId: string;
     documentTypeIds: string[];
     actionTaken: string;
     authRequired: boolean;

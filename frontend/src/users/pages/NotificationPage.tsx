@@ -12,9 +12,7 @@ interface NotificationPageProps {
     onMarkAllRead?: () => void;
 }
 
-// Shows only the document-type prefix + current year + "XXXX" — the real
-// unique reference number is only generated once the request is actually
-// proceeded to document fill-out, so it must never be exposed here.
+// Ensure the Ref Number format: PREFIX-YEAR-XXXX
 function toGenericRef(ref?: string): string {
     if (!ref) return '';
     const prefix = ref.split('-')[0] || 'REF';
@@ -31,6 +29,13 @@ export function NotificationPage({
     unreadCount = 0,
     onMarkAllRead,
 }: NotificationPageProps) {
+
+    // BUG FIX: Only show the "Failed to load" error if we have NO data to show.
+    // This prevents the "glitch" screen during session restoration.
+    const showLoading = loading && notifications.length === 0;
+    const showError = error && !loading && notifications.length === 0;
+    const showEmpty = !loading && !error && notifications.length === 0;
+
     return (
         <div className="page-transition" style={{ padding: '20px' }}>
             <div className="notif-page-header">
@@ -46,9 +51,9 @@ export function NotificationPage({
             </div>
 
             <div className="dashboard-card notif-panel">
-                {loading ? (
+                {showLoading ? (
                     <div className="notif-loading-state">Loading notifications...</div>
-                ) : error ? (
+                ) : showError ? (
                     <div className="notif-empty-state">
                         <div className="notif-empty-icon">
                             <AlertTriangle size={48} strokeWidth={1} />
@@ -56,11 +61,11 @@ export function NotificationPage({
                         <p className="notif-empty-text">{error}</p>
                         {onRetry && (
                             <button className="notif-mark-all-header-btn" style={{ marginTop: 12 }} onClick={onRetry}>
-                                Retry
+                                Retry Connection
                             </button>
                         )}
                     </div>
-                ) : notifications.length === 0 ? (
+                ) : showEmpty ? (
                     <div className="notif-empty-state">
                         <div className="notif-empty-icon">
                             <Mail size={48} strokeWidth={1} />
@@ -73,7 +78,8 @@ export function NotificationPage({
                             const senderName = n.actor?.first_name
                                 ? `${n.actor.first_name} ${n.actor.last_name ?? ''}`.trim()
                                 : 'A staff member';
-                            const genericRef = toGenericRef(n.requests?.reference_number || n.requests?.control_number);
+
+                            const genericRef = toGenericRef(n.requests?.reference_number);
 
                             return (
                                 <div
@@ -81,33 +87,40 @@ export function NotificationPage({
                                     className={`notif-bell-item ${!n.is_read ? 'notif-bell-item-unread' : ''}`}
                                     onClick={() => onOpenRequest(n.request_id, n.id)}
                                 >
+                                    {/* Icon Column */}
                                     <div className={`notif-bell-item-icon ${n.is_read ? 'notif-bell-item-icon-read' : 'notif-bell-item-icon-unread'}`}>
                                         {n.is_read ? <CheckCircle size={20} /> : <Mail size={20} />}
                                     </div>
 
                                     <div className="notif-bell-item-body">
-                                        <div className={`notif-bell-item-text ${n.is_read ? 'notif-bell-item-text-read' : 'notif-bell-item-text-unread'}`}>
-                                            <strong>{senderName}</strong> {n.message}
+                                        {/* Row 1: Staff Name (Uppercase/Bold) + Message */}
+                                        <div className="notif-bell-item-text">
+                                            <strong style={{ textTransform: 'uppercase' }}>{senderName}</strong>
+                                            <span className="notif-message-text"> {n.message}</span>
                                         </div>
-                                        <div className="notif-bell-item-meta-row">
-                                            {genericRef && (
-                                                <span className="notif-bell-item-meta notif-bell-item-ref">
-                                                    Ref: <strong>{genericRef}</strong>
-                                                </span>
-                                            )}
+
+                                        {/* Row 2: Blue Bold Reference + Declarant */}
+                                        <div className="notif-bell-item-meta-row" style={{ marginTop: '4px' }}>
+                                            <span className="notif-bell-item-meta">
+                                                Ref: <strong style={{ color: '#1e1b4b', fontWeight: 800 }}>{genericRef}</strong>
+                                            </span>
                                             {n.requests?.declarant_name && (
-                                                <span className="notif-bell-item-meta">
-                                                    Declarant: <strong>{n.requests.declarant_name}</strong>
+                                                <span className="notif-bell-item-meta" style={{ marginLeft: '12px' }}>
+                                                    Declarant: <strong style={{ color: '#334155' }}>{n.requests.declarant_name}</strong>
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="notif-bell-item-time">
-                                            <Clock size={12} /> {new Date(n.created_at).toLocaleString()}
+
+                                        {/* Row 3: Gray Timestamp with Icon */}
+                                        <div className="notif-bell-item-time" style={{ marginTop: '4px', color: '#94a3b8' }}>
+                                            <Clock size={12} style={{ marginRight: '4px' }} />
+                                            {new Date(n.created_at).toLocaleString()}
                                         </div>
                                     </div>
 
+                                    {/* Action Column */}
                                     <div className="notif-bell-item-arrow">
-                                        <ArrowRight size={20} />
+                                        <ArrowRight size={18} />
                                     </div>
                                 </div>
                             );

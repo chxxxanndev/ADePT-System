@@ -7,23 +7,30 @@ export interface RequestFormData {
     requestDate: string;
     requestedByName: string;
     authRequired: boolean;
-    purposeId: string;
     documentTypeIds: string[];
     actionTaken: string;
     status?: string;
     referenceNumber?: string;
     propertyLocation?: string;
-    purposeOtherText?: string;
 }
+
+export const DEFAULT_DOC_TYPES = [
+    { id: 'dt1', name: 'Tax Declaration', prefix: 'TD' },
+    { id: 'dt2', name: 'Certificate of Landholding', prefix: 'LH' },
+    { id: 'dt3', name: 'Certificate of No Landholding', prefix: 'NLH' },
+];
 
 const API_ROOT = 'http://localhost:5000/api';
 
 const api = axios.create({ baseURL: API_ROOT });
 
-// Always pull the CURRENT, live session token from Supabase itself
+// Always pull the CURRENT, live session token from sessionStorage or Supabase
 api.interceptors.request.use(async (config) => {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
+    let token = sessionStorage.getItem('adept_token');
+    if (!token) {
+        const { data } = await supabase.auth.getSession();
+        token = data.session?.access_token || null;
+    }
     if (token) {
         // Bypass strict AxiosHeaders type check by casting to any
         (config.headers as any).Authorization = `Bearer ${token}`;
@@ -33,13 +40,34 @@ api.interceptors.request.use(async (config) => {
 
 export const requestService = {
     getMetadata: async () => {
-        const response = await api.get('/requests/metadata');
-        return response.data;
+        try {
+            const response = await api.get('/requests/metadata');
+            const data = response.data || {};
+            if (!Array.isArray(data.docTypes) || data.docTypes.length === 0) {
+                data.docTypes = DEFAULT_DOC_TYPES;
+            }
+            return data;
+        } catch (error) {
+            console.warn('Metadata fetch failed, falling back to default document types:', error);
+            return {
+                municipalities: [],
+                barangays: [],
+                docTypes: DEFAULT_DOC_TYPES,
+                staff: [],
+                classifications: [],
+                propertyTypes: [],
+            };
+        }
     },
 
     getRequests: async () => {
-        const response = await api.get('/requests');
-        return response.data;
+        try {
+            const response = await api.get('/requests');
+            return response.data || [];
+        } catch (error) {
+            console.warn('Failed to fetch requests from server:', error);
+            return [];
+        }
     },
 
     getRequestById: async (id: string) => {
@@ -71,30 +99,6 @@ export const requestService = {
         justification?: string;
     }) => {
         const response = await api.post(`/requests/${id}/release`, paymentData);
-        return response.data;
-    },
-
-    /**
-     * updateStatus
-     * This method finalizes the release by updating the database record.
-     * We use POST /release because the backend Code 4 'releaseRequest' 
-     * is the only confirmed endpoint that handles signatories and payment_date correctly.
-     */
-    updateStatus: async (id: string, updateData: {
-        status: string;
-        releasedBy: string;
-        releasedAt: string;
-        signatories?: any
-    }) => {
-        // We call the release endpoint specifically because it maps 
-        // signatories and dates correctly in your backend Code 4 logic.
-        const response = await api.post(`/requests/${id}/release`, {
-            status: updateData.status,
-            signatory: updateData.releasedBy,
-            paymentDate: updateData.releasedAt,
-            // Pass override as false by default for standard release
-            isOverridden: false
-        });
         return response.data;
     },
 

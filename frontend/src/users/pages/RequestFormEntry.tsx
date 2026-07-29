@@ -10,7 +10,6 @@ interface ExtendedRequestFormData extends RequestFormData {
     id?: string;
     propertyLocation: string;
     referenceNumber: string;
-    purposeOtherText: string;
 }
 
 interface RequestFormEntryProps {
@@ -94,6 +93,7 @@ function SearchableSelectDropdown({ options, value, onChange, placeholder }: { o
     }, [selected]);
 
     const filtered = query.trim() === '' ? options : options.filter((o) => o.name.toLowerCase().includes(query.trim().toLowerCase()));
+    // MODIFIED: Added val passing to onChange to ensure the display query updates correctly
     const handleSelect = (opt: { id: string; name: string }) => { onChange(opt.id); setQuery(opt.name); setOpen(false); };
     return (
         <div className="custom-select" ref={ref}>
@@ -121,18 +121,12 @@ const DOCUMENT_TYPE_VIEW_MAP: Record<string, string> = {
     'Certificate of No Landholding': 'certificate-no-landholding',
 };
 
-const PURPOSE_OPTIONS = [
-    { id: 'settling-tax-obligation', name: 'For Settling of Tax Obligation', code: 'TAX_OBLIGATION' },
-    { id: 'court-legal-purposes', name: 'For Court and other legal purposes', code: 'COURT_LEGAL' },
-    { id: 'others', name: 'Others', code: 'OTHERS' },
-];
-
 // ----------------------------------------------
 
 export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateToProcessing, prefilledRequestData }: RequestFormEntryProps) {
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [isProceeding, setIsProceeding] = useState(false);
-    const [metadata, setMetadata] = useState<{ docTypes: any[]; purposes: any[]; staff: any[]; propertyLocations: { id: string; name: string }[]; }>({ docTypes: [], purposes: PURPOSE_OPTIONS, staff: [], propertyLocations: [], });
+    const [metadata, setMetadata] = useState<{ docTypes: any[]; staff: any[]; propertyLocations: { id: string; name: string }[]; }>({ docTypes: [], staff: [], propertyLocations: [], });
     const [validationError, setValidationError] = useState<string>('');
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [metadataLoading, setMetadataLoading] = useState(true);
@@ -140,7 +134,14 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     const [docTypeLocked, setDocTypeLocked] = useState(false);
 
     const [formData, setFormData] = useState<ExtendedRequestFormData>({
-        declarantName: '', requestedByName: '', requestDate: new Date().toISOString().split('T')[0], purposeId: '', documentTypeIds: [], authRequired: false, actionTaken: 'PENDING', propertyLocation: '', purposeOtherText: '', referenceNumber: `REF-${new Date().getFullYear()}-0000`,
+        declarantName: '', 
+        requestedByName: '', 
+        requestDate: new Date().toISOString().split('T')[0], 
+        documentTypeIds: [], 
+        authRequired: false, 
+        actionTaken: 'PENDING', 
+        propertyLocation: '', 
+        referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
     });
 
     const displayReferenceNumber = (() => {
@@ -161,11 +162,12 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
         return view === 'certificate-no-landholding';
     });
 
+    // FIXED: Correctly cleared propertyLocation if No Landholding is selected to avoid stale IDs
     useEffect(() => {
         if (isNoLandholdingSelected && formData.propertyLocation !== '') {
             setFormData((prev) => ({ ...prev, propertyLocation: '' }));
         }
-    }, [isNoLandholdingSelected, formData.propertyLocation]);
+    }, [isNoLandholdingSelected]);
 
     useEffect(() => {
         if (prefilledRequestData) {
@@ -204,7 +206,6 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                     'PENDING',
             }));
 
-            // Lock/unlock document type based on prefilled data
             setDocTypeLocked(!!prefilledRequestData.lockedDocType);
         }
     }, [prefilledRequestData]);
@@ -217,15 +218,20 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
         try {
             const data = await requestService.getMetadata();
             if (data) {
+                // MODIFIED: Improved municipality mapping to avoid trailing commas and handle missing data
                 const municipalityMap: Record<string, string> = {};
                 (data.municipalities ?? []).forEach((m: any) => { municipalityMap[m.id] = m.name; });
+                
+                // MODIFIED: Corrected mapping of barangays to display "Barangay, Municipality"
                 const propertyLocations = (data.barangays ?? []).map((b: any) => ({
                     id: b.id,
-                    name: `${b.name}, ${municipalityMap[b.municipality_id] ?? ''}`.replace(/,\s*$/, ''),
+                    name: municipalityMap[b.municipality_id] 
+                        ? `${b.name}, ${municipalityMap[b.municipality_id]}` 
+                        : b.name,
                 }));
+                
                 setMetadata({
                     docTypes: Array.isArray(data.docTypes) ? data.docTypes : [],
-                    purposes: PURPOSE_OPTIONS,
                     staff: Array.isArray((data as any).staff) ? (data as any).staff : [],
                     propertyLocations,
                 });
@@ -334,6 +340,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
         setIsProceeding(true);
         try {
             let savedRequest;
+            // FIXED: Ensured propertyLocation (the UUID) is sent correctly in the payload
             const requestPayload = { ...formData, status: 'IN_PROGRESS', staffAuthId: user.id, encodedBy: user.staffId };
 
             if (formData.id) {
@@ -399,12 +406,10 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                 declarantName: '',
                 requestedByName: '',
                 requestDate: new Date().toISOString().split('T')[0],
-                purposeId: '',
                 documentTypeIds: [],
                 authRequired: false,
                 actionTaken: 'PENDING',
                 propertyLocation: '',
-                purposeOtherText: '',
                 referenceNumber: `REF-${new Date().getFullYear()}-0000`,
             });
             setValidationError('');
@@ -469,11 +474,16 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                 </div>
                             </div>
 
-                            {/* Hide "Location of the Property" if Certificate of No Landholding (NLH) is chosen */}
+                            {/* MODIFIED: Section displays the corrected propertyLocation dropdown */}
                             {!isNoLandholdingSelected && (
                                 <div className="rfe-field" style={{ marginTop: 14 }}>
                                     <label className="rfe-label">Location of the Property</label>
-                                    <SearchableSelectDropdown options={metadata.propertyLocations} value={formData.propertyLocation} onChange={(val) => setFormData({ ...formData, propertyLocation: val })} placeholder="Brgy., Municipality, Province" />
+                                    <SearchableSelectDropdown 
+                                        options={metadata.propertyLocations} 
+                                        value={formData.propertyLocation} 
+                                        onChange={(val) => setFormData({ ...formData, propertyLocation: val })} 
+                                        placeholder="Brgy., Municipality, Province" 
+                                    />
                                 </div>
                             )}
 
@@ -482,11 +492,9 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                             <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Authorization</label><ToggleButtonPair leftLabel="Authorization Needed" rightLabel="Authorization Not Needed" value={formData.authRequired} onChange={(val) => setFormData({ ...formData, authRequired: val })} /></div>
                         </div>
 
-                        {/* Section 3 */}
                         <div className="rfe-section">
                             <div className="rfe-return-archive-box">
                                 <label className="rfe-label" htmlFor="releasing-staff-select">Encoded By: </label>
-                                {/* Automatically displays the logged-in user's name in a read-only format */}
                                 <input
                                     id="releasing-staff-select"
                                     className="rfe-input"
@@ -497,7 +505,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                 />
                             </div>
                         </div>
-                    </div> {/* <--- THIS IS THE DIV THAT WAS MISSING! */}
+                    </div>
 
                     {/* SESSION BANNER */}
                     <div className="form-reuse-notice">

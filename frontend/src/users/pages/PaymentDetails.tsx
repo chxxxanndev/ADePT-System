@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; // Added for navigation
 import { requestService } from '../services/requestService';
+import { markAmended } from '../../utils/amendedRecords';
 import { InitialDocumentPreviewModal } from '../components/InitialDocumentPreviewModal';
 import { DocumentVerificationPanel } from '../pages/DocumentVerificationPanel';
 import { DocumentReleasePanel } from '../pages/DocumentReleasePanel';
@@ -245,6 +246,10 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
                 if (prev?.url) URL.revokeObjectURL(prev.url);
                 return { docId: doc.id, url: pdfUrl, label: doc.referenceNumber };
             });
+
+            if (payment?.amendmentSourceId) {
+                markAmended(payment.amendmentSourceId);
+            }
         } catch (error) {
             console.error("Failed to generate PDF:", error);
             alert("Error generating the PDF document. Check console for details.");

@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Search, ChevronDown, FileStack } from "lucide-react";
 import "../styles/CertifiedTrueCopy.css";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
-// Removed Pending Payment and Pending Verification
 type CTCStatus = "Released" | "Voided" | "Archived";
 
 interface CertifiedCopyRecord {
@@ -14,20 +14,41 @@ interface CertifiedCopyRecord {
   declarantName: string;
   initials: string;
   avatarColor: string;
-  originalDocument: string; 
+  originalDocument: string;
   purpose: string;
   dateRequested: string;
-  dateReleased: string; 
-  releasedBy: string; 
+  dateReleased: string;
+  releasedBy: string;
   status: CTCStatus;
 }
 
 type StatusFilter = "All statuses" | CTCStatus;
 
 /* ------------------------------------------------------------------ */
-/*  Mock data                                                         */
+/*  Helper Functions                                                  */
 /* ------------------------------------------------------------------ */
-const records: CertifiedCopyRecord[] = [
+const initialsFor = (name: string) => {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+const colorFor = (name: string) => {
+  const colors = ["#00BCD4", "#7C6FE8", "#5EB6A8", "#E8A94E", "#1976D2", "#4CAF50"];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
+/* ------------------------------------------------------------------ */
+/*  Initial Mock Data                                                 */
+/* ------------------------------------------------------------------ */
+const INITIAL_RECORDS: CertifiedCopyRecord[] = [
   {
     id: "ctc-001",
     reference: "CTC-2026-02342",
@@ -37,7 +58,7 @@ const records: CertifiedCopyRecord[] = [
     originalDocument: "Tax Declaration TD-2024-00221",
     purpose: "Bank loan requirement",
     dateRequested: "10 Jul 2026",
-    dateReleased: "14 Jul 2026", // Updated mock data to valid status
+    dateReleased: "14 Jul 2026",
     releasedBy: "Maria Lopez",
     status: "Released",
   },
@@ -68,32 +89,6 @@ const records: CertifiedCopyRecord[] = [
     status: "Released",
   },
   {
-    id: "ctc-004",
-    reference: "CTC-2026-07781",
-    declarantName: "Priya Shah",
-    initials: "PS",
-    avatarColor: "#E8A94E",
-    originalDocument: "No-Landholding Certificate NLH-2025-00033",
-    purpose: "Scholarship application",
-    dateRequested: "08 Jul 2026",
-    dateReleased: "11 Jul 2026", // Updated mock data to valid status
-    releasedBy: "John Cruz",
-    status: "Released",
-  },
-  {
-    id: "ctc-005",
-    reference: "CTC-2026-08120",
-    declarantName: "Miguel Santos",
-    initials: "MS",
-    avatarColor: "#1976D2",
-    originalDocument: "Certificate of Land Holding LH-2021-00456",
-    purpose: "Property sale",
-    dateRequested: "02 Jul 2026",
-    dateReleased: "06 Jul 2026",
-    releasedBy: "John Cruz",
-    status: "Released",
-  },
-  {
     id: "ctc-006",
     reference: "CTC-2026-04002",
     declarantName: "Elena Ruiz",
@@ -108,7 +103,6 @@ const records: CertifiedCopyRecord[] = [
   },
 ];
 
-// Updated mapping to remove deleted statuses
 const STATUS_CLASS: Record<CTCStatus, string> = {
   Released: "ctc-badge--released",
   Voided: "ctc-badge--voided",
@@ -131,11 +125,41 @@ function StatusBadge({ status }: { status: CTCStatus }) {
 /*  Page component                                                    */
 /* ------------------------------------------------------------------ */
 export default function CertifiedTrueCopy() {
+  const location = useLocation();
+  const [recordsList, setRecordsList] = useState<CertifiedCopyRecord[]>(INITIAL_RECORDS);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All statuses");
 
+  // Ingest incoming records from navigation state (e.g. from a "Release" action)
+  useEffect(() => {
+    const incoming = location.state as
+      | { newRecord?: { declarantName: string; originalDocument: string; purpose: string; dateRequested: string } }
+      | undefined;
+
+    if (incoming?.newRecord) {
+      const r = incoming.newRecord;
+      const newEntry: CertifiedCopyRecord = {
+        id: `ctc-${Date.now()}`,
+        reference: `CTC-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 90000) + 10000)}`,
+        declarantName: r.declarantName,
+        initials: initialsFor(r.declarantName),
+        avatarColor: colorFor(r.declarantName),
+        originalDocument: r.originalDocument,
+        purpose: r.purpose,
+        dateRequested: r.dateRequested,
+        dateReleased: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        releasedBy: 'Current User', // Replace with auth context if available
+        status: 'Released',
+      };
+
+      setRecordsList((prev) => [newEntry, ...prev]);
+      // Clear the state so refreshing doesn't duplicate the entry
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   const filteredRecords = useMemo(() => {
-    return records.filter((record) => {
+    return recordsList.filter((record) => {
       const matchesStatus = statusFilter === "All statuses" || record.status === statusFilter;
       const matchesSearch =
         search.trim() === "" ||
@@ -145,7 +169,7 @@ export default function CertifiedTrueCopy() {
         record.purpose.toLowerCase().includes(search.toLowerCase());
       return matchesStatus && matchesSearch;
     });
-  }, [search, statusFilter]);
+  }, [recordsList, search, statusFilter]);
 
   return (
     <div className="ctc-page">
@@ -181,7 +205,6 @@ export default function CertifiedTrueCopy() {
               className="ctc-select"
             >
               <option value="All statuses">All statuses</option>
-              {/* Removed Pending Payment and Pending Verification options */}
               <option value="Released">Released</option>
               <option value="Voided">Voided</option>
               <option value="Archived">Archived</option>

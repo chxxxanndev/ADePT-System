@@ -63,7 +63,6 @@ class RequestService {
             municipalities: municipalities || [],
             barangays: barangays || [],
             docTypes: docTypes || [],
-            purposes: [],
             staff: (staffRows || []).map(s => ({ id: s.id, name: `${s.first_name} ${s.last_name}` })),
             classifications,
             propertyTypes,
@@ -71,42 +70,47 @@ class RequestService {
     }
 
     async createRequest(formData, authUserId) {
-        // Resolve staff ID securely from Auth User ID or payload
-        let staffId = formData.encodedBy;
-        if (!staffId && authUserId) {
-            const { data: staff } = await supabase.from('staff').select('id').eq('auth_user_id', authUserId).single();
-            if (staff) staffId = staff.id;
-        }
-
-        const uniqueRef = (formData.referenceNumber && !formData.referenceNumber.includes('XXXX'))
-            ? formData.referenceNumber
-            : await this._generateReferenceNumber(formData.documentTypeIds);
-
-        const { data: request, error: reqError } = await supabase
-            .from('requests')
-            .insert([{
-                declarant_name: formData.declarantName,
-                request_date: formData.requestDate,
-                requested_by_name: formData.requestedByName,
-                reference_number: uniqueRef,
-                authorization_required: formData.authRequired,
-                purpose_id: formData.purposeId || null,
-                purpose_other_text: formData.purposeOtherText || null,
-                action_taken: formData.actionTaken || 'PENDING',
-                property_location: formData.propertyLocation || null,
-                encoded_by: staffId, // Automatically assigning the logged-in staff
-                status: formData.status || 'DRAFT'
-            }])
-            .select().single();
-
-        if (reqError) throw reqError;
-
-        if (formData.documentTypeIds?.length) {
-            await this._syncRequestDocuments(request.id, formData.documentTypeIds);
-        }
-        return request;
+    let staffId = formData.encodedBy;
+    if (!staffId && authUserId) {
+        const { data: staff } = await supabase.from('staff').select('id').eq('auth_user_id', authUserId).single();
+        if (staff) staffId = staff.id;
     }
 
+     const validDocTypeIds = (formData.documentTypeIds || []).filter(id => 
+        id && !id.startsWith('dt') && id.length > 5 // Simple check to ensure it looks like a real ID/UUID
+    );
+
+    if (validDocTypeIds.length === 0) {
+        throw new Error("Invalid Document Type ID selected. Please refresh and try again.");
+    }
+
+        const uniqueRef = (formData.referenceNumber && !formData.referenceNumber.includes('XXXX'))
+        ? formData.referenceNumber
+        : await this._generateReferenceNumber(validDocTypeIds);
+
+    const { data: request, error: reqError } = await supabase
+        .from('requests')
+        .insert([{
+            declarant_name: formData.declarantName,
+            request_date: formData.requestDate,
+            requested_by_name: formData.requestedByName,
+            reference_number: uniqueRef,
+            authorization_required: formData.authRequired,  
+            action_taken: formData.actionTaken || 'PENDING',
+            property_location: formData.propertyLocation || null,
+            encoded_by: staffId,
+            status: formData.status || 'DRAFT'
+        }])
+        .select().single();
+
+    if (reqError) throw reqError;
+
+    // Use the cleaned IDs
+    if (validDocTypeIds.length) {
+        await this._syncRequestDocuments(request.id, validDocTypeIds);
+    }
+    return request;
+}
     async getRequests() {
         try {
             // UPDATED: Added the join to the staff table for 'encoded_by'
@@ -357,7 +361,6 @@ class RequestService {
                 },
                 generatedDocuments: [],
                 activityTimeline: [],
-                reasonPurpose: r.purpose_other_text || '',
                 isVoid: r.status === 'VOID' || r.status === 'VOIDED',
                 voidReason: (r.status === 'VOID' || r.status === 'VOIDED') ? (r.or_override_justification || '') : undefined,
             };
@@ -376,8 +379,6 @@ class RequestService {
         if (formData.requestedByName || formData.requested_by_name) {
             updateData.requested_by_name = formData.requestedByName || formData.requested_by_name;
         }
-        if (formData.purposeId) updateData.purpose_id = formData.purposeId;
-        if (formData.purposeOtherText !== undefined) updateData.purpose_other_text = formData.purposeOtherText;
         if (formData.actionTaken || formData.action_taken) {
             updateData.action_taken = formData.actionTaken || formData.action_taken;
         }

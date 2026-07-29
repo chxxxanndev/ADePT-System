@@ -259,7 +259,9 @@
 .va-amend-btn:hover {
   background-color: rgba(41, 35, 122, 0.06);
   border-color: var(--color-primary);
-}.va-action-cell {
+}
+
+.va-action-cell {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -283,4 +285,14 @@
 .va-amend-btn:hover {
   background-color: rgba(41, 35, 122, 0.06);
   border-color: var(--color-primary);
+}
+
+.va-amend-btn--disabled {
+  color: #9CA3AF;
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.va-amend-btn--disabled:hover {
+  background: transparent;
 }

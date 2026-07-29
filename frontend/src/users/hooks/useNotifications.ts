@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+// hooks/useNotifications.ts
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from '../../auth-folder/types/auth';
 import { supabase } from '../../lib/supabaseClient';
 import { requestService } from '../services/requestService';
@@ -17,53 +18,71 @@ export function useNotifications(user: User | null | undefined) {
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const isInitialMount = useRef(true);
 
     const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-    const fetchNotifications = useCallback(async () => {
+    const fetchNotifications = useCallback(async (quiet = false) => {
         if (!user?.staffId) return;
-        setLoading(true);
+        if (!quiet) setLoading(true);
         setError('');
+
         try {
             const data = await requestService.getNotifications();
-            setNotifications(data.data || data);
-        } catch (err) {
-            console.error('Failed to load notifications', err);
-            setError('Failed to load notifications.');
+            // Handle both object {data: []} and array [] responses
+            const result = Array.isArray(data) ? data : (data.data || []);
+            setNotifications(result);
+            setError('');
+        } catch (err: any) {
+            console.error('Fetch Error:', err);
+            // Only show the error state if we aren't in a 401 race condition
+            if (err.response?.status !== 401 || isInitialMount.current === false) {
+                setError('Failed to load notifications.');
+            }
         } finally {
             setLoading(false);
+            isInitialMount.current = false;
         }
     }, [user?.staffId]);
 
+    // Initial load with a small delay to allow Supabase session to stabilize
     useEffect(() => {
-        fetchNotifications();
-    }, [fetchNotifications]);
+        const timer = setTimeout(() => {
+            if (user?.staffId) fetchNotifications();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [user?.staffId, fetchNotifications]);
 
-    // Realtime subscription — one channel per staff member, lives for the whole session
+    // Realtime logic - refreshes list on new notification
     useEffect(() => {
         if (!user?.staffId) return;
-
         const channel = supabase
-            .channel(`notifications-${user.staffId}`)
-            .on(
-                'postgres_changes',
+            .channel(`notif-realtime-${user.staffId}`)
+            .on('postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${user.staffId}` },
-                (payload) => setNotifications((prev) => [payload.new as NotificationItem, ...prev])
+                () => fetchNotifications(true)
             )
             .subscribe();
-
         return () => { supabase.removeChannel(channel); };
-    }, [user?.staffId]);
+    }, [user?.staffId, fetchNotifications]);
+
+    // --- FUNCTIONAL ACTIONS ---
 
     const markAsRead = useCallback((notificationId: string) => {
+        // Update local state immediately for better UX
         setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)));
+
+        // Update backend
         requestService.markNotificationRead(notificationId).catch((err) =>
             console.error('Failed to mark notification read', err)
         );
     }, []);
 
     const markAllAsRead = useCallback(() => {
+        // Update local state immediately
         setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+
+        // Update backend
         requestService.markAllNotificationsRead().catch((err) =>
             console.error('Failed to mark all notifications read', err)
         );
@@ -76,6 +95,6 @@ export function useNotifications(user: User | null | undefined) {
         error,
         refetch: fetchNotifications,
         markAsRead,
-        markAllAsRead,
+        markAllAsRead
     };
 }
