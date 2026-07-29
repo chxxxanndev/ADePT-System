@@ -97,6 +97,7 @@ export default function AccountRequest({ user }: AccountRequestProps) {
   const [query, setQuery] = useState("");
   const [requests, setRequests] = useState<AccountRequestItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
 
   // Live user state from the shared auth context — updates instantly
   // whenever updateCurrentUser() runs anywhere (Account Settings, etc.),
@@ -155,7 +156,9 @@ export default function AccountRequest({ user }: AccountRequestProps) {
   }, [requests, activeTab, query]);
 
   async function handleDecision(id: string, decision: "approved" | "disapproved") {
+    if (decidingId) return; // a decision is already in flight — ignore extra clicks
     const applicant = requests.find((request) => request.id === id);
+    setDecidingId(id);
 
     try {
       // Backend still expects 'rejected' for a disapproval — only the
@@ -186,6 +189,8 @@ export default function AccountRequest({ user }: AccountRequestProps) {
       await loadRequests();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Failed to save the decision. Please try again.');
+    } finally {
+      setDecidingId(null);
     }
   }
 
@@ -324,14 +329,16 @@ export default function AccountRequest({ user }: AccountRequestProps) {
                         <button
                           onClick={() => handleDecision(r.id, "approved")}
                           className="account-request-btn approve"
+                          disabled={decidingId === r.id}
                         >
-                          Approve
+                          {decidingId === r.id ? 'Approving…' : 'Approve'}
                         </button>
                         <button
                           onClick={() => handleDecision(r.id, "disapproved")}
                           className="account-request-btn decline"
+                          disabled={decidingId === r.id}
                         >
-                          Disapprove
+                          {decidingId === r.id ? 'Declining…' : 'Disapprove'}
                         </button>
                       </div>
                     ) : (

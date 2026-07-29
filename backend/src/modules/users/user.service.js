@@ -208,6 +208,8 @@ class UserService {
 
         const decidedAtNow = new Date().toISOString();
 
+        console.log('[decideAccountRequest] requestId:', JSON.stringify(requestId), 'length:', requestId?.length);
+
         const { data, error } = await supabase
             .from('staff')
             .update({
@@ -219,6 +221,8 @@ class UserService {
             .eq('account_status', 'PENDING_APPROVAL')
             .is('deleted_at', null)
             .select('id, first_name, last_name, email, username, account_status, created_at, updated_at, roles(code)');
+
+        console.log('[decideAccountRequest] update result — error:', error, 'data:', data);
 
         if (error) throw error;
         const updatedMember = Array.isArray(data) ? data[0] : data;

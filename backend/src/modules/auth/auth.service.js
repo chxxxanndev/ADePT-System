@@ -1,23 +1,45 @@
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../../config/supabase.js';
 import { supabaseAdmin } from '../../config/supabaseAdmin.js';
 
 const REACTIVATION_WINDOW_DAYS = 7;
 
+/**
+ * Creates a throwaway Supabase client scoped to a single request, used only
+ * for password verification (auth.signInWithPassword). This is deliberate:
+ * calling signInWithPassword/signUp on a *shared* client instance mutates
+ * that instance's in-memory session, and every subsequent .from(...) call
+ * made through that same shared client — from ANY request, anywhere in the
+ * app — then silently starts running as whichever user last signed in,
+ * subject to full RLS, instead of your intended service-role/admin identity.
+ * A fresh client per call means each login's session death is scoped to
+ * that ephemeral instance and can never leak into shared state.
+ */
+function createEphemeralAuthClient() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+}
+
 class AuthService {
   async registerUser({ firstName, lastName, email, username, password }) {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // Use the admin API to create the auth user — this does NOT touch any
+    // client's session state (unlike auth.signUp), so it's safe to call on
+    // the shared admin client without any risk of session leakage.
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: { first_name: firstName, last_name: lastName, display_username: username }
-      }
+      email_confirm: true,
+      user_metadata: { first_name: firstName, last_name: lastName, display_username: username },
     });
     if (authError) throw authError;
 
-    const { data: roleData } = await supabase
+    const { data: roleData } = await supabaseAdmin
       .from('roles').select('id').eq('code', 'OFFICE_STAFF').single();
 
-    const { error: staffError } = await supabase
+    const { error: staffError } = await supabaseAdmin
       .from('staff')
       .insert([{
         auth_user_id: authData.user.id,
@@ -37,27 +59,28 @@ class AuthService {
     let email = username;
 
     if (!username.includes('@')) {
-        const { data: profile } = await supabase.from('staff').select('email').ilike('username', username).single();
+        const { data: profile } = await supabaseAdmin.from('staff').select('email').ilike('username', username).single();
         if (profile) email = profile.email;
         else throw new Error("Username not found.");
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // Ephemeral client — verifies the password without touching the shared
+    // admin client's session (see createEphemeralAuthClient's comment above).
+    const authClient = createEphemeralAuthClient();
+    const { data, error } = await authClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
-    const { data: staffMember, error: staffError } = await supabase
+    const { data: staffMember, error: staffError } = await supabaseAdmin
         .from('staff')
         .select('id, first_name, last_name, username, account_status, disabled_at, avatar_url, admin_level, roles(code,name)')
         .eq('auth_user_id', data.user.id)
         .single();
 
     if (staffError || !staffMember) {
-        await supabase.auth.signOut();
         throw new Error("Staff profile not found.");
     }
 
     if (staffMember.account_status === 'DISABLED') {
-        await supabase.auth.signOut();
         const disabledAt = staffMember.disabled_at ? new Date(staffMember.disabled_at) : null;
         const daysSinceDisabled = disabledAt ? (Date.now() - disabledAt.getTime()) / (1000 * 60 * 60 * 24) : Infinity;
         if (daysSinceDisabled <= REACTIVATION_WINDOW_DAYS) {
@@ -71,7 +94,6 @@ class AuthService {
     }
 
     if (staffMember.account_status !== 'ACTIVE') {
-        await supabase.auth.signOut();
         throw new Error(`Access Denied. Your account is ${staffMember.account_status.replace('_', ' ')}.`);
     }
 
@@ -99,23 +121,22 @@ class AuthService {
     let email = username;
 
     if (!username.includes('@')) {
-      // FIX: Changed 'profile' to 'staffMemberLookup' to avoid confusion
-      const { data: staffMemberLookup } = await supabase.from('staff').select('email').ilike('username', username).single();
+      const { data: staffMemberLookup } = await supabaseAdmin.from('staff').select('email').ilike('username', username).single();
       if (staffMemberLookup) email = staffMemberLookup.email;
       else throw new Error("Username not found.");
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const authClient = createEphemeralAuthClient();
+    const { data, error } = await authClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
-    const { data: staffMember, error: staffError } = await supabase
+    const { data: staffMember, error: staffError } = await supabaseAdmin
       .from('staff')
       .select('first_name, last_name, username, account_status, disabled_at, avatar_url, admin_level, roles(code,name)')
       .eq('auth_user_id', data.user.id)
       .single();
 
     if (staffError || !staffMember) {
-      await supabase.auth.signOut();
       throw new Error("Staff profile not found.");
     }
 
@@ -127,7 +148,6 @@ class AuthService {
     const daysSinceDisabled = disabledAt ? (Date.now() - disabledAt.getTime()) / (1000 * 60 * 60 * 24) : Infinity;
 
     if (daysSinceDisabled > REACTIVATION_WINDOW_DAYS) {
-      await supabase.auth.signOut();
       throw new Error('The 7-day reactivation window has expired. Please contact an administrator.');
     }
 
@@ -164,6 +184,8 @@ class AuthService {
   }
 
   async forgotPassword(email) {
+    // resetPasswordForEmail doesn't establish a session, so it's safe on
+    // the shared client — kept as-is.
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: 'http://localhost:5173/reset-password'
     });
