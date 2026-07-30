@@ -65,7 +65,7 @@
     background-color: var(--admin-bg-base);
     color: var(--admin-text-primary);
     overflow: hidden;
-    font-family: 'Outfit', sans-serif;
+    font-family: inherit;
 }
 
 /* Background Gradients Orbs (kept subtle, main area is light/flat now) */
@@ -1197,7 +1197,7 @@
     color: #2E7D32;
     padding: 4px 8px;
     border-radius: 6px;
-    font-family: monospace;
+    font-family: inherit;
     font-weight: 700;
     font-size: 12.5px;
 }
