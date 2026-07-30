@@ -225,7 +225,7 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                         >
                             <option value="">-- Select releasing staff --</option>
                             {releaseStaffOptions.map(s => (
-                                <option key={s.id} value={s.name}>{s.name}</option>
+                                <option key={s.id} value={s.id}>{s.name}</option>
                             ))}
                         </select>
                         {releasedByError && <span className="pd-field-error">{releasedByError}</span>}

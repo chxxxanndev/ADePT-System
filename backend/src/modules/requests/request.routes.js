@@ -1,5 +1,5 @@
 import express from 'express';
-import { requireAuth } from '../../middleware/requireAuth.js'; 
+import { requireAuth } from '../../middleware/requireAuth.js';
 import {
     getFormMetadata,
     getRequestById,
@@ -11,6 +11,7 @@ import {
     deleteRequest,
     checkOrUniqueness,
     releaseRequest,
+    markAsReleased,
 } from './request.controller.js';
 
 const router = express.Router();
@@ -32,5 +33,6 @@ router.delete('/:id', requireAuth, deleteRequest);
 // Specialized Status updates
 router.post('/:id/release', requireAuth, releaseRequest);
 router.post('/:id/forward', requireAuth, forwardRequest); // Cleaned up logic here
+router.patch('/:id/mark-released', requireAuth, markAsReleased);
 
 export default router;
