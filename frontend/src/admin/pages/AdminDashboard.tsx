@@ -143,6 +143,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                         rows={transactions}
                                         onRefresh={refreshTransactions}
                                         isRefreshing={refreshingTransactions}
+                                        onViewAll={() => setActiveView('request-queue')}
                                     />
                                     <AdminStaffPerformance
                                         items={staffPerformance}

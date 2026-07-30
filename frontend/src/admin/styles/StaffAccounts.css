@@ -154,7 +154,9 @@
 
 .admin-table {
     width: 100%;
+    min-width: 800px;
     border-collapse: collapse;
+    table-layout: auto;
 }
 
 .admin-table thead th {
@@ -182,6 +184,22 @@
 
 .admin-table tbody tr:hover {
     background: #FAFAFD;
+}
+
+/* Prevent Action & Admin Access columns from overlapping */
+.admin-table th:nth-child(7),
+.admin-table th:nth-child(8),
+.admin-table td:nth-child(7),
+.admin-table td:nth-child(8) {
+    white-space: nowrap;
+}
+
+.admin-table td:nth-child(7) {
+    min-width: 100px;
+}
+
+.admin-table td:nth-child(8) {
+    min-width: 90px;
 }
 
 /* ===== Status Indicator ===== */

@@ -22,14 +22,23 @@ export function AdminStaffPerformance({
             {/* Card Header */}
             <div className="admin-card-header">
                 <span className="admin-card-title" style={{ fontSize: '18px', fontWeight: '750' }}>Staff Performance</span>
-                <button
-                    className={`admin-refresh-btn ${isRefreshing ? 'spinning' : ''}`}
-                    onClick={onRefresh}
-                    title="Refresh Staff Performance"
-                    disabled={isRefreshing}
-                >
-                    <RefreshIcon size={16} />
-                </button>
+                <div className="admin-card-actions">
+                    <button
+                        type="button"
+                        className="staff-perf-view-full-btn"
+                        onClick={onViewFull}
+                    >
+                        View Full Performance
+                    </button>
+                    <button
+                        className={`admin-refresh-btn ${isRefreshing ? 'spinning' : ''}`}
+                        onClick={onRefresh}
+                        title="Refresh Staff Performance"
+                        disabled={isRefreshing}
+                    >
+                        <RefreshIcon size={16} />
+                    </button>
+                </div>
             </div>
 
             <span className="staff-performance-pill">Top Performing Staff</span>
@@ -68,15 +77,6 @@ export function AdminStaffPerformance({
                     </div>
                 ))}
             </div>
-
-            {/* View Full button */}
-            <button
-                type="button"
-                className="staff-perf-view-full-btn"
-                onClick={onViewFull}
-            >
-                View Full Performance →
-            </button>
         </div>
     );
 }

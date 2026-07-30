@@ -1,7 +1,10 @@
+import { supabase } from '../../lib/supabaseClient';
+
 const API_BASE_URL = 'http://localhost:5000/api/account';
 
-function authHeaders(extra: Record<string, string> = {}) {
-    const token = localStorage.getItem('adept_token');
+async function authHeaders(extra: Record<string, string> = {}) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
     return {
         ...extra,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -11,7 +14,7 @@ function authHeaders(extra: Record<string, string> = {}) {
 export async function updateProfile(fullName: string, username: string) {
     const res = await fetch(`${API_BASE_URL}/profile`, {
         method: 'PUT',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ fullName, username }),
     });
     if (!res.ok) {
@@ -28,7 +31,7 @@ export async function uploadPhoto(file: File) {
 
     const res = await fetch(`${API_BASE_URL}/photo`, {
         method: 'POST',
-        headers: authHeaders(), // don't set Content-Type — browser sets the multipart boundary itself
+        headers: await authHeaders(), // don't set Content-Type — browser sets the multipart boundary itself
         body: formData,
     });
     if (!res.ok) {
@@ -42,7 +45,7 @@ export async function uploadPhoto(file: File) {
 export async function updateEmail(email: string) {
     const res = await fetch(`${API_BASE_URL}/email`, {
         method: 'PUT',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ email }),
     });
     if (!res.ok) {
@@ -56,7 +59,7 @@ export async function updateEmail(email: string) {
 export async function changePassword(currentPassword: string, newPassword: string) {
     const res = await fetch(`${API_BASE_URL}/password`, {
         method: 'PUT',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ currentPassword, newPassword }),
     });
     if (!res.ok) {
@@ -69,7 +72,7 @@ export async function changePassword(currentPassword: string, newPassword: strin
 export async function setAccountStatus(disabled: boolean) {
     const res = await fetch(`${API_BASE_URL}/status`, {
         method: 'PATCH',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ disabled }),
     });
     if (!res.ok) {

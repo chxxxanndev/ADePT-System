@@ -37,10 +37,9 @@ export interface CreateStaffPayload {
 // localStorage copy — see useAuth.ts for why that copy was removed.
 export async function authHeaders(extra: Record<string, string> = {}): Promise<Record<string, string>> {
     const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token ?? localStorage.getItem('adept_token');
     return {
         ...extra,
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
     };
 }
 
