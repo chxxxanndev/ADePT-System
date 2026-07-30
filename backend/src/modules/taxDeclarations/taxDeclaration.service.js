@@ -150,6 +150,10 @@ class TaxDeclarationService {
         }
 
         // 2. Reinsert assessment rows
+        // NOTE: kind_of_property is now stored per row (matches the pattern
+        // already used by classification_id / actual_use_id — plain text,
+        // no FK join). This is what the PDF template reads per assessment
+        // row via row.kindOfProperty.
         if (data.assessmentRows?.length) {
             const rows = data.assessmentRows.map((row, idx) => ({
                 encoded_tax_declaration_id: td.id,
@@ -157,6 +161,7 @@ class TaxDeclarationService {
                 classification_id: row.classificationId || null,
                 actual_use_id: row.actualUseId || null,
                 actual_use_other_text: row.actualUseOtherText || null,
+                kind_of_property: row.kindOfProperty || null,
                 area: row.area ?? null,
                 area_unit: row.areaUnit ?? 'HECTARE',
                 market_value: row.marketValue ?? null,
@@ -173,7 +178,9 @@ class TaxDeclarationService {
 
         // 3. Resolve kindOfProperty codes to real lookup_values ids, then
         // reinsert encoded_property_types (deduped — one row per distinct
-        // kind of property used across all assessment rows).
+        // kind of property used across all assessment rows). This stays as
+        // a declaration-level summary/reporting list; it is NOT what the
+        // PDF template reads per row (see step 2 above for that).
         const kindCodes = [
             ...new Set((data.assessmentRows ?? []).map((r) => r.kindOfProperty).filter(Boolean)),
         ];
@@ -310,6 +317,7 @@ class TaxDeclarationService {
                 encoded_tax_declaration_id: id,
                 row_order: idx,
                 classification_id: row.classificationLabel || row.classification_label || row.kindOfProperty,
+                kind_of_property: row.kindOfProperty || row.kind_of_property || null,
                 area: row.area,
                 market_value: row.marketValue || row.market_value,
                 assessment_level: row.assessmentLevel || row.assessment_level,

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { requestService } from '../services/requestService';
+import { addAdminAuditEntry } from '../../admin/services/auditLogService';
 import { InitialDocumentPreviewModal } from '../components/InitialDocumentPreviewModal';
 import { DocumentVerificationPanel } from '../pages/DocumentVerificationPanel';
 import { DocumentReleasePanel } from '../pages/DocumentReleasePanel';
@@ -9,6 +10,7 @@ import { CertOfNoLandholdingPDF } from '../components/templates/NoLandholdingPDF
 import { CertOfLandholdingPDF } from '../components/templates/LandholdingPDF';
 import { TaxDeclarationPDF } from '../components/templates/TaxDeclarationPDF';
 import { landholdingService } from '../services/landholdingService';
+import { taxDeclarationService } from '../services/taxDeclarationService';
 
 import '../styles/PaymentDetails.css';
 
@@ -244,8 +246,19 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
                     signatory2Name={sigs?.secondary?.name} signatory2Title={sigs?.secondary?.title}
                 />;
             } else if (doc.referenceNumber.startsWith('TD')) {
+                let tdData = doc.data;
+
+                if (!tdData) {
+                    try {
+                        tdData = await taxDeclarationService.getTaxDeclaration(doc.id);
+                    } catch (err) {
+                        console.error('Failed to fetch tax declaration:', err);
+                        tdData = {};
+                    }
+                }
+
                 PDFComponent = <TaxDeclarationPDF
-                    data={doc.data || doc}
+                    data={tdData || {}}
                     orNumber={orNumber} datePaid={datePaid}
                     certifiedByName={sigs?.primary?.name}
                     certifiedByTitle={sigs?.primary?.title}
@@ -275,6 +288,10 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
         await Promise.all(documents.map((doc: any) =>
             requestService.markAsReleased(doc.id, releasedBy)
         ));
+        addAdminAuditEntry({
+            type: 'document_released',
+            description: `Released ${documents.length} document(s) to ${requesterName}`,
+        }).catch(() => {});
     };
 
     return (

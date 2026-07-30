@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { requestService } from '../services/requestService';
+import { addAdminAuditEntry } from '../../admin/services/auditLogService';
 import '../styles/PendingPayment.css';
 
 // --- ICONS ---
@@ -184,6 +185,10 @@ export function PendingPayment({ onSelectPayment }: any) {
                 archivedIds.forEach(id => next.delete(id));
                 return next;
             });
+            addAdminAuditEntry({
+                type: 'document_archived',
+                description: `Archived ${groups.length} document group(s)`,
+            }).catch(() => { });
         } catch (error) {
             alert("Archive failed. Please check your connection and try again.");
         } finally {
@@ -213,9 +218,8 @@ export function PendingPayment({ onSelectPayment }: any) {
             <div className="pp-header-card">
                 <div className="pp-header-top">
                     <div className="pp-header-titles">
-                        <span className="pp-suptitle">Verify payments using Official Receipts issued by the Treasurer's Office.</span>
-                        <h1 className="pp-title">Payment Verification Queue</h1>
-                        <p className="pp-subtitle">Process bulk payments grouped by client request</p>
+                        <h1 className="pp-title">Pending Payments Queue</h1>
+                        <p className="pp-subtitle">Verify payments using Official Receipts issued by the Treasurer's Office.</p>
                     </div>
                     <button
                         className={`pp-refresh-btn${isRefreshing ? ' is-spinning' : ''}`}

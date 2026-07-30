@@ -1,68 +1,135 @@
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import '../styles/RequestQueue.css';
 import { SearchIcon } from '../components/icons';
+import { RefreshIcon } from '../../users/components/icons';
 import type { User } from '../../auth-folder/types/auth';
+import { authHeaders } from '../services/userManagementService';
 
-type RequestStatus = 'Pending' | 'Released';
+const API_BASE = 'http://localhost:5000/api/requests';
+
+type RequestStatus = 'Pending' | 'Processing' | 'Payment Verified' | 'Released' | 'Void' | 'Cancelled';
 
 interface DocumentRequest {
     id: string;
-    controlNo: string;
-    citizen: string;
-    document: string;
+    referenceNo: string;
+    clientName: string;
+    documentType: string;
     assignedStaff: string;
     status: RequestStatus;
-    /** True when this row represents a reprint of a previously released document. */
-    isReprint: boolean;
     date: string;
+    isReprint: boolean;
 }
 
-// TODO: replace with real data from a useRequestQueue hook / API call
-const mockRequests: DocumentRequest[] = [
-    { id: '1', controlNo: '2026-ADR', citizen: 'Zacarias Jacob', document: 'Tax declaration', assignedStaff: 'Linda', status: 'Released', isReprint: false, date: 'Jul 11' },
-    { id: '2', controlNo: '2027-ADR', citizen: 'Elizabeth Santos', document: 'Landholding', assignedStaff: 'Josephine', status: 'Released', isReprint: true, date: 'Jul 17' },
-    { id: '3', controlNo: '2028-ADR', citizen: 'Maria Montoon', document: 'No landholding', assignedStaff: 'Emilio', status: 'Pending', isReprint: false, date: 'Jul 17' },
-    { id: '4', controlNo: '2029-ADR', citizen: 'Mister Bean', document: 'Tax declaration', assignedStaff: 'Laurel', status: 'Released', isReprint: false, date: 'Jul 20' },
-    { id: '5', controlNo: '2030-ADR', citizen: 'Priscilla Uy', document: 'Cert. true copy', assignedStaff: 'Linda', status: 'Pending', isReprint: true, date: 'Jul 21' },
-];
-
-type TabKey = 'all' | 'pending' | 'released' | 'reprints';
+type TabKey = 'all' | 'pending' | 'processing' | 'released' | 'void';
 
 interface RequestQueueProps {
     user: User;
 }
 
+const STATUS_TAB_MAP: Record<TabKey, RequestStatus[]> = {
+    all: [],
+    pending: ['Pending', 'Payment Verified'],
+    processing: ['Processing'],
+    released: ['Released'],
+    void: ['Void', 'Cancelled'],
+};
+
+function statusPillClass(status: RequestStatus): string {
+    switch (status) {
+        case 'Released': return 'rq-status-released';
+        case 'Processing': return 'rq-status-processing';
+        case 'Payment Verified': return 'rq-status-paid';
+        case 'Void':
+        case 'Cancelled': return 'rq-status-void';
+        default: return 'rq-status-pending';
+    }
+}
+
 export function RequestQueue({ user }: RequestQueueProps) {
-    const [requests] = useState<DocumentRequest[]>(mockRequests);
+    const [requests, setRequests] = useState<DocumentRequest[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<TabKey>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [currentPage, setCurrentPage] = useState(1);
 
-    const fullName = `${user.firstName || 'Vicente'} ${user.lastName || 'Desoy'}`;
-    const initials = `${user.firstName?.[0] || 'V'}${user.lastName?.[0] || 'D'}`;
-    const roleLabel = user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'OFFICE_STAFF' ? 'Office Staff' : user.role || 'Super Admin';
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin';
+    const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` || 'A';
+    const roleLabel =
+        user.role === 'SUPER_ADMIN' ? 'Super Admin' :
+        user.role === 'ADMIN' ? 'Admin' :
+        user.role === 'OFFICE_STAFF' ? 'Office Staff' :
+        user.role || 'Staff';
 
-    const countForStatus = (status: RequestStatus) => requests.filter((r) => r.status === status).length;
-    const countForReprints = () => requests.filter((r) => r.isReprint).length;
+    const fetchRequests = useCallback(async (isRefresh = false) => {
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
+        setError(null);
+        try {
+            const headers = await authHeaders();
+            const res = await fetch(`${API_BASE}/dashboard-metrics`, { headers });
+            if (!res.ok) throw new Error(`Server error ${res.status}`);
+            const data = await res.json();
 
-    const tabs: { key: TabKey; label: string; count: number | null }[] = [
-        { key: 'all', label: 'All', count: null },
-        { key: 'pending', label: 'Pending', count: countForStatus('Pending') },
-        { key: 'released', label: 'Released', count: countForStatus('Released') },
-        { key: 'reprints', label: 'Reprints', count: countForReprints() },
+            const queue: DocumentRequest[] = (data.requestQueue || []).map((r: any) => ({
+                id: r.id,
+                referenceNo: r.referenceNo || r.reference_number || `REF-${r.id?.slice(0, 6).toUpperCase()}`,
+                clientName: r.clientName || r.declarant_name || 'Anonymous Client',
+                documentType: r.documentType || 'N/A',
+                assignedStaff: r.assignedStaff || 'Unassigned',
+                status: (r.status || 'Pending') as RequestStatus,
+                date: r.date || '',
+                isReprint: !!r.isReprint,
+            }));
+            setRequests(queue);
+        } catch (err: any) {
+            setError(err.message || 'Failed to load request queue.');
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void fetchRequests();
+    }, [fetchRequests]);
+
+    // Count helpers
+    const countForTab = (tab: TabKey) => {
+        if (tab === 'all') return requests.length;
+        return requests.filter(r => STATUS_TAB_MAP[tab].includes(r.status)).length;
+    };
+
+    const tabs: { key: TabKey; label: string }[] = [
+        { key: 'all', label: 'All' },
+        { key: 'pending', label: 'Pending / Payment' },
+        { key: 'processing', label: 'Processing' },
+        { key: 'released', label: 'Released' },
+        { key: 'void', label: 'Void / Cancelled' },
     ];
 
     const filteredRequests = requests.filter((req) => {
         const matchesTab =
             activeTab === 'all' ||
-            (activeTab === 'reprints' ? req.isReprint : req.status === (activeTab === 'pending' ? 'Pending' : 'Released'));
+            STATUS_TAB_MAP[activeTab].includes(req.status);
         const query = searchQuery.toLowerCase();
         const matchesSearch =
-            req.controlNo.toLowerCase().includes(query) ||
-            req.citizen.toLowerCase().includes(query) ||
-            req.document.toLowerCase().includes(query) ||
+            req.referenceNo.toLowerCase().includes(query) ||
+            req.clientName.toLowerCase().includes(query) ||
+            req.documentType.toLowerCase().includes(query) ||
             req.assignedStaff.toLowerCase().includes(query);
         return matchesTab && matchesSearch;
     });
+
+    const totalPages = Math.max(1, Math.ceil(filteredRequests.length / rowsPerPage));
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = Math.min(startIndex + rowsPerPage, filteredRequests.length);
+    const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
+
+    // Reset to page 1 when filters change
+    useEffect(() => { setCurrentPage(1); }, [activeTab, searchQuery, rowsPerPage]);
 
     return (
         <div className="request-queue-page">
@@ -76,7 +143,9 @@ export function RequestQueue({ user }: RequestQueueProps) {
 
                     <div className="admin-profile-widget audit-user-chip">
                         <div className="profile-widget-avatar-container audit-user-avatar">
-                            {user.avatarUrl ? <img src={user.avatarUrl} alt={fullName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : initials}
+                            {user.avatarUrl
+                                ? <img src={user.avatarUrl} alt={fullName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                : initials}
                         </div>
                         <div className="profile-widget-info audit-user-info">
                             <span className="profile-widget-name audit-user-name">{fullName}</span>
@@ -85,24 +154,36 @@ export function RequestQueue({ user }: RequestQueueProps) {
                     </div>
                 </div>
 
-                {/* Search bar */}
-                <div className="rq-search-wrapper">
-                    <input
-                        type="text"
-                        className="rq-search-input"
-                        placeholder="Search"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    <span className="rq-search-icon">
-                        <SearchIcon size={16} />
-                    </span>
+                {/* Search + Refresh row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div className="rq-search-wrapper" style={{ flex: 1 }}>
+                        <input
+                            type="text"
+                            className="rq-search-input"
+                            placeholder="Search by reference, client, document or staff…"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        <span className="rq-search-icon">
+                            <SearchIcon size={16} />
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        className={`admin-refresh-btn${refreshing ? ' spinning' : ''}`}
+                        onClick={() => void fetchRequests(true)}
+                        disabled={refreshing || loading}
+                        title="Refresh queue"
+                    >
+                        <RefreshIcon size={16} />
+                    </button>
                 </div>
             </div>
 
             {/* Card */}
             <div className="admin-card rq-card">
-                <div className="rq-tabs-row">
+                {/* Summary pills */}
+                <div className="rq-summary-pills">
                     {tabs.map((tab) => (
                         <button
                             key={tab.key}
@@ -111,55 +192,129 @@ export function RequestQueue({ user }: RequestQueueProps) {
                             onClick={() => setActiveTab(tab.key)}
                         >
                             {tab.label}
-                            {tab.count !== null && <span className="rq-tab-count"> ({tab.count})</span>}
+                            <span className="rq-tab-count">({countForTab(tab.key)})</span>
                         </button>
                     ))}
                 </div>
 
+                {/* Table */}
                 <div className="admin-table-container">
-                    <table className="admin-table rq-table">
-                        <thead>
-                            <tr>
-                                <th>Control No.</th>
-                                <th>Citizen</th>
-                                <th>Document</th>
-                                <th>Assigned Staff</th>
-                                <th>Status</th>
-                                <th>Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredRequests.map((req) => (
-                                <tr key={req.id}>
-                                    <td className="rq-control-no">{req.controlNo}</td>
-                                    <td><strong>{req.citizen}</strong></td>
-                                    <td className="rq-document-cell">{req.document}</td>
-                                    <td>{req.assignedStaff}</td>
-                                    <td>
-                                        {req.isReprint ? (
-                                            <div className="rq-status-stack">
-                                                <span className={`rq-status-pill rq-status-${req.status.toLowerCase()}`}>
-                                                    <span className="status-dot" />
-                                                    {req.status}
-                                                </span>
-                                                <span className="rq-status-pill rq-status-reprint">
-                                                    <span className="status-dot" />
-                                                    Reprint
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            <span className={`status-indicator rq-status-${req.status.toLowerCase()}`}>
+                    {loading ? (
+                        <div className="rq-state-message">
+                            <div className="rq-spinner" />
+                            <span>Loading requests…</span>
+                        </div>
+                    ) : error ? (
+                        <div className="rq-state-message rq-state-error">
+                            <span>⚠ {error}</span>
+                            <button type="button" className="rq-retry-btn" onClick={() => void fetchRequests()}>
+                                Retry
+                            </button>
+                        </div>
+                    ) : filteredRequests.length === 0 ? (
+                        <div className="rq-state-message rq-state-empty">
+                            {searchQuery
+                                ? `No results for "${searchQuery}".`
+                                : activeTab === 'all'
+                                    ? 'No document requests found.'
+                                    : `No ${tabs.find(t => t.key === activeTab)?.label.toLowerCase()} requests found.`}
+                        </div>
+                    ) : (
+                        <table className="admin-table rq-table">
+                            <thead>
+                                <tr>
+                                    <th>Reference No.</th>
+                                    <th>Client</th>
+                                    <th>Document Type</th>
+                                    <th>Assigned Staff</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {paginatedRequests.map((req) => (
+                                    <tr key={req.id}>
+                                        <td className="rq-control-no">{req.referenceNo}</td>
+                                        <td><strong>{req.clientName}</strong></td>
+                                        <td className="rq-document-cell">{req.documentType}</td>
+                                        <td>{req.assignedStaff}</td>
+                                        <td>
+                                            <span className={`status-indicator ${statusPillClass(req.status)}`}>
                                                 <span className="status-dot" />
                                                 {req.status}
                                             </span>
-                                        )}
-                                    </td>
-                                    <td>{req.date}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                        </td>
+                                        <td>{req.date}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
+
+                {/* Pagination footer */}
+                {!loading && !error && filteredRequests.length > 0 && (
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 20px',
+                        borderTop: '1px solid #EDEEF3',
+                        fontSize: '0.85rem',
+                        color: '#64748b',
+                        flexWrap: 'wrap',
+                        gap: '10px',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>Rows per page:</span>
+                            <select
+                                value={rowsPerPage}
+                                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                                style={{ borderRadius: '6px', border: '1px solid #e2e8f0', padding: '4px 8px' }}
+                            >
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                            </select>
+                        </div>
+
+                        <span>
+                            {startIndex + 1}{'\u2013'}{endIndex} of {filteredRequests.length}
+                        </span>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: currentPage === 1 ? 'default' : 'pointer',
+                                    color: currentPage === 1 ? '#cbd5e1' : '#3D2E7C',
+                                    fontWeight: 600,
+                                }}
+                            >
+                                Previous
+                            </button>
+                            <span>Page {currentPage} of {totalPages}</span>
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: currentPage === totalPages ? 'default' : 'pointer',
+                                    color: currentPage === totalPages ? '#cbd5e1' : '#3D2E7C',
+                                    fontWeight: 600,
+                                }}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

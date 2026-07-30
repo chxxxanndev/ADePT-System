@@ -113,7 +113,7 @@
 .admin-dashboard-content {
     display: flex;
     flex-direction: column;
-    padding: 12px 28px 32px;
+    padding: 16px 28px 32px;
     flex: 1;
     max-width: 1360px;
     margin-left: auto;
@@ -897,22 +897,21 @@
     background: var(--admin-card-bg);
     border: 1px solid rgba(0, 0, 0, 0.05);
     border-radius: 12px;
-    padding: 18px;
-    margin-bottom: 18px;
+    padding: 20px;
+    margin-bottom: 16px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px;
 }
 
 .admin-section-title-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 18.5px;
+    font-size: 18px;
     font-weight: 800;
     color: var(--admin-text-primary);
-    padding-top: 30px;
 }
 
 .admin-section-title-icon {
@@ -924,7 +923,7 @@
 .admin-stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
+    gap: 12px;
 }
 
 /* Stat card element - now solid pastel fills instead of glass */
@@ -932,8 +931,8 @@
     background: #ECEFF1;
     border: none;
     box-shadow: 0 4px 14px rgba(41, 35, 122, 0.04);
-    border-radius: 16px;
-    padding: 18px 20px;
+    border-radius: 14px;
+    padding: 14px 18px;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -1118,6 +1117,7 @@
     width: 100%;
     border-collapse: collapse;
     text-align: left;
+    table-layout: fixed;
 }
 
 .admin-table th {
@@ -1128,6 +1128,8 @@
     font-size: 13.5px;
     padding: 12px 16px;
     border-bottom: 1.5px solid rgba(0, 0, 0, 0.04);
+    white-space: normal;
+    word-wrap: break-word;
 }
 
 .admin-table td {
@@ -1136,7 +1138,31 @@
     font-weight: 550;
     border-bottom: 1px solid rgba(0, 0, 0, 0.04);
     color: var(--admin-text-primary);
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    vertical-align: top;
+}
+
+/* Columns that hold short fixed-format values stay on one line */
+.admin-table td:nth-child(1),
+.admin-table td:nth-child(5),
+.admin-table td:nth-child(6),
+.admin-table th:nth-child(1),
+.admin-table th:nth-child(5),
+.admin-table th:nth-child(6) {
     white-space: nowrap;
+}
+
+.admin-table th:nth-child(1) { width: 19%; }
+.admin-table th:nth-child(2) { width: 24%; }
+.admin-table th:nth-child(3) { width: 17%; }
+.admin-table th:nth-child(4) { width: 13%; }
+.admin-table th:nth-child(5) { width: 12%; }
+.admin-table th:nth-child(6) { width: 15%; }
+
+.admin-table td:nth-child(1) {
+    padding-right: 24px;
 }
 
 .admin-table tr:last-child td {
@@ -1193,6 +1219,7 @@
 }
 
 .admin-control-no {
+    display: inline-block;
     background-color: rgba(76, 175, 80, 0.12);
     color: #2E7D32;
     padding: 4px 8px;
@@ -1200,6 +1227,7 @@
     font-family: inherit;
     font-weight: 700;
     font-size: 12.5px;
+    white-space: nowrap;
 }
 
 .admin-table-footer {
@@ -1232,8 +1260,7 @@
 .admin-grid-columns {
     display: grid;
     grid-template-columns: 1.3fr 1fr;
-    gap: 20px;
-    padding-top: 25px;
+    gap: 16px;
 }
 
 .admin-column-stack {
@@ -1384,19 +1411,25 @@
     padding-top: 14px;
 }
 
+/* FIX: legend row no longer squashes onto one tight line — the label
+   gets its own flexible column (wraps cleanly to 2 lines if long)
+   while the %/count stay pinned, fixed-width, on the right. */
 .donut-legend-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    gap: 4px 12px;
     font-size: 13px;
     font-weight: 550;
 }
 
 .donut-legend-item-left {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     color: var(--admin-text-muted);
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .donut-legend-marker {
@@ -1404,12 +1437,16 @@
     height: 12px;
     border-radius: 3px;
     flex-shrink: 0;
+    margin-top: 3px;
 }
 
 .donut-legend-item-right {
     display: flex;
     gap: 12px;
     font-weight: 700;
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding-top: 1px;
 }
 
 .donut-legend-pct {
@@ -1516,6 +1553,24 @@
 }
 
 .activity-full-log-btn:hover {
+    background-color: #CFD8DC;
+}
+
+.staff-perf-view-full-btn {
+    padding: 4px 10px;
+    background-color: #ECEFF1;
+    color: var(--admin-text-primary);
+    border: none;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.staff-perf-view-full-btn:hover {
     background-color: #CFD8DC;
 }
 
@@ -1678,6 +1733,49 @@
 
 .activity-color-block.system {
     background-color: rgba(124, 58, 237, 0.22);
+}
+
+/* --- EMPTY STATES --- */
+/* Stat panel with no items: keep just the header row, no grid beneath it */
+.admin-stats-panel.is-empty {
+    padding-bottom: 20px;
+}
+
+.admin-stats-panel.is-empty .admin-stats-grid {
+    display: none;
+}
+
+/* Generic centered "no data yet" message, used inside table cards,
+   the donut chart card, and the activity list card */
+.admin-empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+    min-height: 120px;
+    padding: 24px 16px;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+    font-weight: 550;
+}
+
+/* Table-specific empty state sits where rows would go, so the
+   header row still shows above it */
+.admin-table-container .admin-empty-state {
+    min-height: 80px;
+    padding: 32px 16px;
+}
+
+/* Donut card empty state replaces the chart + legend entirely */
+.donut-chart-card .admin-empty-state {
+    min-height: 160px;
+}
+
+/* Activity list empty state (sibling of .activity-stack, shown instead of it) */
+.admin-card .admin-empty-state {
+    min-height: 60px;
+    padding: 16px;
 }
 
 /* --- RESPONSIVE STYLES --- */

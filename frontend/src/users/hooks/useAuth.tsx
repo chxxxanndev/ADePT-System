@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { User, MockUser } from '../../auth-folder/types/auth';
 import { supabase } from '../../lib/supabaseClient';
+import { addAdminAuditEntry } from '../../admin/services/auditLogService';
 
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -52,16 +53,33 @@ function useAuthState() {
         checkHealth();
     }, []);
 
-    // Restore the browser's Supabase session on page load/refresh — the React
-    // state above is rehydrated from localStorage automatically, but the
-    // supabase-js client's own session is not, and Realtime subscriptions
-    // (the notification bell) need that session to pass RLS checks.
+    // Keep localStorage tokens in sync with Supabase's session (auto-refresh
+    // updates the internal tokens, but we need to persist the new ones so
+    // page reloads work with a fresh token instead of a stale/expired one).
     useEffect(() => {
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session) {
+                localStorage.setItem('adept_token', session.access_token);
+                localStorage.setItem('adept_refresh_token', session.refresh_token);
+            } else {
+                localStorage.removeItem('adept_token');
+                localStorage.removeItem('adept_refresh_token');
+            }
+        });
+
+        // Restore the browser's Supabase session on page load/refresh — the React
+        // state above is rehydrated from localStorage automatically, but the
+        // supabase-js client's own session is not, and Realtime subscriptions
+        // (the notification bell) need that session to pass RLS checks.
         const token = localStorage.getItem('adept_token');
         const refreshToken = localStorage.getItem('adept_refresh_token');
         if (token && refreshToken) {
             supabase.auth.setSession({ access_token: token, refresh_token: refreshToken });
         }
+
+        return () => subscription.unsubscribe();
     }, []);
 
     const login = async (
@@ -96,6 +114,7 @@ function useAuthState() {
                         access_token: data.token,
                         refresh_token: data.refreshToken,
                     });
+                    addAdminAuditEntry({ type: 'login', description: 'logged in' }).catch(() => {});
                     return { success: true, message: 'Successfully signed in.' };
                 }
                 return { success: false, message: data.error || 'Invalid credentials.' };
@@ -246,6 +265,11 @@ function useAuthState() {
     };
 
     const logout = () => {
+        // Fire-and-forget, and BEFORE signOut() — once the session is cleared
+        // the bearer token this needs is gone. A failed write here should
+        // never block the user from actually logging out.
+        addAdminAuditEntry({ type: 'logout', description: 'logged out' }).catch(() => {});
+    
         localStorage.removeItem('adept_user');
         localStorage.removeItem('adept_token');
         localStorage.removeItem('adept_refresh_token');
@@ -285,7 +309,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 /**
  * Same name, same import path as before — every existing
- * `import { useAuth } from '../../users/hooks/useAuth'` across your codebase
+ * `import { supabase } from '../../lib/supabaseClient';
+import { addAdminAuditEntry } from '../../admin/services/auditLogService';` across your codebase
  * keeps working with ZERO changes. It now pulls from the shared context
  * instead of creating an isolated state instance.
  */

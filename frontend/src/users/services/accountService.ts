@@ -1,9 +1,11 @@
 import axios from 'axios';
+import { supabase } from '../../lib/supabaseClient';
 
 const API_BASE_URL = 'http://localhost:5000';
 
-function authHeaders(extra: Record<string, string> = {}) {
-    const token = localStorage.getItem('adept_token');
+async function authHeaders(extra: Record<string, string> = {}) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
     return { Authorization: `Bearer ${token}`, ...extra };
 }
 
@@ -21,7 +23,7 @@ export const accountService = {
             const res = await axios.put(
                 `${API_BASE_URL}/api/account/profile`,
                 { fullName, username },
-                { headers: authHeaders({ 'Content-Type': 'application/json' }) }
+                { headers: await authHeaders({ 'Content-Type': 'application/json' }) }
             );
             return res.data;
         } catch (err) {
@@ -35,7 +37,7 @@ export const accountService = {
             formData.append('photo', file);
 
             const res = await axios.post(`${API_BASE_URL}/api/account/photo`, formData, {
-                headers: authHeaders(), // let axios set the multipart boundary itself — don't set Content-Type manually
+                headers: await authHeaders(), // let axios set the multipart boundary itself — don't set Content-Type manually
             });
             return res.data.avatarUrl as string;
         } catch (err) {
@@ -48,7 +50,7 @@ export const accountService = {
             const res = await axios.put(
                 `${API_BASE_URL}/api/account/email`,
                 { email },
-                { headers: authHeaders({ 'Content-Type': 'application/json' }) }
+                { headers: await authHeaders({ 'Content-Type': 'application/json' }) }
             );
             return res.data;
         } catch (err) {
@@ -61,11 +63,11 @@ export const accountService = {
             const res = await axios.put(
                 `${API_BASE_URL}/api/account/password`,
                 { currentPassword, newPassword },
-                { headers: authHeaders({ 'Content-Type': 'application/json' }) }
+                { headers: await authHeaders({ 'Content-Type': 'application/json' }) }
             );
             return res.data;
         } catch (err) {
-            throw new Error(extractErrorMessage(err, 'Failed to update password.'));
+            throw new Error(extractErrorMessage(err, 'Failed to change password.'));
         }
     },
 
@@ -74,7 +76,7 @@ export const accountService = {
             const res = await axios.patch(
                 `${API_BASE_URL}/api/account/status`,
                 { disabled },
-                { headers: authHeaders({ 'Content-Type': 'application/json' }) }
+                { headers: await authHeaders({ 'Content-Type': 'application/json' }) }
             );
             return res.data;
         } catch (err) {

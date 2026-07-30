@@ -1,23 +1,15 @@
 import { useEffect, useState } from 'react';
 import {
-    accessRequestsMock,
-    requestQueueMock,
-    transactionsMock,
-    staffPerformanceMock,
-    activitiesMock,
     type AdminStatItem,
+    type AdminTransactionRow,
     type AdminActivityItem,
-} from '../data/dashboardMockData';
-import { fetchAllStaff, type StaffMember } from '../services/userManagementService';
-import { getStoredAuditEntries, type AuditLogEntry } from '../services/auditLogService';
+} from '../data/adminTypes';
+import { fetchAllStaff, authHeaders, fetchStaffPerformance, fetchDashboardMetrics, fetchRecentTransactions, type StaffMember, type StaffPerformanceItem } from '../services/userManagementService';
+import { getAuditLog, type AuditLogEntry, type AuditActionType } from '../services/auditLogService';
 
 // Simulated network delay for refresh actions so the spinning state is visible.
 const REFRESH_DELAY_MS = 700;
 const API_BASE_URL = 'http://localhost:5000/api/users';
-
-// The Overview widget always shows at least this many rows — real audit
-// entries first, padded with mock entries only when real activity is thin.
-const MIN_ACTIVITY_ITEMS = 5;
 
 interface AccountRequestSummary {
     id: string;
@@ -50,13 +42,61 @@ function buildAccessRequestItems(staff: StaffMember[], requests: AccountRequestS
     ];
 }
 
-// Audit entry types -> the widget's color-coded statuses.
-const AUDIT_STATUS_MAP: Record<AuditLogEntry['type'], AdminActivityItem['status']> = {
+interface RequestQueueSummary {
+    requestedTodayCount: number;
+    processingCount: number;
+    releasedCount: number;
+    voidCount: number;
+}
+
+/**
+ * Builds the 4 "Document Request Queue" summary cards from the aggregated
+ * counts in getDashboardMetrics()'s summaryCounts field — NOT from the raw
+ * `requestQueue` array (that's one row per request, meant for a detail
+ * list/table, not these cards). Mirrors buildAccessRequestItems() above.
+ */
+function buildRequestQueueItems(summary: RequestQueueSummary): AdminStatItem[] {
+    return [
+        { id: 'request-today', label: 'Request Today', value: summary.requestedTodayCount, icon: 'inboxDown', accent: 'teal' },
+        { id: 'processing', label: 'Processing', value: summary.processingCount, icon: 'gears', accent: 'gold' },
+        { id: 'approved-documents', label: 'Approved Documents', value: summary.releasedCount, icon: 'check', accent: 'green' },
+        { id: 'disapproved-documents', label: 'Disapproved Documents', value: summary.voidCount, icon: 'close', accent: 'red' },
+    ];
+}
+
+// Audit entry types -> the widget's color-coded statuses. Only 6 status
+// values exist (approved / declined / pending / login / logout / system),
+// so the newer action types reuse whichever existing status reads closest —
+// there's no dedicated status for "promoted" or "printed a report", for
+// instance. account_activate/staff_promote reuse 'approved' (positive
+// change); account_deactivate/staff_demote reuse 'declined' (negative
+// change) — if the red "declined" styling reads as alarming for a routine
+// demotion in the actual UI, switch it to 'system' (neutral) instead.
+// report_print/document_draft/document_archive reuse 'system' (neutral,
+// routine staff actions); document_void reuses 'declined'.
+//
+// FIXED: this used to reference document_upload/document_voided/
+// document_archived/document_released, which don't exist in the finalized
+// AuditActionType union (document_pending/document_void/document_draft/
+// document_archive/report_print) — since this map is typed as
+// Record<AuditActionType, ...>, the old version would fail to compile the
+// moment auditLogService.ts's taxonomy update landed.
+const AUDIT_STATUS_MAP: Record<AuditActionType, AdminActivityItem['status']> = {
     approval: 'approved',
     decline: 'declined',
     system: 'system',
     login: 'login',
     logout: 'logout',
+    document_upload: 'system',
+    document_voided: 'declined',
+    document_archived: 'system',
+    document_released: 'approved',
+    document_pending: 'pending',
+    report_print: 'system',
+    account_activate: 'approved',
+    account_deactivate: 'declined',
+    staff_promote: 'approved',
+    staff_demote: 'declined',
 };
 
 function capitalize(text: string) {
@@ -73,31 +113,37 @@ function auditEntryToActivityItem(entry: AuditLogEntry): AdminActivityItem {
     };
 }
 
-function buildActivityFeed(): AdminActivityItem[] {
-    const real = getStoredAuditEntries().map(auditEntryToActivityItem);
-    if (real.length >= MIN_ACTIVITY_ITEMS) return real;
-    // Real entries always come first and are never displaced — mock
-    // entries only fill the remainder so the widget never looks empty.
-    const padding = activitiesMock.slice(0, MIN_ACTIVITY_ITEMS - real.length);
-    return [...real, ...padding];
+async function buildActivityFeed(): Promise<AdminActivityItem[]> {
+    try {
+        return (await getAuditLog()).map(auditEntryToActivityItem);
+    } catch {
+        return [];
+    }
 }
 
 export function useAdminDashboard() {
     // Navigation / layout state
-    const [activeView, setActiveView] = useState('overview');
+    const [activeView, setActiveView] = useState<string>(
+        () => sessionStorage.getItem('adept-admin-active-view') || 'overview'
+    );
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    useEffect(() => {
+        sessionStorage.setItem('adept-admin-active-view', activeView);
+    }, [activeView]);
 
     // Header controls
     const [searchQuery, setSearchQuery] = useState('');
     const [dateFilter] = useState('Today');
 
     // Data states
-    const [accessRequests, setAccessRequests] = useState<AdminStatItem[]>(accessRequestsMock);
-    const [requestQueue] = useState(requestQueueMock);
-    const [transactions] = useState(transactionsMock);
-    const [staffPerformance] = useState(staffPerformanceMock);
-    const [activities, setActivities] = useState<AdminActivityItem[]>(() => buildActivityFeed());
+    const [accessRequests, setAccessRequests] = useState<AdminStatItem[]>([]);
+    const [requestQueue, setRequestQueue] = useState<AdminStatItem[]>([]);
+    const [transactions, setTransactions] = useState<AdminTransactionRow[]>([]);
+    const [distribution, setDistribution] = useState<any[]>([]);
+    const [staffPerformance, setStaffPerformance] = useState<StaffPerformanceItem[]>([]);
+    const [activities, setActivities] = useState<AdminActivityItem[]>([]);
 
     // Per-section refresh indicators
     const [refreshingTransactions, setRefreshingTransactions] = useState(false);
@@ -106,15 +152,45 @@ export function useAdminDashboard() {
     const [refreshingAccessRequests, setRefreshingAccessRequests] = useState(false);
     const [refreshingQueue, setRefreshingQueue] = useState(false);
 
+    const loadDashboardData = async () => {
+        try {
+            const [metrics, recent] = await Promise.all([
+                fetchDashboardMetrics(),
+                fetchRecentTransactions(),
+            ]);
+            if (metrics.summaryCounts) {
+                setRequestQueue(buildRequestQueueItems({
+                    requestedTodayCount: metrics.summaryCounts.requestedTodayCount ?? 0,
+                    processingCount: metrics.summaryCounts.processingCount ?? 0,
+                    releasedCount: metrics.summaryCounts.releasedCount ?? 0,
+                    voidCount: metrics.summaryCounts.voidCount ?? 0,
+                }));
+            }
+            if (metrics.distribution) {
+                const normalized = metrics.distribution.map((d: any) => ({
+                    label: d.label,
+                    color: d.color,
+                    count: d.count ?? d.value ?? 0,
+                }));
+                setDistribution(normalized);
+            }
+            if (recent.length > 0) setTransactions(recent);
+        } catch {
+            /* silently keep current state */
+        }
+    };
+
     const loadAccessRequestMetrics = async () => {
         try {
-            const token = localStorage.getItem('adept_token');
+            const headers = await authHeaders();
+            if (!headers.Authorization) return;
+
             const [staffMembers, requestResponse] = await Promise.all([
                 fetchAllStaff(),
-                fetch(`${API_BASE_URL}/account-requests`, {
-                    headers: token ? { Authorization: `Bearer ${token}` } : {},
-                }),
+                fetch(`${API_BASE_URL}/account-requests`, { headers }),
             ]);
+
+            if (requestResponse.status === 401) return;
 
             if (!requestResponse.ok) {
                 throw new Error('Unable to load access request metrics.');
@@ -124,20 +200,34 @@ export function useAdminDashboard() {
             const requests = (requestPayload.requests || []) as AccountRequestSummary[];
             setAccessRequests(buildAccessRequestItems(staffMembers, requests));
         } catch {
-            setAccessRequests(accessRequestsMock);
+            // silently keep current state
         }
     };
 
     useEffect(() => {
         void loadAccessRequestMetrics();
+        void loadDashboardData();
     }, []);
 
-    // Keep the Overview activity feed live — refresh the instant a new
-    // audit entry is written anywhere in the app (approvals, declines, etc.).
+    // Load the real activity feed on mount, and keep it live — refresh the
+    // instant a new audit entry is written anywhere in the app (logins,
+    // approvals, declines, etc.) via the shared 'admin-audit-log:updated'
+    // event that auditLogService.ts dispatches after every successful write.
     useEffect(() => {
-        const handleAuditUpdate = () => setActivities(buildActivityFeed());
-        window.addEventListener('admin-audit-log:updated', handleAuditUpdate);
-        return () => window.removeEventListener('admin-audit-log:updated', handleAuditUpdate);
+        let isMounted = true;
+
+        const refreshActivities = () => {
+            void buildActivityFeed().then((feed) => {
+                if (isMounted) setActivities(feed);
+            });
+        };
+
+        refreshActivities();
+        window.addEventListener('admin-audit-log:updated', refreshActivities);
+        return () => {
+            isMounted = false;
+            window.removeEventListener('admin-audit-log:updated', refreshActivities);
+        };
     }, []);
 
     const withSpinner = (
@@ -150,11 +240,27 @@ export function useAdminDashboard() {
         }, REFRESH_DELAY_MS);
     };
 
-    const refreshTransactions = () => withSpinner(setRefreshingTransactions);
-    const refreshPerformance = () => withSpinner(setRefreshingPerformance);
-    const refreshDistribution = () => withSpinner(setRefreshingDistribution);
+    const refreshTransactions = () => withSpinner(setRefreshingTransactions, async () => {
+        await loadDashboardData();
+    });
+    const refreshPerformance = () => withSpinner(setRefreshingPerformance, async () => {
+        const data = await fetchStaffPerformance();
+        setStaffPerformance(data);
+    });
+    const refreshDistribution = () => withSpinner(setRefreshingDistribution, async () => {
+        await loadDashboardData();
+    });
     const refreshAccessRequests = () => withSpinner(setRefreshingAccessRequests, () => loadAccessRequestMetrics());
-    const refreshQueue = () => withSpinner(setRefreshingQueue);
+    const refreshQueue = () => withSpinner(setRefreshingQueue, async () => {
+        await loadDashboardData();
+    });
+
+    // Load real staff performance data on mount
+    useEffect(() => {
+        fetchStaffPerformance()
+            .then(setStaffPerformance)
+            .catch(() => {});
+    }, []);
 
     return {
         activeView,
@@ -171,6 +277,7 @@ export function useAdminDashboard() {
         accessRequests,
         requestQueue,
         transactions,
+        distribution,
         staffPerformance,
         activities,
 

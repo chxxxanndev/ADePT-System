@@ -129,3 +129,21 @@ export const markAsReleased = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+export const getDashboardMetrics = async (req, res) => {
+    try {
+        const metrics = await RequestService.getDashboardMetrics();
+        res.status(200).json(metrics);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const getReportsData = async (req, res) => {
+    try {
+        const reportsData = await RequestService.getReportsData();
+        res.status(200).json(reportsData);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};

@@ -5,6 +5,8 @@ import type { CompletedEntryData } from '../types/taxDeclaration';
 import { ForwardToStaffModal } from '../components/ForwardToStaffModal';
 import '../styles/RequestFormEntry.css';
 import { CheckIcon, SaveIcon, LightbulbIcon } from '../components/icons';
+import { addAdminAuditEntry } from '../../admin/services/auditLogService';
+import { TransactionProgressBar } from '../components/TransactionProgressPanel';
 
 interface ExtendedRequestFormData extends RequestFormData {
     id?: string;
@@ -355,6 +357,11 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
 
             onEntryComplete(completedData);
 
+            addAdminAuditEntry({
+                type: 'document_pending',
+                description: `Pending document request submitted — Ref# ${actualRef || actualId || 'N/A'}`,
+            }).catch(() => {});
+
             setTimeout(() => {
                 onNavigateToProcessing(view);
             }, 100);
@@ -416,6 +423,9 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
         <div className="rfe-page">
             <div className="rfe-page-inner">
                 <div className="rfe-card">
+                    {/* ── Persistent session progress bar (only visible once ≥1 doc is saved) ── */}
+                    <TransactionProgressBar />
+
                     <div className="rfe-card-header">
                         <div className="rfe-card-header-left">
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

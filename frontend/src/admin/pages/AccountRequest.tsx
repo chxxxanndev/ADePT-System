@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import "../styles/StaffAccounts.css";
 import "../styles/AccountRequest.css";
 import { addAdminAuditEntry } from '../services/auditLogService';
-import { hasAdminLevel } from '../../utils/permissions';
+import { authHeaders } from '../services/userManagementService';
 import { useAuth } from '../../users/hooks/useAuth';
 
 // ---------- Types ----------
@@ -107,14 +107,11 @@ export default function AccountRequest({ user }: AccountRequestProps) {
 
   const safeUser = currentUser ?? user ?? { firstName: "Admin", lastName: "User", email: "provincialassessor@gmail.com", role: "SUPER_ADMIN" };
 
-  const canDecide = hasAdminLevel(safeUser as any, 'HIGH');
-
   const loadRequests = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('adept_token');
       const res = await fetch(`${API_BASE_URL}/account-requests`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: await authHeaders(),
       });
       if (!res.ok) throw new Error('Unable to load account requests.');
       const data = await res.json();
@@ -164,13 +161,9 @@ export default function AccountRequest({ user }: AccountRequestProps) {
       // Backend still expects 'rejected' for a disapproval — only the
       // frontend wording changed to Approve/Disapprove.
       const normalizedDecision = decision === 'disapproved' ? 'rejected' : decision;
-      const token = localStorage.getItem('adept_token');
       const res = await fetch(`${API_BASE_URL}/account-requests/${id}/decision`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ decision: normalizedDecision, reason: decision === 'approved' ? 'Approved by super admin.' : 'Disapproved by super admin.' }),
       });
 
@@ -179,11 +172,10 @@ export default function AccountRequest({ user }: AccountRequestProps) {
         throw new Error(body.error || 'Unable to complete the decision.');
       }
 
-      addAdminAuditEntry({
-        type: decision === 'approved' ? 'approval' : 'decline',
-        actor: 'Super Admin',
-        description: `${decision === 'approved' ? 'approved' : 'disapproved'} account request — ${applicant?.applicantName || 'an applicant'}`,
-      });
+    await addAdminAuditEntry({
+      type: decision === 'approved' ? 'approval' : 'decline',
+      description: `${decision === 'approved' ? 'approved' : 'disapproved'} account request — ${applicant?.applicantName || 'an applicant'}`,
+    }).catch((err) => console.error('Audit log write failed:', err));
 
       window.dispatchEvent(new Event('staff-directory:updated'));
       await loadRequests();

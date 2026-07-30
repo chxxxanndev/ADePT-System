@@ -11,6 +11,7 @@ import {
     demoteToStaff,
     assignSignatory,
     unassignSignatory,
+    getStaffPerformance,
 } from './user.controller.js';
 
 const router = express.Router();
@@ -20,6 +21,7 @@ router.use(requireAuth);
 router.get('/staff', getAllStaff);
 router.post('/staff', createStaff);
 router.get('/account-requests', getAccountRequests);
+router.get('/staff-performance', getStaffPerformance);
 router.patch('/account-requests/:id/decision', decideAccountRequest);
 router.patch('/staff/:id/status', updateStaffStatus);
 router.patch('/staff/:id/admin-level', setAdminLevel);

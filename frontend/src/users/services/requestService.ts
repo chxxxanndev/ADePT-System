@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { supabase } from '../../lib/supabaseClient';
+import { API_ROOT } from '../../config'; // Import the central config we made
 
 export interface RequestFormData {
     id?: string;
@@ -16,20 +17,42 @@ export interface RequestFormData {
     purposeOtherText?: string;
 }
 
-const API_ROOT = 'http://localhost:5000/api';
+// We add /api here because your routes below start with /requests
+const BASE_URL = `${API_ROOT}/api`; 
 
-const api = axios.create({ baseURL: API_ROOT });
+export const api = axios.create({ baseURL: BASE_URL });
 
-// Always pull the CURRENT, live session token from Supabase itself
+// 1. REQUEST INTERCEPTOR (Stops the 401)
 api.interceptors.request.use(async (config) => {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
+
+    if (!token) {
+        const source = axios.CancelToken.source();
+        config.cancelToken = source.token;
+        // We use a specific string 'SILENT_CANCEL'
+        source.cancel('SILENT_CANCEL'); 
+        return config;
+    }
+
     if (token) {
-        // Bypass strict AxiosHeaders type check by casting to any
         (config.headers as any).Authorization = `Bearer ${token}`;
     }
     return config;
 }, (error) => Promise.reject(error));
+
+// 2. RESPONSE INTERCEPTOR (Stops the Red CanceledError text)
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        // If the error is our 'SILENT_CANCEL', we return a promise that 
+        // never resolves. This makes the error vanish from the console.
+        if (axios.isCancel(error) && error.message === 'SILENT_CANCEL') {
+            return new Promise(() => {}); 
+        }
+        return Promise.reject(error);
+    }
+);
 
 export const requestService = {
     getMetadata: async () => {

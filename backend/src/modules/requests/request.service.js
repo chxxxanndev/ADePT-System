@@ -332,6 +332,171 @@ class RequestService {
         await supabase.from('requests').delete().eq('id', id);
         return { id };
     }
+
+    /**
+     * Aggregates real-time dashboard metrics (access requests, transaction status breakdown, document type distribution) from Supabase.
+     */
+    async getDashboardMetrics() {
+        const [{ data: requests }, { data: docLinks }, { data: docTypes }] = await Promise.all([
+            supabase.from('requests').select('id, status, request_date, created_at, declarant_name, reference_number, property_location, encoded_by, staff:encoded_by(first_name, last_name)').order('created_at', { ascending: false }),
+            supabase.from('request_documents').select('request_id, document_type_id, document_types(name, prefix)'),
+            supabase.from('document_types').select('id, name, prefix'),
+        ]);
+
+        const allReqs = requests || [];
+
+        // Transaction Summary Counts
+        const totalCount = allReqs.length;
+        const pendingCount = allReqs.filter(r => ['DRAFT', 'PENDING', 'SUBMITTED'].includes(r.status)).length;
+        const verifiedCount = allReqs.filter(r => ['PAID', 'FOR_PAYMENT', 'IN_PROGRESS'].includes(r.status)).length;
+        const releasedCount = allReqs.filter(r => ['RELEASED', 'APPROVED'].includes(r.status)).length;
+        const voidCount = allReqs.filter(r => ['VOID', 'CANCELLED', 'REJECTED'].includes(r.status)).length;
+
+        // NEW — feeds the "Document Request Queue" summary cards on the
+        // Overview page (Request Today / Processing / Approved Documents /
+        // Disapproved Documents). Kept as separate counts from
+        // pendingCount/verifiedCount above, which mix several statuses
+        // together for the (currently unused by the frontend) accessRequests
+        // card set below — these two are purpose-built for the new cards.
+        //   - requestedTodayCount: any request created/dated today, regardless
+        //     of status.
+        //   - processingCount: requests actively being worked (IN_PROGRESS).
+        //   - "Approved Documents" reuses releasedCount, "Disapproved
+        //     Documents" reuses voidCount — same status buckets, just
+        //     surfaced under the labels shown in the reference design.
+        const today = new Date();
+        const isToday = (value) => {
+            if (!value) return false;
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return false;
+            return date.getFullYear() === today.getFullYear()
+                && date.getMonth() === today.getMonth()
+                && date.getDate() === today.getDate();
+        };
+        const requestedTodayCount = allReqs.filter(r => isToday(r.request_date || r.created_at)).length;
+        const processingCount = allReqs.filter(r => ['IN_PROGRESS'].includes(r.status)).length;
+
+        // Document Distribution
+        const docCounts = {};
+        for (const link of docLinks || []) {
+            const name = link.document_types?.name || 'General Certificate';
+            docCounts[name] = (docCounts[name] || 0) + 1;
+        }
+
+        const totalDocLinks = Object.values(docCounts).reduce((a, b) => a + b, 0) || 1;
+        const COLORS = ['#252175', '#00BCD4', '#4CAF50', '#FDD835', '#FF7043', '#9C27B0'];
+
+        const distribution = Object.entries(docCounts).map(([label, count], index) => ({
+            label,
+            value: count,
+            percentage: Math.round((count / totalDocLinks) * 100),
+            color: COLORS[index % COLORS.length],
+        }));
+
+        // Access Requests Metrics Card Data
+        const accessRequests = [
+            { id: '1', title: 'Total Transactions', value: totalCount, change: '+100%', isPositive: true, variant: 'blue' },
+            { id: '2', title: 'Pending Approval', value: pendingCount, change: 'Active', isPositive: true, variant: 'gold' },
+            { id: '3', title: 'Verified / In-Progress', value: verifiedCount, change: 'Live', isPositive: true, variant: 'green' },
+            { id: '4', title: 'Total Released', value: releasedCount, change: 'Completed', isPositive: true, variant: 'red' },
+        ];
+
+        // Request Queue (Top pending/in-progress items) — RAW per-request
+        // rows. This is intentionally NOT the shape the Overview summary
+        // cards need; it's meant for a detail list/table. The Overview
+        // widget should be built from `summaryCounts` below instead.
+        const STATUS_MAP = {
+            DRAFT: 'Pending',
+            PENDING: 'Pending',
+            IN_PROGRESS: 'Processing',
+            PAID: 'Payment Verified',
+            RELEASED: 'Released',
+            VOID: 'Void',
+            CANCELLED: 'Cancelled',
+        };
+
+        const requestQueue = allReqs.map((r) => {
+            const relDocs = (docLinks || []).filter(d => d.request_id === r.id).map(d => d.document_types?.name).filter(Boolean);
+            const staffName = r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : 'Unassigned';
+            return {
+                id: r.id,
+                referenceNo: r.reference_number || `REF-${r.id.slice(0, 6).toUpperCase()}`,
+                clientName: r.declarant_name || 'Anonymous Client',
+                documentType: relDocs.join(', ') || 'No-Landholding Certificate',
+                date: r.request_date ? new Date(r.request_date).toLocaleDateString() : new Date(r.created_at).toLocaleDateString(),
+                assignedStaff: staffName,
+                status: STATUS_MAP[r.status] || 'Pending',
+            };
+        });
+
+        return {
+            accessRequests,
+            requestQueue,
+            distribution: distribution.length > 0 ? distribution : [
+                { label: 'No-Landholding Certificate', value: totalCount || 1, percentage: 100, color: '#252175' }
+            ],
+            summaryCounts: {
+                totalCount,
+                pendingCount,
+                verifiedCount,
+                releasedCount,
+                voidCount,
+                requestedTodayCount,
+                processingCount,
+            }
+        };
+    }
+
+    /**
+     * Aggregates reports and analytics dataset directly from Supabase.
+     */
+    async getReportsData() {
+        const [{ data: requests }, { data: docLinks }] = await Promise.all([
+            supabase.from('requests').select('*, staff:encoded_by(first_name, last_name)').order('created_at', { ascending: false }),
+            supabase.from('request_documents').select('request_id, document_types(name)'),
+        ]);
+
+        const allReqs = requests || [];
+
+        const totalDocuments = allReqs.length;
+        const totalReleased = allReqs.filter(r => r.status === 'RELEASED').length;
+        const totalPending = allReqs.filter(r => ['DRAFT', 'PENDING'].includes(r.status)).length;
+        const totalPaid = allReqs.filter(r => r.status === 'PAID').length;
+
+        const STATUS_LABEL_MAP = {
+            DRAFT: 'Pending',
+            PENDING: 'Pending',
+            IN_PROGRESS: 'Processing',
+            PAID: 'Payment Verified',
+            RELEASED: 'Released',
+            VOID: 'Void',
+            CANCELLED: 'Cancelled',
+        };
+
+        const rows = allReqs.map(r => {
+            const relDocs = (docLinks || []).filter(d => d.request_id === r.id).map(d => d.document_types?.name).filter(Boolean);
+            const docName = relDocs.join(', ') || 'No-Landholding Certificate';
+            const staffName = r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : 'Office Staff';
+            return {
+                id: r.id,
+                referenceNo: r.reference_number || `REF-${r.id.slice(0, 6).toUpperCase()}`,
+                clientName: r.declarant_name || 'N/A',
+                documentType: docName,
+                requestedDate: r.request_date || r.created_at ? new Date(r.request_date || r.created_at).toISOString().split('T')[0] : '',
+                processedBy: staffName,
+                status: STATUS_LABEL_MAP[r.status] || 'Pending',
+                orNumber: r.or_number || 'N/A',
+            };
+        });
+
+        return {
+            totalDocuments,
+            totalReleased,
+            totalPending,
+            totalPaid,
+            rows,
+        };
+    }
 }
 
 export default new RequestService();

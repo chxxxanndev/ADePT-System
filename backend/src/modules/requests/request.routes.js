@@ -12,13 +12,17 @@ import {
     checkOrUniqueness,
     releaseRequest,
     markAsReleased,
+    getDashboardMetrics,
+    getReportsData,
 } from './request.controller.js';
 
 const router = express.Router();
 
-// Metadata & Helpers
-router.get('/metadata', requireAuth, getFormMetadata); // Added requireAuth
+// Metadata & Metrics
+router.get('/metadata', requireAuth, getFormMetadata);
 router.get('/check-or', requireAuth, checkOrUniqueness);
+router.get('/dashboard-metrics', requireAuth, getDashboardMetrics);
+router.get('/reports-data', requireAuth, getReportsData);
 
 // Base CRUDS
 router.get('/', requireAuth, getAllRequests);
@@ -32,7 +36,7 @@ router.delete('/:id', requireAuth, deleteRequest);
 
 // Specialized Status updates
 router.post('/:id/release', requireAuth, releaseRequest);
-router.post('/:id/forward', requireAuth, forwardRequest); // Cleaned up logic here
+router.post('/:id/forward', requireAuth, forwardRequest);
 router.patch('/:id/mark-released', requireAuth, markAsReleased);
 
 export default router;

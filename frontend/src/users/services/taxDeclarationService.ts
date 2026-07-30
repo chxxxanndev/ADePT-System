@@ -1,8 +1,5 @@
-import axios from 'axios';
 import type { TaxDeclarationFormData } from '../types/taxDeclaration';
-import { requestService } from './requestService';
-
-const API_BASE = 'http://localhost:5000/api/tax-declarations';
+import { requestService, api } from './requestService'; // Import the smart 'api'
 
 export const taxDeclarationService = {
     /**
@@ -16,6 +13,7 @@ export const taxDeclarationService = {
         const payload = {
             staffAuthId,
             requestId,
+            // ... (rest of your payload logic is unchanged)
             taxDeclarationNumber: formData.taxDeclarationNumber,
             propertyIndexNumber: formData.propertyIndexNumber,
             arpNumber: formData.arpNumber,
@@ -61,9 +59,11 @@ export const taxDeclarationService = {
         };
 
         try {
-            const res = await axios.post(API_BASE, payload);
+            // Use the smart api instance
+            const res = await api.post('/tax-declarations', payload);
             return res.data;
         } catch (err: any) {
+            // This preserves your fallback logic
             if (!err.response) {
                 console.warn('[taxDeclarationService] Server unreachable — using local mock.');
                 return {
@@ -77,24 +77,54 @@ export const taxDeclarationService = {
 
     /**
      * FETCH AND TRANSLATE DATA FOR PDF
-     * This bridges the gap between Supabase column names and your PDF Template names.
      */
     getTaxDeclaration: async (requestId: string) => {
         try {
+            // Both of these now use the same smart 'api' logic
             const [res, meta] = await Promise.all([
-                axios.get(`${API_BASE}/${requestId}`),
+                api.get(`/tax-declarations/${requestId}`),
                 requestService.getMetadata(),
             ]);
+            
             const dbData = res.data.data;
-
             if (!dbData) return null;
 
+            // ... (Your mapping logic below remains exactly the same)
             const classificationMap: Record<string, string> = {};
             (meta?.classifications || []).forEach((c: any) => {
                 classificationMap[c.id] = c.label;
             });
 
-            // TRANSLATOR: Maps database snake_case to PDF camelCase
+            const propertyTypeMap: Record<string, string> = {};
+            (meta?.propertyTypes || []).forEach((p: any) => {
+                propertyTypeMap[p.code] = p.label;
+            });
+
+            const assessmentRows = (dbData.encoded_assessment_rows || []).map((row: any) => ({
+                classificationLabel: classificationMap[row.classification_id] || row.classification_id || 'N/A',
+                kindOfProperty: propertyTypeMap[row.kind_of_property] || row.kind_of_property || '',
+                area: row.area,
+                areaUnit: row.area_unit,
+                marketValue: row.market_value,
+                assessmentLevel: row.assessment_level,
+                assessedValue: row.assessed_value,
+            }));
+
+            const totalArea = assessmentRows.reduce(
+                (sum: number, r: any) => sum + (parseFloat(r.area) || 0),
+                0
+            );
+
+            const distinctUnits = [
+                ...new Set(
+                    assessmentRows
+                        .map((r: any) => (r.areaUnit || '').trim())
+                        .filter(Boolean)
+                ),
+            ];
+
+            const areaUnitSuffix = distinctUnits[0] || '';
+
             return {
                 id: dbData.id,
                 request: dbData.request,
@@ -107,24 +137,23 @@ export const taxDeclarationService = {
                 administratorAddress: dbData.administrator_address,
                 barangay: dbData.barangay?.name || '',
                 municipality: dbData.municipality?.name || '',
+                octTctNumber: dbData.oct_tct_cloa_number,
+                surveyNumber: dbData.survey_number,
+                lotNumber: dbData.lot_number,
+                blkNumber: dbData.block_number,
                 boundaryNorth: dbData.boundary_north,
                 boundarySouth: dbData.boundary_south,
                 boundaryEast: dbData.boundary_east,
                 boundaryWest: dbData.boundary_west,
                 totalMarketValue: dbData.total_market_value,
                 totalAssessedValue: dbData.total_assessed_value,
-                amountInWords: dbData.amount_in_words,
-                taxability: dbData.taxability,
-                effectivityYear: dbData.effectivity_year,
-
-                assessments: (dbData.encoded_assessment_rows || []).map((row: any) => ({
-                    classificationLabel: classificationMap[row.classification_id] || row.classification_id || 'N/A',
-                    kindOfProperty: row.classification_id,
-                    area: row.area,
-                    marketValue: row.market_value,
-                    assessmentLevel: row.assessment_level,
-                    assessedValue: row.assessed_value
-                }))
+                totalAssessedValueWords: dbData.amount_in_words,
+                taxable: dbData.taxability === 'TAXABLE',
+                taxEffectivity: dbData.effectivity_year,
+                cancelsArpNo: dbData.cancelled_td_number,
+                memoranda: dbData.memoranda,
+                area: totalArea > 0 ? `${totalArea}${areaUnitSuffix ? ' ' + areaUnitSuffix : ''}` : '',
+                assessmentRows,
             };
         } catch (error) {
             console.error("[taxDeclarationService] Error fetching details:", error);
@@ -132,7 +161,8 @@ export const taxDeclarationService = {
         }
     },
     updateDraft: async (id: string, updateData: any) => {
-        const res = await axios.put(`${API_BASE}/${id}/edit-draft`, updateData);
+        // Use the smart api
+        const res = await api.put(`/tax-declarations/${id}/edit-draft`, updateData);
         return res.data;
     },
 };

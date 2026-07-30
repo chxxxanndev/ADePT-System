@@ -430,16 +430,6 @@
 
 /* ---- Staff activity icons ---- */
 
-.audit-icon--assessment-submit {
-  background-color: var(--color-success-bg);
-  color: var(--color-success);
-}
-
-.audit-icon--assessment-edit {
-  background-color: var(--color-secondary-bg);
-  color: var(--color-secondary);
-}
-
 .audit-icon--document-upload {
   background-color: var(--color-truecopy-bg);
   color: var(--color-truecopy);
@@ -472,9 +462,24 @@
   color: var(--color-warning);
 }
 
-.audit-icon--staff-edit {
-  background-color: var(--color-secondary-bg);
-  color: var(--color-secondary);
+.audit-icon--document-pending {
+  background-color: rgba(234, 179, 8, 0.12);
+  color: #ca8a04;
+}
+
+.audit-icon--document-voided {
+  background-color: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+.audit-icon--document-archived {
+  background-color: rgba(100, 116, 139, 0.12);
+  color: #64748b;
+}
+
+.audit-icon--document-released {
+  background-color: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
 }
 
 .audit-row-body {
@@ -749,3 +754,158 @@
   color: var(--color-success);
   font-weight: 500;
 }
+
+/* ---------- Staff Performance card (Audit Log) ---------- */
+
+.perf-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin-bottom: 16px;
+}
+
+.perf-refresh-btn {
+  background: none;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 5px 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted);
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.perf-refresh-btn:hover:not(:disabled) {
+  background-color: var(--surface-tint);
+  color: var(--color-heading);
+}
+
+.perf-refresh-btn--spinning svg {
+  animation: perf-spin 0.7s linear infinite;
+}
+
+@keyframes perf-spin {
+  to { transform: rotate(360deg); }
+}
+
+.perf-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--row-divider);
+}
+
+.perf-row:first-child {
+  border-top: none;
+}
+
+.perf-rank {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-muted);
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.perf-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.perf-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.perf-name-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.perf-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.perf-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.perf-bar-bg {
+  width: 100%;
+  height: 5px;
+  background: var(--row-divider);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.perf-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s ease;
+  opacity: 0.8;
+}
+
+/* Make the content grid accommodate 2 columns of equal cards on wide screens */
+@media (min-width: 1280px) {
+  .audit-content-grid {
+    /* Staff + Admin + Presence */
+    grid-template-columns: 1fr 1fr 0.85fr;
+  }
+}
+
+/* Full-width staff performance card below the grid */
+.perf-fullwidth-card {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.perf-fullwidth-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.perf-row--card {
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--card-border, #e5e7eb);
+  border-radius: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--card-border, #e5e7eb) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.perf-row--card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}

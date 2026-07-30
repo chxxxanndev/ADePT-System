@@ -1,18 +1,29 @@
-import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:5000/api/nolandholding';
+// src/services/noLandholdingService.ts
+import { api } from './requestService'; // Import the smart, protected api
 
 export const noLandholdingService = {
+    /**
+     * POST /api/nolandholding
+     */
     async saveCertificate(payload: any, staffAuthId: string) {
-        const response = await axios.post(API_BASE_URL, { ...payload, staffAuthId });
+        // Use the central 'api' and relative path
+        const response = await api.post('/nolandholding', { ...payload, staffAuthId });
         return response.data;
     },
+
+    /**
+     * GET /api/nolandholding/request/:requestId
+     */
     async getByRequestId(requestId: string) {
-        const response = await axios.get(`${API_BASE_URL}/request/${requestId}`);
+        const response = await api.get(`/nolandholding/request/${requestId}`);
         return response.data;
     },
-    async updateDraft(id, formData) {
-        const response = await axios.put(`${API_BASE_URL}/${id}/edit-draft`, formData);
+
+    /**
+     * PUT /api/nolandholding/:id/edit-draft
+     */
+    async updateDraft(id: string, formData: any) {
+        const response = await api.put(`/nolandholding/${id}/edit-draft`, formData);
         return response.data;
     }
 };
