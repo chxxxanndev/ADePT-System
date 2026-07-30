@@ -147,6 +147,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                         items={staffPerformance}
                                         onRefresh={refreshPerformance}
                                         isRefreshing={refreshingPerformance}
+                                        onViewFull={() => setActiveView('audit-log')}
                                     />
                                 </div>
 

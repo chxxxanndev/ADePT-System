@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { requestService } from '../services/requestService';
+import { addAdminAuditEntry } from '../../admin/services/auditLogService';
 import { InitialDocumentPreviewModal } from '../components/InitialDocumentPreviewModal';
 import { DocumentVerificationPanel } from '../pages/DocumentVerificationPanel';
 import { DocumentReleasePanel } from '../pages/DocumentReleasePanel';
@@ -275,6 +276,10 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
         await Promise.all(documents.map((doc: any) =>
             requestService.markAsReleased(doc.id, releasedBy)
         ));
+        addAdminAuditEntry({
+            type: 'document_released',
+            description: `Released ${documents.length} document(s) to ${requesterName}`,
+        }).catch(() => {});
     };
 
     return (

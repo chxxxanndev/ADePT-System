@@ -9,7 +9,7 @@ export interface AdminStatItem {
     id: string;
     label: string;
     value: number | string;
-    icon: 'user' | 'alert' | 'check' | 'close' | 'request' | 'gears';
+    icon: 'user' | 'alert' | 'check' | 'close' | 'request' | 'gears' | 'inboxDown';
     accent: 'teal' | 'gold' | 'green' | 'red';
 }
 

@@ -11,7 +11,7 @@ export const noLandholdingService = {
         const response = await axios.get(`${API_BASE_URL}/request/${requestId}`);
         return response.data;
     },
-    async updateDraft(id, formData) {
+    async updateDraft(id: string, formData: any) {
         const response = await axios.put(`${API_BASE_URL}/${id}/edit-draft`, formData);
         return response.data;
     }

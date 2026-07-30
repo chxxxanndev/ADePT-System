@@ -35,7 +35,7 @@ export interface CreateStaffPayload {
 // Pulls the current access token straight from supabase-js's own session
 // (kept fresh by its built-in autoRefreshToken) rather than a hand-rolled
 // localStorage copy — see useAuth.ts for why that copy was removed.
-async function authHeaders(extra: Record<string, string> = {}): Promise<Record<string, string>> {
+export async function authHeaders(extra: Record<string, string> = {}): Promise<Record<string, string>> {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
     return {
@@ -189,4 +189,53 @@ export async function unassignSignatory(staffId: string): Promise<StaffMember> {
     }
     const data = await res.json();
     return data.staff as StaffMember;
+}
+
+export interface StaffPerformanceItem {
+    id: string;
+    name: string;
+    initials: string;
+    requests: number;
+    avatarBg: string;
+}
+
+export async function fetchStaffPerformance(): Promise<StaffPerformanceItem[]> {
+    const res = await fetch(`${API_BASE_URL}/staff-performance`, {
+        headers: await authHeaders(),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Failed to fetch staff performance (${res.status})`);
+    }
+    const data = await res.json();
+    return data.performance as StaffPerformanceItem[];
+}
+
+/**
+ * Fetches real-time dashboard metrics (access requests, request queue, distribution)
+ * from the backend requests endpoint.
+ */
+export async function fetchDashboardMetrics() {
+    const res = await fetch('http://localhost:5000/api/requests/dashboard-metrics', {
+        headers: await authHeaders(),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Failed to fetch dashboard metrics (${res.status})`);
+    }
+    return res.json();
+}
+
+/**
+ * Fetches real-time reports & analytics data directly from the backend requests endpoint.
+ */
+export async function fetchReportsAnalytics() {
+    const res = await fetch('http://localhost:5000/api/requests/reports-data', {
+        headers: await authHeaders(),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Failed to fetch reports analytics (${res.status})`);
+    }
+    return res.json();
 }

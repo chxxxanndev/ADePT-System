@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { requestService } from '../services/requestService';
+import { addAdminAuditEntry } from '../../admin/services/auditLogService';
 import '../styles/PendingPayment.css';
 
 // --- ICONS ---
@@ -184,6 +185,10 @@ export function PendingPayment({ onSelectPayment }: any) {
                 archivedIds.forEach(id => next.delete(id));
                 return next;
             });
+            addAdminAuditEntry({
+                type: 'document_archived',
+                description: `Archived ${groups.length} document group(s)`,
+            }).catch(() => {});
         } catch (error) {
             alert("Archive failed. Please check your connection and try again.");
         } finally {

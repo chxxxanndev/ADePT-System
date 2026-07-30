@@ -5,6 +5,7 @@ import type { CompletedEntryData } from '../types/taxDeclaration';
 import { ForwardToStaffModal } from '../components/ForwardToStaffModal';
 import '../styles/RequestFormEntry.css';
 import { CheckIcon, SaveIcon, LightbulbIcon } from '../components/icons';
+import { addAdminAuditEntry } from '../../admin/services/auditLogService';
 
 interface ExtendedRequestFormData extends RequestFormData {
     id?: string;
@@ -354,6 +355,11 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
             };
 
             onEntryComplete(completedData);
+
+            addAdminAuditEntry({
+                type: 'document_pending',
+                description: `Pending document request submitted — Ref# ${actualRef || actualId || 'N/A'}`,
+            }).catch(() => {});
 
             setTimeout(() => {
                 onNavigateToProcessing(view);

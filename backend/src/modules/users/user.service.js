@@ -100,7 +100,7 @@ class UserService {
         }
         const { data, error } = await supabase
             .from('staff')
-            .select('id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)')
+            .select('id, auth_user_id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)')
             .is('deleted_at', null)
             .neq('account_status', 'PENDING_APPROVAL')
             .order('created_at', { ascending: false });
@@ -589,6 +589,65 @@ class UserService {
 
         if (error) throw error;
         return data;
+    }
+    /**
+     * Returns all staff members ranked by the number of requests they have
+     * handled (encoded_by in the requests table).
+     */
+    async getStaffPerformance() {
+        if (useMock || !supabase) {
+            return MOCK_STAFF
+                .filter((m) => m.account_status === 'ACTIVE')
+                .map((m, i) => ({
+                    id: m.id,
+                    name: `${m.first_name} ${m.last_name}`,
+                    initials: `${m.first_name[0]}${m.last_name[0]}`.toUpperCase(),
+                    requests: [12, 8, 6, 4][i] ?? 0,
+                    avatarBg: ['#3D2E7C', '#00BCD4', '#1976D2', '#4CAF50'][i % 4],
+                }))
+                .sort((a, b) => b.requests - a.requests);
+        }
+
+        // Fetch active staff, request counts, and audit log entries in parallel from Supabase
+        const [{ data: staffRows }, { data: requestRows }, { data: auditRows }] = await Promise.all([
+            supabase
+                .from('staff')
+                .select('id, first_name, last_name')
+                .eq('account_status', 'ACTIVE')
+                .is('deleted_at', null),
+            supabase
+                .from('requests')
+                .select('encoded_by')
+                .not('encoded_by', 'is', null),
+            supabase
+                .from('audit_log')
+                .select('actor_id')
+                .not('actor_id', 'is', null),
+        ]);
+
+        // Count requests/actions per staff id from Supabase tables
+        const countMap = {};
+        for (const row of requestRows ?? []) {
+            if (row.encoded_by) {
+                countMap[row.encoded_by] = (countMap[row.encoded_by] ?? 0) + 1;
+            }
+        }
+        for (const row of auditRows ?? []) {
+            if (row.actor_id) {
+                countMap[row.actor_id] = (countMap[row.actor_id] ?? 0) + 1;
+            }
+        }
+
+        const AVATAR_COLORS = ['#3D2E7C', '#00BCD4', '#1976D2', '#4CAF50', '#607D8B', '#FF7043'];
+        return (staffRows ?? [])
+            .map((m, i) => ({
+                id: m.id,
+                name: `${m.first_name} ${m.last_name}`.trim(),
+                initials: `${(m.first_name || ' ')[0]}${(m.last_name || ' ')[0]}`.toUpperCase(),
+                requests: countMap[m.id] ?? 0,
+                avatarBg: AVATAR_COLORS[i % AVATAR_COLORS.length],
+            }))
+            .sort((a, b) => b.requests - a.requests);
     }
 }
 

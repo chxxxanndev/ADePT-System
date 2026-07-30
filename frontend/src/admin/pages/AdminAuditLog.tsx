@@ -7,20 +7,23 @@ import {
   Settings2,
   LogIn,
   LogOut,
-  ClipboardCheck,
-  PencilLine,
   UploadCloud,
   Printer,
   UserCheck,
   UserX,
   ArrowUpCircle,
   ArrowDownCircle,
-  UserCog,
   X,
+  Clock,
+  FileX,
+  Archive,
+  Send,
+  BarChart2,
+  RefreshCw,
 } from "lucide-react";
 import "../styles/AdminAuditLog.css";
-import { clearStoredAuditEntries, getStoredAuditEntries, type AuditLogEntry as StoredAuditLogEntry, type AuditActionType } from '../services/auditLogService';
-import { fetchAllStaff, type StaffMember } from '../services/userManagementService';
+import { getAuditLog, type AuditLogEntry as StoredAuditLogEntry, type AuditActionType } from '../services/auditLogService';
+import { fetchAllStaff, fetchStaffPerformance, type StaffMember, type StaffPerformanceItem } from '../services/userManagementService';
 import { onStaffPresence, getStaffPresenceChannel } from '../services/staffPresenceChannel';
 
 /* ------------------------------------------------------------------ */
@@ -54,10 +57,12 @@ type StaffActivityFilter =
   | "All Staff Activity"
   | "Logins"
   | "Logouts"
-  | "Assessments Submitted"
-  | "Assessments Edited"
   | "Document Uploads"
-  | "Reports Printed";
+  | "Reports Printed"
+  | "Pending Documents"
+  | "Voided Documents"
+  | "Archived Documents"
+  | "Released Documents";
 
 type AdminActivityFilter =
   | "All Admin Activity"
@@ -66,8 +71,7 @@ type AdminActivityFilter =
   | "Account Activations"
   | "Account Deactivations"
   | "Promotions"
-  | "Demotions"
-  | "Staff Info Edits";
+  | "Demotions";
 
 interface CurrentUser {
   name: string;
@@ -92,10 +96,12 @@ const DEFAULT_USER: CurrentUser = {
 const STAFF_ACTIVITY_TYPES: AuditActionType[] = [
   'login',
   'logout',
-  'assessment_submit',
-  'assessment_edit',
   'document_upload',
   'report_print',
+  'document_pending',
+  'document_voided',
+  'document_archived',
+  'document_released',
 ];
 
 const ADMIN_ACTIVITY_TYPES: AuditActionType[] = [
@@ -105,17 +111,18 @@ const ADMIN_ACTIVITY_TYPES: AuditActionType[] = [
   'account_deactivate',
   'staff_promote',
   'staff_demote',
-  'staff_edit',
 ];
 
 const STAFF_FILTER_TO_TYPE: Record<StaffActivityFilter, AuditActionType | null> = {
   "All Staff Activity": null,
   Logins: 'login',
   Logouts: 'logout',
-  "Assessments Submitted": 'assessment_submit',
-  "Assessments Edited": 'assessment_edit',
   "Document Uploads": 'document_upload',
   "Reports Printed": 'report_print',
+  "Pending Documents": 'document_pending',
+  "Voided Documents": 'document_voided',
+  "Archived Documents": 'document_archived',
+  "Released Documents": 'document_released',
 };
 
 const ADMIN_FILTER_TO_TYPE: Record<AdminActivityFilter, AuditActionType | null> = {
@@ -126,58 +133,60 @@ const ADMIN_FILTER_TO_TYPE: Record<AdminActivityFilter, AuditActionType | null> 
   "Account Deactivations": 'account_deactivate',
   Promotions: 'staff_promote',
   Demotions: 'staff_demote',
-  "Staff Info Edits": 'staff_edit',
 };
 
 // Human-readable label for the type shown in the detail popup header.
 const TYPE_LABELS: Record<AuditActionType, string> = {
   login: "Login",
   logout: "Logout",
-  assessment_submit: "Property Assessment Submitted",
-  assessment_edit: "Assessment Edited",
   document_upload: "Documents Uploaded",
   report_print: "Report Printed",
+  document_pending: "Pending Document Request",
+  document_voided: "Document Voided",
+  document_archived: "Document Archived",
+  document_released: "Document Released",
   approval: "Account Request Approved",
   decline: "Account Request Declined",
   account_activate: "Staff Account Activated",
   account_deactivate: "Staff Account Deactivated",
   staff_promote: "Staff Promoted",
   staff_demote: "Admin Demoted",
-  staff_edit: "Staff Information Edited",
   system: "System Event",
 };
 
 const ICON_MAP: Record<AuditActionType, React.ReactNode> = {
   login: <LogIn size={16} />,
   logout: <LogOut size={16} />,
-  assessment_submit: <ClipboardCheck size={16} />,
-  assessment_edit: <PencilLine size={16} />,
   document_upload: <UploadCloud size={16} />,
   report_print: <Printer size={16} />,
+  document_pending: <Clock size={16} />,
+  document_voided: <FileX size={16} />,
+  document_archived: <Archive size={16} />,
+  document_released: <Send size={16} />,
   approval: <CheckCircle2 size={16} />,
   decline: <XCircle size={16} />,
   account_activate: <UserCheck size={16} />,
   account_deactivate: <UserX size={16} />,
   staff_promote: <ArrowUpCircle size={16} />,
   staff_demote: <ArrowDownCircle size={16} />,
-  staff_edit: <UserCog size={16} />,
   system: <Settings2 size={16} />,
 };
 
 const ICON_CLASS_MAP: Record<AuditActionType, string> = {
   login: "audit-icon--login",
   logout: "audit-icon--logout",
-  assessment_submit: "audit-icon--assessment-submit",
-  assessment_edit: "audit-icon--assessment-edit",
   document_upload: "audit-icon--document-upload",
   report_print: "audit-icon--report-print",
+  document_pending: "audit-icon--document-pending",
+  document_voided: "audit-icon--document-voided",
+  document_archived: "audit-icon--document-archived",
+  document_released: "audit-icon--document-released",
   approval: "audit-icon--approval",
   decline: "audit-icon--decline",
   account_activate: "audit-icon--account-activate",
   account_deactivate: "audit-icon--account-deactivate",
   staff_promote: "audit-icon--staff-promote",
   staff_demote: "audit-icon--staff-demote",
-  staff_edit: "audit-icon--staff-edit",
   system: "audit-icon--system",
 };
 
@@ -321,6 +330,87 @@ function AuditDetailModal({ entry, onClose }: { entry: AuditLogEntry; onClose: (
   );
 }
 
+function StaffPerformanceCard() {
+  const [items, setItems] = useState<StaffPerformanceItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    try {
+      const data = await fetchStaffPerformance();
+      setItems(data);
+    } catch {
+      /* silently keep last known state */
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const maxRequests = items[0]?.requests ?? 1;
+
+  return (
+    <div className="audit-card perf-fullwidth-card">
+      <div className="audit-card-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <BarChart2 size={18} style={{ color: 'var(--color-primary)' }} />
+          <h2 className="audit-card-title">Staff Performance</h2>
+        </div>
+        <button
+          type="button"
+          className={`perf-refresh-btn ${refreshing ? 'perf-refresh-btn--spinning' : ''}`}
+          onClick={() => load(true)}
+          disabled={refreshing}
+          title="Refresh"
+        >
+          <RefreshCw size={14} />
+        </button>
+      </div>
+
+      <span className="perf-pill">Ranked by Requests Handled</span>
+
+      {loading && <div className="audit-empty">Loading…</div>}
+      {!loading && items.length === 0 && (
+        <div className="audit-empty">No performance data available yet.</div>
+      )}
+
+      {!loading && items.length > 0 && (
+        <div className="perf-fullwidth-grid">
+          {items.map((staff, index) => (
+            <div key={staff.id} className="perf-row perf-row--card">
+              <div className="perf-rank">{index + 1}</div>
+              <div
+                className="perf-avatar"
+                style={{ backgroundColor: staff.avatarBg }}
+              >
+                {staff.initials}
+              </div>
+              <div className="perf-info">
+                <div className="perf-name-row">
+                  <span className="perf-name">{staff.name}</span>
+                  <span className="perf-count">{staff.requests} req</span>
+                </div>
+                <div className="perf-bar-bg">
+                  <div
+                    className="perf-bar-fill"
+                    style={{
+                      width: `${maxRequests > 0 ? (staff.requests / maxRequests) * 100 : 0}%`,
+                      backgroundColor: staff.avatarBg,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Page component                                                    */
 /* ------------------------------------------------------------------ */
@@ -329,7 +419,9 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>("Today");
   const [staffFilter, setStaffFilter] = useState<StaffActivityFilter>("All Staff Activity");
   const [adminFilter, setAdminFilter] = useState<AdminActivityFilter>("All Admin Activity");
-  const [entries, setEntries] = useState<AuditLogEntry[]>(() => getStoredAuditEntries());
+  const [entries, setEntries] = useState<AuditLogEntry[]>([]);
+  const [entriesLoading, setEntriesLoading] = useState(true);
+  const [entriesError, setEntriesError] = useState<string | null>(null);
   const [staffPresence, setStaffPresence] = useState<StaffPresence[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | null>(null);
 
@@ -369,7 +461,7 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
           return {
             ...s,
             online: isOnline,
-            lastSeen: isOnline ? "Just now" : (s.online ? "Just now" : s.lastSeen),
+            lastSeen: isOnline ? "Just now" : (s.accountActive ? "Offline" : "Inactive account"),
           };
         })
       );
@@ -418,8 +510,25 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
       }
     };
 
+    const loadEntries = async () => {
+      try {
+        const nextEntries = await getAuditLog();
+        if (isMounted) {
+          setEntries(nextEntries);
+          setEntriesError(null);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setEntries([]);
+          setEntriesError(err instanceof Error ? err.message : 'Failed to load the audit log.');
+        }
+      } finally {
+        if (isMounted) setEntriesLoading(false);
+      }
+    };
+
     const handleAuditUpdate = () => {
-      setEntries(getStoredAuditEntries());
+      void loadEntries();
     };
 
     // Fired by StaffAccounts.tsx right after an activate/deactivate call
@@ -429,6 +538,7 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
     };
 
     void loadStaffPresence();
+    void loadEntries();
     window.addEventListener('admin-audit-log:updated', handleAuditUpdate);
     window.addEventListener('staff-directory:updated', handleStaffDirectoryUpdate);
 
@@ -444,12 +554,9 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
     };
   }, []);
 
-  // Base filter shared by both cards: never show the super admin's own
-  // actions, and respect the search box + time range picked in the toolbar.
+  // Base filter shared by both cards: respect the search box + time range picked in the toolbar.
   const baseFilteredEntries = useMemo(() => {
     return entries.filter((entry) => {
-      if (entry.actorRole === 'SUPER_ADMIN') return false;
-
       const matchesSearch =
         search.trim() === "" ||
         entry.actor.toLowerCase().includes(search.toLowerCase()) ||
@@ -537,9 +644,9 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
           <button
             type="button"
             className="audit-filter-btn"
-            onClick={() => { clearStoredAuditEntries(); setEntries([]); }}
+            onClick={() => window.dispatchEvent(new Event('admin-audit-log:updated'))}
           >
-            Clear log
+            Refresh
           </button>
         </div>
       </div>
@@ -560,10 +667,12 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
                   <option>All Staff Activity</option>
                   <option>Logins</option>
                   <option>Logouts</option>
-                  <option>Assessments Submitted</option>
-                  <option>Assessments Edited</option>
                   <option>Document Uploads</option>
                   <option>Reports Printed</option>
+                  <option>Pending Documents</option>
+                  <option>Voided Documents</option>
+                  <option>Archived Documents</option>
+                  <option>Released Documents</option>
                 </select>
                 <ChevronDown size={14} className="audit-select-chevron" />
               </div>
@@ -573,7 +682,13 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
               {staffEntries.map((entry) => (
                 <AuditRow key={entry.id} entry={entry} onSelect={setSelectedEntry} />
               ))}
-              {staffEntries.length === 0 && (
+              {entriesLoading && (
+                <div className="audit-empty">Loading…</div>
+              )}
+              {!entriesLoading && entriesError && (
+                <div className="audit-empty">{entriesError}</div>
+              )}
+              {!entriesLoading && !entriesError && staffEntries.length === 0 && (
                 <div className="audit-empty">No staff activity matches your search or filter.</div>
               )}
             </div>
@@ -596,7 +711,6 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
                   <option>Account Deactivations</option>
                   <option>Promotions</option>
                   <option>Demotions</option>
-                  <option>Staff Info Edits</option>
                 </select>
                 <ChevronDown size={14} className="audit-select-chevron" />
               </div>
@@ -606,7 +720,13 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
               {adminEntries.map((entry) => (
                 <AuditRow key={entry.id} entry={entry} onSelect={setSelectedEntry} />
               ))}
-              {adminEntries.length === 0 && (
+              {entriesLoading && (
+                <div className="audit-empty">Loading…</div>
+              )}
+              {!entriesLoading && entriesError && (
+                <div className="audit-empty">{entriesError}</div>
+              )}
+              {!entriesLoading && !entriesError && adminEntries.length === 0 && (
                 <div className="audit-empty">No admin activity matches your search or filter.</div>
               )}
             </div>
@@ -625,6 +745,9 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
             </div>
           </div>
         </div>
+
+        {/* Staff Performance card — full width below the 3-column grid */}
+        <StaffPerformanceCard />
       </div>
 
       {selectedEntry && (

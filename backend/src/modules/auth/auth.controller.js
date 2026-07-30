@@ -1,4 +1,5 @@
 import AuthService from '../auth/auth.service.js';
+import AuditLogService from '../auditLog/auditLog.service.js';
 import { validatePassword } from '../../utils/validators.js';
 
 export const register = async (req, res) => {
@@ -31,6 +32,18 @@ export const login = async (req, res) => {
     }
 
     const result = await AuthService.loginUser({ username, password });
+
+    // Best-effort — a failed audit write should never block a successful
+    // login. result.user.staffId is already resolved by loginUser(), so
+    // no extra lookup is needed here.
+    AuditLogService
+      .createEntry({
+        actorStaffId: result.user.staffId,
+        type: 'login',
+        description: 'logged in',
+      })
+      .catch((err) => console.error('Audit log write failed (login):', err.message));
+
     res.status(200).json({ message: 'Login successful.', ...result });
   } catch (error) {
     // Special case: correct credentials, but the account is disabled and

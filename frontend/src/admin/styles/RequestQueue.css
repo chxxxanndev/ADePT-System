@@ -152,10 +152,29 @@
     border-color: #F5E3B9;
 }
 
+.rq-status-processing {
+    background: #EBF8FF;
+    color: #00838F;
+    border-color: #B2EBF2;
+}
+
+.rq-status-payment-verified {
+    background: #E8F5E9;
+    color: #2E7D32;
+    border-color: #C8E6C9;
+}
+
 .rq-status-released {
     background: #E7F8EE;
     color: #1E9E5A;
     border-color: #C9EFDA;
+}
+
+.rq-status-void,
+.rq-status-cancelled {
+    background: #FFEBEE;
+    color: #C62828;
+    border-color: #FFCDD2;
 }
 
 .rq-reprint-badge {
@@ -240,4 +259,103 @@
     .rq-search-input {
         width: 100%;
     }
+}
+
+/* ===== State Messages (loading / error / empty) ===== */
+.rq-state-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 48px 24px;
+    color: #9aa0af;
+    font-size: 14px;
+    text-align: center;
+}
+
+.rq-state-error {
+    color: #c0392b;
+}
+
+.rq-state-empty {
+    color: #8b8fa3;
+}
+
+.rq-retry-btn {
+    padding: 7px 20px;
+    border: 1px solid #e05a4f;
+    border-radius: 8px;
+    background: transparent;
+    color: #c0392b;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.rq-retry-btn:hover { background: #fdf0ef; }
+
+/* Spinner for the refresh button within the page header */
+.rq-spinner {
+    width: 22px;
+    height: 22px;
+    border: 3px solid rgba(61,46,124,0.12);
+    border-top-color: #3D2E7C;
+    border-radius: 50%;
+    animation: rq-spin 0.7s linear infinite;
+}
+@keyframes rq-spin { to { transform: rotate(360deg); } }
+
+/* Footer row count */
+.rq-footer-count {
+    padding: 10px 20px;
+    font-size: 12px;
+    color: #9aa0af;
+    border-top: 1px solid #ecedf3;
+    text-align: right;
+}
+
+/* ===== Extended Status Pill Variants ===== */
+/* Processing */
+.rq-status-processing {
+    background: #e8f0fe;
+    color: #3267d6;
+}
+.rq-status-processing .status-dot { background: #3267d6; }
+
+/* Payment Verified / Paid */
+.rq-status-paid {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+.rq-status-paid .status-dot { background: #2e7d32; }
+
+/* Void / Cancelled */
+.rq-status-void {
+    background: #fce4ec;
+    color: #b71c1c;
+}
+.rq-status-void .status-dot { background: #b71c1c; }
+
+/* Released (shared with existing admin-table usage) */
+.rq-status-released {
+    background: #e6f9f1;
+    color: #1E9E5A;
+}
+.rq-status-released .status-dot { background: #1E9E5A; }
+
+/* Pending (ensure scoped override) */
+.rq-status-pending {
+    background: #fffbe6;
+    color: #b7860d;
+}
+.rq-status-pending .status-dot { background: #D89A1D; }
+
+/* Summary pills row */
+.rq-summary-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid #ecedf3;
 }
