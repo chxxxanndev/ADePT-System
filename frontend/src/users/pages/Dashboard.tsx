@@ -32,6 +32,12 @@ import { TransactionSummary } from './request-processing/TransactionSummary';
 import { ROLES } from '../constants/roles';
 import { useNotifications } from '../hooks/useNotifications';
 
+// Import the real data service and needed types
+import { fetchTransactionRegistry } from '../services/transactionService';
+import type { Transaction } from '../types/transaction';
+import type { TransactionRow } from '../types/dashboard';   // <-- FIX: import TransactionRow
+
+// Remove the mock recentTransactions import
 import {
     navSections,
     operationalSummary,
@@ -39,10 +45,33 @@ import {
     weeklyTrend,
     documentDistribution,
     totalDocuments,
-    recentTransactions,
-    quickActions
+    quickActions,
 } from '../data/dashboardMockData';
 import VoidAndAmend from './VoidAndAmend';
+
+// Helper to format date as "MM/DD/YYYY hh:mm AM/PM"
+const formatTransactionDateTime = (dateStr: string): string => {
+    try {
+        const d = new Date(dateStr);
+        return `${d.toLocaleDateString('en-US')} ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    } catch {
+        return dateStr;
+    }
+};
+
+// Map a Transaction (from registry) to TransactionRow (for RecentTransactions)
+const mapTransactionToRow = (t: Transaction): TransactionRow => {
+    const docTypes = t.requestedDocuments?.map(d => d.documentType).join(', ') || 'N/A';
+        return {
+        id: t.id,
+        controlNumber: t.referenceNumber,
+        declarant: t.client.declarantName,
+        document: docTypes,
+        // Cast status to match expected BadgeStatus in TransactionRow
+        status: (t.status as unknown) as any,
+        dateTime: formatTransactionDateTime(t.dateRequested),
+    };
+};
 
 const REQUEST_PROCESSING_VIEWS = new Set([
     'tax-declaration',
@@ -91,7 +120,39 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
     const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
 
-    // Single shared notifications state + realtime subscription, lives for the whole session
+    // --- State for recent transactions (real data) ---
+    const [recentTransactionsData, setRecentTransactionsData] = useState<TransactionRow[]>([]);
+
+    // --- Fetch real recent transactions on mount ---
+    useEffect(() => {
+        let isMounted = true;
+        const fetchRecent = async () => {
+            try {
+                const all = await fetchTransactionRegistry();
+                // Filter only "Released"
+                const released = all.filter(t => t.status === 'Released');
+                // Sort by date descending (newest first)
+                const sorted = released.sort(
+                    (a, b) => new Date(b.dateRequested).getTime() - new Date(a.dateRequested).getTime()
+                );
+                // Take first 5
+                const top5 = sorted.slice(0, 5);
+                const rows = top5.map(mapTransactionToRow);
+                if (isMounted) {
+                    setRecentTransactionsData(rows);
+                }
+            } catch (err) {
+                console.error('Failed to fetch recent transactions:', err);
+                if (isMounted) {
+                    setRecentTransactionsData([]); // fallback: empty table
+                }
+            }
+        };
+        fetchRecent();
+        return () => { isMounted = false; };
+    }, []);
+
+    // Single shared notifications state + realtime subscription
     const {
         notifications,
         unreadCount,
@@ -120,7 +181,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
             const meta = await requestService.getMetadata();
             const docTypes = Array.isArray(meta?.docTypes) ? meta.docTypes : [];
             let documentTypeIds: string[] = [];
-            let prefix = 'REF'; // Default
+            let prefix = 'REF';
 
             if (type === 'tax') {
                 const found = docTypes.find((d: any) => d.name.toLowerCase().includes('tax declaration') || d.id === 'dt1');
@@ -132,7 +193,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 const found = docTypes.find((d: any) => d.name.toLowerCase().includes('no landholding') || d.id === 'dt4');
                 if (found) { documentTypeIds = [found.id]; prefix = 'NLH'; }
             }
-
 
             setPrefilledRequestData({
                 declarantName: '',
@@ -318,7 +378,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                                 <DocumentDistribution slices={documentDistribution} totalDocuments={totalDocuments} />
                             </div>
                             <div className="dashboard-row">
-                                <RecentTransactions rows={recentTransactions} onViewAll={() => setActiveView('transaction-registry')} />
+                                <RecentTransactions rows={recentTransactionsData} onViewAll={() => setActiveView('transaction-registry')} />
                                 <QuickActions actions={quickActions} onSelect={setActiveView} />
                             </div>
                         </>
@@ -397,7 +457,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             }}
                         />
                     ) : activeView === 'transaction-registry' ? (
-                        <TransactionRegistry />
+                        <TransactionRegistry user={user} />
                     ) : activeView === 'void-amend' ? (
                         <VoidAndAmend />
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (

@@ -10,6 +10,7 @@ import { FilterBar } from '../components/FilterBar';
 import { TransactionTable } from '../components/TransactionTable';
 import { TransactionDetails } from './TransactionDetails';
 import { VoidDocumentSelectModal } from '../components/DocumentSelectModal';
+import type { User } from '../../auth-folder/types/auth';
 import '../styles/TransactionRegistry.css';
 
 const DEFAULT_FILTERS: TransactionFilters = {
@@ -24,7 +25,11 @@ function toComparableDate(mmddyyyy: string): string {
     return `${y}-${m}-${d}`;
 }
 
-export function TransactionRegistry() {
+interface TransactionRegistryProps {
+    user: User; // still needed to populate actionedBy
+}
+
+export function TransactionRegistry({ user }: TransactionRegistryProps) {
     const navigate = useNavigate();
 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -114,34 +119,40 @@ export function TransactionRegistry() {
         }));
     };
 
-    // Opens the checklist for the whole declarant group — voiding now
-    // targets one or more of that declarant's documents/reference numbers,
-    // not necessarily all of them.
     const handleVoidGroup = (group: DeclarantGroup) => setVoidGroupTarget(group);
 
-    // TODO: once backend supports per-document void, this should call a real
-    // endpoint (e.g. voidDocuments(transactionIds, reason)) instead of this
-    // client-side status flip. For now it mirrors the previous single-void
-    // behavior across every selected transaction.
+    // ─── modified: navigate with state instead of callback ──
     const confirmVoidGroup = (transactionIds: string[], reason: string) => {
         const idSet = new Set(transactionIds);
-        setTransactions((prev) => prev.map((item) =>
-            idSet.has(item.id) ? { ...item, status: 'Void', voidReason: reason } : item
-        ));
+        const voidedTransactions = transactions.filter(t => idSet.has(t.id));
 
-        const voidedRefs = transactions
-            .filter((t) => idSet.has(t.id))
-            .map((t) => t.referenceNumber);
+        // Update local status (UI feedback)
+        setTransactions((prev) =>
+            prev.map((item) =>
+                idSet.has(item.id) ? { ...item, status: 'Void', voidReason: reason } : item
+            )
+        );
+
+        // Build VoidAmendRecord objects
+        const now = new Date().toISOString();
+        const actionedBy = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User';
+
+        const voidedRecords = voidedTransactions.map((t) => ({
+            id: `void-${t.id}-${Date.now()}`,
+            reference: t.referenceNumber,
+            declarantName: t.client.declarantName,
+            documentType: t.requestedDocuments.map(d => d.documentType).join(', ') || 'N/A',
+            actionType: 'void' as const,
+            detail: reason || 'Voided from registry',
+            actionedBy,
+            actionedAt: now,
+        }));
 
         setVoidGroupTarget(null);
-        // '/void-and-amend' is a placeholder route for now — point this at the
-        // real route once it's registered in your router.
+
+        // Navigate to Void and Amend page with the new records
         navigate('/void-and-amend', {
-            state: {
-                declarantName: voidGroupTarget?.declarantName,
-                referenceNumbers: voidedRefs,
-                reason,
-            },
+            state: { newVoidedItems: voidedRecords },
         });
     };
 

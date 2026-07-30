@@ -1,5 +1,5 @@
 
-import type { StatCardData, TransactionRow, WeeklyTrendPoint, DocumentDistributionSlice, QuickActionItem, NavSection, UserProfile } from '../types/dashboard';
+import type { StatCardData, WeeklyTrendPoint, DocumentDistributionSlice, QuickActionItem, NavSection, UserProfile } from '../types/dashboard';
 
 export const currentUser: UserProfile = {
     name: 'Vicente Deosy',
@@ -38,13 +38,6 @@ export const documentDistribution: DocumentDistributionSlice[] = [
 
 export const totalDocuments = documentDistribution.reduce((sum, d) => sum + d.count, 0);
 
-export const recentTransactions: TransactionRow[] = [
-    { id: 't1', controlNumber: 'TD-000191', declarant: 'Jofel Ramos', document: 'Tax Declaration', status: 'Released', dateTime: '07/12/26, 10:45 AM' },
-    { id: 't2', controlNumber: 'CLH-000089', declarant: 'Melissa Tan', document: 'Certificate of Land Holding', status: 'Cancelled', dateTime: '07/12/26, 10:32 AM' },
-    { id: 't3', controlNumber: 'CNL-000062', declarant: 'Florie Amora', document: 'Certificate of No Landholding', status: 'Pending Verification', dateTime: '07/12/26, 08:56 AM' },
-    { id: 't4', controlNumber: 'CTC-000065', declarant: 'Ana Chavez', document: 'Certified True Copy', status: 'Certified True Copy', dateTime: '07/12/26, 07:54 AM' },
-    { id: 't5', controlNumber: 'CNL-000064', declarant: 'Sharla Uy', document: 'Tax Declaration', status: 'Voided', dateTime: '07/12/26, 07:41 AM' },
-];
 
 export const quickActions: QuickActionItem[] = [
     { id: 'qa-new', title: 'New Request', description: 'Start a new document request', icon: 'newRequest', view: 'new-request' },

@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
-import { Search, ChevronDown, Ban, PencilLine } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import { Search, ChevronDown, Ban, PencilLine, ChevronLeft, ChevronRight } from "lucide-react";
 import "../styles/VoidAndAmend.css";
 
-type ActionType = "void";
+export type ActionType = "void";
 
-interface VoidAmendRecord {
+export interface VoidAmendRecord {
   id: string;
   reference: string;
   declarantName: string;
@@ -18,118 +19,14 @@ interface VoidAmendRecord {
 type TimeRange = "Today" | "Yesterday" | "This Week" | "This Month" | "All Time";
 
 interface VoidAndAmendProps {
-  // Called when staff clicks the pencil on a row. The record here only has
-  // display fields (reference, declarant, document type, reason) — it does
-  // NOT carry the full original request (property info, purpose, payment,
-  // document type ids), so this can't clone anything by itself yet. The
-  // parent is expected to fetch the full request by reference/id and hand
-  // it to RequestFormEntry as prefilled data, generating a fresh reference
-  // number the same way handleSelectNewRequest already does in Dashboard.
   onAmend?: (record: VoidAmendRecord) => void;
 }
 
-const records: VoidAmendRecord[] = [
-  {
-    id: "va-001",
-    reference: "TD-2026-04831",
-    declarantName: "Leah Todd",
-    documentType: "Tax Declaration",
-    actionType: "void",
-    detail: "Duplicate filing under the same reference period",
-    actionedBy: "Vicente Desoy",
-    actionedAt: "2026-07-20T09:10:00",
-  },
-  {
-    id: "va-002",
-    reference: "LH-2026-04791",
-    declarantName: "Harriett Johnson",
-    documentType: "Certificate of Land Holding",
-    actionType: "void",
-    detail: "Corrected property boundary description",
-    actionedBy: "John Cruz",
-    actionedAt: "2026-07-20T08:45:00",
-  },
-  {
-    id: "va-003",
-    reference: "CTC-2026-02342",
-    declarantName: "Allen Hanson",
-    documentType: "Certified True Copy",
-    actionType: "void",
-    detail: "Declarant withdrew request before release",
-    actionedBy: "Maria Lopez",
-    actionedAt: "2026-07-19T16:30:00",
-  },
-  {
-    id: "va-004",
-    reference: "NLH-2026-00423",
-    declarantName: "Sophia Rodriguez",
-    documentType: "No-Landholding Certificate",
-    actionType: "void",
-    detail: "Updated declarant civil status on record",
-    actionedBy: "Dennis Cruz",
-    actionedAt: "2026-07-19T14:05:00",
-  },
-  {
-    id: "va-005",
-    reference: "TD-2026-09437",
-    declarantName: "Oscar Sullivan",
-    documentType: "Tax Declaration",
-    actionType: "void",
-    detail: "Incorrect declarant name entered at encoding",
-    actionedBy: "Ana Marquez",
-    actionedAt: "2026-07-19T11:20:00",
-  },
-  {
-    id: "va-006",
-    reference: "LH-2026-09725",
-    declarantName: "Tom Hanson",
-    documentType: "Certificate of Land Holding",
-    actionType: "void",
-    detail: "Corrected total assessed land area",
-    actionedBy: "Vicente Desoy",
-    actionedAt: "2026-07-16T15:15:00",
-  },
-  {
-    id: "va-007",
-    reference: "CTC-2026-05155",
-    declarantName: "Minerva Duncan",
-    documentType: "Certified True Copy",
-    actionType: "void",
-    detail: "Payment reversed, request cancelled",
-    actionedBy: "Maria Lopez",
-    actionedAt: "2026-07-15T10:02:00",
-  },
-  {
-    id: "va-008",
-    reference: "NLH-2026-05553",
-    declarantName: "Victor Wilkins",
-    documentType: "No-Landholding Certificate",
-    actionType: "void",
-    detail: "Updated property location details",
-    actionedBy: "John Cruz",
-    actionedAt: "2026-07-14T09:40:00",
-  },
-  {
-    id: "va-009",
-    reference: "TD-2026-07023",
-    declarantName: "Priya Shah",
-    documentType: "Tax Declaration",
-    actionType: "void",
-    detail: "Assessment period expired before payment",
-    actionedBy: "Ana Marquez",
-    actionedAt: "2026-06-28T13:50:00",
-  },
-  {
-    id: "va-010",
-    reference: "LH-2026-03390",
-    declarantName: "Miguel Santos",
-    documentType: "Certificate of Land Holding",
-    actionType: "void",
-    detail: "Updated declarant contact information",
-    actionedBy: "Dennis Cruz",
-    actionedAt: "2026-06-10T10:35:00",
-  },
-];
+// ─── Constants ──────────────────────────────────────────────
+const STORAGE_KEY = "voidedRecords";
+const PAGE_SIZE_OPTIONS = [10, 25, 50];
+
+// ─── Helpers ──────────────────────────────────────────────
 
 function formatDateTime(isoString: string): string {
   const date = new Date(isoString);
@@ -146,7 +43,7 @@ function formatDateTime(isoString: string): string {
   return `${datePart}, ${timePart}`;
 }
 
-const NOW = new Date("2026-07-20T12:00:00");
+const NOW = new Date();
 
 function isSameCalendarDay(a: Date, b: Date): boolean {
   return (
@@ -193,10 +90,40 @@ function ActionBadge() {
   );
 }
 
+// ─── Component ─────────────────────────────────────────────
+
 export default function VoidAndAmend({ onAmend }: VoidAndAmendProps) {
+  const location = useLocation();
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("All Time");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
+  // ─── Persistent state (localStorage) ────────────────────
+  const [records, setRecords] = useState<VoidAmendRecord[]>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  });
+
+  // Save to localStorage whenever records change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  }, [records]);
+
+  // ─── Add new voided items from navigation state ──────────
+  useEffect(() => {
+    const state = location.state as { newVoidedItems?: VoidAmendRecord[] } | null;
+    if (state?.newVoidedItems && state.newVoidedItems.length > 0) {
+      setRecords((prev) => {
+        const existingIds = new Set(prev.map((r) => r.id));
+        const newItems = state.newVoidedItems!.filter((r) => !existingIds.has(r.id));
+        return [...newItems, ...prev];
+      });
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
+
+  // ─── Filtering & Sorting ─────────────────────────────────
   const filteredRecords = useMemo(() => {
     return records
       .filter((record) => {
@@ -210,8 +137,34 @@ export default function VoidAndAmend({ onAmend }: VoidAndAmendProps) {
         return matchesSearch && matchesTime;
       })
       .sort((a, b) => new Date(b.actionedAt).getTime() - new Date(a.actionedAt).getTime());
-  }, [search, timeRange]);
+  }, [records, search, timeRange]);
 
+  // ─── Pagination ───────────────────────────────────────────
+  const totalRecords = filteredRecords.length;
+  const totalPages = Math.ceil(totalRecords / pageSize) || 1;
+
+  // Reset to page 1 when filters or page size change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, timeRange, pageSize]);
+
+  const start = (currentPage - 1) * pageSize;
+  const end = Math.min(start + pageSize, totalRecords);
+  const paginatedRecords = useMemo(() => {
+    return filteredRecords.slice(start, end);
+  }, [filteredRecords, start, end]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPageSize(Number(e.target.value));
+  };
+
+  // ─── Amend callback ──────────────────────────────────────
   const handleAmendClick = (record: VoidAmendRecord) => {
     if (onAmend) {
       onAmend(record);
@@ -221,6 +174,8 @@ export default function VoidAndAmend({ onAmend }: VoidAndAmendProps) {
       );
     }
   };
+
+  // ─── Render ──────────────────────────────────────────────
 
   return (
     <div className="va-page">
@@ -275,7 +230,7 @@ export default function VoidAndAmend({ onAmend }: VoidAndAmendProps) {
                 </tr>
               </thead>
               <tbody>
-                {filteredRecords.map((record, idx) => (
+                {paginatedRecords.map((record, idx) => (
                   <tr key={record.id} className={idx % 2 !== 0 ? "va-row-alt" : ""}>
                     <td className="va-cell-reference">#{record.reference}</td>
                     <td className="va-cell-name">{record.declarantName}</td>
@@ -301,14 +256,62 @@ export default function VoidAndAmend({ onAmend }: VoidAndAmendProps) {
                     </td>
                   </tr>
                 ))}
-                {filteredRecords.length === 0 && (
+                {paginatedRecords.length === 0 && (
                   <tr className="va-empty-row">
-                    <td colSpan={7}>No records match your search or filter.</td>
+                    <td colSpan={7}>No voided records match your filters.</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+
+          {/* ─── Pagination Controls ────────────────────────── */}
+          {totalRecords > 0 && (
+            <div className="va-pagination">
+              <div className="va-pagination-left">
+                <span className="va-rows-label">Rows per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={handlePageSizeChange}
+                  className="va-rows-select"
+                >
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="va-pagination-center">
+                <span className="va-range-info">
+                  {start + 1}–{end} of {totalRecords}
+                </span>
+              </div>
+
+              <div className="va-pagination-right">
+                <button
+                  className="va-page-btn"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span className="va-page-indicator">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  className="va-page-btn"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  aria-label="Next page"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
