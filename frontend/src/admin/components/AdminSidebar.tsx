@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import logoImg from '../../auth-folder/assets/logo.png';
-import { adminNavigation } from '../data/dashboardMockData';
+import { adminNavigation } from '../data/adminTypes';
 import {
     ChevronDownIcon,
     DashboardIcon,

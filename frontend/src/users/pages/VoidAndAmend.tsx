@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
-import { Search, ChevronDown, Ban, PencilLine, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronDown, Ban, PencilLine, Loader2 } from "lucide-react";
+import { fetchTransactionRegistry } from "../services/transactionService";
+import type { Transaction } from "../types/transaction";
 import "../styles/VoidAndAmend.css";
 
 export type ActionType = "void";
@@ -20,13 +21,46 @@ type TimeRange = "Today" | "Yesterday" | "This Week" | "This Month" | "All Time"
 
 interface VoidAndAmendProps {
   onAmend?: (record: VoidAmendRecord) => void;
+  pendingItems?: VoidAmendRecord[];
+  onPendingItemsConsumed?: () => void;
 }
 
 // ─── Constants ──────────────────────────────────────────────
-const STORAGE_KEY = "voidedRecords";
+// This no longer stores the void records themselves — the registry (via
+// fetchTransactionRegistry) is the source of truth for *which* transactions
+// are voided, so this list always matches what Reports & Analytics counts.
+// It only caches the "who / when" for each void, since the Transaction type
+// has no voidedBy/voidedAt columns yet (only a `voidReason`). Once the
+// backend adds those, this cache — and the whole metadata-merge dance below —
+// can be deleted and everything can come straight from the registry fetch.
+const METADATA_STORAGE_KEY = "voidAmendMetadata";
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
+interface VoidMetadataEntry {
+  actionedBy: string;
+  actionedAt: string;
+  detail: string;
+}
+type VoidMetadataStore = Record<string, VoidMetadataEntry>;
+
 // ─── Helpers ──────────────────────────────────────────────
+
+function loadMetadataStore(): VoidMetadataStore {
+  try {
+    const stored = localStorage.getItem(METADATA_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveMetadataStore(store: VoidMetadataStore) {
+  try {
+    localStorage.setItem(METADATA_STORAGE_KEY, JSON.stringify(store));
+  } catch {
+    // best-effort cache only — safe to ignore write failures
+  }
+}
 
 function formatDateTime(isoString: string): string {
   const date = new Date(isoString);
@@ -53,8 +87,12 @@ function isSameCalendarDay(a: Date, b: Date): boolean {
   );
 }
 
-function matchesTimeRange(isoString: string, range: TimeRange): boolean {
+function matchesTimeRange(isoString: string | null, range: TimeRange): boolean {
   if (range === "All Time") return true;
+  // If we don't actually know when this was voided (no cached metadata for
+  // it — e.g. it was voided from a different browser/session), it can only
+  // ever match "All Time" rather than guessing.
+  if (!isoString) return false;
 
   const actionedDate = new Date(isoString);
   const msPerDay = 24 * 60 * 60 * 1000;
@@ -90,38 +128,78 @@ function ActionBadge() {
   );
 }
 
+/** Maps a live Void-status Transaction + whatever metadata we have cached for it into a display record. */
+function toDisplayRecord(t: Transaction, metadata: VoidMetadataEntry | undefined): VoidAmendRecord {
+  return {
+    id: t.id,
+    reference: t.referenceNumber,
+    declarantName: t.client.declarantName,
+    documentType: t.requestedDocuments.map((d) => d.documentType).join(", ") || "N/A",
+    actionType: "void",
+    detail: metadata?.detail || t.voidReason || "Voided from registry",
+    actionedBy: metadata?.actionedBy || t.assignedStaff || "—",
+    actionedAt: metadata?.actionedAt || "",
+  };
+}
+
 // ─── Component ─────────────────────────────────────────────
 
-export default function VoidAndAmend({ onAmend }: VoidAndAmendProps) {
-  const location = useLocation();
+export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItemsConsumed }: VoidAndAmendProps) {
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("All Time");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // ─── Persistent state (localStorage) ────────────────────
-  const [records, setRecords] = useState<VoidAmendRecord[]>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [metadataStore, setMetadataStore] = useState<VoidMetadataStore>(() => loadMetadataStore());
 
-  // Save to localStorage whenever records change
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-  }, [records]);
-
-  // ─── Add new voided items from navigation state ──────────
-  useEffect(() => {
-    const state = location.state as { newVoidedItems?: VoidAmendRecord[] } | null;
-    if (state?.newVoidedItems && state.newVoidedItems.length > 0) {
-      setRecords((prev) => {
-        const existingIds = new Set(prev.map((r) => r.id));
-        const newItems = state.newVoidedItems!.filter((r) => !existingIds.has(r.id));
-        return [...newItems, ...prev];
-      });
-      window.history.replaceState({}, document.title);
+  const loadVoidedTransactions = async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const all = await fetchTransactionRegistry();
+      setTransactions(all.filter((t) => t.status === "Void"));
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to load voided records.");
+      setTransactions([]);
+    } finally {
+      setLoading(false);
     }
-  }, [location]);
+  };
+
+  useEffect(() => {
+    loadVoidedTransactions();
+  }, []);
+
+  // ─── Seed the metadata cache from items just voided in this session ─────
+  useEffect(() => {
+    if (pendingItems && pendingItems.length > 0) {
+      setMetadataStore((prev) => {
+        const next = { ...prev };
+        for (const item of pendingItems) {
+          next[item.id] = {
+            actionedBy: item.actionedBy,
+            actionedAt: item.actionedAt,
+            detail: item.detail,
+          };
+        }
+        saveMetadataStore(next);
+        return next;
+      });
+      if (onPendingItemsConsumed) onPendingItemsConsumed();
+      // A void was just confirmed elsewhere — make sure our live list reflects it
+      // even if this component was already mounted.
+      loadVoidedTransactions();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingItems]);
+
+  const records: VoidAmendRecord[] = useMemo(
+    () => transactions.map((t) => toDisplayRecord(t, metadataStore[t.id])),
+    [transactions, metadataStore]
+  );
 
   // ─── Filtering & Sorting ─────────────────────────────────
   const filteredRecords = useMemo(() => {
@@ -133,10 +211,16 @@ export default function VoidAndAmend({ onAmend }: VoidAndAmendProps) {
           record.declarantName.toLowerCase().includes(search.toLowerCase()) ||
           record.documentType.toLowerCase().includes(search.toLowerCase()) ||
           record.detail.toLowerCase().includes(search.toLowerCase());
-        const matchesTime = matchesTimeRange(record.actionedAt, timeRange);
+        const matchesTime = matchesTimeRange(record.actionedAt || null, timeRange);
         return matchesSearch && matchesTime;
       })
-      .sort((a, b) => new Date(b.actionedAt).getTime() - new Date(a.actionedAt).getTime());
+      .sort((a, b) => {
+        // Records with a known actionedAt sort newest-first; unknown ones sink to the bottom.
+        if (!a.actionedAt && !b.actionedAt) return 0;
+        if (!a.actionedAt) return 1;
+        if (!b.actionedAt) return -1;
+        return new Date(b.actionedAt).getTime() - new Date(a.actionedAt).getTime();
+      });
   }, [records, search, timeRange]);
 
   // ─── Pagination ───────────────────────────────────────────
@@ -216,101 +300,116 @@ export default function VoidAndAmend({ onAmend }: VoidAndAmendProps) {
         </div>
 
         <div className="va-card">
-          <div className="va-table-scroll">
-            <table className="va-table">
-              <thead>
-                <tr>
-                  <th>Reference No.</th>
-                  <th>Declarant</th>
-                  <th>Document Type</th>
-                  <th>Reason / Change</th>
-                  <th>Actioned By</th>
-                  <th>Date &amp; Time</th>
-                  <th style={{ textAlign: "center" }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedRecords.map((record, idx) => (
-                  <tr key={record.id} className={idx % 2 !== 0 ? "va-row-alt" : ""}>
-                    <td className="va-cell-reference">#{record.reference}</td>
-                    <td className="va-cell-name">{record.declarantName}</td>
-                    <td className="va-cell-muted">{record.documentType}</td>
-                    <td className="va-cell-muted">{record.detail}</td>
-                    <td className="va-cell-muted">{record.actionedBy}</td>
-                    <td className="va-cell-muted va-cell-nowrap">
-                      {formatDateTime(record.actionedAt)}
-                    </td>
-                    <td>
-                      <div className="va-action-cell">
-                        <ActionBadge />
-                        <button
-                          type="button"
-                          className="va-amend-btn"
-                          title={`Amend ${record.reference}`}
-                          aria-label={`Amend ${record.reference}`}
-                          onClick={() => handleAmendClick(record)}
-                        >
-                          <PencilLine size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {paginatedRecords.length === 0 && (
-                  <tr className="va-empty-row">
-                    <td colSpan={7}>No voided records match your filters.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* ─── Pagination Controls ────────────────────────── */}
-          {totalRecords > 0 && (
-            <div className="va-pagination">
-              <div className="va-pagination-left">
-                <span className="va-rows-label">Rows per page:</span>
-                <select
-                  value={pageSize}
-                  onChange={handlePageSizeChange}
-                  className="va-rows-select"
-                >
-                  {PAGE_SIZE_OPTIONS.map((size) => (
-                    <option key={size} value={size}>
-                      {size}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="va-pagination-center">
-                <span className="va-range-info">
-                  {start + 1}–{end} of {totalRecords}
-                </span>
-              </div>
-
-              <div className="va-pagination-right">
-                <button
-                  className="va-page-btn"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  aria-label="Previous page"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <span className="va-page-indicator">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  className="va-page-btn"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  aria-label="Next page"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
+          {loading ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "48px 0" }}>
+              <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />
+              Loading voided records...
             </div>
+          ) : loadError ? (
+            <div style={{ padding: "32px", textAlign: "center", color: "#B0281C" }}>
+              <p style={{ margin: "0 0 12px", fontWeight: 600 }}>{loadError}</p>
+              <button className="va-amend-btn" style={{ width: "auto", padding: "8px 16px" }} onClick={loadVoidedTransactions}>
+                Retry
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="va-table-scroll">
+                <table className="va-table">
+                  <thead>
+                    <tr>
+                      <th>Reference No.</th>
+                      <th>Declarant</th>
+                      <th>Document Type</th>
+                      <th>Reason / Change</th>
+                      <th>Actioned By</th>
+                      <th>Date &amp; Time</th>
+                      <th style={{ textAlign: "center" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedRecords.map((record, idx) => (
+                      <tr key={record.id} className={idx % 2 !== 0 ? "va-row-alt" : ""}>
+                        <td className="va-cell-reference">#{record.reference}</td>
+                        <td className="va-cell-name">{record.declarantName}</td>
+                        <td className="va-cell-muted">{record.documentType}</td>
+                        <td className="va-cell-muted">{record.detail}</td>
+                        <td className="va-cell-muted">{record.actionedBy}</td>
+                        <td className="va-cell-muted va-cell-nowrap">
+                          {record.actionedAt ? formatDateTime(record.actionedAt) : "—"}
+                        </td>
+                        <td>
+                          <div className="va-action-cell">
+                            <ActionBadge />
+                            <button
+                              type="button"
+                              className="va-amend-btn"
+                              title={`Amend ${record.reference}`}
+                              aria-label={`Amend ${record.reference}`}
+                              onClick={() => handleAmendClick(record)}
+                            >
+                              <PencilLine size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {paginatedRecords.length === 0 && (
+                      <tr className="va-empty-row">
+                        <td colSpan={7}>No voided records match your filters.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ─── Pagination Controls ────────────────────────── */}
+              {totalRecords > 0 && (
+                <div className="va-pagination">
+                  <div className="va-pagination-rows">
+                    <span>Rows per page:</span>
+                    <select
+                      value={pageSize}
+                      onChange={handlePageSizeChange}
+                    >
+                      {PAGE_SIZE_OPTIONS.map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <span className="va-pagination-label">
+                    {totalRecords === 0
+                      ? "0 of 0"
+                      : `${start + 1}–${end} of ${totalRecords}`}
+                  </span>
+
+                  <div className="va-pagination-controls">
+                    <button
+                      type="button"
+                      className="va-pagination-btn"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      aria-label="Previous page"
+                    >
+                      Previous
+                    </button>
+                    <span className="va-pagination-label">Page {currentPage} of {totalPages}</span>
+                    <button
+                      type="button"
+                      className="va-pagination-btn"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      aria-label="Next page"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

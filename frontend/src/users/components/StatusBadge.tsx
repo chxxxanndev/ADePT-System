@@ -12,6 +12,7 @@ const STATUS_CLASS_MAP: Record<TransactionStatus, string> = {
     'Ready for Release': 'tr-badge--readyforrelease',
     'Released': 'tr-badge--released',
     'Void': 'tr-badge--void',
+    'Cancelled': 'tr-badge--void',
     'Archived': 'tr-badge--archived',
 };
 

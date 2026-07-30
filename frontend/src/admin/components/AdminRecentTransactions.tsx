@@ -1,5 +1,5 @@
 import { RefreshIcon } from '../../users/components/icons';
-import type { AdminTransactionRow } from '../data/dashboardMockData';
+import type { AdminTransactionRow } from '../data/adminTypes';
 
 interface AdminRecentTransactionsProps {
     rows: AdminTransactionRow[];
@@ -54,8 +54,10 @@ export function AdminRecentTransactions({
                     <tbody>
                         {rows.length === 0 ? (
                             <tr>
-                                <td colSpan={6} style={{ textAlign: 'center', color: '#64748B', padding: '24px 0' }}>
-                                    No matching transactions found.
+                                <td colSpan={6}>
+                                    <div className="admin-empty-state">
+                                        No matching transactions found.
+                                    </div>
                                 </td>
                             </tr>
                         ) : (

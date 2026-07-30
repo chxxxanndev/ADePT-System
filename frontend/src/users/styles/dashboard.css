@@ -11,7 +11,7 @@
     --db-secondary-hover: #00ACC1;
 
     /* Base */
-    --db-bg: #FFFCF9;
+    --db-bg: #ffffff;
     --db-slate: #2C3338;
     --db-text: #2C3338;
     --db-text-muted: #6B7280;
@@ -22,9 +22,9 @@
     --db-error: #D32F2F;
 
     /* Glass */
-    --db-glass-card-bg: rgba(255, 252, 249, 0.55);
+    --db-glass-card-bg: #ffffff;
     --db-glass-border: rgba(255, 255, 255, 0.35);
-    --db-glass-border-alt: rgba(41, 35, 122, 0.087);
+    --db-glass-border-alt: rgba(41, 35, 122, 0.12);
 
     /* UI usage */
     --db-table-header: rgba(41, 35, 122, 0.05);
@@ -32,11 +32,11 @@
     --db-input-focus-border: #00BCD4;
     --db-hover-highlight: rgba(0, 188, 212, 0.08);
 
-    /* Stat card tints (derived from status/accent colors) */
-    --db-tint-teal: #CCF2F6;
-    --db-tint-gold: #FFF7D7;
-    --db-tint-green: #DBEFDC;
-    --db-tint-red: #F6D5D5;
+    /* Stat card tints — unified to white */
+    --db-tint-teal: #ffffff;
+    --db-tint-gold: #ffffff;
+    --db-tint-green: #ffffff;
+    --db-tint-red: #ffffff;
 
     /* Badge colors */
     --db-badge-green-bg: #E8F5E9;
@@ -53,7 +53,7 @@
     --db-radius-lg: 16px;
     --db-radius-md: 12px;
     --db-radius-sm: 8px;
-    --db-shadow-card: 0 4px 14px rgba(41, 35, 122, 0.07);
+    --db-shadow-card: 0 4px 20px rgba(41, 35, 122, 0.10);
 }
 
 /* =========================================================
@@ -66,7 +66,7 @@
     height: 100dvh;
     background-color: var(--db-bg);
     overflow: hidden;
-    font-family: var(--font-family, 'Outfit', sans-serif);
+    font-family: var(--font-family, 'Poppins', sans-serif);
     color: var(--db-text);
 }
 
@@ -81,23 +81,11 @@
 }
 
 .dashboard-page::before {
-    width: 480px;
-    height: 480px;
-    top: -140px;
-    right: -100px;
-    background: var(--db-primary);
-    opacity: 0.25;
-    filter: blur(250px);
+    display: none;
 }
 
 .dashboard-page::after {
-    width: 440px;
-    height: 440px;
-    bottom: -120px;
-    left: -100px;
-    background: var(--db-secondary);
-    opacity: 0.20;
-    filter: blur(220px);
+    display: none;
 }
 
 /* =========================================================
@@ -108,7 +96,7 @@
     z-index: 20;
     display: flex;
     flex-direction: column;
-    width: 264px;
+    width: 280px;
     flex-shrink: 0;
     height: 100%;
     background-color: var(--db-primary);
@@ -218,7 +206,7 @@
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
     padding: 9px 10px;
     border-radius: 8px;
@@ -294,6 +282,12 @@
     font-weight: 800;
     line-height: 1;
     vertical-align: text-top;
+}
+
+.nav-item-label {
+    flex: 1;
+    min-width: 0;
+    text-overflow: ellipsis;
 }
 
 .nav-subitems {
@@ -375,7 +369,7 @@
 .nav-item-label,
 .nav-item-chevron {
     opacity: 1;
-    max-width: 200px;
+    max-width: 220px;
     white-space: nowrap;
     overflow: hidden;
     transition: opacity 0.2s ease, max-width 0.25s ease;
@@ -658,10 +652,16 @@
     background: transparent;
 }
 
+/* ── Dropdown now anchors from the LEFT edge of its trigger ──────────
+   The period selector used to live on the far right of the header, so
+   `right: 0` made sense. It's since moved to the left side of the
+   welcome row, so anchoring from the right pushed the dropdown off the
+   left edge of the viewport/sidebar. Anchoring from `left: 0` instead
+   opens it into the open space to the right, where it fits. */
 .period-dropdown {
     position: absolute;
     top: calc(100% + 8px);
-    right: 0;
+    left: 0;
     z-index: 100;
     min-width: 220px;
     max-height: 340px;
@@ -676,7 +676,7 @@
     border-radius: var(--db-radius-md);
     box-shadow: 0 12px 32px rgba(41, 35, 122, 0.12);
     animation: dropdown-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    transform-origin: top right;
+    transform-origin: top left;
 }
 
 @keyframes dropdown-in {
@@ -724,6 +724,7 @@
 
 .period-dropdown-calendar {
     min-width: 280px;
+    max-width: calc(100vw - 64px);
     padding: 14px;
 }
 
@@ -891,12 +892,64 @@
 }
 
 /* =========================================================
+   Refresh button (replaces the old period-selector slot on
+   the right side of the welcome row)
+   ========================================================= */
+.refresh-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 99px;
+    background-color: rgba(41, 35, 122, 0.05);
+    border: 1px solid var(--db-glass-border-alt);
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--db-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 8px rgba(41, 35, 122, 0.03);
+}
+
+.refresh-btn:hover:not(:disabled) {
+    background-color: rgba(41, 35, 122, 0.1);
+    border-color: var(--db-primary);
+    transform: translateY(-0.5px);
+}
+
+.refresh-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.refresh-btn-icon {
+    display: flex;
+    transition: transform 0.2s ease;
+}
+
+.refresh-btn-icon.spinning {
+    animation: refresh-spin 0.6s linear infinite;
+}
+
+@keyframes refresh-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* =========================================================
    FLUID CONTENT AREA (OPTIMIZED FOR MULTI-RESOLUTION VIEWPORTS)
    ========================================================= */
 .dashboard-content {
     display: flex;
     flex-direction: column;
-    padding: 12px 28px 32px;
+    padding: 20px 28px 40px;
+    gap: 20px;
     flex: 1;
     width: 100% !important;
     max-width: 100% !important;
@@ -906,18 +959,17 @@
 
 .summary-container {
     background-color: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    border-radius: 12px;
-    padding: 18px;
-    margin-bottom: 18px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(41, 35, 122, 0.10);
+    border-radius: 16px;
+    padding: 24px 28px;
+    box-shadow: 0 4px 16px rgba(41, 35, 122, 0.07);
 }
 
 .section-heading {
     display: flex;
     align-items: center;
-    gap: 14px;
-    margin-bottom: 24px;
+    gap: 10px;
+    margin-bottom: 20px;
     color: var(--db-primary);
 }
 
@@ -938,49 +990,42 @@
 .stat-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
+    gap: 16px;
 }
 
-/* ── Stat cards — now hoverable ──────────────────────────
-   Added: box-shadow/border-color to the transition list, a real
-   :hover state (lift + shadow), and a matching icon "pop" so the
-   accent icon inside each card reacts too. */
+/* ── Stat cards — base ───────────────────────────────── */
 .stat-card {
-    padding: 20px;
-    border-radius: 20px;
-    border: 1px solid rgba(0, 0, 0, 0.04);
+    padding: 22px 24px;
+    border-radius: 18px;
+    border: 1px solid transparent;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     position: relative;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
     cursor: default;
 }
 
+/* Accent colors at rest — matched to reference */
+.stat-card.accent-teal  { background-color: #A8E2E8 !important; }
+.stat-card.accent-gold  { background-color: #FCEEA0 !important; }
+.stat-card.accent-green { background-color: #B8E0C0 !important; }
+.stat-card.accent-red   { background-color: #F8C8CA !important; }
+
+/* Icon badge at rest — small rounded square with slightly deeper shade */
+.accent-teal .stat-card-icon  { background-color: rgba(0, 172, 193, 0.22); color: #007a8a; border-radius: 8px; }
+.accent-gold .stat-card-icon  { background-color: rgba(245, 158, 11, 0.22); color: #b45309; border-radius: 8px; }
+.accent-green .stat-card-icon { background-color: rgba(34, 160, 74, 0.22);  color: #1a6b35; border-radius: 8px; }
+.accent-red .stat-card-icon   { background-color: rgba(220, 53, 69, 0.22);  color: #9b1c2a; border-radius: 8px; }
+
+/* Hover — lift + shadow */
 .stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 24px rgba(41, 35, 122, 0.12);
-    border-color: rgba(41, 35, 122, 0.1);
+    transform: translateY(-5px);
+    box-shadow: 0 12px 30px rgba(41, 35, 122, 0.15);
 }
 
 .stat-card:hover .stat-card-icon {
-    transform: scale(1.08);
-}
-
-.stat-card.accent-teal {
-    background-color: var(--db-tint-teal);
-}
-
-.stat-card.accent-gold {
-    background-color: var(--db-tint-gold);
-}
-
-.stat-card.accent-green {
-    background-color: var(--db-tint-green);
-}
-
-.stat-card.accent-red {
-    background-color: var(--db-tint-red);
+    transform: scale(1.1);
 }
 
 .stat-card-top {
@@ -996,51 +1041,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.2s ease;
-}
-
-.accent-teal {
-    background-color: #E0F7FA;
-}
-
-.accent-teal .stat-card-icon {
-    background-color: #B2EBF2;
-    color: #00BCD4;
-}
-
-.accent-gold {
-    background-color: #FFF9C4;
-}
-
-.accent-gold .stat-card-icon {
-    background-color: #FFF59D;
-    color: #FBC02D;
-}
-
-.accent-green {
-    background-color: #E8F5E9;
-}
-
-.accent-green .stat-card-icon {
-    background-color: #C8E6C9;
-    color: #43A047;
-}
-
-.accent-red {
-    background-color: #FFEBEE;
-}
-
-.accent-red .stat-card-icon {
-    background-color: #FFCDD2;
-    color: #E53935;
+    flex-shrink: 0;
+    transition: transform 0.22s ease;
 }
 
 .stat-card-value {
-    font-size: 42px;
+    font-size: 40px;
     font-weight: 700;
     color: #1a1a1a;
     line-height: 1;
-    margin: 8px 0;
+    margin: 6px 0 4px;
     text-align: center;
 }
 
@@ -1067,16 +1077,16 @@
 .dashboard-row {
     display: grid;
     grid-template-columns: 1.7fr 1fr;
-    gap: 18px;
+    gap: 16px;
     align-items: stretch;
 }
 
 .dashboard-card {
-    background-color: var(--db-glass-card-bg);
+    background-color: #ffffff;
     border: 1px solid var(--db-glass-border-alt);
     border-radius: var(--db-radius-lg);
     box-shadow: var(--db-shadow-card);
-    padding: 20px;
+    padding: 24px 24px 20px;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -1087,7 +1097,7 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 14px;
+    margin-bottom: 18px;
 }
 
 .dashboard-card-title {
@@ -1141,136 +1151,282 @@
     margin-bottom: 14px;
 }
 
-/* Bar chart */
-.bar-chart {
+/* Bar chart - Enhanced (Matches Reference Design) */
+.analytics-card-enhanced {
     display: flex;
-    align-items: flex-end;
-    gap: 16px;
-    height: 150px;
-    padding: 0 4px;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
 }
 
-.bar-chart-col {
+.bar-chart-legend {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--db-text-muted);
+}
+
+.chart-legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.chart-legend-swatch.primary {
+    background-color: #5B50F6;
+}
+
+.chart-legend-swatch.secondary {
+    background-color: #A5B4FC;
+}
+
+/* Chart Container & Flexible Height */
+.bar-chart-container {
+    position: relative;
     flex: 1;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    margin: 8px 0 12px;
+}
+
+/* Dashed Gridlines */
+.chart-gridlines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    pointer-events: none;
+}
+
+.gridline-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.gridline-label {
+    width: 24px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--db-text-muted);
+    text-align: right;
+}
+
+.gridline-line {
+    flex: 1;
+    border-top: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+/* Columns */
+.bar-chart-cols {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    padding-left: 36px;
+    height: calc(100% - 24px);
+}
+
+.bar-col-group {
+    position: relative;
+    flex: 1;
+    height: 100%;
+    max-width: 68px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    height: 100%;
     justify-content: flex-end;
+    padding: 8px 6px 0;
+    border-radius: 12px;
+    transition: background-color 0.2s ease;
+    cursor: pointer;
 }
 
-.bar-chart-bar {
-    width: 100%;
-    max-width: 34px;
-    border-radius: 6px 6px 3px 3px;
-    background-color: #9C97D6;
-    transition: transform 0.2s ease;
+.bar-col-group:hover,
+.bar-col-group.is-hovered {
+    background-color: rgba(91, 80, 246, 0.08);
 }
 
-.bar-chart-bar.is-max {
-    background-color: var(--db-primary);
-}
-
-.bar-chart-bar:hover {
-    transform: scaleY(1.02);
-}
-
-.bar-chart-label {
-    font-size: 10.5px;
+/* Floating Dark Tooltip */
+.bar-tooltip {
+    position: absolute;
+    bottom: calc(100% - 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #0F172A;
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    z-index: 20;
+    white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11.5px;
     font-weight: 600;
+    pointer-events: none;
+    animation: tooltipFadeIn 0.15s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 6px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+.tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tooltip-swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.tooltip-swatch.primary {
+    background-color: #5B50F6;
+}
+
+.tooltip-swatch.secondary {
+    background-color: #A5B4FC;
+}
+
+/* Twin Bars Pair */
+.bar-pair {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    width: 100%;
+    height: calc(100% - 24px);
+    justify-content: center;
+}
+
+.bar-item {
+    flex: 1;
+    max-width: 16px;
+    border-radius: 8px;
+    transition: height 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s ease;
+}
+
+.bar-primary {
+    background-color: #5B50F6;
+}
+
+.bar-secondary {
+    background-color: #A5B4FC;
+}
+
+.bar-col-group:hover .bar-item {
+    transform: translateY(-2px);
+}
+
+.bar-col-label {
+    font-size: 11.5px;
+    font-weight: 700;
     color: var(--db-text-muted);
+    margin-top: 8px;
+    text-align: center;
 }
 
 .analytics-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 16px;
     padding-top: 14px;
-    border-top: 1px solid var(--db-glass-border-alt);
+    border-top: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+.analytics-footer-summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .analytics-footer-total {
     font-size: 13.5px;
     font-weight: 800;
-    color: var(--db-slate);
+    color: var(--db-primary);
 }
 
-.analytics-footer-meta {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 2px;
-}
-
-.analytics-footer-avg {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--db-success);
-}
-
-.analytics-footer-high {
-    font-size: 10.5px;
+.analytics-footer-sub {
+    font-size: 12px;
+    font-weight: 600;
     color: var(--db-text-muted);
-    font-weight: 500;
 }
 
-/* Donut chart */
+/* Donut chart - Thick Ring / Small Center Hole */
 .donut-wrapper {
     display: flex;
     justify-content: center;
-    margin-bottom: 6px;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 4px 0;
 }
 
-.donut-center-label {
-    font-size: 10px;
-    font-weight: 600;
-    fill: var(--db-text-muted);
-}
-
-.donut-center-value {
-    font-size: 19px;
-    font-weight: 800;
-    fill: var(--db-primary);
+.donut-svg {
+    overflow: visible;
 }
 
 .distribution-legend {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .legend-row {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 10px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    transition: background-color 0.2s ease, transform 0.15s ease;
+    cursor: pointer;
+}
+
+.legend-row:hover,
+.legend-row.is-active {
+    background-color: rgba(41, 35, 122, 0.05);
+    transform: translateX(3px);
 }
 
 .legend-dot {
-    width: 9px;
-    height: 9px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
-}
-
-.legend-dot.color-primary {
-    background-color: var(--db-primary);
-}
-
-.legend-dot.color-gold {
-    background-color: var(--db-pending);
-}
-
-.legend-dot.color-red {
-    background-color: var(--db-error);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8), 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .legend-label {
     flex: 1;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 600;
     color: var(--db-slate);
     overflow: hidden;
@@ -1278,23 +1434,47 @@
     white-space: nowrap;
 }
 
-.legend-value {
-    font-size: 11.5px;
-    font-weight: 700;
-    color: var(--db-text-muted);
+.legend-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
     flex-shrink: 0;
+}
+
+.legend-pct {
+    font-weight: 700;
+    color: var(--db-primary);
+}
+
+.legend-count {
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--db-text-muted);
 }
 
 .legend-total-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: 6px;
-    padding-top: 12px;
-    border-top: 1px solid var(--db-glass-border-alt);
+    margin-top: 8px;
+    padding: 10px 10px 2px;
+    border-top: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+.total-label {
     font-size: 12.5px;
+    font-weight: 700;
+    color: var(--db-primary);
+}
+
+.total-badge {
+    font-size: 13px;
     font-weight: 800;
     color: var(--db-primary);
+    background-color: rgba(41, 35, 122, 0.08);
+    padding: 2px 10px;
+    border-radius: 99px;
 }
 
 /* Recent transactions table */
@@ -1549,6 +1729,19 @@
     margin-top: 12px;
     padding-top: 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* =========================================================
+   Header brand logo (SVG icon container, replaces emoji)
+   ========================================================= */
+.header-brand-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-brand-logo svg {
+    display: block;
 }
 
 /* =========================================================

@@ -16,8 +16,13 @@
 }
 
 @keyframes vam-fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .vam-modal {
@@ -35,8 +40,15 @@
 }
 
 @keyframes vam-modal-in {
-    from { opacity: 0; transform: translateY(10px) scale(0.98); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .vam-header {
@@ -59,7 +71,7 @@
     font-size: 0.8rem;
     font-weight: 600;
     color: #7A76A8;
-    font-family: 'Courier New', monospace;
+    font-family: inherit;
     margin: 0;
 }
 
@@ -445,7 +457,7 @@
     font-size: 0.78rem;
     font-weight: 700;
     color: #29237A;
-    font-family: 'Courier New', monospace;
+    font-family: inherit;
 }
 
 .vdm-doc-row-type {
@@ -469,4 +481,4 @@
     .dsm-modal {
         padding: 20px;
     }
-}   
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import '../styles/dashboard.css';
 import { Sidebar } from '../components/Sidebar';
 import { DashboardHeader, WelcomeBanner } from '../components/DashboardHeader';
@@ -32,22 +32,21 @@ import { TransactionSummary } from './request-processing/TransactionSummary';
 import { ROLES } from '../constants/roles';
 import { useNotifications } from '../hooks/useNotifications';
 
-// Import the real data service and needed types
-import { fetchTransactionRegistry } from '../services/transactionService';
+// Single shared source of truth for registry-derived analytics — also used
+// by Reports.tsx, so the Analytics Overview / Document Distribution here and
+// the numbers on the Reports page never drift apart.
+import { useReportsAnalytics } from '../hooks/useReportsAnalytics';
 import type { Transaction } from '../types/transaction';
-import type { TransactionRow } from '../types/dashboard';   // <-- FIX: import TransactionRow
+import type { TransactionRow } from '../types/dashboard';
 
-// Remove the mock recentTransactions import
 import {
     navSections,
     operationalSummary,
     administrativeSummary,
-    weeklyTrend,
-    documentDistribution,
-    totalDocuments,
     quickActions,
 } from '../data/dashboardMockData';
 import VoidAndAmend from './VoidAndAmend';
+import type { VoidAmendRecord } from './VoidAndAmend';
 
 // Helper to format date as "MM/DD/YYYY hh:mm AM/PM"
 const formatTransactionDateTime = (dateStr: string): string => {
@@ -119,38 +118,32 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     const [completedEntryData, setCompletedEntryData] = useState<CompletedEntryData | null>(null);
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
     const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
+    const [pendingVoidItems, setPendingVoidItems] = useState<VoidAmendRecord[]>([]);
 
-    // --- State for recent transactions (real data) ---
-    const [recentTransactionsData, setRecentTransactionsData] = useState<TransactionRow[]>([]);
+    // --- Live registry analytics (weekly trend, document distribution, recent transactions) ---
+    // Called unconditionally (rules-of-hooks) even though it's only rendered
+    // for the 'dashboard' view, mirroring how useNotifications is used below.
+    const analytics = useReportsAnalytics();
 
-    // --- Fetch real recent transactions on mount ---
-    useEffect(() => {
-        let isMounted = true;
-        const fetchRecent = async () => {
-            try {
-                const all = await fetchTransactionRegistry();
-                // Filter only "Released"
-                const released = all.filter(t => t.status === 'Released');
-                // Sort by date descending (newest first)
-                const sorted = released.sort(
-                    (a, b) => new Date(b.dateRequested).getTime() - new Date(a.dateRequested).getTime()
-                );
-                // Take first 5
-                const top5 = sorted.slice(0, 5);
-                const rows = top5.map(mapTransactionToRow);
-                if (isMounted) {
-                    setRecentTransactionsData(rows);
-                }
-            } catch (err) {
-                console.error('Failed to fetch recent transactions:', err);
-                if (isMounted) {
-                    setRecentTransactionsData([]); // fallback: empty table
-                }
-            }
-        };
-        fetchRecent();
-        return () => { isMounted = false; };
-    }, []);
+    // Recent transactions is just the 5 most-recently-requested Released
+    // transactions out of the same registry fetch the rest of this hook
+    // already pulled — no second network call needed.
+    const recentTransactionsData: TransactionRow[] = useMemo(() => {
+        return analytics.transactions
+            .filter((t) => t.status === 'Released')
+            .sort((a, b) => new Date(b.dateRequested).getTime() - new Date(a.dateRequested).getTime())
+            .slice(0, 5)
+            .map(mapTransactionToRow);
+    }, [analytics.transactions]);
+
+    // The FULL mapped transaction list — this is what actually connects
+    // the Recent Transaction search box to the whole registry dataset
+    // instead of only the 5 rows visible by default.
+    const allTransactionsData: TransactionRow[] = useMemo(() => {
+        return [...analytics.transactions]
+            .sort((a, b) => new Date(b.dateRequested).getTime() - new Date(a.dateRequested).getTime())
+            .map(mapTransactionToRow);
+    }, [analytics.transactions]);
 
     // Single shared notifications state + realtime subscription
     const {
@@ -276,6 +269,11 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         setMobileMenuOpen(false);
     };
 
+    const handleNavigateToVoidAmend = (newVoidedItems: VoidAmendRecord[]) => {
+        setPendingVoidItems(newVoidedItems);
+        setActiveView('void-amend');
+    };
+
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`;
 
     const headerUser = {
@@ -370,15 +368,30 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 <div className="dashboard-content">
                     {activeView === 'dashboard' ? (
                         <>
-                            <WelcomeBanner />
+                            <WelcomeBanner onRefresh={analytics.refetch} />
+                            {/*
+                              TODO: operationalSummary / administrativeSummary are still mock
+                              data (data/dashboardMockData.ts). The live counts they should
+                              show are already available above via `analytics` —
+                              e.g. analytics.totalRequests.daily, analytics.documentsReleased.daily,
+                              analytics.pendingCount, analytics.voidedCount, analytics.archivedCount,
+                              analytics.reprintedCount — but wiring them safely requires knowing
+                              the exact item shape components/StatCard.tsx (DashboardSummary)
+                              expects. Share that file (and dashboardMockData.ts) and this can be
+                              swapped from mock arrays to `analytics`-derived ones directly.
+                            */}
                             <DashboardSummary title="Operational Summary" items={operationalSummary} iconType="operational" />
                             <DashboardSummary title="Administrative Summary" items={administrativeSummary} iconType="admin" />
                             <div className="dashboard-row">
-                                <AnalyticsOverview data={weeklyTrend} lastUpdated="Today • 2:45 PM" />
-                                <DocumentDistribution slices={documentDistribution} totalDocuments={totalDocuments} />
+                                <AnalyticsOverview data={analytics.weeklyTrend} lastUpdated="Today • 2:45 PM" />
+                                <DocumentDistribution slices={analytics.documentDistribution} totalDocuments={analytics.totalDocuments} />
                             </div>
                             <div className="dashboard-row">
-                                <RecentTransactions rows={recentTransactionsData} onViewAll={() => setActiveView('transaction-registry')} />
+                                <RecentTransactions
+                                    rows={recentTransactionsData}
+                                    allRows={allTransactionsData}
+                                    onViewAll={() => setActiveView('transaction-registry')}
+                                />
                                 <QuickActions actions={quickActions} onSelect={setActiveView} />
                             </div>
                         </>
@@ -457,9 +470,12 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             }}
                         />
                     ) : activeView === 'transaction-registry' ? (
-                        <TransactionRegistry user={user} />
+                        <TransactionRegistry user={user} onNavigateToVoidAmend={handleNavigateToVoidAmend} />
                     ) : activeView === 'void-amend' ? (
-                        <VoidAndAmend />
+                        <VoidAndAmend
+                            pendingItems={pendingVoidItems}
+                            onPendingItemsConsumed={() => setPendingVoidItems([])}
+                        />
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
                             <h2>{VIEW_LABELS[activeView] ?? activeView}</h2>

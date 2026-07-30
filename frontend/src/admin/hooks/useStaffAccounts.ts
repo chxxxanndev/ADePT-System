@@ -104,8 +104,7 @@ export function useStaffAccounts() {
                 nextStatus === 'DISABLED' ? 'Account disabled by administrator.' : undefined
             );
             addAdminAuditEntry({
-                type: nextStatus === 'ACTIVE' ? 'approval' : 'decline',
-                actor: 'Admin',
+                type: nextStatus === 'ACTIVE' ? 'account_activate' : 'account_deactivate',
                 description: `${nextStatus === 'ACTIVE' ? 'activated' : 'deactivated'} staff account — ${member.name}`,
             });
             setStaff((prev) =>

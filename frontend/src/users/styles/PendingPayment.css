@@ -439,7 +439,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-family: 'SFMono-Regular', 'Courier New', monospace;
+    font-family: inherit;
     font-size: 0.78rem;
     font-weight: 600;
     background-color: #f1f5f9;

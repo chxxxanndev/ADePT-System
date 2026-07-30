@@ -61,6 +61,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
         accessRequests,
         requestQueue,
         transactions,
+        distribution,
         staffPerformance,
         activities,
 
@@ -147,12 +148,14 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                         items={staffPerformance}
                                         onRefresh={refreshPerformance}
                                         isRefreshing={refreshingPerformance}
+                                        onViewFull={() => setActiveView('audit-log')}
                                     />
                                 </div>
 
                                 {/* Column 2 (Right): Document Distribution & Recent Activity */}
                                 <div className="admin-column-stack">
                                     <AdminDocumentDistribution
+                                        slices={distribution}
                                         onRefresh={refreshDistribution}
                                         isRefreshing={refreshingDistribution}
                                     />

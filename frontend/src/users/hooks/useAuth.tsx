@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { User, MockUser } from '../../auth-folder/types/auth';
 import { supabase } from '../../lib/supabaseClient';
+import { addAdminAuditEntry } from '../../admin/services/auditLogService';
 
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -96,6 +97,7 @@ function useAuthState() {
                         access_token: data.token,
                         refresh_token: data.refreshToken,
                     });
+                    addAdminAuditEntry({ type: 'login', description: 'logged in' }).catch(() => {});
                     return { success: true, message: 'Successfully signed in.' };
                 }
                 return { success: false, message: data.error || 'Invalid credentials.' };
@@ -246,6 +248,11 @@ function useAuthState() {
     };
 
     const logout = () => {
+        // Fire-and-forget, and BEFORE signOut() — once the session is cleared
+        // the bearer token this needs is gone. A failed write here should
+        // never block the user from actually logging out.
+        addAdminAuditEntry({ type: 'logout', description: 'logged out' }).catch(() => {});
+    
         localStorage.removeItem('adept_user');
         localStorage.removeItem('adept_token');
         localStorage.removeItem('adept_refresh_token');
@@ -285,7 +292,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 /**
  * Same name, same import path as before — every existing
- * `import { useAuth } from '../../users/hooks/useAuth'` across your codebase
+ * `import { supabase } from '../../lib/supabaseClient';
+import { addAdminAuditEntry } from '../../admin/services/auditLogService';` across your codebase
  * keeps working with ZERO changes. It now pulls from the shared context
  * instead of creating an isolated state instance.
  */

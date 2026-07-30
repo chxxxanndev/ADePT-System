@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { RegistrySummarySkeleton, RegistryToolbarSkeleton, RegistryTableSkeleton } from '../components/common/Skeleton';
 import type { Transaction, TransactionFilters, DeclarantGroup } from '../types/transaction';
 import { computeSummary } from '../data/mockTransactions';
 import { fetchTransactionRegistry } from '../services/transactionService';
+import { recordReprint, mergeReprintCounts } from '../services/reprintStore';
 import { SummaryCards } from '../components/SummaryCards';
 import { SearchBar } from '../components/SearchBar';
 import { FilterBar } from '../components/FilterBar';
@@ -11,6 +11,7 @@ import { TransactionTable } from '../components/TransactionTable';
 import { TransactionDetails } from './TransactionDetails';
 import { VoidDocumentSelectModal } from '../components/DocumentSelectModal';
 import type { User } from '../../auth-folder/types/auth';
+import type { VoidAmendRecord } from './VoidAndAmend';
 import '../styles/TransactionRegistry.css';
 
 const DEFAULT_FILTERS: TransactionFilters = {
@@ -27,25 +28,34 @@ function toComparableDate(mmddyyyy: string): string {
 
 interface TransactionRegistryProps {
     user: User; // still needed to populate actionedBy
+    onNavigateToVoidAmend: (newVoidedItems: VoidAmendRecord[]) => void;
+    initialSearchQuery?: string;
 }
 
-export function TransactionRegistry({ user }: TransactionRegistryProps) {
-    const navigate = useNavigate();
+export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearchQuery }: TransactionRegistryProps) {
 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(initialSearchQuery ?? '');
     const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_FILTERS);
     const [selectedGroup, setSelectedGroup] = useState<DeclarantGroup | null>(null);
     const [voidGroupTarget, setVoidGroupTarget] = useState<DeclarantGroup | null>(null);
+
+    useEffect(() => {
+        if (initialSearchQuery !== undefined) {
+            setSearchQuery(initialSearchQuery);
+        }
+    }, [initialSearchQuery]);
 
     const loadTransactions = async () => {
         setIsLoading(true);
         setLoadError(null);
         try {
             const data = await fetchTransactionRegistry();
-            setTransactions(data);
+            // Overlay persisted reprint counts (see reprintStore.ts) since the
+            // backend response always comes back with reprintCount: 0.
+            setTransactions(mergeReprintCounts(data));
         } catch (err) {
             setLoadError(err instanceof Error ? err.message : 'Failed to load transactions.');
             setTransactions([]);
@@ -108,12 +118,18 @@ export function TransactionRegistry({ user }: TransactionRegistryProps) {
     }, [filteredTransactions]);
 
     const handleReprint = (transactionId: string, docId: string) => {
+        const actor = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User';
+        // Persist the reprint so CertifiedTrueCopy.tsx (and this view, on
+        // reload) can see it — see reprintStore.ts for why this can't just
+        // live in this component's local state.
+        const newCount = recordReprint(docId, actor);
+
         setTransactions((prev) => prev.map((t) => {
             if (t.id !== transactionId) return t;
             return {
                 ...t,
                 requestedDocuments: t.requestedDocuments.map((d) =>
-                    d.id === docId ? { ...d, reprintCount: d.reprintCount + 1 } : d
+                    d.id === docId ? { ...d, reprintCount: newCount } : d
                 ),
             };
         }));
@@ -150,10 +166,8 @@ export function TransactionRegistry({ user }: TransactionRegistryProps) {
 
         setVoidGroupTarget(null);
 
-        // Navigate to Void and Amend page with the new records
-        navigate('/void-and-amend', {
-            state: { newVoidedItems: voidedRecords },
-        });
+        // Navigate to Void and Amend view with the new records
+        onNavigateToVoidAmend(voidedRecords);
     };
 
     return (

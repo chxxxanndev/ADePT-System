@@ -174,8 +174,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         return false;
     };
 
-    const actorName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Super Admin';
-
     // ── Add Staff ───────────────────────────────────────────────────────────
     const handleAddStaff = async (event: React.FormEvent) => {
         event.preventDefault();
@@ -195,7 +193,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
             });
             addAdminAuditEntry({
                 type: 'approval',
-                actor: actorName,
                 description: form.roleCode === 'ADMIN'
                     ? `created admin account — ${form.username} (${form.adminLevel})`
                     : `created staff account — ${form.username}`,
@@ -247,15 +244,13 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
             if (mode === 'promote') {
                 await promoteToAdmin(member.id, pickedLevel);
                 addAdminAuditEntry({
-                    type: 'approval',
-                    actor: actorName,
+                    type: 'staff_promote',
                     description: `promoted ${member.name} to Admin (${pickedLevel})`,
                 });
             } else {
                 await setAdminLevel(member.id, pickedLevel);
                 addAdminAuditEntry({
-                    type: 'approval',
-                    actor: actorName,
+                    type: 'staff_promote',
                     description: `changed ${member.name}'s admin level to ${pickedLevel}`,
                 });
             }
@@ -282,8 +277,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         try {
             await demoteToStaff(member.id);
             addAdminAuditEntry({
-                type: 'decline',
-                actor: actorName,
+                type: 'staff_demote',
                 description: `demoted ${member.name} to Office Staff`,
             });
             setConfirmDemote(null);
@@ -311,14 +305,12 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                 await unassignSignatory(member.id);
                 addAdminAuditEntry({
                     type: 'decline',
-                    actor: actorName,
                     description: `removed ${member.name} as signatory`,
                 });
             } else {
                 await assignSignatory(member.id);
                 addAdminAuditEntry({
                     type: 'approval',
-                    actor: actorName,
                     description: `assigned ${member.name} as signatory`,
                 });
             }
@@ -496,7 +488,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                             ) : (
                                 paginatedStaff.map((member) => {
                                     const allowed = canManageStaffMember(member);
-                                    const actingOnThis = roleActionLoadingId === member.id;
                                     const isInactive = member.status !== 'active';
                                     return (
                                         <tr key={member.id}>

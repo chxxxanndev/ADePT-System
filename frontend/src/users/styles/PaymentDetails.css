@@ -152,7 +152,7 @@
 
 .pd-doc-ref {
     font-weight: 700;
-    font-family: 'SFMono-Regular', 'Courier New', monospace;
+    font-family: inherit;
     color: var(--db-primary);
 }
 

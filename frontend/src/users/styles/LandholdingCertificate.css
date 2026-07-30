@@ -264,7 +264,7 @@
 }
 
 .lh-preview-body {
-    font-family: 'Georgia', 'Times New Roman', serif;
+    font-family: inherit;
     font-size: 0.92rem;
     color: #1e293b;
     line-height: 1.75;

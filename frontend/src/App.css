@@ -1,5 +1,5 @@
 /* App.css is deliberately cleared. All styles are managed in index.css */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
 :root {
     --primary-color: #252175;
@@ -11,7 +11,7 @@
     --border-color: rgba(37, 33, 117, 0.12);
     --accent-color: #ef4444;
     --success-color: #10b981;
-    --font-family: 'Outfit', sans-serif;
+    --font-family: 'Poppins', sans-serif;
 }
 
 * {

@@ -245,7 +245,6 @@
 }
 
 .td-textarea {
-    composes: td-input;
     resize: vertical;
     min-height: 70px;
 }

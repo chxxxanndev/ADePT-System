@@ -217,7 +217,7 @@
 }
 
 .arc-cell-reference {
-  font-family: 'SFMono-Regular', 'Courier New', monospace;
+  font-family: inherit;
   font-weight: 600;
   color: var(--color-secondary);
   white-space: nowrap;
@@ -257,18 +257,22 @@
   background-color: var(--table-header-bg);
   color: var(--color-primary);
 }
+
 .arc-tag--success {
   background-color: var(--color-success-bg);
   color: var(--color-success);
 }
+
 .arc-tag--secondary {
   background-color: rgba(0, 188, 212, 0.1);
   color: var(--color-secondary);
 }
+
 .arc-tag--truecopy {
   background-color: var(--color-truecopy-bg);
   color: var(--color-truecopy);
 }
+
 .arc-tag--general {
   background-color: var(--color-general-bg);
   color: var(--color-general);
@@ -443,4 +447,4 @@
   .arc-restore-btn {
     transition: none;
   }
-} 
+}

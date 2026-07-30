@@ -9,6 +9,7 @@ import noLandholdingRoutes from './modules/nolandholding/nolandholding.routes.js
 import userRoutes from './modules/users/user.routes.js';
 import accountRoutes from './modules/account/account.routes.js';
 import notificationRoutes from './modules/notification/notification.routes.js'; 
+import auditLogRoutes from './modules/auditLog/auditLog.routes.js';
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/api/nolandholding', noLandholdingRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/account', accountRoutes);
+app.use('/api/audit-log', auditLogRoutes);
 
 // server.js (at the very bottom, after app.use('/api/...'))
 

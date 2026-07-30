@@ -6,7 +6,28 @@ import {
     RequestsIcon,
     RefreshIcon
 } from '../../users/components/icons';
-import type { AdminStatItem } from '../data/dashboardMockData';
+import type { AdminStatItem } from '../data/adminTypes';
+
+// SVG down-arrow / inbox icon for the "Request Today" card
+function InboxDownIcon({ size = 18, className }: { size?: number; className?: string }) {
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={className}
+        >
+            <path d="M12 3v12" />
+            <path d="M7 10l5 5 5-5" />
+            <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+        </svg>
+    );
+}
 
 // SVG Gears Icon for the "Processing" card
 function GearsIcon({ size = 18, className }: { size?: number; className?: string }) {
@@ -36,6 +57,7 @@ const STAT_ICONS: Record<string, React.ComponentType<{ size?: number; className?
     close: XCircleIcon,
     request: RequestsIcon,
     gears: GearsIcon,
+    inboxDown: InboxDownIcon,
 };
 
 interface AdminStatCardProps {
@@ -73,8 +95,10 @@ export function AdminStatsSection({
     onRefresh,
     isRefreshing
 }: AdminStatsSectionProps) {
+    const isEmpty = items.length === 0;
+
     return (
-        <section className="admin-stats-panel">
+        <section className={`admin-stats-panel ${isEmpty ? 'is-empty' : ''}`}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div className="admin-section-title-row">
                     <span className="admin-section-title-icon">{sectionIcon}</span>
@@ -90,11 +114,13 @@ export function AdminStatsSection({
                     </button>
                 )}
             </div>
-            <div className="admin-stats-grid">
-                {items.map((item) => (
-                    <AdminStatCard key={item.id} item={item} />
-                ))}
-            </div>
+            {!isEmpty && (
+                <div className="admin-stats-grid">
+                    {items.map((item) => (
+                        <AdminStatCard key={item.id} item={item} />
+                    ))}
+                </div>
+            )}
         </section>
     );
 }

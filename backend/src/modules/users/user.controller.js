@@ -244,3 +244,15 @@ export const unassignSignatory = async (req, res) => {
         res.status(statusCode).json({ error: error.message });
     }
 };
+
+/**
+ * GET /api/users/staff-performance
+ */
+export const getStaffPerformance = async (req, res) => {
+    try {
+        const performance = await UserService.getStaffPerformance();
+        res.status(200).json({ performance });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
