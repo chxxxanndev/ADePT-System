@@ -245,18 +245,22 @@
   background-color: var(--table-header-bg);
   color: var(--color-primary);
 }
+
 .stat-icon--secondary {
   background-color: var(--color-secondary-tint);
   color: var(--color-secondary);
 }
+
 .stat-icon--truecopy {
   background-color: var(--color-truecopy-bg);
   color: var(--color-truecopy);
 }
+
 .stat-icon--pending {
   background-color: var(--color-pending-bg);
   color: var(--color-pending-text);
 }
+
 .stat-icon--success {
   background-color: var(--color-success-bg);
   color: var(--color-success);
@@ -503,7 +507,7 @@
 }
 
 .cell-reference {
-  font-family: 'SFMono-Regular', 'Courier New', monospace;
+  font-family: inherit;
   font-weight: 600;
   color: var(--color-secondary);
   white-space: nowrap;
@@ -553,16 +557,19 @@
   background-color: var(--color-success-bg);
   color: var(--color-success);
 }
+
 .status-badge--pending-payment,
 .status-badge--pending-verification {
   background-color: var(--color-pending-bg);
   color: var(--color-pending-text);
 }
+
 .status-badge--voided,
 .status-badge--flagged {
   background-color: var(--color-error-bg);
   color: var(--color-error);
 }
+
 .status-badge--archived {
   background-color: var(--color-archived-bg);
   color: var(--color-archived);

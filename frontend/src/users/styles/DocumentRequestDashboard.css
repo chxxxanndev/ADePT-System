@@ -320,7 +320,7 @@
 }
 
 .doc-req-draft-ref {
-    font-family: 'Courier New', Courier, monospace;
+    font-family: inherit;
     font-weight: 700;
     color: var(--brand-indigo);
     font-size: 0.9rem;
