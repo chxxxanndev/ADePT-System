@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { User } from '../../../../auth-folder/types/auth';
 import { noLandholdingService } from '../../../services/noLandholdingService';
 import type { CompletedEntryData } from '../../../../users/types/taxDeclaration';
@@ -8,7 +8,6 @@ import { useCart } from '../../../../users/hooks/TransactionCartContext';
 import '../../../../users/styles/LandholdingCertificate.css';
 import {
     AlertTriangleIcon,
-    SaveIcon,
     PlusIcon,
     ClipboardListIcon,
 } from '../../../components/icons';
@@ -38,10 +37,23 @@ interface NoLandholdingCertificateFormProps {
 }
 
 export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAnother, onGoToSummary }: NoLandholdingCertificateFormProps) {
-    const [form, setForm] = useState<NoLandholdingFormData>(() => ({ ...EMPTY_NO_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '', }));
+    const LS_KEY = `adept-nlh-${entryData.requestId}`;
+
+    const [form, setForm] = useState<NoLandholdingFormData>(() => {
+        try {
+            const saved = localStorage.getItem(LS_KEY);
+            if (saved) return { ...EMPTY_NO_LANDHOLDING_FORM(), ...JSON.parse(saved) };
+        } catch {}
+        return { ...EMPTY_NO_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '' };
+    });
     const { addItem } = useCart();
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState('');
+
+    // Auto-persist to localStorage on every change
+    useEffect(() => {
+        try { localStorage.setItem(LS_KEY, JSON.stringify(form)); } catch {}
+    }, [form, LS_KEY]);
 
     const set = <K extends keyof NoLandholdingFormData>(field: K, value: NoLandholdingFormData[K]) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -62,6 +74,7 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
                 purpose: form.purpose,
                 action: action === 'draft' ? 'draft' : 'send_to_payment',
             }, user.id);
+            localStorage.removeItem(LS_KEY);
 
             if (action !== 'draft') {
                 addItem({
@@ -156,9 +169,7 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
                             <button type="button" id="nlh-btn-back" className="lh-btn lh-btn-back" onClick={onBack}>← Back</button>
                         </div>
                         <div className="lh-footer-right">
-                            <button type="button" className="lh-btn lh-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>
-                                {saving ? <span className="lh-spinner" /> : <SaveIcon size={14} />} Save Draft
-                            </button>
+
                             <button type="button" className="lh-btn lh-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving} style={{ backgroundColor: '#10b981', color: 'white' }}>
                                 {saving ? <span className="lh-spinner" /> : <PlusIcon size={14} />} Save & Add Another
                             </button>

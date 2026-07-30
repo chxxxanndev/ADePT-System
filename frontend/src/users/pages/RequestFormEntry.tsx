@@ -32,12 +32,13 @@ function ToggleButtonPair({ leftLabel, rightLabel, value, onChange }: { leftLabe
     );
 }
 
-function SingleSelectDropdown({ options, selectedId, onChange, placeholder, disabled }: {
+function SingleSelectDropdown({ options, selectedId, onChange, placeholder, disabled, hasError }: {
     options: { id: string; name: string }[];
     selectedId: string;
     onChange: (id: string) => void;
     placeholder: string;
     disabled?: boolean;
+    hasError?: boolean;
 }) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
@@ -51,7 +52,7 @@ function SingleSelectDropdown({ options, selectedId, onChange, placeholder, disa
         <div className="custom-select" ref={ref}>
             <button
                 type="button"
-                className="custom-select-trigger"
+                className={`custom-select-trigger ${hasError ? 'rfe-input-error' : ''}`}
                 onClick={() => !disabled && setOpen((o) => !o)}
                 disabled={disabled}
                 style={disabled ? { background: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed' } : undefined}
@@ -73,7 +74,7 @@ function SingleSelectDropdown({ options, selectedId, onChange, placeholder, disa
     );
 }
 
-function SearchableSelectDropdown({ options, value, onChange, placeholder }: { options: { id: string; name: string }[]; value: string; onChange: (id: string) => void; placeholder: string; }) {
+function SearchableSelectDropdown({ options, value, onChange, placeholder, hasError }: { options: { id: string; name: string }[]; value: string; onChange: (id: string) => void; placeholder: string; hasError?: boolean; }) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const ref = useRef<HTMLDivElement>(null);
@@ -98,7 +99,7 @@ function SearchableSelectDropdown({ options, value, onChange, placeholder }: { o
     const handleSelect = (opt: { id: string; name: string }) => { onChange(opt.id); setQuery(opt.name); setOpen(false); };
     return (
         <div className="custom-select" ref={ref}>
-            <input className="rfe-input" type="text" placeholder={placeholder} value={query} onChange={(e) => { setQuery(e.target.value); setOpen(true); if (selected && e.target.value !== selected.name) onChange(''); }} onFocus={() => setOpen(true)} />
+            <input className={`rfe-input ${hasError ? 'rfe-input-error' : ''}`} type="text" placeholder={placeholder} value={query} onChange={(e) => { setQuery(e.target.value); setOpen(true); if (selected && e.target.value !== selected.name) onChange(''); }} onFocus={() => setOpen(true)} />
             {open && (<div className="custom-select-menu">{filtered.length === 0 && <div className="custom-select-empty">No matches found</div>}{filtered.map((opt) => (<div key={opt.id} className="custom-select-option" onClick={() => handleSelect(opt)}>{opt.name}</div>))}</div>)}
         </div>
     );
@@ -135,13 +136,23 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     const [isProceeding, setIsProceeding] = useState(false);
     const [metadata, setMetadata] = useState<{ docTypes: any[]; purposes: any[]; staff: any[]; propertyLocations: { id: string; name: string }[]; }>({ docTypes: [], purposes: PURPOSE_OPTIONS, staff: [], propertyLocations: [], });
     const [validationError, setValidationError] = useState<string>('');
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [metadataLoading, setMetadataLoading] = useState(true);
     const [metadataError, setMetadataError] = useState('');
     const [docTypeLocked, setDocTypeLocked] = useState(false);
 
-    const [formData, setFormData] = useState<ExtendedRequestFormData>({
-        declarantName: '', requestedByName: '', requestDate: new Date().toISOString().split('T')[0], purposeId: '', documentTypeIds: [], authRequired: false, actionTaken: 'PENDING', propertyLocation: '', purposeOtherText: '', referenceNumber: `REF-${new Date().getFullYear()}-0000`,
+    const RFE_LS_KEY = 'adept-rfe';
+
+    const [formData, setFormData] = useState<ExtendedRequestFormData>(() => {
+        // Only restore from localStorage when there's no prefilled data from a draft
+        if (!prefilledRequestData) {
+            try {
+                const saved = localStorage.getItem(RFE_LS_KEY);
+                if (saved) return JSON.parse(saved);
+            } catch {}
+        }
+        return { declarantName: '', requestedByName: '', requestDate: new Date().toISOString().split('T')[0], purposeId: '', documentTypeIds: [], authRequired: false, actionTaken: 'PENDING', propertyLocation: '', purposeOtherText: '', referenceNumber: `REF-${new Date().getFullYear()}-0000` };
     });
 
     const displayReferenceNumber = (() => {
@@ -161,6 +172,11 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
             : undefined;
         return view === 'certificate-no-landholding';
     });
+
+    // Auto-persist form to localStorage on every change
+    useEffect(() => {
+        try { localStorage.setItem(RFE_LS_KEY, JSON.stringify(formData)); } catch {}
+    }, [formData, RFE_LS_KEY]);
 
     useEffect(() => {
         if (isNoLandholdingSelected && formData.propertyLocation !== '') {
@@ -267,10 +283,17 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     }, [formData.documentTypeIds, formData.id, metadata.docTypes]);
 
     const handleOpenForwardModal = () => {
-        if (!formData.declarantName && !formData.requestedByName) {
-            setValidationError('Please enter at least the Requester or Declarant name before forwarding.');
+        const errors: Record<string, string> = {};
+        if (!formData.declarantName.trim() && !formData.requestedByName.trim()) {
+            errors.declarantName = 'Please enter at least the Declarant or Requester name before forwarding.';
+            errors.requestedByName = 'Please enter at least the Declarant or Requester name before forwarding.';
+        }
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
+            setValidationError('Please fill out the highlighted field before forwarding.');
             return;
         }
+        setFieldErrors({});
         setValidationError('');
         setShowForwardModal(true);
     };
@@ -314,10 +337,27 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     };
 
     const handleProceedToDocument = async () => {
-        if (!formData.declarantName || !formData.requestedByName || formData.documentTypeIds.length === 0) {
-            setValidationError('Please fill out Declarant, Requester, and select at least one Document Type.');
+        const errors: Record<string, string> = {};
+        if (!formData.declarantName.trim()) {
+            errors.declarantName = 'Name of Declarant is required.';
+        }
+        if (!formData.requestedByName.trim()) {
+            errors.requestedByName = 'Requested By name is required.';
+        }
+        if (formData.documentTypeIds.length === 0) {
+            errors.documentTypeIds = 'Please select a Document Type.';
+        }
+        if (!isNoLandholdingSelected && !formData.propertyLocation) {
+            errors.propertyLocation = 'Location of the property is required.';
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
+            setValidationError('Please complete the required fields highlighted above.');
             return;
         }
+
+        setFieldErrors({});
         setValidationError('');
 
         const selectedId = formData.documentTypeIds[0];
@@ -359,7 +399,10 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
             addAdminAuditEntry({
                 type: 'document_pending',
                 description: `Pending document request submitted — Ref# ${actualRef || actualId || 'N/A'}`,
-            }).catch(() => {});
+            }).catch(() => { });
+
+            // Clear persisted entry data — transaction has moved to the processing form
+            try { localStorage.removeItem(RFE_LS_KEY); } catch {}
 
             setTimeout(() => {
                 onNavigateToProcessing(view);
@@ -374,7 +417,17 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     };
 
     const handleSaveDraft = async () => {
-        if (!formData.declarantName && !formData.requestedByName) return alert('Please enter at least the Requester or Declarant name to save a draft.');
+        if (!formData.declarantName.trim() && !formData.requestedByName.trim()) {
+            const errors = {
+                declarantName: 'Enter Declarant or Requester name to save draft.',
+                requestedByName: 'Enter Declarant or Requester name to save draft.',
+            };
+            setFieldErrors(errors);
+            setValidationError('Please enter at least the Requester or Declarant name to save a draft.');
+            return;
+        }
+        setFieldErrors({});
+        setValidationError('');
         setIsSavingDraft(true);
         try {
             const draftPayload = { ...formData, status: 'DRAFT', staffAuthId: user.id, encodedBy: user.staffId };
@@ -391,6 +444,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                     }));
                 }
             }
+            try { localStorage.removeItem(RFE_LS_KEY); } catch {}
             onCancel();
         } catch (err: any) {
             alert(err.response?.data?.error || 'Save failed');
@@ -399,27 +453,49 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
         }
     };
 
-    const handleResetForm = () => {
-        if (confirm("Clear this form for a new client?")) {
-            setFormData({
-                declarantName: '',
-                requestedByName: '',
-                requestDate: new Date().toISOString().split('T')[0],
-                purposeId: '',
-                documentTypeIds: [],
-                authRequired: false,
-                actionTaken: 'PENDING',
-                propertyLocation: '',
-                purposeOtherText: '',
-                referenceNumber: `REF-${new Date().getFullYear()}-0000`,
-            });
-            setValidationError('');
-            setDocTypeLocked(false);
-        }
+    const [showDiscardModal, setShowDiscardModal] = useState(false);
+
+    const handleDiscardRequest = () => {
+        setShowDiscardModal(true);
+    };
+
+    const handleConfirmDiscard = () => {
+        setShowDiscardModal(false);
+        onCancel();
     };
 
     return (
         <div className="rfe-page">
+
+            {/* ── Discard Confirmation Modal ── */}
+            {showDiscardModal && (
+                <div className="rfe-modal-overlay" onClick={() => setShowDiscardModal(false)}>
+                    <div className="rfe-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="rfe-modal-icon">🗑</div>
+                        <h3 className="rfe-modal-title">Discard This Request?</h3>
+                        <p className="rfe-modal-body">
+                            The client's request will be <strong>cancelled</strong> and all unsaved entries will be permanently lost.
+                            This action cannot be undone.
+                        </p>
+                        <div className="rfe-modal-actions">
+                            <button
+                                type="button"
+                                className="rfe-modal-btn-cancel"
+                                onClick={() => setShowDiscardModal(false)}
+                            >
+                                Keep Editing
+                            </button>
+                            <button
+                                type="button"
+                                className="rfe-modal-btn-confirm"
+                                onClick={handleConfirmDiscard}
+                            >
+                                Yes, Discard Request
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="rfe-page-inner">
                 <div className="rfe-card">
                     <div className="rfe-card-header">
@@ -429,10 +505,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                 <div><h2 className="rfe-card-title">REQUEST FORM ENTRY</h2><div className="rfe-card-subtitle">Property Record and Document Request · {today}</div></div>
                             </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                            <span className="rfe-ref-chip">{displayReferenceNumber}</span>
-                            <button className="btn-reset-form" onClick={handleResetForm} title="Start fresh for a new client">↻ New Client</button>
-                        </div>
+                        <span className="rfe-ref-chip">{displayReferenceNumber}</span>
                     </div>
 
                     <ForwardToStaffModal
@@ -449,11 +522,24 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                         <div className="rfe-section">
                             <div className="rfe-section-title"><PersonIcon /><span>Declarant Details</span></div>
                             <div className="rfe-field">
-                                <label className="rfe-label">Name of Declarant</label>
+                                <label className="rfe-label" htmlFor="declarantName">Name of Declarant</label>
                                 <div className="input-with-clear">
-                                    <input id="declarantName" name="declarantName" className="rfe-input" type="text" placeholder="e.g. Juan D. Cruz" value={formData.declarantName} onChange={(e) => setFormData({ ...formData, declarantName: e.target.value })} />
+                                    <input
+                                        id="declarantName"
+                                        name="declarantName"
+                                        className={`rfe-input ${fieldErrors.declarantName ? 'rfe-input-error' : ''}`}
+                                        type="text"
+                                        placeholder="e.g. Juan D. Cruz"
+                                        value={formData.declarantName}
+                                        onChange={(e) => {
+                                            setFormData({ ...formData, declarantName: e.target.value });
+                                            if (fieldErrors.declarantName) setFieldErrors((prev) => ({ ...prev, declarantName: '' }));
+                                        }}
+                                    />
                                     {formData.declarantName && (<button type="button" className="input-clear-btn" onClick={() => setFormData({ ...formData, declarantName: '' })} title="Clear Name">×</button>)}
                                 </div>
+                                {fieldErrors.declarantName && <span className="rfe-field-error">⚠️ {fieldErrors.declarantName}</span>}
+
                                 <div className="rfe-field" style={{ marginTop: 14 }}>
                                     <label className="rfe-label">May I/We request for:</label>
                                     {metadataError ? (
@@ -467,11 +553,16 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                         <SingleSelectDropdown
                                             options={metadata.docTypes}
                                             selectedId={formData.documentTypeIds[0] || ''}
-                                            onChange={(id) => setFormData({ ...formData, documentTypeIds: [id] })}
+                                            onChange={(id) => {
+                                                setFormData({ ...formData, documentTypeIds: [id] });
+                                                if (fieldErrors.documentTypeIds) setFieldErrors((prev) => ({ ...prev, documentTypeIds: '' }));
+                                            }}
                                             placeholder={metadataLoading ? 'Loading document types…' : 'Select Document Type...'}
                                             disabled={docTypeLocked}
+                                            hasError={!!fieldErrors.documentTypeIds}
                                         />
                                     )}
+                                    {fieldErrors.documentTypeIds && <span className="rfe-field-error">⚠️ {fieldErrors.documentTypeIds}</span>}
                                 </div>
                             </div>
 
@@ -479,13 +570,51 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                             {!isNoLandholdingSelected && (
                                 <div className="rfe-field" style={{ marginTop: 14 }}>
                                     <label className="rfe-label">Location of the Property</label>
-                                    <SearchableSelectDropdown options={metadata.propertyLocations} value={formData.propertyLocation} onChange={(val) => setFormData({ ...formData, propertyLocation: val })} placeholder="Brgy., Municipality, Province" />
+                                    <SearchableSelectDropdown
+                                        options={metadata.propertyLocations}
+                                        value={formData.propertyLocation}
+                                        onChange={(val) => {
+                                            setFormData({ ...formData, propertyLocation: val });
+                                            if (fieldErrors.propertyLocation) setFieldErrors((prev) => ({ ...prev, propertyLocation: '' }));
+                                        }}
+                                        placeholder="Brgy., Municipality, Province"
+                                        hasError={!!fieldErrors.propertyLocation}
+                                    />
+                                    {fieldErrors.propertyLocation && <span className="rfe-field-error">⚠️ {fieldErrors.propertyLocation}</span>}
                                 </div>
                             )}
 
-                            <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Date of Request</label><input className="rfe-input" type="date" value={formData.requestDate} onChange={(e) => setFormData({ ...formData, requestDate: e.target.value })} /></div>
-                            <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Requested By</label><input className="rfe-input" type="text" placeholder="e.g. Juan D. Cruz" value={formData.requestedByName} onChange={(e) => setFormData({ ...formData, requestedByName: e.target.value, })} /></div>
-                            <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Authorization</label><ToggleButtonPair leftLabel="Authorization Needed" rightLabel="Authorization Not Needed" value={formData.authRequired} onChange={(val) => setFormData({ ...formData, authRequired: val })} /></div>
+                            <div className="rfe-field" style={{ marginTop: 14 }}>
+                                <label className="rfe-label">Date of Request</label>
+                                <input
+                                    className={`rfe-input ${fieldErrors.requestDate ? 'rfe-input-error' : ''}`}
+                                    type="date"
+                                    value={formData.requestDate}
+                                    onChange={(e) => {
+                                        setFormData({ ...formData, requestDate: e.target.value });
+                                        if (fieldErrors.requestDate) setFieldErrors((prev) => ({ ...prev, requestDate: '' }));
+                                    }}
+                                />
+                                {fieldErrors.requestDate && <span className="rfe-field-error">⚠️ {fieldErrors.requestDate}</span>}
+                            </div>
+                            <div className="rfe-field" style={{ marginTop: 14 }}>
+                                <label className="rfe-label">Requested By</label>
+                                <input
+                                    className={`rfe-input ${fieldErrors.requestedByName ? 'rfe-input-error' : ''}`}
+                                    type="text"
+                                    placeholder="e.g. Juan D. Cruz"
+                                    value={formData.requestedByName}
+                                    onChange={(e) => {
+                                        setFormData({ ...formData, requestedByName: e.target.value });
+                                        if (fieldErrors.requestedByName) setFieldErrors((prev) => ({ ...prev, requestedByName: '' }));
+                                    }}
+                                />
+                                {fieldErrors.requestedByName && <span className="rfe-field-error">⚠️ {fieldErrors.requestedByName}</span>}
+                            </div>
+                            <div className="rfe-field" style={{ marginTop: 14 }}>
+                                <label className="rfe-label">Authorization</label>
+                                <ToggleButtonPair leftLabel="Authorization Needed" rightLabel="Authorization Not Needed" value={formData.authRequired} onChange={(val) => setFormData({ ...formData, authRequired: val })} />
+                            </div>
                         </div>
 
                         {/* Section 3 */}
@@ -525,6 +654,15 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                 disabled={isSavingDraft || isProceeding}
                             >
                                 {isSavingDraft ? 'Saving Draft…' : <><SaveIcon size={14} /> Save Draft</>}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn-discard"
+                                onClick={handleDiscardRequest}
+                                disabled={isSavingDraft || isProceeding}
+                                title="Cancel and discard this request"
+                            >
+                                🗑 Discard Request
                             </button>
                         </div>
                         <div style={{ display: 'flex', gap: 12 }}>
