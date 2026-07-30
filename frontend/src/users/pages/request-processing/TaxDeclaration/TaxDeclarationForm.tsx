@@ -10,6 +10,7 @@ import {
     XIcon,
     CheckCircleIcon,
     AlertTriangleIcon,
+    SaveIcon,
     PlusIcon,
     ClipboardListIcon,
     CheckIcon,
@@ -98,24 +99,14 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
         );
     }
 
-    const LS_KEY = `adept-td-${entryData.requestId}`;
-
-    const [form, setForm] = useState<TaxDeclarationFormData>(() => {
-        try {
-            const saved = localStorage.getItem(LS_KEY);
-            if (saved) return { ...EMPTY_TAX_DECLARATION(), ...JSON.parse(saved) };
-        } catch {}
-        return { ...EMPTY_TAX_DECLARATION(), ownerName: entryData?.declarantName || '' };
-    });
+    const [form, setForm] = useState<TaxDeclarationFormData>(() => ({
+        ...EMPTY_TAX_DECLARATION(),
+        ownerName: entryData?.declarantName || '',
+    }));
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
     const [metadata, setMetadata] = useState<{ classifications: { id: string; label: string; code: string }[]; propertyTypes: { id: string; label: string; code: string }[]; }>({ classifications: [], propertyTypes: [], });
-
-    // Auto-persist to localStorage on every change
-    useEffect(() => {
-        try { localStorage.setItem(LS_KEY, JSON.stringify(form)); } catch {}
-    }, [form, LS_KEY]);
 
     const { addItem } = useCart();
 
@@ -165,10 +156,7 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
 
     useEffect(() => { setForm((prev) => ({ ...prev, totalMarketValue, totalAssessedValue, amountInWords })); }, [totalMarketValue, totalAssessedValue, amountInWords]);
 
-    const set = (field: keyof TaxDeclarationFormData, value: string) => {
-        setForm((prev) => ({ ...prev, [field]: value }));
-        if (field === 'taxDeclarationNumber' && value.trim()) setSaveError('');
-    };
+    const set = (field: keyof TaxDeclarationFormData, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
     const updateRow = useCallback((id: string, field: keyof AssessmentRow, value: string) => {
         setForm((prev) => ({
@@ -192,11 +180,10 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
     const removeRow = (id: string) => setForm((prev) => ({ ...prev, assessmentRows: prev.assessmentRows.filter((r) => r.id !== id) }));
 
     const handleSave = async (action: 'draft' | 'review' | 'add_another') => {
-        if (!form.taxDeclarationNumber.trim()) return setSaveError('Assessment of Real Property No. is required.');
+        if (!form.taxDeclarationNumber || !form.ownerName) return setSaveError('Assessment No. and Owner Name are required.');
         setSaveError(''); setSaving(true);
         try {
             await taxDeclarationService.save(form, entryData.requestId, user.id);
-            localStorage.removeItem(LS_KEY);
 
             // Replace the old addItem logic:
             if (action !== 'draft') {
@@ -241,26 +228,15 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
                         </div>
                     )}
 
+                    {saveError && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '12px 20px', margin: '0 32px 16px', color: '#b91c1c', fontSize: '0.88rem', fontWeight: 600 }}>
+                            <AlertTriangleIcon size={16} /> {saveError}
+                        </div>
+                    )}
+
                     <div className="td-doc-header">
                         <div className="td-doc-header-row">
-                            <div className="td-doc-header-field" style={{ alignItems: 'flex-start' }}>
-                                <label style={{ paddingTop: '10px', whiteSpace: 'nowrap' }}>Assessment of Real Property No.:</label>
-                                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                                    <input
-                                        id="td-arp-no"
-                                        className="td-input"
-                                        style={saveError ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
-                                        placeholder="e.g. 21-0004-00082"
-                                        value={form.taxDeclarationNumber}
-                                        onChange={(e) => set('taxDeclarationNumber', e.target.value)}
-                                    />
-                                    {saveError && (
-                                        <span style={{ color: '#dc2626', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px', marginTop: '5px' }}>
-                                            <AlertTriangleIcon size={13} /> {saveError}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
+                            <div className="td-doc-header-field"><label>Assessment of Real Property No.:</label><input id="td-arp-no" className="td-input" placeholder="e.g. 21-0004-00082" value={form.taxDeclarationNumber} onChange={(e) => set('taxDeclarationNumber', e.target.value)} /></div>
                             <div className="td-doc-header-field"><label>Property Index No.:</label><input id="td-pin" className="td-input" placeholder="e.g. 050-21-0004-002-30" value={form.propertyIndexNumber} onChange={(e) => set('propertyIndexNumber', e.target.value)} /></div>
                         </div>
                         <div className="td-doc-title">Declaration of Real Property</div>
@@ -270,12 +246,12 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
                         <div className="td-section">
                             <div className="td-section-title">Owner Information</div>
                             <div className="td-row td-row-2">
-                                <div className="td-field"><label className="td-label">Owner</label><input id="td-owner-name" className="td-input" placeholder="Full name of owner" value={form.ownerName} onChange={(e) => set('ownerName', e.target.value)} autoComplete="off" /></div>
-                                <div className="td-field"><label className="td-label">Address</label><input id="td-owner-address" className="td-input" placeholder="e.g. Pob. Sibutad, ZN" value={form.ownerAddress} onChange={(e) => set('ownerAddress', e.target.value)} autoComplete="off" /></div>
+                                <div className="td-field"><label className="td-label">Owner</label><input id="td-owner-name" className="td-input" placeholder="Full name of owner" value={form.ownerName} onChange={(e) => set('ownerName', e.target.value)} /></div>
+                                <div className="td-field"><label className="td-label">Address</label><input id="td-owner-address" className="td-input" placeholder="e.g. Pob. Sibutad, ZN" value={form.ownerAddress} onChange={(e) => set('ownerAddress', e.target.value)} /></div>
                             </div>
                             <div className="td-row td-row-2">
-                                <div className="td-field"><label className="td-label">Administrator <span className="td-label-sub">(if applicable)</span></label><input id="td-admin-name" className="td-input" placeholder="Full name of administrator" value={form.administratorName} onChange={(e) => set('administratorName', e.target.value)} autoComplete="off" /></div>
-                                <div className="td-field"><label className="td-label">Administrator Address</label><input id="td-admin-address" className="td-input" placeholder="Administrator's address" value={form.administratorAddress} onChange={(e) => set('administratorAddress', e.target.value)} autoComplete="off" /></div>
+                                <div className="td-field"><label className="td-label">Administrator <span className="td-label-sub">(if applicable)</span></label><input id="td-admin-name" className="td-input" placeholder="Full name of administrator" value={form.administratorName} onChange={(e) => set('administratorName', e.target.value)} /></div>
+                                <div className="td-field"><label className="td-label">Administrator Address</label><input id="td-admin-address" className="td-input" placeholder="Administrator's address" value={form.administratorAddress} onChange={(e) => set('administratorAddress', e.target.value)} /></div>
                             </div>
                         </div>
 
@@ -373,7 +349,7 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
                     <div className="td-footer">
                         <div className="td-footer-left"><button type="button" className="td-btn td-btn-back" onClick={onBack}>← Back</button></div>
                         <div className="td-footer-right">
-
+                            <button type="button" className="td-btn td-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>{saving ? <span className="td-spinner" /> : <SaveIcon size={14} />} Save Draft</button>
                             <button type="button" className="td-btn td-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving} style={{ backgroundColor: '#10b981', color: 'white' }}>{saving ? <span className="td-spinner" /> : <PlusIcon size={14} />} Save & Add Another Doc</button>
                             <button type="button" className="td-btn td-btn-submit" onClick={() => handleSave('review')} disabled={saving}>{saving ? <span className="td-spinner" /> : <ClipboardListIcon size={14} />} Review Transaction</button>
                         </div>

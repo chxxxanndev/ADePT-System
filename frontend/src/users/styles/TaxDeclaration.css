@@ -232,15 +232,6 @@
     box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
 }
 
-.td-input:-webkit-autofill,
-.td-input:-webkit-autofill:hover, 
-.td-input:-webkit-autofill:focus, 
-.td-input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 30px #f8fafc inset !important;
-    -webkit-text-fill-color: #1e293b !important;
-    transition: background-color 5000s ease-in-out 0s;
-}
-
 .td-input::placeholder {
     color: #b0b8c8;
     font-style: italic;

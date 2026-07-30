@@ -12,6 +12,7 @@ import {
     XIcon,
     CheckCircleIcon,
     AlertTriangleIcon,
+    SaveIcon,
     PlusIcon,
     ClipboardListIcon,
 } from '../../../components/icons';
@@ -69,24 +70,11 @@ function PropertyRowItem({ row, onUpdate, onRemove, canRemove }: { row: Landhold
 }
 
 export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnother, onGoToSummary }: LandholdingCertificateFormProps) {
-    const LS_KEY = `adept-lh-${entryData.requestId}`;
-
-    const [form, setForm] = useState<LandholdingFormData>(() => {
-        try {
-            const saved = localStorage.getItem(LS_KEY);
-            if (saved) return { ...EMPTY_LANDHOLDING_FORM(), ...JSON.parse(saved) };
-        } catch {}
-        return { ...EMPTY_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '' };
-    });
+    const [form, setForm] = useState<LandholdingFormData>(() => ({ ...EMPTY_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '', }));
     const { addItem } = useCart();
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
-
-    // Auto-persist to localStorage on every change
-    useEffect(() => {
-        try { localStorage.setItem(LS_KEY, JSON.stringify(form)); } catch {}
-    }, [form, LS_KEY]);
 
     useEffect(() => {
         let isMounted = true;
@@ -142,7 +130,6 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
                 purpose: form.purpose,
                 action: action === 'draft' ? 'draft' : 'send_to_payment',
             }, user.id);
-            localStorage.removeItem(LS_KEY);
 
             // Replace the old addItem logic:
             if (action !== 'draft') {
@@ -230,7 +217,7 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
                                     <thead>
                                         <tr>
                                             <th style={{ minWidth: 150 }}>TD/ARP No.</th>
-                                            <th style={{ minWidth: 280 }}>Location of Prop.</th>
+                                            <th style={{ minWidth: 180 }}>Location of Prop.</th>
                                             <th style={{ minWidth: 100 }}>Lot No.</th>
                                             <th style={{ minWidth: 110 }}>Title No.</th>
                                             <th style={{ minWidth: 120 }}>Area</th>
@@ -271,7 +258,9 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
                             <button type="button" className="lh-btn lh-btn-back" onClick={onBack}>← Back</button>
                         </div>
                         <div className="lh-footer-right">
-
+                            <button type="button" className="lh-btn lh-btn-draft" onClick={() => handleSave('draft')} disabled={saving}>
+                                {saving ? <span className="lh-spinner" /> : <SaveIcon size={14} />} Save Draft
+                            </button>
                             <button type="button" className="lh-btn lh-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving} style={{ backgroundColor: '#10b981', color: 'white' }}>
                                 {saving ? <span className="lh-spinner" /> : <PlusIcon size={14} />} Save & Add Another
                             </button>

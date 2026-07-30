@@ -1,6 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
-// Refresh icon (matches the spin animation already defined in AdminDashboard.css)
 function RefreshIcon({ size = 16 }: { size?: number }) {
     return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -10,7 +9,6 @@ function RefreshIcon({ size = 16 }: { size?: number }) {
     );
 }
 
-// Chain icon reused as the card's section icon (swap for whatever fits)
 function ChainLinkIcon({ size = 18 }: { size?: number }) {
     return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -33,6 +31,8 @@ interface AdminDocumentDistributionProps {
 }
 
 export function AdminDocumentDistribution({ slices = [], onRefresh, isRefreshing }: AdminDocumentDistributionProps) {
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
     const total = useMemo(
         () => slices.reduce((sum, s) => sum + s.count, 0),
         [slices]
@@ -64,15 +64,17 @@ export function AdminDocumentDistribution({ slices = [], onRefresh, isRefreshing
                     <span className="admin-section-title-icon"><ChainLinkIcon /></span>
                     <span className="admin-card-title">Document Distribution</span>
                 </div>
-                <div className="admin-card-actions">
-                    <button
-                        className={`admin-refresh-btn ${isRefreshing ? 'spinning' : ''}`}
-                        onClick={onRefresh}
-                        aria-label="Refresh document distribution"
-                    >
-                        <RefreshIcon />
-                    </button>
-                </div>
+                {onRefresh && (
+                    <div className="admin-card-actions">
+                        <button
+                            className={`admin-refresh-btn ${isRefreshing ? 'spinning' : ''}`}
+                            onClick={onRefresh}
+                            aria-label="Refresh document distribution"
+                        >
+                            <RefreshIcon />
+                        </button>
+                    </div>
+                )}
             </div>
 
             {slices.length === 0 ? (
@@ -91,19 +93,31 @@ export function AdminDocumentDistribution({ slices = [], onRefresh, isRefreshing
                                 stroke="#ECEFF1"
                                 strokeWidth={strokeWidth}
                             />
-                            {segments.map((seg) => (
-                                <circle
-                                    key={seg.label}
-                                    className="donut-segment"
-                                    cx={size / 2}
-                                    cy={size / 2}
-                                    r={radius}
-                                    stroke={seg.color}
-                                    strokeDasharray={seg.dasharray}
-                                    strokeDashoffset={seg.dashoffset}
-                                    strokeLinecap="butt"
-                                />
-                            ))}
+                            {segments.map((seg, i) => {
+                                const isHovered = hoveredIndex === i;
+                                return (
+                                    <circle
+                                        key={seg.label}
+                                        className="donut-segment"
+                                        cx={size / 2}
+                                        cy={size / 2}
+                                        r={radius}
+                                        stroke={seg.color}
+                                        strokeDasharray={seg.dasharray}
+                                        strokeDashoffset={seg.dashoffset}
+                                        strokeLinecap="butt"
+                                        style={{
+                                            transition: 'transform 0.22s ease, opacity 0.22s ease',
+                                            transformOrigin: `${size / 2}px ${size / 2}px`,
+                                            transform: isHovered ? 'scale(1.06)' : 'scale(1)',
+                                            opacity: hoveredIndex === null || isHovered ? 1 : 0.5,
+                                            cursor: 'pointer',
+                                        }}
+                                        onMouseEnter={() => setHoveredIndex(i)}
+                                        onMouseLeave={() => setHoveredIndex(null)}
+                                    />
+                                );
+                            })}
                         </svg>
                         <div className="donut-chart-center-text">
                             <span className="donut-center-label">Total</span>
@@ -112,18 +126,31 @@ export function AdminDocumentDistribution({ slices = [], onRefresh, isRefreshing
                     </div>
 
                     <div className="donut-legend-list">
-                        {segments.map((seg) => (
-                            <div className="donut-legend-item" key={seg.label}>
-                                <div className="donut-legend-item-left">
-                                    <span className="donut-legend-marker" style={{ backgroundColor: seg.color }} />
-                                    <span>{seg.label}</span>
+                        {segments.map((seg, i) => {
+                            const isHovered = hoveredIndex === i;
+                            return (
+                                <div
+                                    className="donut-legend-item"
+                                    key={seg.label}
+                                    style={{
+                                        transition: 'opacity 0.22s ease',
+                                        opacity: hoveredIndex === null || isHovered ? 1 : 0.5,
+                                        cursor: 'pointer',
+                                    }}
+                                    onMouseEnter={() => setHoveredIndex(i)}
+                                    onMouseLeave={() => setHoveredIndex(null)}
+                                >
+                                    <div className="donut-legend-item-left">
+                                        <span className="donut-legend-marker" style={{ backgroundColor: seg.color }} />
+                                        <span>{seg.label}</span>
+                                    </div>
+                                    <div className="donut-legend-item-right">
+                                        <span className="donut-legend-pct">{Math.round(seg.fraction * 100)}%</span>
+                                        <span className="donut-legend-cnt">{seg.count.toLocaleString()} Documents</span>
+                                    </div>
                                 </div>
-                                <div className="donut-legend-item-right">
-                                    <span className="donut-legend-pct">{Math.round(seg.fraction * 100)}%</span>
-                                    <span className="donut-legend-cnt">{seg.count.toLocaleString()} Documents</span>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
 
                     <div className="donut-total-row">

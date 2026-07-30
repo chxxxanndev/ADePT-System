@@ -5,12 +5,14 @@ interface AdminRecentTransactionsProps {
     rows: AdminTransactionRow[];
     onRefresh: () => void;
     isRefreshing: boolean;
+    onViewAll: () => void;
 }
 
 export function AdminRecentTransactions({
     rows,
     onRefresh,
-    isRefreshing
+    isRefreshing,
+    onViewAll
 }: AdminRecentTransactionsProps) {
 
     // Maps document titles to custom styled classes
@@ -90,7 +92,7 @@ export function AdminRecentTransactions({
             <div className="admin-table-footer">
                 <button
                     className="admin-view-all-btn"
-                    onClick={() => console.log('Expand/view all transactions registry')}
+                    onClick={onViewAll}
                 >
                     <span>View All Transaction</span>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

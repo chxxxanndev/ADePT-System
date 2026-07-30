@@ -52,6 +52,8 @@ export function RequestQueue({ user }: RequestQueueProps) {
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<TabKey>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [currentPage, setCurrentPage] = useState(1);
 
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin';
     const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` || 'A';
@@ -120,6 +122,14 @@ export function RequestQueue({ user }: RequestQueueProps) {
             req.assignedStaff.toLowerCase().includes(query);
         return matchesTab && matchesSearch;
     });
+
+    const totalPages = Math.max(1, Math.ceil(filteredRequests.length / rowsPerPage));
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = Math.min(startIndex + rowsPerPage, filteredRequests.length);
+    const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
+
+    // Reset to page 1 when filters change
+    useEffect(() => { setCurrentPage(1); }, [activeTab, searchQuery, rowsPerPage]);
 
     return (
         <div className="request-queue-page">
@@ -222,7 +232,7 @@ export function RequestQueue({ user }: RequestQueueProps) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredRequests.map((req) => (
+                                {paginatedRequests.map((req) => (
                                     <tr key={req.id}>
                                         <td className="rq-control-no">{req.referenceNo}</td>
                                         <td><strong>{req.clientName}</strong></td>
@@ -242,10 +252,67 @@ export function RequestQueue({ user }: RequestQueueProps) {
                     )}
                 </div>
 
-                {/* Footer count */}
-                {!loading && !error && (
-                    <div className="rq-footer-count">
-                        Showing {filteredRequests.length} of {requests.length} total requests
+                {/* Pagination footer */}
+                {!loading && !error && filteredRequests.length > 0 && (
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 20px',
+                        borderTop: '1px solid #EDEEF3',
+                        fontSize: '0.85rem',
+                        color: '#64748b',
+                        flexWrap: 'wrap',
+                        gap: '10px',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>Rows per page:</span>
+                            <select
+                                value={rowsPerPage}
+                                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                                style={{ borderRadius: '6px', border: '1px solid #e2e8f0', padding: '4px 8px' }}
+                            >
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                            </select>
+                        </div>
+
+                        <span>
+                            {startIndex + 1}{'\u2013'}{endIndex} of {filteredRequests.length}
+                        </span>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: currentPage === 1 ? 'default' : 'pointer',
+                                    color: currentPage === 1 ? '#cbd5e1' : '#3D2E7C',
+                                    fontWeight: 600,
+                                }}
+                            >
+                                Previous
+                            </button>
+                            <span>Page {currentPage} of {totalPages}</span>
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: currentPage === totalPages ? 'default' : 'pointer',
+                                    color: currentPage === totalPages ? '#cbd5e1' : '#3D2E7C',
+                                    fontWeight: 600,
+                                }}
+                            >
+                                Next
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
