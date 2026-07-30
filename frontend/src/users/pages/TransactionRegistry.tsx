@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { RegistrySummarySkeleton, RegistryToolbarSkeleton, RegistryTableSkeleton } from '../components/common/Skeleton';
 import type { Transaction, TransactionFilters, DeclarantGroup } from '../types/transaction';
 import { computeSummary } from '../data/mockTransactions';
@@ -11,6 +10,7 @@ import { TransactionTable } from '../components/TransactionTable';
 import { TransactionDetails } from './TransactionDetails';
 import { VoidDocumentSelectModal } from '../components/DocumentSelectModal';
 import type { User } from '../../auth-folder/types/auth';
+import type { VoidAmendRecord } from './VoidAndAmend';
 import '../styles/TransactionRegistry.css';
 
 const DEFAULT_FILTERS: TransactionFilters = {
@@ -27,10 +27,10 @@ function toComparableDate(mmddyyyy: string): string {
 
 interface TransactionRegistryProps {
     user: User; // still needed to populate actionedBy
+    onNavigateToVoidAmend: (newVoidedItems: VoidAmendRecord[]) => void;
 }
 
-export function TransactionRegistry({ user }: TransactionRegistryProps) {
-    const navigate = useNavigate();
+export function TransactionRegistry({ user, onNavigateToVoidAmend }: TransactionRegistryProps) {
 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -150,10 +150,8 @@ export function TransactionRegistry({ user }: TransactionRegistryProps) {
 
         setVoidGroupTarget(null);
 
-        // Navigate to Void and Amend page with the new records
-        navigate('/void-and-amend', {
-            state: { newVoidedItems: voidedRecords },
-        });
+        // Navigate to Void and Amend view with the new records
+        onNavigateToVoidAmend(voidedRecords);
     };
 
     return (

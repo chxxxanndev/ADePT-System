@@ -658,10 +658,16 @@
     background: transparent;
 }
 
+/* ── Dropdown now anchors from the LEFT edge of its trigger ──────────
+   The period selector used to live on the far right of the header, so
+   `right: 0` made sense. It's since moved to the left side of the
+   welcome row, so anchoring from the right pushed the dropdown off the
+   left edge of the viewport/sidebar. Anchoring from `left: 0` instead
+   opens it into the open space to the right, where it fits. */
 .period-dropdown {
     position: absolute;
     top: calc(100% + 8px);
-    right: 0;
+    left: 0;
     z-index: 100;
     min-width: 220px;
     max-height: 340px;
@@ -676,7 +682,7 @@
     border-radius: var(--db-radius-md);
     box-shadow: 0 12px 32px rgba(41, 35, 122, 0.12);
     animation: dropdown-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    transform-origin: top right;
+    transform-origin: top left;
 }
 
 @keyframes dropdown-in {
@@ -724,6 +730,7 @@
 
 .period-dropdown-calendar {
     min-width: 280px;
+    max-width: calc(100vw - 64px);
     padding: 14px;
 }
 
@@ -888,6 +895,57 @@
 .calendar-btn-primary:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+/* =========================================================
+   Refresh button (replaces the old period-selector slot on
+   the right side of the welcome row)
+   ========================================================= */
+.refresh-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 99px;
+    background-color: rgba(41, 35, 122, 0.05);
+    border: 1px solid var(--db-glass-border-alt);
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--db-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 8px rgba(41, 35, 122, 0.03);
+}
+
+.refresh-btn:hover:not(:disabled) {
+    background-color: rgba(41, 35, 122, 0.1);
+    border-color: var(--db-primary);
+    transform: translateY(-0.5px);
+}
+
+.refresh-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.refresh-btn-icon {
+    display: flex;
+    transition: transform 0.2s ease;
+}
+
+.refresh-btn-icon.spinning {
+    animation: refresh-spin 0.6s linear infinite;
+}
+
+@keyframes refresh-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* =========================================================
@@ -1549,6 +1607,19 @@
     margin-top: 12px;
     padding-top: 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* =========================================================
+   Header brand logo (SVG icon container, replaces emoji)
+   ========================================================= */
+.header-brand-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-brand-logo svg {
+    display: block;
 }
 
 /* =========================================================

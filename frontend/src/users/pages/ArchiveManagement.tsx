@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from "react";
-import { Search, ChevronDown, Archive, RotateCcw, Loader2 } from "lucide-react"; // Added Loader2
+import { Search, ChevronDown, Archive, RotateCcw, Loader2 } from "lucide-react";
 import { requestService } from "../services/requestService";
+import { fetchTransactionRegistry } from "../services/transactionService";
+import type { Transaction, RequestedDocumentItem } from "../types/transaction";
 import "../styles/ArchiveManagement.css";
 
 /* ------------------------------------------------------------------ */
@@ -43,48 +45,55 @@ const DOC_TYPE_CLASS: Record<DocumentType, string> = {
 /* ------------------------------------------------------------------ */
 
 /**
- * Robust helper to resolve document names.
- * Uses the Database Joined name first, fallbacks to Reference Number Prefix.
+ * Maps the normalized `documentType` string(s) coming from the shared
+ * Transaction Registry (Title Case, e.g. "Certificate of No Landholding")
+ * onto this page's own display labels.
  */
-function resolveArchiveDocName(req: any): DocumentType {
-  // 1. Try to find the name in the joined request_documents array
-  if (req.request_documents && req.request_documents.length > 0) {
-    // Note: Check the nesting specifically based on your backend merge logic
-    const name = req.request_documents[0].document_types?.name || "";
+function resolveArchiveDocName(docs: RequestedDocumentItem[]): DocumentType {
+  const name = docs[0]?.documentType ?? "";
 
-    if (name.includes("Tax Declaration")) return "Tax Declaration";
-    if (name.includes("No Landholding")) return "No-Landholding Certificate";
-    if (name.includes("Landholding")) return "Certificate of Land Holding";
-    if (name.includes("Old Tax") || name.includes("True Copy")) return "Certified True Copy";
-  }
-
-  // 2. Fallback: Use the Reference Number Prefix (The most reliable source)
-  const ref = req.reference_number || "";
-  if (ref.startsWith("TD")) return "Tax Declaration";
-  if (ref.startsWith("NLH")) return "No-Landholding Certificate";
-  if (ref.startsWith("LH")) return "Certificate of Land Holding";
-  if (ref.startsWith("CTC")) return "Certified True Copy";
+  if (name.includes("Tax Declaration")) return "Tax Declaration";
+  if (name.includes("No Landholding") || name.includes("No-Landholding")) return "No-Landholding Certificate";
+  if (name.includes("Landholding") || name.includes("Land Holding")) return "Certificate of Land Holding";
+  if (name.includes("True Copy")) return "Certified True Copy";
 
   return "General Document";
 }
 
-/**
- * Resolves who archived the document. Checks a few likely backend field
- * names first (adjust these to match your actual schema once known),
- * falling back to a generic placeholder if none are present.
- */
-function resolveArchivedBy(req: any): string {
-  return (
-    req.archived_by_name ||
-    req.archived_by?.full_name ||
-    req.updated_by_name ||
-    req.staff_name ||
-    "Staff"
-  );
-}
-
 function DocTypeTag({ type }: { type: DocumentType }) {
   return <span className={`arc-tag ${DOC_TYPE_CLASS[type]}`}>{type}</span>;
+}
+
+/**
+ * Transaction has no `archivedAt`/`archivedBy` columns yet — only
+ * `dateRequested` and `assignedStaff` are available from the registry.
+ * These are used as the best available stand-ins until the backend adds
+ * dedicated archive-audit fields (mirrors the same limitation documented
+ * for void records in VoidAndAmend.tsx).
+ */
+function toArchivedRecord(t: Transaction): ArchivedRecord {
+  const requested = new Date(t.dateRequested);
+  return {
+    id: t.id,
+    reference: t.referenceNumber,
+    declarantName: t.client.declarantName,
+    documentType: resolveArchiveDocName(t.requestedDocuments),
+    archivedDate: requested.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }),
+    archivedTime: requested.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    archivedBy: t.assignedStaff || "Staff",
+    // No archive-reason field exists on the backend yet — every archived
+    // transaction is reported as "Manual" until one is added.
+    reasonType: "Manual",
+    reasonDetail: "Manually moved from queue.",
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -93,6 +102,7 @@ function DocTypeTag({ type }: { type: DocumentType }) {
 export default function ArchiveManagement() {
   const [records, setRecords] = useState<ArchivedRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [docTypeFilter, setDocTypeFilter] = useState<DocTypeFilter>("All types");
   const [reasonFilter, setReasonFilter] = useState<ReasonFilter>("All reasons");
@@ -100,37 +110,16 @@ export default function ArchiveManagement() {
   const fetchArchivedData = async () => {
     try {
       setLoading(true);
-      const rawRequests = await requestService.getRequests();
-
-      if (Array.isArray(rawRequests)) {
-        const archivedOnly = rawRequests
-          .filter((r: any) => r.status === "ARCHIVED")
-          .map((r: any) => {
-            const updatedAt = new Date(r.updated_at);
-            return {
-              id: r.id,
-              reference: r.reference_number || "N/A",
-              declarantName: r.declarant_name || "Anonymous",
-              documentType: resolveArchiveDocName(r), // Uses the robust helper
-              archivedDate: updatedAt.toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              }),
-              archivedTime: updatedAt.toLocaleTimeString("en-US", {
-                hour: "numeric",
-                minute: "2-digit",
-                hour12: true,
-              }),
-              archivedBy: resolveArchivedBy(r),
-              reasonType: "Manual" as ArchiveReason,
-              reasonDetail: "Manually moved from queue.",
-            };
-          });
-        setRecords(archivedOnly);
-      }
+      setLoadError(null);
+      // Reads from the same registry endpoint as Reports, Transaction Registry,
+      // and Void and Amend, so this page's archived count always matches the
+      // "Archived" figure shown in Reports & Analytics and on the Dashboard.
+      const all = await fetchTransactionRegistry();
+      const archivedOnly = all.filter((t) => t.status === "Archived").map(toArchivedRecord);
+      setRecords(archivedOnly);
     } catch (error) {
-      console.error("Failed to fetch archive:", error);
+      setLoadError(error instanceof Error ? error.message : "Failed to fetch archive.");
+      setRecords([]);
     } finally {
       setLoading(false);
     }
@@ -237,6 +226,15 @@ export default function ArchiveManagement() {
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                         <Loader2 size={18} className="arc-spinner" style={{ animation: 'spin 1s linear infinite' }} /> 
                         Loading archives...
+                      </div>
+                    </td>
+                  </tr>
+                ) : loadError ? (
+                  <tr className="arc-empty-row">
+                    <td colSpan={7} style={{ color: '#B0281C' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '16px 0' }}>
+                        <span style={{ fontWeight: 600 }}>{loadError}</span>
+                        <button className="arc-restore-btn" onClick={fetchArchivedData}>Retry</button>
                       </div>
                     </td>
                   </tr>
