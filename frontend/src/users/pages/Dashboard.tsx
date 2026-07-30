@@ -61,7 +61,7 @@ const formatTransactionDateTime = (dateStr: string): string => {
 // Map a Transaction (from registry) to TransactionRow (for RecentTransactions)
 const mapTransactionToRow = (t: Transaction): TransactionRow => {
     const docTypes = t.requestedDocuments?.map(d => d.documentType).join(', ') || 'N/A';
-    return {
+        return {
         id: t.id,
         controlNumber: t.referenceNumber,
         declarant: t.client.declarantName,
