@@ -1,10 +1,36 @@
-export type AuditActionType = 'approval' | 'decline' | 'system' | 'login' | 'logout';
+export type AuditActionType =
+  // Staff Activities
+  | 'login'
+  | 'logout'
+  | 'assessment_submit'
+  | 'assessment_edit'
+  | 'document_upload'
+  | 'report_print'
+  // Admin Activities
+  | 'approval'
+  | 'decline'
+  | 'account_activate'
+  | 'account_deactivate'
+  | 'staff_promote'
+  | 'staff_demote'
+  | 'staff_edit'
+  // Fallback for anything else (misc system events)
+  | 'system';
+
+/** Matches the role codes used elsewhere in the app (e.g. userManagementService). */
+export type AuditActorRole = 'SUPER_ADMIN' | 'OFFICE_STAFF' | 'STAFF';
 
 export interface AuditLogEntry {
   id: string;
   type: AuditActionType;
   actor: string;
+  actorRole?: AuditActorRole;
+  /** Short line shown in the list row, e.g. "submitted a property assessment". */
   description: string;
+  /** Optional key/value pairs shown ONLY in the detail popup when a row is
+   *  clicked — e.g. { "Property": "123 Main St, Butuan", "TCT No.": "T-4521" }.
+   *  Keep `description` short for the row; put verbose specifics here. */
+  details?: Record<string, string>;
   date: string;
   time: string;
 }
@@ -13,7 +39,9 @@ interface StoredAuditRecord {
   id: string;
   type: AuditActionType;
   actor: string;
+  actorRole?: AuditActorRole;
   description: string;
+  details?: Record<string, string>;
   /** ISO timestamp — the source of truth. date/time labels are derived
    *  from this fresh on every read, so "Today"/"Yesterday" stay accurate
    *  as calendar days roll over instead of freezing at creation time. */
@@ -70,7 +98,12 @@ function readRawRecords(): StoredAuditRecord[] {
         id: item.id!,
         type: item.type!,
         actor: item.actor!,
+        // Entries written before this fix have no actorRole/details — leave
+        // them undefined rather than guessing, so old entries just fall
+        // outside role/detail-based logic instead of being miscategorized.
+        actorRole: item.actorRole,
         description: item.description!,
+        details: item.details,
         // Entries written before this fix only have frozen date/time
         // strings and no timestamp — fall back to "now" so old entries
         // don't disappear, rather than crashing on a missing field.
@@ -102,7 +135,9 @@ export function getStoredAuditEntries(): AuditLogEntry[] {
         id: record.id,
         type: record.type,
         actor: record.actor,
+        actorRole: record.actorRole,
         description: record.description,
+        details: record.details,
         date: formatEntryDate(timestamp),
         time: formatEntryTime(timestamp),
       };

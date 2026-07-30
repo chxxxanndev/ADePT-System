@@ -7,17 +7,25 @@ import {
   Settings2,
   LogIn,
   LogOut,
+  ClipboardCheck,
+  PencilLine,
+  UploadCloud,
+  Printer,
+  UserCheck,
+  UserX,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  UserCog,
+  X,
 } from "lucide-react";
 import "../styles/AdminAuditLog.css";
-import { clearStoredAuditEntries, getStoredAuditEntries, type AuditLogEntry as StoredAuditLogEntry } from '../services/auditLogService';
+import { clearStoredAuditEntries, getStoredAuditEntries, type AuditLogEntry as StoredAuditLogEntry, type AuditActionType } from '../services/auditLogService';
 import { fetchAllStaff, type StaffMember } from '../services/userManagementService';
 import { onStaffPresence, getStaffPresenceChannel } from '../services/staffPresenceChannel';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
-type AuditActionType = "approval" | "decline" | "system" | "login" | "logout";
-
 interface AuditLogEntry extends StoredAuditLogEntry {
   id: string;
   type: AuditActionType;
@@ -41,7 +49,25 @@ interface StaffPresence {
 }
 
 type TimeRange = "Today" | "This Week" | "This Month" | "All Time";
-type ActivityFilter = "All activity" | "Approvals" | "Declines" | "Logins" | "Logouts";
+
+type StaffActivityFilter =
+  | "All Staff Activity"
+  | "Logins"
+  | "Logouts"
+  | "Assessments Submitted"
+  | "Assessments Edited"
+  | "Document Uploads"
+  | "Reports Printed";
+
+type AdminActivityFilter =
+  | "All Admin Activity"
+  | "Approvals"
+  | "Declines"
+  | "Account Activations"
+  | "Account Deactivations"
+  | "Promotions"
+  | "Demotions"
+  | "Staff Info Edits";
 
 interface CurrentUser {
   name: string;
@@ -60,28 +86,99 @@ const DEFAULT_USER: CurrentUser = {
   initials: "VD",
 };
 
-const ACTIVITY_FILTER_TO_TYPE: Record<ActivityFilter, AuditActionType | null> = {
-  "All activity": null,
-  Approvals: "approval",
-  Declines: "decline",
-  Logins: "login",
-  Logouts: "logout",
+/* ------------------------------------------------------------------ */
+/*  Activity taxonomy                                                  */
+/* ------------------------------------------------------------------ */
+const STAFF_ACTIVITY_TYPES: AuditActionType[] = [
+  'login',
+  'logout',
+  'assessment_submit',
+  'assessment_edit',
+  'document_upload',
+  'report_print',
+];
+
+const ADMIN_ACTIVITY_TYPES: AuditActionType[] = [
+  'approval',
+  'decline',
+  'account_activate',
+  'account_deactivate',
+  'staff_promote',
+  'staff_demote',
+  'staff_edit',
+];
+
+const STAFF_FILTER_TO_TYPE: Record<StaffActivityFilter, AuditActionType | null> = {
+  "All Staff Activity": null,
+  Logins: 'login',
+  Logouts: 'logout',
+  "Assessments Submitted": 'assessment_submit',
+  "Assessments Edited": 'assessment_edit',
+  "Document Uploads": 'document_upload',
+  "Reports Printed": 'report_print',
+};
+
+const ADMIN_FILTER_TO_TYPE: Record<AdminActivityFilter, AuditActionType | null> = {
+  "All Admin Activity": null,
+  Approvals: 'approval',
+  Declines: 'decline',
+  "Account Activations": 'account_activate',
+  "Account Deactivations": 'account_deactivate',
+  Promotions: 'staff_promote',
+  Demotions: 'staff_demote',
+  "Staff Info Edits": 'staff_edit',
+};
+
+// Human-readable label for the type shown in the detail popup header.
+const TYPE_LABELS: Record<AuditActionType, string> = {
+  login: "Login",
+  logout: "Logout",
+  assessment_submit: "Property Assessment Submitted",
+  assessment_edit: "Assessment Edited",
+  document_upload: "Documents Uploaded",
+  report_print: "Report Printed",
+  approval: "Account Request Approved",
+  decline: "Account Request Declined",
+  account_activate: "Staff Account Activated",
+  account_deactivate: "Staff Account Deactivated",
+  staff_promote: "Staff Promoted",
+  staff_demote: "Admin Demoted",
+  staff_edit: "Staff Information Edited",
+  system: "System Event",
 };
 
 const ICON_MAP: Record<AuditActionType, React.ReactNode> = {
-  approval: <CheckCircle2 size={16} />,
-  decline: <XCircle size={16} />,
-  system: <Settings2 size={16} />,
   login: <LogIn size={16} />,
   logout: <LogOut size={16} />,
+  assessment_submit: <ClipboardCheck size={16} />,
+  assessment_edit: <PencilLine size={16} />,
+  document_upload: <UploadCloud size={16} />,
+  report_print: <Printer size={16} />,
+  approval: <CheckCircle2 size={16} />,
+  decline: <XCircle size={16} />,
+  account_activate: <UserCheck size={16} />,
+  account_deactivate: <UserX size={16} />,
+  staff_promote: <ArrowUpCircle size={16} />,
+  staff_demote: <ArrowDownCircle size={16} />,
+  staff_edit: <UserCog size={16} />,
+  system: <Settings2 size={16} />,
 };
 
 const ICON_CLASS_MAP: Record<AuditActionType, string> = {
-  approval: "audit-icon--approval",
-  decline: "audit-icon--decline",
-  system: "audit-icon--system",
   login: "audit-icon--login",
   logout: "audit-icon--logout",
+  assessment_submit: "audit-icon--assessment-submit",
+  assessment_edit: "audit-icon--assessment-edit",
+  document_upload: "audit-icon--document-upload",
+  report_print: "audit-icon--report-print",
+  approval: "audit-icon--approval",
+  decline: "audit-icon--decline",
+  account_activate: "audit-icon--account-activate",
+  account_deactivate: "audit-icon--account-deactivate",
+  staff_promote: "audit-icon--staff-promote",
+  staff_demote: "audit-icon--staff-demote",
+  staff_edit: "audit-icon--staff-edit",
+  system: "audit-icon--system",
 };
 
 /* ------------------------------------------------------------------ */
@@ -128,9 +225,9 @@ function getEntrySortValue(entry: AuditLogEntry): number {
 /* ------------------------------------------------------------------ */
 /*  Small building blocks                                             */
 /* ------------------------------------------------------------------ */
-function AuditRow({ entry }: { entry: AuditLogEntry }) {
+function AuditRow({ entry, onSelect }: { entry: AuditLogEntry; onSelect: (entry: AuditLogEntry) => void }) {
   return (
-    <div className="audit-row">
+    <button type="button" className="audit-row audit-row--clickable" onClick={() => onSelect(entry)}>
       <div className={`audit-icon ${ICON_CLASS_MAP[entry.type]}`}>
         {ICON_MAP[entry.type]}
       </div>
@@ -142,7 +239,7 @@ function AuditRow({ entry }: { entry: AuditLogEntry }) {
           {entry.date}, {entry.time}
         </p>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -172,16 +269,69 @@ function PresenceRow({ staff }: { staff: StaffPresence }) {
   );
 }
 
+/**
+ * Popup shown when an audit row is clicked. Shows the full context:
+ * actor, type, timestamp, the row's description, and — if the entry
+ * carries a `details` payload — every key/value pair in it.
+ */
+function AuditDetailModal({ entry, onClose }: { entry: AuditLogEntry; onClose: () => void }) {
+  const detailEntries = entry.details ? Object.entries(entry.details) : [];
+
+  return (
+    <div className="audit-modal-overlay" role="presentation" onClick={onClose}>
+      <div className="audit-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <div className="audit-modal-header">
+          <div className="audit-modal-header-info">
+            <div className={`audit-icon ${ICON_CLASS_MAP[entry.type]}`}>
+              {ICON_MAP[entry.type]}
+            </div>
+            <div>
+              <p className="audit-modal-title">{TYPE_LABELS[entry.type]}</p>
+              <p className="audit-modal-timestamp">{entry.date}, {entry.time}</p>
+            </div>
+          </div>
+          <button type="button" className="audit-modal-close" onClick={onClose} aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="audit-modal-section">
+          <div className="audit-modal-field">
+            <p className="audit-modal-label">Actor</p>
+            <p className="audit-modal-value">{entry.actor}</p>
+          </div>
+          <div className="audit-modal-field">
+            <p className="audit-modal-label">Description</p>
+            <p className="audit-modal-value">{entry.actor} {entry.description}</p>
+          </div>
+        </div>
+
+        {detailEntries.length > 0 && (
+          <div className="audit-modal-section">
+            {detailEntries.map(([label, value]) => (
+              <div key={label} className="audit-modal-field">
+                <p className="audit-modal-label">{label}</p>
+                <p className="audit-modal-value">{value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Page component                                                    */
 /* ------------------------------------------------------------------ */
 export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("Today");
-  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("All activity");
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [staffFilter, setStaffFilter] = useState<StaffActivityFilter>("All Staff Activity");
+  const [adminFilter, setAdminFilter] = useState<AdminActivityFilter>("All Admin Activity");
   const [entries, setEntries] = useState<AuditLogEntry[]>(() => getStoredAuditEntries());
   const [staffPresence, setStaffPresence] = useState<StaffPresence[]>([]);
+  const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | null>(null);
 
   // ---- Real presence via Supabase Realtime ----
   // This component only *listens* to the shared presence channel; the
@@ -294,22 +444,42 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
     };
   }, []);
 
-  const filteredEntries = useMemo(() => {
-    const typeFilter = ACTIVITY_FILTER_TO_TYPE[activityFilter];
-    return entries
-      .filter((entry) => {
-        const matchesType = typeFilter === null || entry.type === typeFilter;
-        const matchesSearch =
-          search.trim() === "" ||
-          entry.actor.toLowerCase().includes(search.toLowerCase()) ||
-          entry.description.toLowerCase().includes(search.toLowerCase());
-        const matchesTimeRange = timeRange === "All Time" || entry.date === timeRange || (timeRange === "Today" && entry.date === "Today");
-        return matchesType && matchesSearch && matchesTimeRange;
-      })
-      .sort((a, b) => getEntrySortValue(b) - getEntrySortValue(a)); // newest first (top), oldest last (bottom)
-  }, [entries, search, timeRange, activityFilter]);
+  // Base filter shared by both cards: never show the super admin's own
+  // actions, and respect the search box + time range picked in the toolbar.
+  const baseFilteredEntries = useMemo(() => {
+    return entries.filter((entry) => {
+      if (entry.actorRole === 'SUPER_ADMIN') return false;
 
-  const onlineCount = staffPresence.filter((s) => s.online).length;
+      const matchesSearch =
+        search.trim() === "" ||
+        entry.actor.toLowerCase().includes(search.toLowerCase()) ||
+        entry.description.toLowerCase().includes(search.toLowerCase());
+      const matchesTimeRange = timeRange === "All Time" || entry.date === timeRange || (timeRange === "Today" && entry.date === "Today");
+      return matchesSearch && matchesTimeRange;
+    });
+  }, [entries, search, timeRange]);
+
+  const staffEntries = useMemo(() => {
+    const typeFilter = STAFF_FILTER_TO_TYPE[staffFilter];
+    return baseFilteredEntries
+      .filter((entry) => STAFF_ACTIVITY_TYPES.includes(entry.type) && (typeFilter === null || entry.type === typeFilter))
+      .sort((a, b) => getEntrySortValue(b) - getEntrySortValue(a));
+  }, [baseFilteredEntries, staffFilter]);
+
+  const adminEntries = useMemo(() => {
+    const typeFilter = ADMIN_FILTER_TO_TYPE[adminFilter];
+    return baseFilteredEntries
+      .filter((entry) => ADMIN_ACTIVITY_TYPES.includes(entry.type) && (typeFilter === null || entry.type === typeFilter))
+      .sort((a, b) => getEntrySortValue(b) - getEntrySortValue(a));
+  }, [baseFilteredEntries, adminFilter]);
+
+  // Staff Online Now should also reflect staff/admin only, not the super admin.
+  const visibleStaffPresence = useMemo(
+    () => staffPresence.filter((s) => s.role !== 'Super Admin'),
+    [staffPresence]
+  );
+
+  const onlineCount = visibleStaffPresence.filter((s) => s.online).length;
 
   return (
     <div className="audit-log-page">
@@ -319,7 +489,7 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
           <div>
             <h1 className="audit-page-title">Audit log</h1>
             <p className="audit-page-subtitle">
-              A record of every account approval, decline, login, and logout.
+              A record of every staff and admin action — logins, assessments, uploads, and account changes.
             </p>
           </div>
           <div className="audit-user-chip">
@@ -364,49 +534,80 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
             </select>
             <ChevronDown size={14} className="audit-select-chevron" />
           </div>
+          <button
+            type="button"
+            className="audit-filter-btn"
+            onClick={() => { clearStoredAuditEntries(); setEntries([]); }}
+          >
+            Clear log
+          </button>
         </div>
       </div>
-
-      {showFilterMenu && (
-        <div className="audit-filter-menu">
-          <button className="audit-filter-chip" onClick={() => { setActivityFilter('All activity'); setShowFilterMenu(false); }} type="button">All activity</button>
-          <button className="audit-filter-chip" onClick={() => { setActivityFilter('Approvals'); setShowFilterMenu(false); }} type="button">Approvals</button>
-          <button className="audit-filter-chip" onClick={() => { setActivityFilter('Declines'); setShowFilterMenu(false); }} type="button">Declines</button>
-          <button className="audit-filter-chip" onClick={() => { setActivityFilter('Logins'); setShowFilterMenu(false); }} type="button">Logins</button>
-          <button className="audit-filter-chip" onClick={() => { setActivityFilter('Logouts'); setShowFilterMenu(false); }} type="button">Logouts</button>
-          <button className="audit-filter-chip audit-filter-chip--danger" onClick={() => { clearStoredAuditEntries(); setEntries([]); setShowFilterMenu(false); }} type="button">Clear audit entries</button>
-        </div>
-      )}
 
       {/* Scrollable content area — mirrors account-request-content */}
       <div className="audit-log-content">
         <div className="audit-content-grid">
-          {/* Audit log card */}
+          {/* Staff activity card */}
           <div className="audit-card">
             <div className="audit-card-header">
-              <h2 className="audit-card-title">Audit log</h2>
+              <h2 className="audit-card-title">Staff Activity Log</h2>
               <div className="audit-select-field">
                 <select
-                  value={activityFilter}
-                  onChange={(e) => setActivityFilter(e.target.value as ActivityFilter)}
+                  value={staffFilter}
+                  onChange={(e) => setStaffFilter(e.target.value as StaffActivityFilter)}
                   className="audit-select"
                 >
-                  <option>All activity</option>
-                  <option>Approvals</option>
-                  <option>Declines</option>
+                  <option>All Staff Activity</option>
                   <option>Logins</option>
                   <option>Logouts</option>
+                  <option>Assessments Submitted</option>
+                  <option>Assessments Edited</option>
+                  <option>Document Uploads</option>
+                  <option>Reports Printed</option>
                 </select>
                 <ChevronDown size={14} className="audit-select-chevron" />
               </div>
             </div>
 
             <div className="audit-row-list">
-              {filteredEntries.map((entry) => (
-                <AuditRow key={entry.id} entry={entry} />
+              {staffEntries.map((entry) => (
+                <AuditRow key={entry.id} entry={entry} onSelect={setSelectedEntry} />
               ))}
-              {filteredEntries.length === 0 && (
-                <div className="audit-empty">No records match your search or filter.</div>
+              {staffEntries.length === 0 && (
+                <div className="audit-empty">No staff activity matches your search or filter.</div>
+              )}
+            </div>
+          </div>
+
+          {/* Admin activity card */}
+          <div className="audit-card">
+            <div className="audit-card-header">
+              <h2 className="audit-card-title">Admin Activity Log</h2>
+              <div className="audit-select-field">
+                <select
+                  value={adminFilter}
+                  onChange={(e) => setAdminFilter(e.target.value as AdminActivityFilter)}
+                  className="audit-select"
+                >
+                  <option>All Admin Activity</option>
+                  <option>Approvals</option>
+                  <option>Declines</option>
+                  <option>Account Activations</option>
+                  <option>Account Deactivations</option>
+                  <option>Promotions</option>
+                  <option>Demotions</option>
+                  <option>Staff Info Edits</option>
+                </select>
+                <ChevronDown size={14} className="audit-select-chevron" />
+              </div>
+            </div>
+
+            <div className="audit-row-list">
+              {adminEntries.map((entry) => (
+                <AuditRow key={entry.id} entry={entry} onSelect={setSelectedEntry} />
+              ))}
+              {adminEntries.length === 0 && (
+                <div className="audit-empty">No admin activity matches your search or filter.</div>
               )}
             </div>
           </div>
@@ -418,13 +619,17 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
               <span className="presence-count">{onlineCount} online</span>
             </div>
             <div className="presence-list">
-              {staffPresence.map((staff) => (
+              {visibleStaffPresence.map((staff) => (
                 <PresenceRow key={staff.id} staff={staff} />
               ))}
             </div>
           </div>
         </div>
       </div>
+
+      {selectedEntry && (
+        <AuditDetailModal entry={selectedEntry} onClose={() => setSelectedEntry(null)} />
+      )}
     </div>
   );
 }

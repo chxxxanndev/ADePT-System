@@ -21,6 +21,14 @@
   --color-truecopy: #1976d2;
   --color-truecopy-bg: #e3f2fd;
 
+  /* Added for the expanded audit-log action types (assessments,
+     documents, reports, promotions, edits) — kept in the same
+     "color + light bg" pairing style as the vars above. */
+  --color-secondary-bg: #e0f7fa;
+  --color-primary-bg: #ede9fb;
+  --color-warning: #b45309;
+  --color-warning-bg: #fef3e0;
+
   --card-border: #edeef3;
   --row-divider: #f4f4f8;
   --card-shadow: rgba(20, 20, 43, 0.06);
@@ -282,10 +290,26 @@
   gap: 24px;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .audit-content-grid {
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Staff and Admin cards share the top row; presence spans below until
+     there's room for all three side by side at the wider breakpoint. */
+  .presence-card {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1280px) {
+  .audit-content-grid {
+    grid-template-columns: 1fr 1fr 0.85fr;
     align-items: stretch;
+  }
+
+  .presence-card {
+    grid-column: auto;
   }
 }
 
@@ -341,6 +365,34 @@
   border-top: none;
 }
 
+/* Rows are now buttons (opens the detail popup) — reset button chrome
+   and add a hover/focus affordance so it reads as clickable. */
+.audit-row--clickable {
+  width: 100%;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--row-divider);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.12s ease;
+}
+
+.audit-row--clickable:first-child {
+  border-top: none;
+}
+
+.audit-row--clickable:hover,
+.audit-row--clickable:focus-visible {
+  background-color: var(--surface-tint);
+}
+
+.audit-row--clickable:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
 .audit-icon {
   width: 32px;
   height: 32px;
@@ -376,6 +428,55 @@
   color: var(--color-archived);
 }
 
+/* ---- Staff activity icons ---- */
+
+.audit-icon--assessment-submit {
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.audit-icon--assessment-edit {
+  background-color: var(--color-secondary-bg);
+  color: var(--color-secondary);
+}
+
+.audit-icon--document-upload {
+  background-color: var(--color-truecopy-bg);
+  color: var(--color-truecopy);
+}
+
+.audit-icon--report-print {
+  background-color: var(--color-archived-bg);
+  color: var(--color-archived);
+}
+
+/* ---- Admin activity icons ---- */
+
+.audit-icon--account-activate {
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.audit-icon--account-deactivate {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.audit-icon--staff-promote {
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary);
+}
+
+.audit-icon--staff-demote {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.audit-icon--staff-edit {
+  background-color: var(--color-secondary-bg);
+  color: var(--color-secondary);
+}
+
 .audit-row-body {
   flex: 1;
   min-width: 0;
@@ -404,6 +505,106 @@
   text-align: center;
   color: var(--color-muted-light);
   font-size: 14px;
+}
+
+/* ---------- Detail popup (opens on row click) ---------- */
+
+.audit-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.audit-modal {
+  background: #ffffff;
+  border-radius: 14px;
+  width: min(440px, 100%);
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(20, 20, 43, 0.25);
+  padding: 24px;
+}
+
+.audit-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.audit-modal-header-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.audit-modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-heading);
+  margin: 0;
+}
+
+.audit-modal-timestamp {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin: 2px 0 0;
+}
+
+.audit-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.audit-modal-close:hover {
+  background-color: var(--surface-tint);
+  color: var(--color-heading);
+}
+
+.audit-modal-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+}
+
+.audit-modal-section:first-of-type {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+}
+
+.audit-modal-field {
+  margin-bottom: 10px;
+}
+
+.audit-modal-field:last-child {
+  margin-bottom: 0;
+}
+
+.audit-modal-label {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.audit-modal-value {
+  font-size: 14px;
+  color: var(--color-text);
+  margin: 3px 0 0;
+  font-weight: 500;
 }
 
 /* ---------- Staff presence card ---------- */
