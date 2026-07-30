@@ -6,7 +6,7 @@ import {
     RequestsIcon,
     RefreshIcon
 } from '../../users/components/icons';
-import type { AdminStatItem } from '../data/dashboardMockData';
+import type { AdminStatItem } from '../data/adminTypes';
 
 // SVG down-arrow / inbox icon for the "Request Today" card
 function InboxDownIcon({ size = 18, className }: { size?: number; className?: string }) {
@@ -95,8 +95,10 @@ export function AdminStatsSection({
     onRefresh,
     isRefreshing
 }: AdminStatsSectionProps) {
+    const isEmpty = items.length === 0;
+
     return (
-        <section className="admin-stats-panel">
+        <section className={`admin-stats-panel ${isEmpty ? 'is-empty' : ''}`}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div className="admin-section-title-row">
                     <span className="admin-section-title-icon">{sectionIcon}</span>
@@ -112,11 +114,13 @@ export function AdminStatsSection({
                     </button>
                 )}
             </div>
-            <div className="admin-stats-grid">
-                {items.map((item) => (
-                    <AdminStatCard key={item.id} item={item} />
-                ))}
-            </div>
+            {!isEmpty && (
+                <div className="admin-stats-grid">
+                    {items.map((item) => (
+                        <AdminStatCard key={item.id} item={item} />
+                    ))}
+                </div>
+            )}
         </section>
     );
 }

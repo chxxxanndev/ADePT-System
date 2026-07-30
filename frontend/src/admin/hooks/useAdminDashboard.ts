@@ -1,22 +1,15 @@
 import { useEffect, useState } from 'react';
 import {
-    accessRequestsMock,
-    requestQueueMock,
-    transactionsMock,
-    activitiesMock,
     type AdminStatItem,
+    type AdminTransactionRow,
     type AdminActivityItem,
-} from '../data/dashboardMockData';
-import { fetchAllStaff, authHeaders, fetchStaffPerformance, fetchDashboardMetrics, type StaffMember, type StaffPerformanceItem } from '../services/userManagementService';
+} from '../data/adminTypes';
+import { fetchAllStaff, authHeaders, fetchStaffPerformance, fetchDashboardMetrics, fetchRecentTransactions, type StaffMember, type StaffPerformanceItem } from '../services/userManagementService';
 import { getAuditLog, type AuditLogEntry, type AuditActionType } from '../services/auditLogService';
 
 // Simulated network delay for refresh actions so the spinning state is visible.
 const REFRESH_DELAY_MS = 700;
 const API_BASE_URL = 'http://localhost:5000/api/users';
-
-// The Overview widget always shows at least this many rows — real audit
-// entries first, padded with mock entries only when real activity is thin.
-const MIN_ACTIVITY_ITEMS = 5;
 
 interface AccountRequestSummary {
     id: string;
@@ -120,27 +113,12 @@ function auditEntryToActivityItem(entry: AuditLogEntry): AdminActivityItem {
     };
 }
 
-/**
- * Fetches real audit entries from the backend and pads with mock entries
- * only when real activity is thin, so the widget never looks empty. Real
- * entries always come first and are never displaced.
- *
- * Async because getAuditLog() is now a network call (audit_log now lives
- * in Postgres behind the Express backend, not localStorage) — previously
- * this was a synchronous localStorage read.
- */
 async function buildActivityFeed(): Promise<AdminActivityItem[]> {
-    let real: AdminActivityItem[] = [];
     try {
-        real = (await getAuditLog()).map(auditEntryToActivityItem);
+        return (await getAuditLog()).map(auditEntryToActivityItem);
     } catch {
-        // Network hiccup — fall through to mock padding below rather than
-        // surfacing an error on the Overview widget, which is meant to be
-        // a lightweight glance, not a source of truth.
+        return [];
     }
-    if (real.length >= MIN_ACTIVITY_ITEMS) return real;
-    const padding = activitiesMock.slice(0, MIN_ACTIVITY_ITEMS - real.length);
-    return [...real, ...padding];
 }
 
 export function useAdminDashboard() {
@@ -160,14 +138,12 @@ export function useAdminDashboard() {
     const [dateFilter] = useState('Today');
 
     // Data states
-    const [accessRequests, setAccessRequests] = useState<AdminStatItem[]>(accessRequestsMock);
-    const [requestQueue, setRequestQueue] = useState<AdminStatItem[]>(requestQueueMock);
-    const [transactions] = useState(transactionsMock);
+    const [accessRequests, setAccessRequests] = useState<AdminStatItem[]>([]);
+    const [requestQueue, setRequestQueue] = useState<AdminStatItem[]>([]);
+    const [transactions, setTransactions] = useState<AdminTransactionRow[]>([]);
     const [distribution, setDistribution] = useState<any[]>([]);
     const [staffPerformance, setStaffPerformance] = useState<StaffPerformanceItem[]>([]);
-    // Starts as mock data so the widget isn't empty on first paint; the
-    // effect below replaces it with the real feed as soon as it loads.
-    const [activities, setActivities] = useState<AdminActivityItem[]>(activitiesMock);
+    const [activities, setActivities] = useState<AdminActivityItem[]>([]);
 
     // Per-section refresh indicators
     const [refreshingTransactions, setRefreshingTransactions] = useState(false);
@@ -178,38 +154,43 @@ export function useAdminDashboard() {
 
     const loadDashboardData = async () => {
         try {
-            const data = await fetchDashboardMetrics();
-            if (data.summaryCounts) {
+            const [metrics, recent] = await Promise.all([
+                fetchDashboardMetrics(),
+                fetchRecentTransactions(),
+            ]);
+            if (metrics.summaryCounts) {
                 setRequestQueue(buildRequestQueueItems({
-                    requestedTodayCount: data.summaryCounts.requestedTodayCount ?? 0,
-                    processingCount: data.summaryCounts.processingCount ?? 0,
-                    releasedCount: data.summaryCounts.releasedCount ?? 0,
-                    voidCount: data.summaryCounts.voidCount ?? 0,
+                    requestedTodayCount: metrics.summaryCounts.requestedTodayCount ?? 0,
+                    processingCount: metrics.summaryCounts.processingCount ?? 0,
+                    releasedCount: metrics.summaryCounts.releasedCount ?? 0,
+                    voidCount: metrics.summaryCounts.voidCount ?? 0,
                 }));
             }
-            if (data.distribution) setDistribution(data.distribution);
+            if (metrics.distribution) {
+                const normalized = metrics.distribution.map((d: any) => ({
+                    label: d.label,
+                    color: d.color,
+                    count: d.count ?? d.value ?? 0,
+                }));
+                setDistribution(normalized);
+            }
+            if (recent.length > 0) setTransactions(recent);
         } catch {
-            /* silently keep current queue state */
+            /* silently keep current state */
         }
     };
 
     const loadAccessRequestMetrics = async () => {
         try {
             const headers = await authHeaders();
-            if (!headers.Authorization) {
-                // Not logged in – skip fetching protected data
-                setAccessRequests(accessRequestsMock);
-                return;
-            }
+            if (!headers.Authorization) return;
+
             const [staffMembers, requestResponse] = await Promise.all([
                 fetchAllStaff(),
                 fetch(`${API_BASE_URL}/account-requests`, { headers }),
             ]);
 
-            if (requestResponse.status === 401) {
-                setAccessRequests(accessRequestsMock);
-                return;
-            }
+            if (requestResponse.status === 401) return;
 
             if (!requestResponse.ok) {
                 throw new Error('Unable to load access request metrics.');
@@ -219,7 +200,7 @@ export function useAdminDashboard() {
             const requests = (requestPayload.requests || []) as AccountRequestSummary[];
             setAccessRequests(buildAccessRequestItems(staffMembers, requests));
         } catch {
-            setAccessRequests(accessRequestsMock);
+            // silently keep current state
         }
     };
 
@@ -278,7 +259,7 @@ export function useAdminDashboard() {
     useEffect(() => {
         fetchStaffPerformance()
             .then(setStaffPerformance)
-            .catch(() => { /* silently ignore — will show empty */ });
+            .catch(() => {});
     }, []);
 
     return {

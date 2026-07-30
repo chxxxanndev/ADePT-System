@@ -1,4 +1,4 @@
-import type { AdminActivityItem } from '../data/dashboardMockData';
+import type { AdminActivityItem } from '../data/adminTypes';
 
 interface AdminRecentActivityProps {
     activities: AdminActivityItem[];
@@ -6,6 +6,8 @@ interface AdminRecentActivityProps {
 }
 
 export function AdminRecentActivity({ activities, onViewFullLog }: AdminRecentActivityProps) {
+    const visibleActivities = activities.slice(0, 10);
+
     return (
         <div className="admin-card">
             {/* Card Header */}
@@ -20,13 +22,13 @@ export function AdminRecentActivity({ activities, onViewFullLog }: AdminRecentAc
             </div>
 
             {/* Activity Stack */}
-            <div className="activity-stack">
-                {activities.length === 0 ? (
-                    <p style={{ textAlign: 'center', color: '#64748B', padding: '12px 0' }}>
-                        No recent activity yet.
-                    </p>
-                ) : (
-                    activities.map((activity) => (
+            {visibleActivities.length === 0 ? (
+                <div className="admin-empty-state">
+                    No recent activity yet.
+                </div>
+            ) : (
+                <div className="activity-stack">
+                    {visibleActivities.map((activity) => (
                         <div className="activity-item" key={activity.id}>
                             <div className={`activity-color-block ${activity.status}`} />
                             <div className="activity-details">
@@ -36,9 +38,9 @@ export function AdminRecentActivity({ activities, onViewFullLog }: AdminRecentAc
                                 </span>
                             </div>
                         </div>
-                    ))
-                )}
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

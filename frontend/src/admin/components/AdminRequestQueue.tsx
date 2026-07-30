@@ -18,14 +18,6 @@ interface DocumentRequest {
     date: string;
 }
 
-const mockRequests: DocumentRequest[] = [
-    { id: '1', controlNo: '2026-ADR', citizen: 'Zacarias Jacob', document: 'Tax declaration', assignedStaff: 'Linda', status: 'Released', isReprint: false, date: 'Jul 11' },
-    { id: '2', controlNo: '2027-ADR', citizen: 'Elizabeth Santos', document: 'Landholding', assignedStaff: 'Josephine', status: 'Released', isReprint: true, date: 'Jul 17' },
-    { id: '3', controlNo: '2028-ADR', citizen: 'Maria Montoon', document: 'No landholding', assignedStaff: 'Emilio', status: 'Pending', isReprint: false, date: 'Jul 17' },
-    { id: '4', controlNo: '2029-ADR', citizen: 'Mister Bean', document: 'Tax declaration', assignedStaff: 'Laurel', status: 'Released', isReprint: false, date: 'Jul 20' },
-    { id: '5', controlNo: '2030-ADR', citizen: 'Priscilla Uy', document: 'Cert. true copy', assignedStaff: 'Linda', status: 'Pending', isReprint: true, date: 'Jul 21' },
-];
-
 type TabKey = 'all' | 'pending' | 'released' | 'reprints';
 
 interface AdminRequestQueueProps {
@@ -33,7 +25,7 @@ interface AdminRequestQueueProps {
 }
 
 export function AdminRequestQueue({ user }: AdminRequestQueueProps) {
-    const [requests, setRequests] = useState<DocumentRequest[]>(mockRequests);
+    const [requests, setRequests] = useState<DocumentRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<TabKey>('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -74,7 +66,7 @@ export function AdminRequestQueue({ user }: AdminRequestQueueProps) {
                     }
                 }
             } catch {
-                /* keep initial mock fallback */
+                /* silently keep current state */
             } finally {
                 setLoading(false);
             }

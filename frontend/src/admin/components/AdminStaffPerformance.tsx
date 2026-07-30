@@ -14,7 +14,8 @@ export function AdminStaffPerformance({
     isRefreshing,
     onViewFull,
 }: AdminStaffPerformanceProps) {
-    const maxRequests = items[0]?.requests ?? 1;
+    const visibleItems = items.slice(0, 10);
+    const maxRequests = visibleItems[0]?.requests ?? 1;
 
     return (
         <div className="admin-card">
@@ -35,12 +36,12 @@ export function AdminStaffPerformance({
 
             {/* List of Staff Performance Rows */}
             <div className="staff-list-container">
-                {items.length === 0 && (
+                {visibleItems.length === 0 && (
                     <p style={{ color: '#9aa0af', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>
                         No performance data yet.
                     </p>
                 )}
-                {items.map((staff, index) => (
+                {visibleItems.map((staff, index) => (
                     <div className="staff-performance-item" key={staff.id}>
                         <div className="staff-perf-left">
                             <span className="staff-perf-rank">#{index + 1}</span>

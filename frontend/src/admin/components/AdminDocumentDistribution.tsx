@@ -27,34 +27,24 @@ interface DistributionSlice {
 }
 
 interface AdminDocumentDistributionProps {
+    slices?: DistributionSlice[];
     onRefresh?: () => void;
     isRefreshing?: boolean;
 }
 
-// --- Placeholder data — wire this up to real API data later ---
-const PLACEHOLDER_SLICES: DistributionSlice[] = [
-    { label: 'Tax Declaration', color: '#252175', count: 4671 },
-    { label: 'Cert. of Landholding', color: '#FDD835', count: 2159 },
-    { label: 'Cert. of No Landholding', color: '#D32F2F', count: 2154 },
-];
-
-export function AdminDocumentDistribution({ onRefresh, isRefreshing }: AdminDocumentDistributionProps) {
+export function AdminDocumentDistribution({ slices = [], onRefresh, isRefreshing }: AdminDocumentDistributionProps) {
     const total = useMemo(
-        () => PLACEHOLDER_SLICES.reduce((sum, s) => sum + s.count, 0),
-        []
+        () => slices.reduce((sum, s) => sum + s.count, 0),
+        [slices]
     );
 
-    // Overall % shown in the center of the donut — placeholder metric.
-    const overallPct = 88;
-
-    // --- Proper SVG donut geometry so the ring always closes into a full circle ---
     const size = 170;
     const strokeWidth = 22;
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
 
     let cumulativeOffset = 0;
-    const segments = PLACEHOLDER_SLICES.map((slice) => {
+    const segments = slices.map((slice) => {
         const fraction = total > 0 ? slice.count / total : 0;
         const dashLength = fraction * circumference;
         const segment = {
@@ -85,57 +75,63 @@ export function AdminDocumentDistribution({ onRefresh, isRefreshing }: AdminDocu
                 </div>
             </div>
 
-            <div className="donut-chart-container">
-                <svg viewBox={`0 0 ${size} ${size}`} className="donut-chart-svg">
-                    {/* Track (background ring) */}
-                    <circle
-                        cx={size / 2}
-                        cy={size / 2}
-                        r={radius}
-                        fill="none"
-                        stroke="#ECEFF1"
-                        strokeWidth={strokeWidth}
-                    />
-                    {/* Data segments */}
-                    {segments.map((seg) => (
-                        <circle
-                            key={seg.label}
-                            className="donut-segment"
-                            cx={size / 2}
-                            cy={size / 2}
-                            r={radius}
-                            stroke={seg.color}
-                            strokeDasharray={seg.dasharray}
-                            strokeDashoffset={seg.dashoffset}
-                            strokeLinecap="butt"
-                        />
-                    ))}
-                </svg>
-                <div className="donut-chart-center-text">
-                    <span className="donut-center-label">Overall</span>
-                    <span className="donut-center-val">{overallPct}%</span>
+            {slices.length === 0 ? (
+                <div className="admin-empty-state">
+                    No document distribution data available.
                 </div>
-            </div>
-
-            <div className="donut-legend-list">
-                {segments.map((seg) => (
-                    <div className="donut-legend-item" key={seg.label}>
-                        <div className="donut-legend-item-left">
-                            <span className="donut-legend-marker" style={{ backgroundColor: seg.color }} />
-                            <span>{seg.label}</span>
-                        </div>
-                        <div className="donut-legend-item-right">
-                            <span className="donut-legend-pct">{Math.round(seg.fraction * 100)}%</span>
-                            <span className="donut-legend-cnt">{seg.count.toLocaleString()} Documents</span>
+            ) : (
+                <>
+                    <div className="donut-chart-container">
+                        <svg viewBox={`0 0 ${size} ${size}`} className="donut-chart-svg">
+                            <circle
+                                cx={size / 2}
+                                cy={size / 2}
+                                r={radius}
+                                fill="none"
+                                stroke="#ECEFF1"
+                                strokeWidth={strokeWidth}
+                            />
+                            {segments.map((seg) => (
+                                <circle
+                                    key={seg.label}
+                                    className="donut-segment"
+                                    cx={size / 2}
+                                    cy={size / 2}
+                                    r={radius}
+                                    stroke={seg.color}
+                                    strokeDasharray={seg.dasharray}
+                                    strokeDashoffset={seg.dashoffset}
+                                    strokeLinecap="butt"
+                                />
+                            ))}
+                        </svg>
+                        <div className="donut-chart-center-text">
+                            <span className="donut-center-label">Total</span>
+                            <span className="donut-center-val">{total.toLocaleString()}</span>
                         </div>
                     </div>
-                ))}
-            </div>
 
-            <div className="donut-total-row">
-                <span className="donut-total-label">Total Documents:</span>
-                <span className="donut-total-value">{total.toLocaleString()}</span>
-            </div>
+                    <div className="donut-legend-list">
+                        {segments.map((seg) => (
+                            <div className="donut-legend-item" key={seg.label}>
+                                <div className="donut-legend-item-left">
+                                    <span className="donut-legend-marker" style={{ backgroundColor: seg.color }} />
+                                    <span>{seg.label}</span>
+                                </div>
+                                <div className="donut-legend-item-right">
+                                    <span className="donut-legend-pct">{Math.round(seg.fraction * 100)}%</span>
+                                    <span className="donut-legend-cnt">{seg.count.toLocaleString()} Documents</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="donut-total-row">
+                        <span className="donut-total-label">Total Documents:</span>
+                        <span className="donut-total-value">{total.toLocaleString()}</span>
+                    </div>
+                </>
+            )}
         </div>
     );
 }
