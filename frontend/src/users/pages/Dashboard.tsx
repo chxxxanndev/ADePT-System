@@ -48,6 +48,12 @@ import {
 import VoidAndAmend from './VoidAndAmend';
 import type { VoidAmendRecord } from './VoidAndAmend';
 
+// sessionStorage key for the in-progress "completed entry" (the data that
+// gates the Tax Declaration / Landholding / No-Landholding / Transaction
+// Summary views). Mirrors the 'adept-active-view' pattern already used
+// below for activeView, so a page refresh doesn't fall back to RequestGuard.
+const COMPLETED_ENTRY_STORAGE_KEY = 'adept-completed-entry';
+
 // Helper to format date as "MM/DD/YYYY hh:mm AM/PM"
 const formatTransactionDateTime = (dateStr: string): string => {
     try {
@@ -115,7 +121,22 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     );
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const [completedEntryData, setCompletedEntryData] = useState<CompletedEntryData | null>(null);
+
+    // FIX: rehydrate completedEntryData from sessionStorage on mount instead
+    // of always starting at null. Previously a page refresh reset this to
+    // null while `activeView` (above) correctly restored to e.g.
+    // 'certificate-no-landholding' — so the form's `completedEntryData ? Form : RequestGuard`
+    // check would fail and staff would see "Request Entry Not Completed"
+    // even though they had a valid in-progress entry.
+    const [completedEntryData, setCompletedEntryData] = useState<CompletedEntryData | null>(() => {
+        try {
+            const saved = sessionStorage.getItem(COMPLETED_ENTRY_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : null;
+        } catch {
+            return null;
+        }
+    });
+
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
     const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
     const [pendingVoidItems, setPendingVoidItems] = useState<VoidAmendRecord[]>([]);
@@ -226,6 +247,22 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     useEffect(() => {
         sessionStorage.setItem('adept-active-view', activeView);
     }, [activeView]);
+
+    // FIX: keep sessionStorage in sync with completedEntryData so a refresh
+    // rehydrates it (see the lazy useState initializer above). When it's
+    // cleared (e.g. handleAddAnother sets it back to null), remove the key
+    // entirely rather than persisting "null".
+    useEffect(() => {
+        try {
+            if (completedEntryData) {
+                sessionStorage.setItem(COMPLETED_ENTRY_STORAGE_KEY, JSON.stringify(completedEntryData));
+            } else {
+                sessionStorage.removeItem(COMPLETED_ENTRY_STORAGE_KEY);
+            }
+        } catch {
+            // ignore storage write failures (e.g. private browsing quota)
+        }
+    }, [completedEntryData]);
 
     const handleEntryComplete = (data: CompletedEntryData) => {
         setCompletedEntryData(data);
