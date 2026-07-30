@@ -1,11 +1,13 @@
-import { useMemo, useState } from "react";
-import { Search, ChevronDown, FileStack } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Search, ChevronDown, FileStack, Loader2 } from "lucide-react";
 import "../styles/CertifiedTrueCopy.css";
+import type { Transaction, TransactionStatus } from "../types/transaction";
+import { fetchTransactionRegistry } from "../services/transactionService";
+import { mergeReprintCounts } from "../services/reprintStore";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
-// Removed Pending Payment and Pending Verification
 type CTCStatus = "Released" | "Voided" | "Archived";
 
 interface CertifiedCopyRecord {
@@ -14,106 +16,67 @@ interface CertifiedCopyRecord {
   declarantName: string;
   initials: string;
   avatarColor: string;
-  originalDocument: string; 
+  originalDocument: string;
   purpose: string;
   dateRequested: string;
-  dateReleased: string; 
-  releasedBy: string; 
+  dateReleased: string;
+  releasedBy: string;
   status: CTCStatus;
+  reprintCount: number;
 }
 
 type StatusFilter = "All statuses" | CTCStatus;
 
-/* ------------------------------------------------------------------ */
-/*  Mock data                                                         */
-/* ------------------------------------------------------------------ */
-const records: CertifiedCopyRecord[] = [
-  {
-    id: "ctc-001",
-    reference: "CTC-2026-02342",
-    declarantName: "Allen Hanson",
-    initials: "AH",
-    avatarColor: "#00BCD4",
-    originalDocument: "Tax Declaration TD-2024-00221",
-    purpose: "Bank loan requirement",
-    dateRequested: "10 Jul 2026",
-    dateReleased: "14 Jul 2026", // Updated mock data to valid status
-    releasedBy: "Maria Lopez",
-    status: "Released",
-  },
-  {
-    id: "ctc-002",
-    reference: "CTC-2026-05155",
-    declarantName: "Minerva Duncan",
-    initials: "MD",
-    avatarColor: "#7C6FE8",
-    originalDocument: "Certificate of Land Holding LH-2023-00194",
-    purpose: "Estate settlement",
-    dateRequested: "09 Jul 2026",
-    dateReleased: "—",
-    releasedBy: "—",
-    status: "Voided",
-  },
-  {
-    id: "ctc-003",
-    reference: "CTC-2026-06657",
-    declarantName: "Stanley Moore",
-    initials: "SM",
-    avatarColor: "#5EB6A8",
-    originalDocument: "Tax Declaration TD-2022-00087",
-    purpose: "Court submission",
-    dateRequested: "05 Jul 2026",
-    dateReleased: "12 Jul 2026",
-    releasedBy: "Maria Lopez",
-    status: "Released",
-  },
-  {
-    id: "ctc-004",
-    reference: "CTC-2026-07781",
-    declarantName: "Priya Shah",
-    initials: "PS",
-    avatarColor: "#E8A94E",
-    originalDocument: "No-Landholding Certificate NLH-2025-00033",
-    purpose: "Scholarship application",
-    dateRequested: "08 Jul 2026",
-    dateReleased: "11 Jul 2026", // Updated mock data to valid status
-    releasedBy: "John Cruz",
-    status: "Released",
-  },
-  {
-    id: "ctc-005",
-    reference: "CTC-2026-08120",
-    declarantName: "Miguel Santos",
-    initials: "MS",
-    avatarColor: "#1976D2",
-    originalDocument: "Certificate of Land Holding LH-2021-00456",
-    purpose: "Property sale",
-    dateRequested: "02 Jul 2026",
-    dateReleased: "06 Jul 2026",
-    releasedBy: "John Cruz",
-    status: "Released",
-  },
-  {
-    id: "ctc-006",
-    reference: "CTC-2026-04002",
-    declarantName: "Elena Ruiz",
-    initials: "ER",
-    avatarColor: "#4CAF50",
-    originalDocument: "Tax Declaration TD-2020-00312",
-    purpose: "Business permit renewal",
-    dateRequested: "20 May 2026",
-    dateReleased: "24 May 2026",
-    releasedBy: "Dennis Cruz",
-    status: "Archived",
-  },
-];
-
-// Updated mapping to remove deleted statuses
 const STATUS_CLASS: Record<CTCStatus, string> = {
   Released: "ctc-badge--released",
   Voided: "ctc-badge--voided",
   Archived: "ctc-badge--archived",
 };
+
+const AVATAR_PALETTE = ["#00BCD4", "#7C6FE8", "#5EB6A8", "#E8A94E", "#1976D2", "#4CAF50", "#D32F2F", "#8B5CF6"];
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function getAvatarColor(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return "—";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
+  } catch {
+    return dateStr;
+  }
+}
+
+function mapToCTCStatus(status: TransactionStatus): CTCStatus {
+  if (status === "Void") return "Voided";
+  if (status === "Archived") return "Archived";
+  return "Released";
+}
+
+/** Finds the activity log entry that marks when/by-whom a transaction was released. */
+function findReleaseInfo(t: Transaction): { date: string; by: string } {
+  const releaseEntry = t.activityTimeline?.find((e) =>
+    e.action?.toLowerCase().includes("released")
+  );
+  if (!releaseEntry) return { date: "—", by: "—" };
+  return { date: releaseEntry.date || "—", by: releaseEntry.actor || "—" };
+}
 
 /* ------------------------------------------------------------------ */
 /*  Small building blocks                                             */
@@ -131,8 +94,59 @@ function StatusBadge({ status }: { status: CTCStatus }) {
 /*  Page component                                                    */
 /* ------------------------------------------------------------------ */
 export default function CertifiedTrueCopy() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All statuses");
+
+  const loadTransactions = async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const data = await fetchTransactionRegistry();
+      // Same overlay TransactionRegistry.tsx uses — the backend always
+      // returns reprintCount: 0, so the real counts live in reprintStore.
+      setTransactions(mergeReprintCounts(data));
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to load certified true copy records.");
+      setTransactions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTransactions();
+  }, []);
+
+  // A CTC record isn't its own entity — it's any requested document, from
+  // any transaction, that has been reprinted at least once via the
+  // "Reprint" button in the Transaction Registry / Transaction Details view.
+  const records: CertifiedCopyRecord[] = useMemo(() => {
+    const out: CertifiedCopyRecord[] = [];
+    for (const t of transactions) {
+      for (const doc of t.requestedDocuments) {
+        if (doc.reprintCount <= 0) continue;
+        const { date: dateReleased, by: releasedBy } = findReleaseInfo(t);
+        out.push({
+          id: doc.id,
+          reference: t.referenceNumber,
+          declarantName: t.client.declarantName,
+          initials: getInitials(t.client.declarantName),
+          avatarColor: getAvatarColor(t.client.declarantName),
+          originalDocument: `${doc.documentType} ${t.referenceNumber}`,
+          purpose: t.reasonPurpose || "—",
+          dateRequested: formatDate(t.dateRequested),
+          dateReleased: dateReleased === "—" ? "—" : formatDate(dateReleased),
+          releasedBy,
+          status: mapToCTCStatus(t.status),
+          reprintCount: doc.reprintCount,
+        });
+      }
+    }
+    return out.sort((a, b) => b.reprintCount - a.reprintCount);
+  }, [transactions]);
 
   const filteredRecords = useMemo(() => {
     return records.filter((record) => {
@@ -145,7 +159,7 @@ export default function CertifiedTrueCopy() {
         record.purpose.toLowerCase().includes(search.toLowerCase());
       return matchesStatus && matchesSearch;
     });
-  }, [search, statusFilter]);
+  }, [records, search, statusFilter]);
 
   return (
     <div className="ctc-page">
@@ -163,83 +177,103 @@ export default function CertifiedTrueCopy() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="ctc-filters">
-          <div className="ctc-search-field">
-            <Search size={16} className="ctc-search-icon" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search reference, declarant, or purpose"
-              className="ctc-search-input"
-            />
+        {isLoading ? (
+          <div className="ctc-card" style={{ padding: "64px 32px", textAlign: "center", color: "#8b8fa3" }}>
+            <Loader2 size={22} className="ctc-spinner" style={{ animation: "spin 1s linear infinite" }} />
+            <p style={{ marginTop: 12 }}>Loading certified true copy records…</p>
           </div>
-          <div className="ctc-select-field">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className="ctc-select"
-            >
-              <option value="All statuses">All statuses</option>
-              {/* Removed Pending Payment and Pending Verification options */}
-              <option value="Released">Released</option>
-              <option value="Voided">Voided</option>
-              <option value="Archived">Archived</option>
-            </select>
-            <ChevronDown size={14} className="ctc-select-chevron" />
+        ) : loadError ? (
+          <div className="ctc-card" style={{ padding: "48px 32px", textAlign: "center", color: "#B0281C" }}>
+            <p style={{ margin: "0 0 12px", fontWeight: 600 }}>{loadError}</p>
+            <button className="ctc-select" onClick={loadTransactions}>
+              Retry
+            </button>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Filters */}
+            <div className="ctc-filters">
+              <div className="ctc-search-field">
+                <Search size={16} className="ctc-search-icon" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search reference, declarant, or purpose"
+                  className="ctc-search-input"
+                />
+              </div>
+              <div className="ctc-select-field">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+                  className="ctc-select"
+                >
+                  <option value="All statuses">All statuses</option>
+                  <option value="Released">Released</option>
+                  <option value="Voided">Voided</option>
+                  <option value="Archived">Archived</option>
+                </select>
+                <ChevronDown size={14} className="ctc-select-chevron" />
+              </div>
+            </div>
 
-        {/* Table */}
-        <div className="ctc-card">
-          <div className="ctc-table-scroll">
-            <table className="ctc-table">
-              <thead>
-                <tr>
-                  <th>Reference No.</th>
-                  <th>Declarant</th>
-                  <th>Original Document</th>
-                  <th>Purpose</th>
-                  <th>Date Requested</th>
-                  <th>Date Released</th>
-                  <th>Released By</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRecords.map((record, idx) => (
-                  <tr key={record.id} className={idx % 2 !== 0 ? "ctc-row-alt" : ""}>
-                    <td className="ctc-cell-reference">#{record.reference}</td>
-                    <td>
-                      <div className="ctc-declarant-cell">
-                        <div
-                          className="ctc-avatar"
-                          style={{ backgroundColor: record.avatarColor }}
-                        >
-                          {record.initials}
-                        </div>
-                        <span>{record.declarantName}</span>
-                      </div>
-                    </td>
-                    <td className="ctc-cell-muted">{record.originalDocument}</td>
-                    <td className="ctc-cell-muted">{record.purpose}</td>
-                    <td className="ctc-cell-muted">{record.dateRequested}</td>
-                    <td className="ctc-cell-muted">{record.dateReleased}</td>
-                    <td className="ctc-cell-muted">{record.releasedBy}</td>
-                    <td>
-                      <StatusBadge status={record.status} />
-                    </td>
-                  </tr>
-                ))}
-                {filteredRecords.length === 0 && (
-                  <tr className="ctc-empty-row">
-                    <td colSpan={8}>No records match your search or filter.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+            {/* Table */}
+            <div className="ctc-card">
+              <div className="ctc-table-scroll">
+                <table className="ctc-table">
+                  <thead>
+                    <tr>
+                      <th>Reference No.</th>
+                      <th>Declarant</th>
+                      <th>Original Document</th>
+                      <th>Purpose</th>
+                      <th>Date Requested</th>
+                      <th>Date Released</th>
+                      <th>Released By</th>
+                      <th>Times Reprinted</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRecords.map((record, idx) => (
+                      <tr key={record.id} className={idx % 2 !== 0 ? "ctc-row-alt" : ""}>
+                        <td className="ctc-cell-reference">#{record.reference}</td>
+                        <td>
+                          <div className="ctc-declarant-cell">
+                            <div
+                              className="ctc-avatar"
+                              style={{ backgroundColor: record.avatarColor }}
+                            >
+                              {record.initials}
+                            </div>
+                            <span>{record.declarantName}</span>
+                          </div>
+                        </td>
+                        <td className="ctc-cell-muted">{record.originalDocument}</td>
+                        <td className="ctc-cell-muted">{record.purpose}</td>
+                        <td className="ctc-cell-muted">{record.dateRequested}</td>
+                        <td className="ctc-cell-muted">{record.dateReleased}</td>
+                        <td className="ctc-cell-muted">{record.releasedBy}</td>
+                        <td className="ctc-cell-muted">{record.reprintCount}</td>
+                        <td>
+                          <StatusBadge status={record.status} />
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredRecords.length === 0 && (
+                      <tr className="ctc-empty-row">
+                        <td colSpan={9}>
+                          No documents have been reprinted yet. Reprint a document from the
+                          Transaction Registry to see it appear here.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
