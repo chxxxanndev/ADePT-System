@@ -227,8 +227,7 @@ export const TaxDeclarationPDF = ({
 
           <View style={[styles.fieldRow, { marginTop: 4 }]}>
             <Text style={styles.label10}>Total Assessed Value: </Text>
-            <View style={styles.underlineData}><Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontStyle: 'italic' }}></Text></View>
-          </View>
+            <View style={styles.underlineData}><Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontStyle: 'italic' }}>{String(data.totalAssessedValueWords || '')}</Text></View></View>
           <Text style={{ fontSize: 8.5, textAlign: 'center', marginBottom: 4 }}>(Amount in Words)</Text>
 
           <View style={styles.fieldRow}>
