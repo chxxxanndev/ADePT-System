@@ -28,17 +28,29 @@ function toComparableDate(mmddyyyy: string): string {
 interface TransactionRegistryProps {
     user: User; // still needed to populate actionedBy
     onNavigateToVoidAmend: (newVoidedItems: VoidAmendRecord[]) => void;
+    // Optional query to seed the search bar with on mount — set when the
+    // user arrives here from the Dashboard's Recent Transaction search.
+    initialSearchQuery?: string;
 }
 
-export function TransactionRegistry({ user, onNavigateToVoidAmend }: TransactionRegistryProps) {
+export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearchQuery }: TransactionRegistryProps) {
 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(initialSearchQuery ?? '');
     const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_FILTERS);
     const [selectedGroup, setSelectedGroup] = useState<DeclarantGroup | null>(null);
     const [voidGroupTarget, setVoidGroupTarget] = useState<DeclarantGroup | null>(null);
+
+    // Keep in sync if the Dashboard sends a new query while this view
+    // stays mounted (e.g. user searches again from the dashboard, then
+    // navigates back here without an unmount in between).
+    useEffect(() => {
+        if (initialSearchQuery !== undefined) {
+            setSearchQuery(initialSearchQuery);
+        }
+    }, [initialSearchQuery]);
 
     const loadTransactions = async () => {
         setIsLoading(true);

@@ -136,6 +136,15 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
             .map(mapTransactionToRow);
     }, [analytics.transactions]);
 
+    // The FULL mapped transaction list — this is what actually connects
+    // the Recent Transaction search box to the whole registry dataset
+    // instead of only the 5 rows visible by default.
+    const allTransactionsData: TransactionRow[] = useMemo(() => {
+        return [...analytics.transactions]
+            .sort((a, b) => new Date(b.dateRequested).getTime() - new Date(a.dateRequested).getTime())
+            .map(mapTransactionToRow);
+    }, [analytics.transactions]);
+
     // Single shared notifications state + realtime subscription
     const {
         notifications,
@@ -359,7 +368,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 <div className="dashboard-content">
                     {activeView === 'dashboard' ? (
                         <>
-                            <WelcomeBanner />
+                            <WelcomeBanner onRefresh={analytics.refetch} />
                             {/*
                               TODO: operationalSummary / administrativeSummary are still mock
                               data (data/dashboardMockData.ts). The live counts they should
@@ -378,7 +387,11 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                                 <DocumentDistribution slices={analytics.documentDistribution} totalDocuments={analytics.totalDocuments} />
                             </div>
                             <div className="dashboard-row">
-                                <RecentTransactions rows={recentTransactionsData} onViewAll={() => setActiveView('transaction-registry')} />
+                                <RecentTransactions
+                                    rows={recentTransactionsData}
+                                    allRows={allTransactionsData}
+                                    onViewAll={() => setActiveView('transaction-registry')}
+                                />
                                 <QuickActions actions={quickActions} onSelect={setActiveView} />
                             </div>
                         </>
