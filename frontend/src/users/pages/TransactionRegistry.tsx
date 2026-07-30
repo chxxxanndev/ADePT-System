@@ -3,6 +3,7 @@ import { RegistrySummarySkeleton, RegistryToolbarSkeleton, RegistryTableSkeleton
 import type { Transaction, TransactionFilters, DeclarantGroup } from '../types/transaction';
 import { computeSummary } from '../data/mockTransactions';
 import { fetchTransactionRegistry } from '../services/transactionService';
+import { recordReprint, mergeReprintCounts } from '../services/reprintStore';
 import { SummaryCards } from '../components/SummaryCards';
 import { SearchBar } from '../components/SearchBar';
 import { FilterBar } from '../components/FilterBar';
@@ -28,8 +29,6 @@ function toComparableDate(mmddyyyy: string): string {
 interface TransactionRegistryProps {
     user: User; // still needed to populate actionedBy
     onNavigateToVoidAmend: (newVoidedItems: VoidAmendRecord[]) => void;
-    // Optional query to seed the search bar with on mount — set when the
-    // user arrives here from the Dashboard's Recent Transaction search.
     initialSearchQuery?: string;
 }
 
@@ -43,9 +42,6 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
     const [selectedGroup, setSelectedGroup] = useState<DeclarantGroup | null>(null);
     const [voidGroupTarget, setVoidGroupTarget] = useState<DeclarantGroup | null>(null);
 
-    // Keep in sync if the Dashboard sends a new query while this view
-    // stays mounted (e.g. user searches again from the dashboard, then
-    // navigates back here without an unmount in between).
     useEffect(() => {
         if (initialSearchQuery !== undefined) {
             setSearchQuery(initialSearchQuery);
@@ -57,7 +53,9 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
         setLoadError(null);
         try {
             const data = await fetchTransactionRegistry();
-            setTransactions(data);
+            // Overlay persisted reprint counts (see reprintStore.ts) since the
+            // backend response always comes back with reprintCount: 0.
+            setTransactions(mergeReprintCounts(data));
         } catch (err) {
             setLoadError(err instanceof Error ? err.message : 'Failed to load transactions.');
             setTransactions([]);
@@ -120,12 +118,18 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
     }, [filteredTransactions]);
 
     const handleReprint = (transactionId: string, docId: string) => {
+        const actor = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User';
+        // Persist the reprint so CertifiedTrueCopy.tsx (and this view, on
+        // reload) can see it — see reprintStore.ts for why this can't just
+        // live in this component's local state.
+        const newCount = recordReprint(docId, actor);
+
         setTransactions((prev) => prev.map((t) => {
             if (t.id !== transactionId) return t;
             return {
                 ...t,
                 requestedDocuments: t.requestedDocuments.map((d) =>
-                    d.id === docId ? { ...d, reprintCount: d.reprintCount + 1 } : d
+                    d.id === docId ? { ...d, reprintCount: newCount } : d
                 ),
             };
         }));
