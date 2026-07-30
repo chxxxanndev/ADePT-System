@@ -260,7 +260,7 @@
   border-color: var(--color-primary);
 }
 
-/* ---------- Pagination (mirror of Transaction Registry) ---------- */
+/* ---------- Pagination (mirrors Transaction Registry exactly) ---------- */
 
 .va-pagination {
   display: flex;
@@ -273,69 +273,53 @@
   background-color: #fafafa;
 }
 
-.va-pagination-left,
-.va-pagination-right {
+.va-pagination-rows {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.va-pagination-rows select {
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 5px 8px;
+  font-size: 0.82rem;
+  color: #29237A;
+  font-weight: 600;
+}
+
+.va-pagination-controls {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.va-pagination-center {
-  display: flex;
-  align-items: center;
-}
-
-.va-rows-label {
-  font-size: 14px;
-  color: var(--color-muted);
-}
-
-.va-rows-select {
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--glass-border);
-  background: white;
-  font-size: 14px;
-  color: var(--color-text);
-  cursor: pointer;
-  outline: none;
-}
-
-.va-rows-select:focus {
-  border-color: var(--input-focus-border);
-}
-
-.va-range-info {
-  font-size: 14px;
-  color: var(--color-muted);
-}
-
-.va-page-indicator {
-  font-size: 14px;
-  color: var(--color-muted);
-}
-
-.va-page-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--glass-border);
+.va-pagination-btn {
+  background: #FFFFFF;
+  border: 1px solid #D7D2F2;
+  color: #29237A;
+  padding: 7px 14px;
   border-radius: 8px;
-  background: white;
-  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s;
 }
 
-.va-page-btn:hover:not(:disabled) {
-  background: var(--table-header-bg);
-}
-
-.va-page-btn:disabled {
+.va-pagination-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.va-pagination-btn:not(:disabled):hover {
+  background: #F1EFFB;
+}
+
+.va-pagination-label {
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
 }
 
 /* ---------- Responsive ---------- */
@@ -359,9 +343,8 @@
     gap: 8px;
   }
 
-  .va-pagination-left,
-  .va-pagination-center,
-  .va-pagination-right {
+  .va-pagination-rows,
+  .va-pagination-controls {
     justify-content: center;
   }
 }

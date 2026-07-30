@@ -19,18 +19,11 @@ import {
   ListChecks,
   TrendingUp,
   TrendingDown,
+  Loader2,
 } from "lucide-react";
 import "../styles/ReportsAnalytics.css";
-import {
-  documentsReleased,
-  totalRequests,
-  documentsReleasedTrend,
-  totalRequestsTrend,
-  documentTypeBreakdown,
-  processingQueue,
-  transactionManagement,
-  declarantRecords,
-} from "../data/reportsMockData";
+import { useReportsAnalytics } from "../hooks/useReportsAnalytics";
+import type { DeclarantRecord } from "../data/reportsMockData";
 
 type Period = "daily" | "weekly" | "monthly";
 
@@ -40,42 +33,25 @@ const PERIOD_LABEL: Record<Period, string> = {
   monthly: "This Month",
 };
 
-/**
- * Normalized status taxonomy: every raw status coming out of
- * reportsMockData gets bucketed into exactly one of these 5.
- */
-const STATUS_ORDER = ["RELEASED", "ARCHIVED", "VOIDED", "AMENDED", "REPRINTED"] as const;
-type NormalizedStatus = (typeof STATUS_ORDER)[number];
+/** The 5 statuses a declarant row can carry — mirrors the mapping done in useReportsAnalytics. */
+type DeclarantStatus = DeclarantRecord["status"];
+const STATUS_OPTIONS: DeclarantStatus[] = [
+  "Released",
+  "Pending Payment",
+  "Pending Verification",
+  "Voided",
+  "Archived",
+   "Flagged",
+];
 
-const STATUS_CLASS: Record<NormalizedStatus, string> = {
-  RELEASED: "status-badge--released",
-  ARCHIVED: "status-badge--archived",
-  VOIDED: "status-badge--voided",
-  AMENDED: "status-badge--pending-payment", // reusing orange theme
-  REPRINTED: "status-badge--pending-verification", // reusing purple theme
+const STATUS_CLASS: Record<DeclarantStatus, string> = {
+  Released: "status-badge--released",
+  Archived: "status-badge--archived",
+  Voided: "status-badge--voided",
+  "Pending Payment": "status-badge--pending-payment",
+  "Pending Verification": "status-badge--pending-verification",
+   Flagged: "status-badge--flagged",
 };
-
-const STATUS_CHART_COLOR: Record<NormalizedStatus, string> = {
-  RELEASED: "#4f46e5",
-  ARCHIVED: "#64748b",
-  VOIDED: "#ef4444",
-  AMENDED: "#f59e0b",
-  REPRINTED: "#06b6d4",
-};
-
-/**
- * Maps a raw status string (whatever shape it comes in as from
- * reportsMockData) onto the 5 normalized buckets above.
- */
-function normalizeStatus(raw: string): NormalizedStatus {
-  const s = raw.toUpperCase();
-  if (s.includes("RELEASED")) return "RELEASED";
-  if (s.includes("ARCHIVE") || s.includes("FLAGGED")) return "ARCHIVED";
-  if (s.includes("VOID")) return "VOIDED";
-  if (s.includes("PAYMENT") || s.includes("AMEND")) return "AMENDED";
-  if (s.includes("VERIFICATION") || s.includes("REPRINT")) return "REPRINTED";
-  return "RELEASED";
-}
 
 /* ------------------------------------------------------------------ */
 /*  Small building blocks                                             */
@@ -157,11 +133,11 @@ function StatCard({
   );
 }
 
-function StatusBadge({ status }: { status: NormalizedStatus }) {
+function StatusBadge({ status }: { status: DeclarantStatus }) {
   return (
     <span className={`status-badge ${STATUS_CLASS[status]}`}>
       <span className="status-dot" />
-      {status}
+      {status.toUpperCase()}
     </span>
   );
 }
@@ -183,52 +159,58 @@ function CustomBarTooltip({ active, payload }: any) {
 /*  Page component                                                    */
 /* ------------------------------------------------------------------ */
 export default function Reports() {
+  const analytics = useReportsAnalytics();
   const [period, setPeriod] = useState<Period>("monthly");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<NormalizedStatus | "All">("All");
-
-  const taxDeclaration = documentTypeBreakdown.find((d) => d.id === "tax-declaration")!;
-  const pendingPayment = processingQueue.find((p) => p.id === "pending-payment")!;
-  const pendingVerification = processingQueue.find((p) => p.id === "pending-verification")!;
-
-  const mockEncoders = ["Ana Marquez", "Dennis Cruz", "John Cruz", "Maria Lopez"];
+  const [statusFilter, setStatusFilter] = useState<DeclarantStatus | "All">("All");
 
   const filteredDeclarants = useMemo(() => {
-    return declarantRecords.filter((d) => {
-      const normalized = normalizeStatus(d.status);
+    return analytics.declarantRows.filter((d) => {
       const matchesSearch =
         search.trim() === "" ||
         d.declarantName.toLowerCase().includes(search.toLowerCase()) ||
         d.reference.toLowerCase().includes(search.toLowerCase()) ||
         d.documentRequested.toLowerCase().includes(search.toLowerCase());
 
-      const matchesStatus = statusFilter === "All" || normalized === statusFilter;
+      const matchesStatus = statusFilter === "All" || d.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
-  }, [search, statusFilter]);
+  }, [analytics.declarantRows, search, statusFilter]);
 
-  const filteredChartData = useMemo(() => {
-    const bins: Record<NormalizedStatus, { count: number; color: string }> = {
-      RELEASED: { count: 0, color: STATUS_CHART_COLOR.RELEASED },
-      ARCHIVED: { count: 0, color: STATUS_CHART_COLOR.ARCHIVED },
-      VOIDED: { count: 0, color: STATUS_CHART_COLOR.VOIDED },
-      AMENDED: { count: 0, color: STATUS_CHART_COLOR.AMENDED },
-      REPRINTED: { count: 0, color: STATUS_CHART_COLOR.REPRINTED },
-    };
+  if (analytics.loading) {
+    return (
+      <div className="reports-page">
+        <div className="reports-container">
+          <div
+            className="table-card"
+            style={{ padding: "64px 32px", textAlign: "center", color: "#8b8fa3" }}
+          >
+            <Loader2 size={22} className="arc-spinner" style={{ animation: "spin 1s linear infinite" }} />
+            <p style={{ marginTop: 12 }}>Loading reports…</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-    transactionManagement.forEach((item) => {
-      const normalized = normalizeStatus(item.label);
-      bins[normalized].count += item.count;
-    });
-
-    return STATUS_ORDER.map((label, idx) => ({
-      id: idx,
-      label,
-      count: bins[label].count,
-      color: bins[label].color,
-    }));
-  }, []);
+  if (analytics.error) {
+    return (
+      <div className="reports-page">
+        <div className="reports-container">
+          <div
+            className="table-card"
+            style={{ padding: "48px 32px", textAlign: "center", color: "#B0281C" }}
+          >
+            <p style={{ margin: "0 0 12px", fontWeight: 600 }}>{analytics.error}</p>
+            <button className="export-btn" onClick={analytics.refetch}>
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="reports-page">
@@ -256,30 +238,30 @@ export default function Reports() {
             icon={<FileText size={18} />}
             iconClass="stat-icon--primary"
             label="Documents Released"
-            value={documentsReleased[period]}
+            value={analytics.documentsReleased[period]}
             sublabel={PERIOD_LABEL[period]}
-            trend={documentsReleasedTrend}
+            trend={analytics.documentsReleasedTrend[period]}
           />
           <StatCard
             icon={<FileStack size={18} />}
             iconClass="stat-icon--secondary"
             label="Documents Requested"
-            value={totalRequests[period]}
+            value={analytics.totalRequests[period]}
             sublabel={PERIOD_LABEL[period]}
-            trend={totalRequestsTrend}
+            trend={analytics.totalRequestsTrend[period]}
           />
           <StatCard
             icon={<ListChecks size={18} />}
             iconClass="stat-icon--truecopy"
             label="Tax Declarations"
-            value={taxDeclaration[period]}
+            value={analytics.taxDeclarationCounts[period]}
             sublabel={PERIOD_LABEL[period]}
           />
           <StatCard
             icon={<ShieldCheck size={18} />}
             iconClass="stat-icon--pending"
             label="Total Pending"
-            value={pendingPayment.count + pendingVerification.count}
+            value={analytics.pendingCount}
             sublabel="Live queue"
           />
         </div>
@@ -291,7 +273,7 @@ export default function Reports() {
           </div>
           <div className="chart-canvas">
             <ResponsiveContainer>
-              <BarChart data={filteredChartData} margin={{ top: 8, right: 8, left: -12, bottom: 8 }}>
+              <BarChart data={analytics.statusChart} margin={{ top: 8, right: 8, left: -12, bottom: 8 }}>
                 <CartesianGrid vertical={false} stroke="rgba(41,35,122,0.08)" />
                 <XAxis
                   dataKey="label"
@@ -302,7 +284,7 @@ export default function Reports() {
                 <YAxis tick={{ fontSize: 11, fill: "#8b8fa3" }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomBarTooltip />} cursor={{ fill: "rgba(41,35,122,0.04)" }} />
                 <Bar dataKey="count" radius={[8, 8, 0, 0]} maxBarSize={56}>
-                  {filteredChartData.map((entry, i) => (
+                  {analytics.statusChart.map((entry, i) => (
                     <Cell key={i} fill={entry.color} />
                   ))}
                 </Bar>
@@ -310,7 +292,7 @@ export default function Reports() {
             </ResponsiveContainer>
           </div>
           <div className="chart-legend">
-            {filteredChartData.map((r) => (
+            {analytics.statusChart.map((r) => (
               <div key={r.label} className="legend-item">
                 <span className="legend-dot" style={{ backgroundColor: r.color }} />
                 {r.label}
@@ -343,11 +325,11 @@ export default function Reports() {
               <div className="filter-field">
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as NormalizedStatus | "All")}
+                  onChange={(e) => setStatusFilter(e.target.value as DeclarantStatus | "All")}
                   className="filter-select"
                 >
                   <option value="All">All Statuses</option>
-                  {STATUS_ORDER.map((s) => (
+                  {STATUS_OPTIONS.map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
@@ -379,11 +361,9 @@ export default function Reports() {
                     <td>{d.documentRequested}</td>
                     <td className="cell-muted">{d.dateReleased}</td>
                     <td className="cell-muted">{d.staffReleased}</td>
-                    <td className="cell-muted">
-                      {d.encodedBy || mockEncoders[idx % mockEncoders.length]}
-                    </td>
+                    <td className="cell-muted">{d.encodedBy}</td>
                     <td>
-                      <StatusBadge status={normalizeStatus(d.status)} />
+                      <StatusBadge status={d.status} />
                     </td>
                   </tr>
                 ))}

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef  } from 'react';
+import { useState, useEffect, useRef } from 'react';
 // REMOVED the conflicting UserProfile import from here
-import { SearchIcon, MenuIcon, CalendarIcon, UserIcon, PeriodToggleIcon } from './icons';
+import { MenuIcon, CalendarIcon, UserIcon, PeriodToggleIcon, RefreshIcon } from './icons';
 
 /**
  * Updated interface to support the connected database fields
@@ -9,9 +9,9 @@ import { SearchIcon, MenuIcon, CalendarIcon, UserIcon, PeriodToggleIcon } from '
 export interface UserProfile {
     name: string;
     email: string;
-    role: string;       
-    lastLogin: string;  
-    avatarUrl?: string; 
+    role: string;
+    lastLogin: string;
+    avatarUrl?: string;
 }
 
 interface DashboardHeaderProps {
@@ -39,7 +39,23 @@ export function DashboardHeader({
                 </button>
                 {brandMode ? (
                     <div className="header-brand">
-                        <div className="header-brand-logo">📋</div>
+                        <div className="header-brand-logo">
+                            <svg
+                                width="18"
+                                height="18"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                                <line x1="8" y1="11" x2="16" y2="11" />
+                                <line x1="8" y1="15" x2="16" y2="15" />
+                            </svg>
+                        </div>
                         <div>
                             <h1 className="header-brand-title">
                                 ASSESSOR<span className="header-brand-accent">DESK</span>
@@ -67,16 +83,16 @@ export function DashboardHeader({
                 <div className="header-profile-card">
                     <div className="header-profile-avatar">
                         {user.avatarUrl ? (
-                            <img 
-                                src={user.avatarUrl} 
-                                alt={userName} 
-                                style={{ 
-                                    width: '100%', 
-                                    height: '100%', 
-                                    borderRadius: '50%', 
+                            <img
+                                src={user.avatarUrl}
+                                alt={userName}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    borderRadius: '50%',
                                     objectFit: 'cover',
-                                    display: 'block' 
-                                }} 
+                                    display: 'block'
+                                }}
                             />
                         ) : (
                             <UserIcon size={18} />
@@ -230,16 +246,20 @@ function CalendarPicker({ onApply, onCancel }: CalendarPickerProps) {
 
 /**
  * FIXED: Defined WelcomeBannerProps to solve the "Cannot find name" error.
+ * Added onRefresh so the parent (Dashboard.tsx) can wire this to
+ * analytics.refetch() / refetchNotifications() / etc.
  */
 interface WelcomeBannerProps {
     initialPeriod?: string;
     onPeriodChange?: (period: string) => void;
+    onRefresh?: () => void | Promise<void>;
 }
 
-export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange }: WelcomeBannerProps) {
+export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange, onRefresh }: WelcomeBannerProps) {
     const [period, setPeriod] = useState(initialPeriod);
     const [open, setOpen] = useState(false);
     const [view, setView] = useState<'list' | 'calendar'>('list');
+    const [refreshing, setRefreshing] = useState(false);
     const wrapRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -276,13 +296,19 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange }: Welco
         closeDropdown();
     };
 
+    const handleRefreshClick = async () => {
+        if (refreshing) return;
+        setRefreshing(true);
+        try {
+            await onRefresh?.();
+        } finally {
+            // Keep the spin visible briefly even on instant refreshes
+            setTimeout(() => setRefreshing(false), 500);
+        }
+    };
+
     return (
         <div className="dashboard-welcome">
-            <div className="header-search">
-                <SearchIcon size={16} />
-                <input type="text" placeholder="Search by Control No, Declarant, ARP No, OR Number..." />
-            </div>
-
             <div className="period-selector-wrap" ref={wrapRef}>
                 <button
                     type="button"
@@ -319,6 +345,17 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange }: Welco
                     </div>
                 )}
             </div>
+
+            <button
+                type="button"
+                className="refresh-btn"
+                onClick={handleRefreshClick}
+                aria-label="Refresh dashboard data"
+                disabled={refreshing}
+            >
+                <RefreshIcon size={14} className={refreshing ? 'refresh-btn-icon spinning' : 'refresh-btn-icon'} />
+                <span>Refresh</span>
+            </button>
         </div>
     );
 }
