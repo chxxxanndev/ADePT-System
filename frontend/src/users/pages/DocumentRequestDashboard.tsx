@@ -11,6 +11,7 @@ import {
     LayersIcon,
     FolderOpenIcon,
     TrashIcon,
+    AlertTriangleIcon,
 } from '../components/icons';
 import '../styles/DocumentRequestDashboard.css';
 
@@ -31,6 +32,14 @@ export function DocumentRequestDashboard({
     const [metadata, setMetadata] = useState<{ docTypes: any[] }>({ docTypes: [] });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectMode, setSelectMode] = useState(false);
+    const [selectedDraftIds, setSelectedDraftIds] = useState<string[]>([]);
+    const [deleteModalState, setDeleteModalState] = useState<{ open: boolean; idsToDelete: string[]; draftRefs: string[] }>({
+        open: false,
+        idsToDelete: [],
+        draftRefs: [],
+    });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const fetchDraftsAndMetadata = async () => {
         setLoading(true);
@@ -61,6 +70,60 @@ export function DocumentRequestDashboard({
     useEffect(() => {
         fetchDraftsAndMetadata();
     }, []);
+
+    const toggleSelectDraft = (id: string) => {
+        setSelectedDraftIds((prev) =>
+            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+        );
+    };
+
+    const handleToggleSelectAll = () => {
+        if (selectedDraftIds.length === drafts.length) {
+            setSelectedDraftIds([]);
+        } else {
+            setSelectedDraftIds(drafts.map((d) => d.id));
+        }
+    };
+
+    const handleDeleteSelected = () => {
+        if (selectedDraftIds.length === 0) return;
+        const selectedDrafts = drafts.filter((d) => selectedDraftIds.includes(d.id));
+        const refs = selectedDrafts.map((d) => d.control_number || d.referenceNumber || d.declarant_name || d.declarantName || 'Draft Request');
+        setDeleteModalState({
+            open: true,
+            idsToDelete: selectedDraftIds,
+            draftRefs: refs,
+        });
+    };
+
+    const handleDeleteDraft = (e: React.MouseEvent, draft: any) => {
+        e.stopPropagation();
+        const ref = draft.control_number || draft.referenceNumber || draft.declarant_name || draft.declarantName || 'Draft Request';
+        setDeleteModalState({
+            open: true,
+            idsToDelete: [draft.id],
+            draftRefs: [ref],
+        });
+    };
+
+    const handleConfirmDeleteModal = async () => {
+        if (deleteModalState.idsToDelete.length === 0) return;
+        setIsDeleting(true);
+        try {
+            await Promise.all(deleteModalState.idsToDelete.map((id) => requestService.deleteRequest(id)));
+            setDrafts((prev) => prev.filter((d) => !deleteModalState.idsToDelete.includes(d.id)));
+            setSelectedDraftIds((prev) => prev.filter((id) => !deleteModalState.idsToDelete.includes(id)));
+            if (selectedDraftIds.every((id) => deleteModalState.idsToDelete.includes(id))) {
+                setSelectMode(false);
+            }
+            setDeleteModalState({ open: false, idsToDelete: [], draftRefs: [] });
+        } catch (err) {
+            console.error('Delete draft error:', err);
+            alert('Failed to delete draft request(s). Please try again.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     const getDocTypeNames = (typeIds: string[]) => {
         if (!typeIds || typeIds.length === 0) return ['Unspecified'];
@@ -96,19 +159,6 @@ export function DocumentRequestDashboard({
             badge: 'Form Entry',
         },
     ];
-
-    const handleDeleteDraft = async (e: React.MouseEvent, draftId: string) => {
-        e.stopPropagation();
-        if (confirm("Are you sure you want to permanently delete this abandoned draft?")) {
-            try {
-                await requestService.deleteRequest(draftId);
-                setDrafts(prev => prev.filter(d => d.id !== draftId));
-            } catch (err) {
-                console.error("Delete draft error:", err);
-                alert("Failed to delete draft.");
-            }
-        }
-    };
 
     return (
         <div className="doc-req-container page-transition">
@@ -173,6 +223,50 @@ export function DocumentRequestDashboard({
                         <h2>Saved Request Drafts</h2>
                         <p>Draft requests that need document generation or staff action</p>
                     </div>
+                    {drafts.length > 0 && (
+                        <div className="doc-req-drafts-header-actions">
+                            {!selectMode ? (
+                                <button
+                                    className="doc-req-select-btn"
+                                    onClick={() => setSelectMode(true)}
+                                    title="Enable selection mode to select drafts to delete"
+                                >
+                                    <ClipboardListIcon size={14} />
+                                    <span>Select</span>
+                                </button>
+                            ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <button
+                                        className="doc-req-select-all-btn"
+                                        onClick={handleToggleSelectAll}
+                                    >
+                                        <span>{selectedDraftIds.length === drafts.length ? 'Deselect All' : 'Select All'}</span>
+                                    </button>
+                                    <button
+                                        className="doc-req-delete-selected-btn"
+                                        onClick={handleDeleteSelected}
+                                        disabled={selectedDraftIds.length === 0}
+                                        style={{
+                                            opacity: selectedDraftIds.length === 0 ? 0.5 : 1,
+                                            cursor: selectedDraftIds.length === 0 ? 'not-allowed' : 'pointer',
+                                        }}
+                                    >
+                                        <TrashIcon size={14} />
+                                        <span>Delete Selected ({selectedDraftIds.length})</span>
+                                    </button>
+                                    <button
+                                        className="doc-req-cancel-select-btn"
+                                        onClick={() => {
+                                            setSelectMode(false);
+                                            setSelectedDraftIds([]);
+                                        }}
+                                    >
+                                        <span>Done</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {loading ? (
@@ -198,7 +292,18 @@ export function DocumentRequestDashboard({
                 ) : (
                     <div className="doc-req-drafts-wrapper">
                         {/* Table Layout Headers */}
-                        <div className="doc-req-draft-table-header">
+                        <div className={`doc-req-draft-table-header ${selectMode ? 'has-checkbox' : ''}`}>
+                            {selectMode && (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedDraftIds.length === drafts.length && drafts.length > 0}
+                                        onChange={handleToggleSelectAll}
+                                        title="Select all drafts"
+                                        style={{ cursor: 'pointer', width: 16, height: 16 }}
+                                    />
+                                </div>
+                            )}
                             <div>Reference Number</div>
                             <div>Declarant</div>
                             <div>Date Created</div>
@@ -209,13 +314,24 @@ export function DocumentRequestDashboard({
                         <div className="doc-req-drafts-list">
                             {drafts.map((draft) => {
                                 const docNames = getDocTypeNames(draft.documentTypeIds || []);
+                                const isSelected = selectedDraftIds.includes(draft.id);
                                 return (
                                     <div
-                                        className="doc-req-draft-row"
+                                        className={`doc-req-draft-row ${selectMode ? 'has-checkbox' : ''} ${isSelected ? 'selected' : ''}`}
                                         key={draft.id}
-                                        onClick={() => onSelectDraft(draft)}
-                                        title="Click to resume processing this draft request"
+                                        onClick={() => (selectMode ? toggleSelectDraft(draft.id) : onSelectDraft(draft))}
+                                        title={selectMode ? 'Click to select/deselect draft' : 'Click to resume processing this draft request'}
                                     >
+                                        {selectMode && (
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={() => toggleSelectDraft(draft.id)}
+                                                    style={{ cursor: 'pointer', width: 16, height: 16 }}
+                                                />
+                                            </div>
+                                        )}
                                         <div className="doc-req-draft-ref">
                                             <FilePlusIcon size={14} />
                                             <span>{draft.control_number || draft.referenceNumber || 'REF-XXXX'}</span>
@@ -242,7 +358,7 @@ export function DocumentRequestDashboard({
                                             </button>
                                             <button
                                                 className="doc-req-draft-delete-btn"
-                                                onClick={(e) => handleDeleteDraft(e, draft.id)}
+                                                onClick={(e) => handleDeleteDraft(e, draft)}
                                                 title="Delete Abandoned Draft"
                                                 aria-label="Delete Draft"
                                             >
@@ -256,6 +372,69 @@ export function DocumentRequestDashboard({
                     </div>
                 )}
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {deleteModalState.open && (
+                <div
+                    className="doc-req-modal-backdrop"
+                    onClick={() => !isDeleting && setDeleteModalState({ open: false, idsToDelete: [], draftRefs: [] })}
+                >
+                    <div className="doc-req-modal-card" onClick={(e) => e.stopPropagation()}>
+                        <div className="doc-req-modal-header">
+                            <div className="doc-req-modal-icon-badge">
+                                <AlertTriangleIcon size={24} />
+                            </div>
+                            <div className="doc-req-modal-title-group">
+                                <h3>Delete Draft Request{deleteModalState.idsToDelete.length > 1 ? 's' : ''}?</h3>
+                                <p>Permanently remove {deleteModalState.idsToDelete.length > 1 ? `${deleteModalState.idsToDelete.length} draft requests` : 'this draft request'}</p>
+                            </div>
+                        </div>
+
+                        <div className="doc-req-modal-body">
+                            <p style={{ margin: '0 0 12px 0' }}>
+                                Are you sure you want to delete {deleteModalState.idsToDelete.length > 1 ? 'the following selected draft requests' : 'this draft request'}?
+                                This action <strong>cannot be undone</strong> and all pre-filled details will be permanently removed.
+                            </p>
+
+                            <div className="doc-req-modal-item-list">
+                                {deleteModalState.draftRefs.map((ref, idx) => (
+                                    <div key={idx} className="doc-req-modal-item-chip">
+                                        <TrashIcon size={12} />
+                                        <span>{ref}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="doc-req-modal-footer">
+                            <button
+                                className="doc-req-modal-cancel-btn"
+                                onClick={() => setDeleteModalState({ open: false, idsToDelete: [], draftRefs: [] })}
+                                disabled={isDeleting}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="doc-req-modal-confirm-btn"
+                                onClick={handleConfirmDeleteModal}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? (
+                                    <>
+                                        <span className="loading-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <TrashIcon size={14} />
+                                        Delete {deleteModalState.idsToDelete.length > 1 ? `(${deleteModalState.idsToDelete.length})` : ''}
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

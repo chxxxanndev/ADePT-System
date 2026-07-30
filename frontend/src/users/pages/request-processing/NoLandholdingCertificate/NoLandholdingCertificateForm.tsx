@@ -11,6 +11,7 @@ import {
     PlusIcon,
     ClipboardListIcon,
 } from '../../../components/icons';
+import { TransactionProgressPanel } from '../../../components/TransactionProgressPanel';
 
 function ordinal(n: number): string {
     const s = ['th', 'st', 'nd', 'rd'];
@@ -43,7 +44,7 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
         try {
             const saved = localStorage.getItem(LS_KEY);
             if (saved) return { ...EMPTY_NO_LANDHOLDING_FORM(), ...JSON.parse(saved) };
-        } catch {}
+        } catch { }
         return { ...EMPTY_NO_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '' };
     });
     const { addItem } = useCart();
@@ -52,7 +53,7 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
 
     // Auto-persist to localStorage on every change
     useEffect(() => {
-        try { localStorage.setItem(LS_KEY, JSON.stringify(form)); } catch {}
+        try { localStorage.setItem(LS_KEY, JSON.stringify(form)); } catch { }
     }, [form, LS_KEY]);
 
     const set = <K extends keyof NoLandholdingFormData>(field: K, value: NoLandholdingFormData[K]) => setForm((prev) => ({ ...prev, [field]: value }));
@@ -161,6 +162,11 @@ export function NoLandholdingCertificateForm({ user, entryData, onBack, onAddAno
                             <div className="lh-field"><label className="lh-label">Purpose / Intent</label><input id="nlh-purpose" className="lh-input" placeholder="for whatever legal purpose/intent it may serve best" value={form.purpose} onChange={(e) => set('purpose', e.target.value)} /></div>
                         </div>
 
+                    </div>
+
+                    {/* ── Session progress card ── */}
+                    <div className="txp-form-wrapper">
+                        <TransactionProgressPanel referenceNumber={entryData.referenceNumber} />
                     </div>
 
                     {/* ── Footer actions ── */}

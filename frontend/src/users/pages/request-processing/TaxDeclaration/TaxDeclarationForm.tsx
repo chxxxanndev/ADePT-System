@@ -15,6 +15,7 @@ import {
     CheckIcon,
     SquareIcon,
 } from '../../../components/icons';
+import { TransactionProgressPanel } from '../../../components/TransactionProgressPanel';
 
 // 1. RESTORED HELPER FUNCTIONS
 function numberToWords(num: number): string {
@@ -85,41 +86,31 @@ interface TaxDeclarationFormProps {
 }
 
 export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGoToSummary }: TaxDeclarationFormProps) {
-    // Safety check: If entryData isn't here yet, show a loading message instead of a blank white screen
-    if (!entryData) {
-        return (
-            <div className="td-page">
-                <div className="td-card" style={{ padding: '40px', textAlign: 'center' }}>
-                    <div className="td-spinner"></div>
-                    <p>Loading request details...</p>
-                    <button onClick={onBack}>Return to Dashboard</button>
-                </div>
-            </div>
-        );
-    }
-
-    const LS_KEY = `adept-td-${entryData.requestId}`;
+    // ═══ ALL HOOKS MUST RUN UNCONDITIONALLY (React Rules of Hooks) ═══
+    const LS_KEY = `adept-td-${entryData?.requestId ?? 'tmp'}`;
 
     const [form, setForm] = useState<TaxDeclarationFormData>(() => {
+        if (!entryData) return EMPTY_TAX_DECLARATION();
         try {
             const saved = localStorage.getItem(LS_KEY);
             if (saved) return { ...EMPTY_TAX_DECLARATION(), ...JSON.parse(saved) };
-        } catch {}
-        return { ...EMPTY_TAX_DECLARATION(), ownerName: entryData?.declarantName || '' };
+        } catch { }
+        return { ...EMPTY_TAX_DECLARATION(), ownerName: entryData.declarantName || '' };
     });
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
     const [metadata, setMetadata] = useState<{ classifications: { id: string; label: string; code: string }[]; propertyTypes: { id: string; label: string; code: string }[]; }>({ classifications: [], propertyTypes: [], });
 
-    // Auto-persist to localStorage on every change
     useEffect(() => {
-        try { localStorage.setItem(LS_KEY, JSON.stringify(form)); } catch {}
-    }, [form, LS_KEY]);
+        if (!entryData) return;
+        try { localStorage.setItem(LS_KEY, JSON.stringify(form)); } catch { }
+    }, [form, LS_KEY, entryData]);
 
     const { addItem } = useCart();
 
     useEffect(() => {
+        if (!entryData) return;
         let isMounted = true;
         const fetchMeta = async () => {
             try {
@@ -131,9 +122,6 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
                     propertyTypes: Array.isArray((data as any).propertyTypes) ? (data as any).propertyTypes : [],
                 });
 
-                // Resolve the barangay UUID stored on the request into its
-                // actual barangay/municipality names, so Location of Property
-                // auto-reflects what was chosen on the Request Entry form.
                 const barangays = Array.isArray((data as any).barangays) ? (data as any).barangays : [];
                 const municipalities = Array.isArray((data as any).municipalities) ? (data as any).municipalities : [];
                 const municipalityMap: Record<string, string> = {};
@@ -150,7 +138,7 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
             } catch (err) { console.error('Failed to fetch meta', err); }
         };
         fetchMeta(); return () => { isMounted = false; };
-    }, [entryData?.propertyLocation]);
+    }, [entryData?.propertyLocation, entryData]);
 
     const classificationOptions = metadata.classifications.length > 0 ? metadata.classifications : [{ id: 'AGRICULTURAL', label: 'Agricultural', code: 'AGRICULTURAL' }, { id: 'RESIDENTIAL', label: 'Residential', code: 'RESIDENTIAL' }];
     const propertyTypeOptions = metadata.propertyTypes.length > 0 ? metadata.propertyTypes : [{ id: 'LAND', label: 'Land', code: 'LAND' }, { id: 'BUILDING', label: 'Building', code: 'BUILDING' }];
@@ -187,9 +175,20 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
     }, []);
 
     const addRow = () => setForm((prev) => ({ ...prev, assessmentRows: [...prev.assessmentRows, EMPTY_ASSESSMENT_ROW()] }));
-
-    // 3. FIXED SYNTAX ERROR HERE
     const removeRow = (id: string) => setForm((prev) => ({ ...prev, assessmentRows: prev.assessmentRows.filter((r) => r.id !== id) }));
+
+    // ── Safety guard placed AFTER all hooks ──
+    if (!entryData) {
+        return (
+            <div className="td-page">
+                <div className="td-card" style={{ padding: '40px', textAlign: 'center' }}>
+                    <div className="td-spinner"></div>
+                    <p>Loading request details...</p>
+                    <button onClick={onBack}>Return to Dashboard</button>
+                </div>
+            </div>
+        );
+    }
 
     const handleSave = async (action: 'draft' | 'review' | 'add_another') => {
         if (!form.taxDeclarationNumber.trim()) return setSaveError('Assessment of Real Property No. is required.');
@@ -368,6 +367,11 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
                             <div className="td-field"><label className="td-label">Memoranda</label><textarea id="td-memoranda" className="td-input" rows={3} placeholder="e.g. Revised Under Provincial Ordinance No. ZN-19-183…" value={form.memoranda} onChange={(e) => set('memoranda', e.target.value)} /></div>
                         </div>
                         <div className="td-important-notice"><strong>IMPORTANT:</strong> This declaration is issued only in connection with real property taxation and the valuation indicated herein is based on a schedule of market values prepared for the purpose. It should <em>not</em> be considered as title to the property.</div>
+                    </div>
+
+                    {/* ── Session progress (compact card above footer) ── */}
+                    <div className="txp-form-wrapper">
+                        <TransactionProgressPanel referenceNumber={entryData.referenceNumber} />
                     </div>
 
                     <div className="td-footer">
