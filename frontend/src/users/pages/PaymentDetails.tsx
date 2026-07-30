@@ -55,6 +55,13 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
     const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
     const [docSignatories, setDocSignatories] = useState<Record<string, any>>({});
     const [activePreview, setActivePreview] = useState<{ docId: string; url: string; label: string } | null>(null);
+    const [releaseStaff, setReleaseStaff] = useState<{ id: string; name: string }[]>([]);
+
+    useEffect(() => {
+        requestService.getMetadata()
+            .then((meta) => setReleaseStaff(Array.isArray(meta?.staff) ? meta.staff : []))
+            .catch((err) => console.error('Failed to load staff list:', err));
+    }, []);
 
     useEffect(() => {
         if (payment && payment.documents) {
@@ -251,15 +258,9 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
         }
     };
 
-    // --- RELEASE: PERSIST STATUS, THEN HAND OFF TO TRANSACTION REGISTRY ---
     const handleMarkAsReleased = async (releasedBy: string) => {
         await Promise.all(documents.map((doc: any) =>
-            requestService.updateStatus(doc.id, {
-                status: 'released_pending_verification',
-                releasedBy,
-                releasedAt: new Date().toISOString(),
-                signatories: docSignatories[doc.id],
-            })
+            requestService.markAsReleased(doc.id, releasedBy)
         ));
     };
 
@@ -316,7 +317,7 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
                             activeSignatories={ACTIVE_SIGNATORIES}
                             docSignatories={docSignatories}
                             onSignatoryChange={handleSignatoryChange}
-                            releaseStaffOptions={ACTIVE_SIGNATORIES}
+                            releaseStaffOptions={releaseStaff}
                             onMarkAsReleased={handleMarkAsReleased}
                             onReleased={onReleased ?? onBack}
                         />

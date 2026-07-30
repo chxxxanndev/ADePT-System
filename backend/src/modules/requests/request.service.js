@@ -90,8 +90,6 @@ class RequestService {
                 requested_by_name: formData.requestedByName,
                 reference_number: uniqueRef,
                 authorization_required: formData.authRequired,
-                purpose_id: formData.purposeId || null,
-                purpose_other_text: formData.purposeOtherText || null,
                 action_taken: formData.actionTaken || 'PENDING',
                 property_location: formData.propertyLocation || null,
                 encoded_by: staffId, // Automatically assigning the logged-in staff
@@ -161,14 +159,14 @@ class RequestService {
             .select('request_id, document_types(name)');
 
         const STATUS_MAP = {
-    DRAFT: 'Pending',
-    IN_PROGRESS: 'Processing',
-    PAID: 'Payment Verified',
-    RELEASED: 'Released',   // ← added
-    VOID: 'Void',
-    CANCELLED: 'Cancelled',
-    ARCHIVED: 'Archived',
-};
+            DRAFT: 'Pending',
+            IN_PROGRESS: 'Processing',
+            PAID: 'Payment Verified',
+            RELEASED: 'Released',   // ← added
+            VOID: 'Void',
+            CANCELLED: 'Cancelled',
+            ARCHIVED: 'Archived',
+        };
 
         return (requests || []).map((r) => {
             const documentNames = (docLinks || [])
@@ -203,7 +201,6 @@ class RequestService {
                 },
                 generatedDocuments: [],
                 activityTimeline: [],
-                reasonPurpose: r.purpose_other_text || '',
                 isVoid: r.status === 'VOID',
                 voidReason: r.status === 'VOID' ? (r.or_override_justification || '') : undefined,
             };
@@ -221,8 +218,6 @@ class RequestService {
         if (formData.requestedByName || formData.requested_by_name) {
             updateData.requested_by_name = formData.requestedByName || formData.requested_by_name;
         }
-        if (formData.purposeId) updateData.purpose_id = formData.purposeId;
-        if (formData.purposeOtherText !== undefined) updateData.purpose_other_text = formData.purposeOtherText;
         if (formData.actionTaken || formData.action_taken) {
             updateData.action_taken = formData.actionTaken || formData.action_taken;
         }
@@ -308,6 +303,21 @@ class RequestService {
                 or_override_justification: paymentData.justification || null,
                 status: 'PAID',
                 payment_date: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
+
+    async markAsReleased(id, releasedByStaffId) {
+        const { data, error } = await supabase
+            .from('requests')
+            .update({
+                status: 'RELEASED',
+                released_by: releasedByStaffId,
             })
             .eq('id', id)
             .select()

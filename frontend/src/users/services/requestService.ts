@@ -98,4 +98,8 @@ export const requestService = {
         const response = await api.patch('/notifications/mark-all-read');
         return response.data;
     },
+    markAsReleased: async (id: string, releasedBy: string) => {
+        const response = await api.patch(`/requests/${id}/mark-released`, { releasedBy });
+        return response.data;
+    },
 };
