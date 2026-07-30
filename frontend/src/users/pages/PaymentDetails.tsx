@@ -8,6 +8,7 @@ import { pdf } from '@react-pdf/renderer';
 import { CertOfNoLandholdingPDF } from '../components/templates/NoLandholdingPDF';
 import { CertOfLandholdingPDF } from '../components/templates/LandholdingPDF';
 import { TaxDeclarationPDF } from '../components/templates/TaxDeclarationPDF';
+import { landholdingService } from '../services/landholdingService';
 
 import '../styles/PaymentDetails.css';
 
@@ -223,9 +224,21 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
                     signatory2Name={sigs?.secondary?.name} signatory2Title={sigs?.secondary?.title}
                 />;
             } else if (doc.referenceNumber.startsWith('LH')) {
+                let landholdingProperties = doc.properties || doc.data?.properties;
+
+                if (!landholdingProperties) {
+                    try {
+                        const cert = await landholdingService.getByRequestId(doc.id);
+                        landholdingProperties = cert?.properties || [];
+                    } catch (err) {
+                        console.error('Failed to fetch landholding properties:', err);
+                        landholdingProperties = [];
+                    }
+                }
+
                 PDFComponent = <CertOfLandholdingPDF
                     ownerName={doc.declarantName || doc.declarant_name}
-                    properties={doc.properties || doc.data?.properties || []}
+                    properties={landholdingProperties}
                     day={day} monthYear={monthYear} orNumber={orNumber} datePaid={datePaid}
                     signatory1Name={sigs?.primary?.name} signatory1Title={sigs?.primary?.title}
                     signatory2Name={sigs?.secondary?.name} signatory2Title={sigs?.secondary?.title}

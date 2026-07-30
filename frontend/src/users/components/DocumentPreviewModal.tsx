@@ -41,11 +41,14 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     const activeDocument = documents[activeIndex];
 
     const renderDocumentTemplate = (doc: DocumentItem) => {
+        if (!doc) return null;
+        const docData = doc.data || {};
+
         switch (doc.type) {
             case 'TAX_DEC':
                 return (
                     <TaxDeclarationPDF
-                        data={doc.data}
+                        data={docData}
                         orNumber={orNumber}
                         datePaid={datePaid}
                         signatory={selectedSignatory}
@@ -54,7 +57,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             case 'LANDHOLDING':
                 return (
                     <CertOfLandholdingPDF
-                        {...doc.data}
+                        {...docData}
                         orNumber={orNumber}
                         datePaid={datePaid}
                         signatory1Name={selectedSignatory}
@@ -64,7 +67,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             case 'NO_LANDHOLDING':
                 return (
                     <CertOfNoLandholdingPDF
-                        {...doc.data}
+                        {...docData}
                         orNumber={orNumber}
                         datePaid={datePaid}
                         signatory1Name={selectedSignatory}
@@ -121,7 +124,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
 
                 <div className="pm-info-box">
                     Viewing Document {activeIndex + 1} of {documents.length}: <br />
-                    <strong>{activeDocument.title}</strong>
+                    <strong>{activeDocument?.title}</strong>
                 </div>
 
                 {/* SIGNATORY SELECTION AT FINAL LOCKING STAGE */}
@@ -157,7 +160,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                     {activePDFComponent && (
                         <PDFDownloadLink
                             document={activePDFComponent}
-                            fileName={`${activeDocument.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`}
+                            fileName={`${(activeDocument?.title || 'document').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`}
                             className="pm-btn pm-btn-outline"
                         >
                             {({ loading }) => (loading ? 'Preparing PDF...' : 'Download Current PDF')}
