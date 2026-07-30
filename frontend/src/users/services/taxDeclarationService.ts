@@ -77,7 +77,7 @@ export const taxDeclarationService = {
 
     /**
      * FETCH AND TRANSLATE DATA FOR PDF
-     * This bridges the gap between Supabase column names and your PDF Template names.
+     * This bridges the gap between Supabase column names and the PDF Template's expected prop names.
      */
     getTaxDeclaration: async (requestId: string) => {
         try {
@@ -94,6 +94,55 @@ export const taxDeclarationService = {
                 classificationMap[c.id] = c.label;
             });
 
+            // kind_of_property is stored as a CODE (e.g. "RESIDENTIAL"), not a
+            // lookup id — matches how the backend's saveTaxDeclaration already
+            // resolves it against lookup_values.code for encoded_property_types.
+            // So this map is keyed by code, not id (unlike classificationMap above).
+            const propertyTypeMap: Record<string, string> = {};
+            (meta?.propertyTypes || []).forEach((p: any) => {
+                propertyTypeMap[p.code] = p.label;
+            });
+
+            const assessmentRows = (dbData.encoded_assessment_rows || []).map((row: any) => ({
+                classificationLabel: classificationMap[row.classification_id] || row.classification_id || 'N/A',
+                kindOfProperty: propertyTypeMap[row.kind_of_property] || row.kind_of_property || '',
+                area: row.area,
+                areaUnit: row.area_unit,
+                marketValue: row.market_value,
+                assessmentLevel: row.assessment_level,
+                assessedValue: row.assessed_value,
+            }));
+
+            // No dedicated "total area" column exists yet — derive it by
+            // summing the per-row areas, since that's the only source of
+            // area data currently captured by the form.
+            const totalArea = assessmentRows.reduce(
+                (sum: number, r: any) => sum + (parseFloat(r.area) || 0),
+                0
+            );
+
+            // area_unit is free text typed by the encoder (e.g. "has.",
+            // "HAS.", "sqm.") — not a fixed set of values — so we can't map
+            // it to a canonical label. Instead, carry through whatever the
+            // encoder actually typed on the first row that has one.
+            const distinctUnits = [
+                ...new Set(
+                    assessmentRows
+                        .map((r: any) => (r.areaUnit || '').trim())
+                        .filter(Boolean)
+                ),
+            ];
+
+            if (distinctUnits.length > 1) {
+                console.warn(
+                    '[taxDeclarationService] Assessment rows have mixed area units:',
+                    distinctUnits,
+                    '— totalArea sums them as if they were the same unit.'
+                );
+            }
+
+            const areaUnitSuffix = distinctUnits[0] || '';
+
             // TRANSLATOR: Maps database snake_case to PDF camelCase
             return {
                 id: dbData.id,
@@ -107,24 +156,24 @@ export const taxDeclarationService = {
                 administratorAddress: dbData.administrator_address,
                 barangay: dbData.barangay?.name || '',
                 municipality: dbData.municipality?.name || '',
+                octTctNumber: dbData.oct_tct_cloa_number,
+                surveyNumber: dbData.survey_number,
+                lotNumber: dbData.lot_number,
+                blkNumber: dbData.block_number,
                 boundaryNorth: dbData.boundary_north,
                 boundarySouth: dbData.boundary_south,
                 boundaryEast: dbData.boundary_east,
                 boundaryWest: dbData.boundary_west,
                 totalMarketValue: dbData.total_market_value,
                 totalAssessedValue: dbData.total_assessed_value,
-                amountInWords: dbData.amount_in_words,
-                taxability: dbData.taxability,
-                effectivityYear: dbData.effectivity_year,
+                totalAssessedValueWords: dbData.amount_in_words,
+                taxable: dbData.taxability === 'TAXABLE',
+                taxEffectivity: dbData.effectivity_year,
+                cancelsArpNo: dbData.cancelled_td_number,
+                memoranda: dbData.memoranda,
+                area: totalArea > 0 ? `${totalArea}${areaUnitSuffix ? ' ' + areaUnitSuffix : ''}` : '',
 
-                assessments: (dbData.encoded_assessment_rows || []).map((row: any) => ({
-                    classificationLabel: classificationMap[row.classification_id] || row.classification_id || 'N/A',
-                    kindOfProperty: row.classification_id,
-                    area: row.area,
-                    marketValue: row.market_value,
-                    assessmentLevel: row.assessment_level,
-                    assessedValue: row.assessed_value
-                }))
+                assessmentRows,
             };
         } catch (error) {
             console.error("[taxDeclarationService] Error fetching details:", error);
