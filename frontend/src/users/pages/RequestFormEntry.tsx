@@ -31,20 +31,43 @@ function ToggleButtonPair({ leftLabel, rightLabel, value, onChange }: { leftLabe
     );
 }
 
-function MultiSelectDropdown({ options, selectedIds, onChange, placeholder }: { options: { id: string; name: string }[]; selectedIds: string[]; onChange: (ids: string[]) => void; placeholder: string; }) {
-    const [open, setOpen] = useState(false); const ref = useRef<HTMLDivElement>(null);
-    useEffect(() => { const handleClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }; document.addEventListener('mousedown', handleClick); return () => document.removeEventListener('mousedown', handleClick); }, []);
-    const toggleOption = (id: string) => { if (selectedIds.includes(id)) onChange(selectedIds.filter((i) => i !== id)); else onChange([...selectedIds, id]); };
-    const label = selectedIds.length === 0 ? placeholder : options.filter((o) => selectedIds.includes(o.id)).map((o) => o.name).join(', ');
+function SingleSelectDropdown({ options, selectedId, onChange, placeholder, disabled }: {
+    options: { id: string; name: string }[];
+    selectedId: string;
+    onChange: (id: string) => void;
+    placeholder: string;
+    disabled?: boolean;
+}) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const handleClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, []);
+    const selected = options.find((o) => o.id === selectedId);
     return (
         <div className="custom-select" ref={ref}>
-            <button type="button" className="custom-select-trigger" onClick={() => setOpen((o) => !o)}><span className={selectedIds.length === 0 ? 'placeholder-text' : ''}>{label}</span><span className={`chevron ${open ? 'chevron-up' : ''}`}>▾</span></button>
-            {open && (<div className="custom-select-menu">{options.length === 0 && <div className="custom-select-empty">No options available</div>}{options.map((opt) => (
-                <label key={opt.id} className="custom-select-option" htmlFor={`doc-type-${opt.id}`}>
-                    <input id={`doc-type-${opt.id}`} name={`doc-type-${opt.id}`} type="checkbox" checked={selectedIds.includes(opt.id)} onChange={() => toggleOption(opt.id)} />
-                    {opt.name}
-                </label>
-            ))}</div>)}
+            <button
+                type="button"
+                className="custom-select-trigger"
+                onClick={() => !disabled && setOpen((o) => !o)}
+                disabled={disabled}
+                style={disabled ? { background: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed' } : undefined}
+            >
+                <span className={!selected ? 'placeholder-text' : ''}>{selected ? selected.name : placeholder}</span>
+                {!disabled && <span className={`chevron ${open ? 'chevron-up' : ''}`}>▾</span>}
+            </button>
+            {open && !disabled && (
+                <div className="custom-select-menu">
+                    {options.length === 0 && <div className="custom-select-empty">No options available</div>}
+                    {options.map((opt) => (
+                        <div key={opt.id} className="custom-select-option" onClick={() => { onChange(opt.id); setOpen(false); }}>
+                            {opt.name}
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
@@ -81,7 +104,6 @@ function SearchableSelectDropdown({ options, value, onChange, placeholder }: { o
 }
 
 const PersonIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" /></svg>);
-const PlusCircleIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></svg>);
 const ClipboardIconLarge = () => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1M9 10h6M9 14h6M9 18h3" /></svg>);
 
 // --- CONSTANTS ---
@@ -115,6 +137,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [metadataLoading, setMetadataLoading] = useState(true);
     const [metadataError, setMetadataError] = useState('');
+    const [docTypeLocked, setDocTypeLocked] = useState(false);
 
     const [formData, setFormData] = useState<ExtendedRequestFormData>({
         declarantName: '', requestedByName: '', requestDate: new Date().toISOString().split('T')[0], purposeId: '', documentTypeIds: [], authRequired: false, actionTaken: 'PENDING', propertyLocation: '', purposeOtherText: '', referenceNumber: `REF-${new Date().getFullYear()}-0000`,
@@ -149,15 +172,40 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
             setFormData((prev) => ({
                 ...prev,
                 id: prefilledRequestData.id || prefilledRequestData.requestId,
-                referenceNumber: prefilledRequestData.reference_number || prefilledRequestData.control_number || prefilledRequestData.referenceNumber,
-                declarantName: prefilledRequestData.declarant_name || prefilledRequestData.declarantName || '',
-                requestedByName: prefilledRequestData.requested_by_name || prefilledRequestData.requestedByName || '',
-                requestDate: prefilledRequestData.request_date || prefilledRequestData.requestDate || new Date().toISOString().split('T')[0],
-                propertyLocation: prefilledRequestData.property_location || prefilledRequestData.propertyLocation || '',
-                documentTypeIds: prefilledRequestData.documentTypeIds || [],
-                authRequired: prefilledRequestData.authorization_required ?? prefilledRequestData.authRequired ?? false,
-                actionTaken: prefilledRequestData.action_taken || prefilledRequestData.actionTaken || 'PENDING',
+                referenceNumber:
+                    prefilledRequestData.reference_number ||
+                    prefilledRequestData.control_number ||
+                    prefilledRequestData.referenceNumber,
+                declarantName:
+                    prefilledRequestData.declarant_name ||
+                    prefilledRequestData.declarantName ||
+                    '',
+                requestedByName:
+                    prefilledRequestData.requested_by_name ||
+                    prefilledRequestData.requestedByName ||
+                    '',
+                requestDate:
+                    prefilledRequestData.request_date ||
+                    prefilledRequestData.requestDate ||
+                    new Date().toISOString().split('T')[0],
+                propertyLocation:
+                    prefilledRequestData.property_location ||
+                    prefilledRequestData.propertyLocation ||
+                    '',
+                documentTypeIds:
+                    prefilledRequestData.documentTypeIds || [],
+                authRequired:
+                    prefilledRequestData.authorization_required ??
+                    prefilledRequestData.authRequired ??
+                    false,
+                actionTaken:
+                    prefilledRequestData.action_taken ||
+                    prefilledRequestData.actionTaken ||
+                    'PENDING',
             }));
+
+            // Lock/unlock document type based on prefilled data
+            setDocTypeLocked(!!prefilledRequestData.lockedDocType);
         }
     }, [prefilledRequestData]);
 
@@ -360,6 +408,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                 referenceNumber: `REF-${new Date().getFullYear()}-0000`,
             });
             setValidationError('');
+            setDocTypeLocked(false);
         }
     };
 
@@ -399,6 +448,25 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                     <input id="declarantName" name="declarantName" className="rfe-input" type="text" placeholder="e.g. Juan D. Cruz" value={formData.declarantName} onChange={(e) => setFormData({ ...formData, declarantName: e.target.value })} />
                                     {formData.declarantName && (<button type="button" className="input-clear-btn" onClick={() => setFormData({ ...formData, declarantName: '' })} title="Clear Name">×</button>)}
                                 </div>
+                                <div className="rfe-field" style={{ marginTop: 14 }}>
+                                    <label className="rfe-label">May I/We request for:</label>
+                                    {metadataError ? (
+                                        <div className="warning-banner" style={{ margin: '4px 0' }}>
+                                            {metadataError}{' '}
+                                            <button type="button" onClick={fetchMeta} style={{ textDecoration: 'underline', fontWeight: 700 }}>
+                                                Retry
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <SingleSelectDropdown
+                                            options={metadata.docTypes}
+                                            selectedId={formData.documentTypeIds[0] || ''}
+                                            onChange={(id) => setFormData({ ...formData, documentTypeIds: [id] })}
+                                            placeholder={metadataLoading ? 'Loading document types…' : 'Select Document Type...'}
+                                            disabled={docTypeLocked}
+                                        />
+                                    )}
+                                </div>
                             </div>
 
                             {/* Hide "Location of the Property" if Certificate of No Landholding (NLH) is chosen */}
@@ -412,29 +480,6 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                             <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Date of Request</label><input className="rfe-input" type="date" value={formData.requestDate} onChange={(e) => setFormData({ ...formData, requestDate: e.target.value })} /></div>
                             <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Requested By</label><input className="rfe-input" type="text" placeholder="e.g. Juan D. Cruz" value={formData.requestedByName} onChange={(e) => setFormData({ ...formData, requestedByName: e.target.value, })} /></div>
                             <div className="rfe-field" style={{ marginTop: 14 }}><label className="rfe-label">Authorization</label><ToggleButtonPair leftLabel="Authorization Needed" rightLabel="Authorization Not Needed" value={formData.authRequired} onChange={(val) => setFormData({ ...formData, authRequired: val })} /></div>
-                        </div>
-
-                        {/* Section 2 */}
-                        <div className="rfe-section">
-                            <div className="rfe-section-title"><PlusCircleIcon /><span>Request Details</span></div>
-                            <div className="rfe-field">
-                                <label className="rfe-label">May I/We request for:</label>
-                                {metadataError ? (
-                                    <div className="warning-banner" style={{ margin: '4px 0' }}>
-                                        {metadataError}{' '}
-                                        <button type="button" onClick={fetchMeta} style={{ textDecoration: 'underline', fontWeight: 700 }}>
-                                            Retry
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <MultiSelectDropdown
-                                        options={metadata.docTypes}
-                                        selectedIds={formData.documentTypeIds}
-                                        onChange={(ids) => setFormData({ ...formData, documentTypeIds: ids })}
-                                        placeholder={metadataLoading ? 'Loading document types…' : 'Select Document Type(s)...'}
-                                    />
-                                )}
-                            </div>
                         </div>
 
                         {/* Section 3 */}

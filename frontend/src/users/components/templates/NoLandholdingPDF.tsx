@@ -1,6 +1,6 @@
 import { Font, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 
-// 1. REGISTER GEORGIA FONT
+// Register Georgia Font
 Font.register({
   family: 'Georgia',
   fonts: [
@@ -9,91 +9,98 @@ Font.register({
   ]
 });
 
+// Helper function to convert numeric day into ordinal form (e.g., 29 -> 29th)
+const getOrdinalSuffix = (dayInput: string | number) => {
+    const num = parseInt(String(dayInput), 10);
+    if (isNaN(num)) return dayInput; 
+
+    const j = num % 10;
+    const k = num % 100;
+
+    if (j === 1 && k !== 11) return `${num}st`;
+    if (j === 2 && k !== 12) return `${num}nd`;
+    if (j === 3 && k !== 13) return `${num}rd`;
+    return `${num}th`;
+};
+
 const styles = StyleSheet.create({
     page: {
         padding: 0,
         fontFamily: 'Georgia',
         position: 'relative',
-        fontSize: 12,
-        lineHeight: 1.2, // Tightened slightly to save vertical space
+        fontSize: 10,
+        lineHeight: 1.2,
     },
     headerImage: {
         width: '100%',
         height: 'auto',
     },
-    // Bottom Background pinned to bottom, no stretching
     bottomBackground: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
         width: '100%',
-        height: 180, // Reduced height slightly to save space
-        objectFit: 'cover',
+        height: 'auto',
         zIndex: -1,
     },
     content: {
         paddingHorizontal: 70,
         paddingTop: 5,
-        paddingBottom: 20, // Reduced significantly to prevent page 2 spill
+        paddingBottom: 40,
     },
     title: {
-        fontSize: 23,
+        fontSize: 14,
         fontFamily: 'Georgia',
         fontWeight: 'bold',
         textAlign: 'center',
-        marginTop: 15,
-        marginBottom: 30, // Reduced from 50 to pull content up
+        marginTop: 35,
+        marginBottom: 40,
     },
     salutation: {
         fontWeight: 'bold',
-        marginBottom: 15,
-        fontSize: 12,
-        marginLeft: 35, 
+        marginBottom: 35,
+        fontSize: 10,
+        marginLeft: 0, 
     },
-    // Indented first line, left-aligned wrapping
     officialParagraph: {
         textAlign: 'justify',
         marginBottom: 15,
-        fontSize: 12,
-        marginLeft: 0,     
-        textIndent: 58,    // Indents exactly under 'H' of 'WHOM'
+        fontSize: 10,
+        lineHeight: 1.5,
     },
     underlineText: {
         fontWeight: 'bold',
         textDecoration: 'underline',
     },
-
-    // Signatories Block
+    // Signatories Block (Adjusted margins to prevent pushing down too far)
     signatoryContainer: {
-        marginTop: 30, // Reduced from 50
+        marginTop: 35,
         width: '100%',
         alignItems: 'flex-end',
     },
     signatoryBlock: {
-        marginBottom: 30,
+        marginBottom: 35,
         textAlign: 'center',
-        width: 250,
+        width: 260,
     },
     signatoryName: {
         fontWeight: 'bold',
-        fontSize: 12,
-        textDecoration: 'underline',
+        fontSize: 11,
     },
-
-    // Receipt Section (Overlaid on footer image)
+    // Receipt Section
     receiptContainer: {
         position: 'absolute',
-        bottom: 100, // Positioned specifically over the background footer
+        bottom: 95,
         left: 70,
-        width: 220,
+        width: 180,
     },
     receiptRow: {
         flexDirection: 'row',
-        marginBottom: 2,
+        marginBottom: 3,
         alignItems: 'flex-end',
     },
-    receiptLabel: { width: 55, fontSize: 10 },
+    receiptLabel: { width: 60, fontSize: 10 },
     receiptValue: {
         flex: 1,
         borderBottomWidth: 1,
@@ -111,16 +118,18 @@ export const CertOfNoLandholdingPDF = ({
     orNumber = '',
     datePaid = '',
     certFee = '40.00',
-    signatory1Name = 'ENGR. VICENTE P. DESUY',
-    signatory1Title = 'Municipal Assessor',
-    signatory2Name = 'CHINA CHAN-OLARIO, RN, REA, REB, Enp',
-    signatory2Title = 'Assistant Provincial Assessor'
+    signatory1Name = 'ELVIRA T. ENAO, REA',
+    signatory1Title = 'Local Assessment Operations Officer IV',
+    signatory2Name = 'ENGR. FLORIPES R. BAEL, REA, REB',
+    signatory2Title = 'Local Assessment Operations Officer IV'
 }: any) => {
+
+    const INDENT = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0';
 
     return (
         <Document>
             <Page size="LETTER" style={styles.page}>
-                {/* Images */}
+                {/* Header & Background */}
                 <Image src={window.location.origin + '/images/landholding_header.png'} style={styles.headerImage} />
                 <Image fixed src={window.location.origin + '/images/landholding_bg.png'} style={styles.bottomBackground} />
 
@@ -131,7 +140,8 @@ export const CertOfNoLandholdingPDF = ({
 
                     {/* Paragraph 1 */}
                     <Text style={styles.officialParagraph}>
-                        <Text style={{fontWeight: 'bold'}}>THIS IS TO CERTIFY</Text>
+                        <Text>{INDENT}</Text>
+                        <Text style={{ fontWeight: 'bold' }}>THIS IS TO CERTIFY</Text>
                         <Text> that </Text>
                         <Text style={styles.underlineText}>{String(ownerName).toUpperCase()}</Text>
                         <Text> has/have no real property/properties declared in his/her/their name/s either singly or collectively within the taxing jurisdiction of this province per office records.</Text>
@@ -139,8 +149,9 @@ export const CertOfNoLandholdingPDF = ({
 
                     {/* Paragraph 2 */}
                     <Text style={styles.officialParagraph}>
+                        <Text>{INDENT}</Text>
                         <Text>Given this </Text>
-                        <Text style={styles.underlineText}>{day}</Text>
+                        <Text style={styles.underlineText}>{getOrdinalSuffix(day)}</Text>
                         <Text> day of </Text>
                         <Text style={styles.underlineText}>{monthYear}</Text>
                         <Text>, at Dipolog City for whatever legal purpose/intent it may serve best.</Text>
@@ -150,11 +161,11 @@ export const CertOfNoLandholdingPDF = ({
                     <View style={styles.signatoryContainer}>
                         <View style={styles.signatoryBlock}>
                             <Text style={styles.signatoryName}>{signatory1Name}</Text>
-                            <Text style={{fontSize: 11}}>{signatory1Title}</Text>
+                            <Text style={{ fontSize: 10 }}>{signatory1Title}</Text>
                         </View>
                         <View style={styles.signatoryBlock}>
                             <Text style={styles.signatoryName}>{signatory2Name}</Text>
-                            <Text style={{fontSize: 11}}>{signatory2Title}</Text>
+                            <Text style={{ fontSize: 10 }}>{signatory2Title}</Text>
                         </View>
                     </View>
                 </View>
@@ -163,17 +174,17 @@ export const CertOfNoLandholdingPDF = ({
                 <View style={styles.receiptContainer}>
                     <View style={styles.receiptRow}>
                         <Text style={styles.receiptLabel}>Cert. Fee</Text>
-                        <Text style={{fontSize: 10, fontWeight: 'bold'}}>: </Text>
+                        <Text style={{ fontSize: 10, fontWeight: 'bold' }}>: </Text>
                         <Text style={styles.receiptValue}>Php. {certFee}</Text>
                     </View>
                     <View style={styles.receiptRow}>
                         <Text style={styles.receiptLabel}>O.R. No.</Text>
-                        <Text style={{fontSize: 10, fontWeight: 'bold'}}>: </Text>
+                        <Text style={{ fontSize: 10, fontWeight: 'bold' }}>: </Text>
                         <Text style={styles.receiptValue}>{orNumber}</Text>
                     </View>
                     <View style={styles.receiptRow}>
                         <Text style={styles.receiptLabel}>Dated</Text>
-                        <Text style={{fontSize: 10, fontWeight: 'bold'}}>: </Text>
+                        <Text style={{ fontSize: 10, fontWeight: 'bold' }}>: </Text>
                         <Text style={styles.receiptValue}>{datePaid}</Text>
                     </View>
                 </View>
