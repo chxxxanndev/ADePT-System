@@ -50,7 +50,6 @@ class NoLandholdingService {
         }
     }
 
-    // nolandholding.service.js
     async getByRequestId(requestId) {
         const { data: cert, error: certErr } = await supabase
             .from('encoded_no_landholding_certificates')
@@ -61,15 +60,36 @@ class NoLandholdingService {
         if (certErr) throw certErr;
         if (!cert) return null;
 
+        // Fetch expanded request details needed for PDF generation
         const { data: request, error: reqErr } = await supabase
             .from('requests')
-            .select('requested_by_name, property_location')
+            .select('requested_by_name, property_location, or_number, payment_date, authorized_signatory, reference_number')
             .eq('id', cert.request_id)
             .maybeSingle();
 
         if (reqErr) throw reqErr;
 
-        return { ...cert, request: request || null };
+        // Fetch signatory info if an authorized signatory name exists on the request
+        let signatoryDetails = null;
+        if (request?.authorized_signatory) {
+            const { data: sig } = await supabase
+                .from('signatories')
+                .select('name, title, role')
+                .eq('name', request.authorized_signatory)
+                .maybeSingle();
+
+            signatoryDetails = sig;
+        }
+
+        return {
+            ...cert,
+            request: request
+                ? {
+                      ...request,
+                      signatoryDetails,
+                  }
+                : null,
+        };
     }
 
     async updateDraft(id, formData) {

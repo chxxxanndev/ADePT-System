@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         textDecoration: 'underline',
     },
-    // Signatories Block (Adjusted margins to prevent pushing down too far)
+    // Signatories Block
     signatoryContainer: {
         marginTop: 35,
         width: '100%',
@@ -111,20 +111,84 @@ const styles = StyleSheet.create({
     },
 });
 
-export const CertOfNoLandholdingPDF = ({
-    ownerName = '',
-    day = '',
-    monthYear = '',
-    orNumber = '',
-    datePaid = '',
-    certFee = '40.00',
-    signatory1Name = 'ELVIRA T. ENAO, REA',
-    signatory1Title = 'Local Assessment Operations Officer IV',
-    signatory2Name = 'ENGR. FLORIPES R. BAEL, REA, REB',
-    signatory2Title = 'Local Assessment Operations Officer IV'
-}: any) => {
+interface CertOfNoLandholdingPDFProps {
+    declarant_name?: string;
+    ownerName?: string;
+    pronoun?: string;
+    property_count?: string;
+    date_given?: string;
+    given_at?: string;
+    purpose?: string;
+    day?: string | number;
+    monthYear?: string;
+    orNumber?: string;
+    datePaid?: string;
+    certFee?: string;
+    signatory1Name?: string;
+    signatory1Title?: string;
+    signatory2Name?: string;
+    signatory2Title?: string;
+    request?: {
+        or_number?: string;
+        payment_date?: string;
+        requested_by_name?: string;
+        signatoryDetails?: {
+            name?: string;
+            title?: string;
+        };
+    };
+}
+
+export const CertOfNoLandholdingPDF = (props: CertOfNoLandholdingPDFProps) => {
+    const {
+        declarant_name,
+        ownerName,
+        pronoun = 'His',
+        property_count = 'singular',
+        date_given,
+        given_at = 'Dipolog City',
+        purpose,
+        day,
+        monthYear,
+        orNumber,
+        datePaid,
+        certFee = '40.00',
+        signatory1Name = 'ELVIRA T. ENAO, REA',
+        signatory1Title = 'Local Assessment Operations Officer IV',
+        signatory2Name = 'ENGR. FLORIPES R. BAEL, REA, REB',
+        signatory2Title = 'Local Assessment Operations Officer IV',
+        request
+    } = props;
 
     const INDENT = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0';
+
+    // 1. Resolve Declarant Name
+    const displayName = declarant_name || ownerName || request?.requested_by_name || '';
+
+    // 2. Resolve Payment Metadata
+    const finalOrNumber = orNumber || request?.or_number || '';
+    const finalDatePaid = datePaid || request?.payment_date || '';
+
+    // 3. Resolve Grammar & Pronouns
+    const pronounLower = pronoun.toLowerCase();
+    const possessivePronoun = pronounLower === 'his' ? 'his' : pronounLower === 'her' ? 'her' : 'their';
+    const propertyTerm = property_count === 'plural' ? 'real properties' : 'real property';
+
+    // 4. Resolve Date Formatting (Given Date)
+    let displayDay = day || '';
+    let displayMonthYear = monthYear || '';
+
+    if (date_given && (!day || !monthYear)) {
+        const parsedDate = new Date(date_given);
+        if (!isNaN(parsedDate.getTime())) {
+            displayDay = parsedDate.getDate();
+            displayMonthYear = `${parsedDate.toLocaleString('en-US', { month: 'long' })}, ${parsedDate.getFullYear()}`;
+        }
+    }
+
+    // 5. Resolve Signatories
+    const activeSignatory1Name = signatory1Name || request?.signatoryDetails?.name || 'ELVIRA T. ENAO, REA';
+    const activeSignatory1Title = signatory1Title || request?.signatoryDetails?.title || 'Local Assessment Operations Officer IV';
 
     return (
         <Document>
@@ -143,30 +207,32 @@ export const CertOfNoLandholdingPDF = ({
                         <Text>{INDENT}</Text>
                         <Text style={{ fontWeight: 'bold' }}>THIS IS TO CERTIFY</Text>
                         <Text> that </Text>
-                        <Text style={styles.underlineText}>{String(ownerName).toUpperCase()}</Text>
-                        <Text> has/have no real property/properties declared in his/her/their name/s either singly or collectively within the taxing jurisdiction of this province per office records.</Text>
+                        <Text style={styles.underlineText}>{String(displayName).toUpperCase()}</Text>
+                        <Text> has/have no {propertyTerm} declared in {possessivePronoun} name/s either singly or collectively within the taxing jurisdiction of this province per office records.</Text>
                     </Text>
 
                     {/* Paragraph 2 */}
                     <Text style={styles.officialParagraph}>
                         <Text>{INDENT}</Text>
                         <Text>Given this </Text>
-                        <Text style={styles.underlineText}>{getOrdinalSuffix(day)}</Text>
+                        <Text style={styles.underlineText}>{displayDay ? getOrdinalSuffix(displayDay) : '____'}</Text>
                         <Text> day of </Text>
-                        <Text style={styles.underlineText}>{monthYear}</Text>
-                        <Text>, at Dipolog City for whatever legal purpose/intent it may serve best.</Text>
+                        <Text style={styles.underlineText}>{displayMonthYear || '________________'}</Text>
+                        <Text>, at {given_at} for {purpose || 'whatever legal purpose/intent it may serve best'}.</Text>
                     </Text>
 
                     {/* Signatories */}
                     <View style={styles.signatoryContainer}>
                         <View style={styles.signatoryBlock}>
-                            <Text style={styles.signatoryName}>{signatory1Name}</Text>
-                            <Text style={{ fontSize: 10 }}>{signatory1Title}</Text>
+                            <Text style={styles.signatoryName}>{activeSignatory1Name}</Text>
+                            <Text style={{ fontSize: 10 }}>{activeSignatory1Title}</Text>
                         </View>
-                        <View style={styles.signatoryBlock}>
-                            <Text style={styles.signatoryName}>{signatory2Name}</Text>
-                            <Text style={{ fontSize: 10 }}>{signatory2Title}</Text>
-                        </View>
+                        {signatory2Name && (
+                            <View style={styles.signatoryBlock}>
+                                <Text style={styles.signatoryName}>{signatory2Name}</Text>
+                                <Text style={{ fontSize: 10 }}>{signatory2Title}</Text>
+                            </View>
+                        )}
                     </View>
                 </View>
 
@@ -180,12 +246,12 @@ export const CertOfNoLandholdingPDF = ({
                     <View style={styles.receiptRow}>
                         <Text style={styles.receiptLabel}>O.R. No.</Text>
                         <Text style={{ fontSize: 10, fontWeight: 'bold' }}>: </Text>
-                        <Text style={styles.receiptValue}>{orNumber}</Text>
+                        <Text style={styles.receiptValue}>{finalOrNumber}</Text>
                     </View>
                     <View style={styles.receiptRow}>
                         <Text style={styles.receiptLabel}>Dated</Text>
                         <Text style={{ fontSize: 10, fontWeight: 'bold' }}>: </Text>
-                        <Text style={styles.receiptValue}>{datePaid}</Text>
+                        <Text style={styles.receiptValue}>{finalDatePaid}</Text>
                     </View>
                 </View>
             </Page>

@@ -1,7 +1,21 @@
 // src/services/landholdingService.ts
 import axios from 'axios';
+import { supabase } from '../../lib/supabaseClient';
 
 const API_BASE_URL = 'http://localhost:5000/api/landholding';
+
+const api = axios.create({ baseURL: API_BASE_URL });
+
+// Attach the current, live Supabase session token to every request —
+// mirrors the interceptor pattern used in requestService.ts.
+api.interceptors.request.use(async (config) => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (token) {
+        (config.headers as any).Authorization = `Bearer ${token}`;
+    }
+    return config;
+}, (error) => Promise.reject(error));
 
 // --- PAYLOAD TYPES (For Saving) ---
 export interface LandholdingPropertyRowPayload {
@@ -57,7 +71,7 @@ export const landholdingService = {
      * Saves a new record or draft
      */
     async saveCertificate(payload: SaveLandholdingCertificatePayload, staffAuthId: string) {
-        const response = await axios.post(API_BASE_URL, { ...payload, staffAuthId });
+        const response = await api.post('', { ...payload, staffAuthId });
         return response.data;
     },
 
@@ -66,7 +80,7 @@ export const landholdingService = {
      * Fetches full hydrated data by the Certificate ID
      */
     async getById(id: string): Promise<LandholdingCertificateResponse> {
-        const response = await axios.get(`${API_BASE_URL}/${id}`);
+        const response = await api.get(`/${id}`);
         return response.data;
     },
 
@@ -75,11 +89,11 @@ export const landholdingService = {
      * Fetches data by the Request ID (used to check for existing drafts)
      */
     async getByRequestId(requestId: string): Promise<LandholdingCertificateResponse> {
-        const response = await axios.get(`${API_BASE_URL}/request/${requestId}`);
+        const response = await api.get(`/request/${requestId}`);
         return response.data;
     },
     async updateDraft(id: string, updateData: any) {
-        const response = await axios.put(`${API_BASE_URL}/${id}/edit-draft`, updateData);
+        const response = await api.put(`/${id}/edit-draft`, updateData);
         return response.data;
     },
 };
