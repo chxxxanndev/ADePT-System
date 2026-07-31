@@ -38,7 +38,10 @@ const getFormattedDates = () => {
 };
 
 export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsProps) {
-    const [orNumber, setOrNumber] = useState('');
+    // Resuming from the "Pending for Release" queue means this payment already
+    // has an O.R. number attached (set by releaseRequest when status flipped
+    // to PAID) — in that case skip VERIFICATION and land straight on RELEASE.
+    const [orNumber, setOrNumber] = useState(payment?.orNumber || '');
     const [isVerified, setIsVerified] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<{ orNumber?: string }>({});
@@ -54,7 +57,9 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
     const [selectedDocForPreview, setSelectedDocForPreview] = useState<any | null>(null);
 
     // Step 1 = O.R. verification only. Step 2 = generation, signatory confirmation & release.
-    const [workflowStep, setWorkflowStep] = useState<'VERIFICATION' | 'RELEASE'>('VERIFICATION');
+    const [workflowStep, setWorkflowStep] = useState<'VERIFICATION' | 'RELEASE'>(
+        payment?.orNumber ? 'RELEASE' : 'VERIFICATION'
+    );
     const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
     const [docSignatories, setDocSignatories] = useState<Record<string, any>>({});
     const [activePreview, setActivePreview] = useState<{ docId: string; url: string; label: string } | null>(null);
@@ -137,6 +142,17 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
             });
         };
     }, []);
+
+    // Resuming straight into RELEASE (from Pending for Release) skips the
+    // VERIFICATION step entirely, so nothing has generated a preview yet —
+    // handleConfirmAndGenerate normally does that, but it never runs on this
+    // path. Fire once documents + signatories are both populated.
+    useEffect(() => {
+        if (workflowStep === 'RELEASE' && documents.length > 0 && !activePreview && !isGeneratingPdf) {
+            handlePrintDocument(documents[0]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [workflowStep, documents]);
 
     if (!payment) {
         return (
@@ -335,7 +351,7 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
         addAdminAuditEntry({
             type: 'document_released',
             description: `Released ${documents.length} document(s) to ${requesterName}`,
-        }).catch(() => {});
+        }).catch(() => { });
     };
 
     return (

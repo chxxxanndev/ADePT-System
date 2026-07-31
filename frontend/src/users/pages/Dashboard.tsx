@@ -15,6 +15,7 @@ import Reports from './Reports';
 import CertifiedTrueCopy from './CertifiedTrueCopy';
 import ArchiveManagement from './ArchiveManagement';
 import { NotificationPage } from './NotificationPage';
+import { PendingForRelease } from './PendingForRelease';
 import { requestService } from '../services/requestService';
 import { RequestGuard } from '../components/RequestGuard';
 import { DashboardSummary } from '../components/StatCard';
@@ -67,7 +68,7 @@ const formatTransactionDateTime = (dateStr: string): string => {
 // Map a Transaction (from registry) to TransactionRow (for RecentTransactions)
 const mapTransactionToRow = (t: Transaction): TransactionRow => {
     const docTypes = t.requestedDocuments?.map(d => d.documentType).join(', ') || 'N/A';
-        return {
+    return {
         id: t.id,
         controlNumber: t.referenceNumber,
         declarant: t.client.declarantName,
@@ -263,7 +264,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                     position: profile.position,
                     suffix: profile.suffix,
                 });
-            }).catch(() => {});
+            }).catch(() => { });
         }
     }, [activeView]);
 
@@ -344,7 +345,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         'new-request', 'request-form', 'tax-declaration', 'tax-dec',
         'certificate-land-holding', 'land-holding', 'certificate-no-landholding',
         'no-land-holding', 'account-settings', 'pending-payment',
-        'payment-details', 'document-request', 'reports',
+        'pending-for-release', 'payment-details', 'document-request', 'reports',
         'transaction-registry', 'void-amend', 'certified-true-copy',
         'archive-management', 'transaction-summary', 'notifications'
     ].includes(activeView);
@@ -530,6 +531,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                                 else setActiveView('tax-declaration');
                             }}
                         />
+                    ) : activeView === 'pending-for-release' ? (
+                        <PendingForRelease onSelectPayment={handleSelectPayment} />
                     ) : activeView === 'transaction-registry' ? (
                         <TransactionRegistry user={user} onNavigateToVoidAmend={handleNavigateToVoidAmend} />
                     ) : activeView === 'void-amend' ? (
