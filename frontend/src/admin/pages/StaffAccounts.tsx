@@ -151,7 +151,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const canCreateStaff = hasAdminLevel(user, 'MEDIUM');
     const canManageSignatory = hasAdminLevel(user, 'HIGH');
     const superAdmin = isSuperAdmin(user);
-    const currentSignatory = staff.find((s) => s.isSignatory);
 
     // ── Filtered + paginated derived lists ─────────────────────────────────────
     const filteredStaffList = staff.filter((member) => {
