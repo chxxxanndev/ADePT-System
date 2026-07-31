@@ -24,7 +24,7 @@ function createEphemeralAuthClient() {
 }
 
 class AuthService {
-  async registerUser({ firstName, lastName, email, username, password }) {
+  async registerUser({ firstName, middleInitial, lastName, email, username, password, suffix }) {
     // Use the admin API to create the auth user — this does NOT touch any
     // client's session state (unlike auth.signUp), so it's safe to call on
     // the shared admin client without any risk of session leakage.
@@ -32,7 +32,7 @@ class AuthService {
       email,
       password,
       email_confirm: true,
-      user_metadata: { first_name: firstName, last_name: lastName, display_username: username },
+      user_metadata: { first_name: firstName, middle_initial: middleInitial || null, last_name: lastName, display_username: username, suffix: suffix || null },
     });
     if (authError) throw authError;
 
@@ -44,9 +44,11 @@ class AuthService {
       .insert([{
         auth_user_id: authData.user.id,
         first_name: firstName,
+        middle_initial: middleInitial || null,
         last_name: lastName,
         email: email,
         username: username,
+        suffix: suffix || null,
         role_id: roleData.id,
         account_status: 'PENDING_APPROVAL'
       }]);
@@ -72,7 +74,7 @@ class AuthService {
 
     const { data: staffMember, error: staffError } = await supabaseAdmin
         .from('staff')
-        .select('id, first_name, last_name, username, account_status, disabled_at, avatar_url, admin_level, roles(code,name)')
+        .select('id, first_name, middle_initial, last_name, username, account_status, disabled_at, avatar_url, admin_level, position, suffix, roles(code,name)')
         .eq('auth_user_id', data.user.id)
         .single();
 
@@ -105,6 +107,7 @@ class AuthService {
             staffId: staffMember.id,
             email: data.user.email,
             firstName: staffMember.first_name,
+            middleInitial: staffMember.middle_initial,
             lastName: staffMember.last_name,
             username: staffMember.username,
             role: staffMember.roles?.code,
@@ -112,6 +115,8 @@ class AuthService {
             adminLevel: staffMember.admin_level,
             status: staffMember.account_status,
             avatarUrl: staffMember.avatar_url,
+            position: staffMember.position,
+            suffix: staffMember.suffix,
             lastLogin: data.user.last_sign_in_at,
         }
     };
@@ -132,7 +137,7 @@ class AuthService {
 
     const { data: staffMember, error: staffError } = await supabaseAdmin
       .from('staff')
-      .select('first_name, last_name, username, account_status, disabled_at, avatar_url, admin_level, roles(code,name)')
+      .select('first_name, middle_initial, last_name, username, account_status, disabled_at, avatar_url, admin_level, position, suffix, roles(code,name)')
       .eq('auth_user_id', data.user.id)
       .single();
 
@@ -171,6 +176,7 @@ class AuthService {
         staffId: staffMember.id,
         email: data.user.email,
         firstName: staffMember.first_name,
+            middleInitial: staffMember.middle_initial,
         lastName: staffMember.last_name,
         username: staffMember.username,
         role: staffMember.roles?.code,
@@ -178,6 +184,7 @@ class AuthService {
         adminLevel: staffMember.admin_level,
         status: reactivated.account_status,
         avatarUrl: staffMember.avatar_url,
+        position: staffMember.position,
         lastLogin: data.user.last_sign_in_at,
     }
 };

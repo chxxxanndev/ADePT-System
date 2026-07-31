@@ -68,12 +68,15 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
                     const assigned = staffList.filter((s: StaffMember) => s.account_status === 'ACTIVE' && s.is_signatory);
                     if (assigned.length > 0) {
                         const dynamicSigs = [
-                            ...assigned.map((s) => ({
-                                id: s.id,
-                                name: `${s.first_name} ${s.last_name}`,
-                                title: s.admin_level ? `${s.admin_level} Admin` : 'Local Assessment Operations Officer IV',
-                                role: 'AUTHORIZED_REP',
-                            })),
+                            ...assigned.map((s) => {
+                                const mi = s.middle_initial ? `${s.middle_initial.replace(/\.$/, '')}. ` : '';
+                                return {
+                                    id: s.id,
+                                    name: `${s.first_name} ${mi}${s.last_name}${s.suffix ? `, ${s.suffix}` : ''}`.replace(/\s+/g, ' ').trim(),
+                                    title: s.position || (s.admin_level ? `${s.admin_level} Admin` : 'Local Assessment Operations Officer IV'),
+                                    role: 'AUTHORIZED_REP',
+                                };
+                            }),
                             ...DEFAULT_SIGNATORIES.filter((s) => s.role !== 'AUTHORIZED_REP'),
                         ];
                         setActiveSignatories(dynamicSigs);
@@ -87,8 +90,8 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
                 if (sigs && sigs.length > 0) {
                     setActiveSignatories(sigs.map(s => ({
                         id: String(s.id),
-                        name: s.name,
-                        title: s.title,
+                        name: s.suffix ? `${s.name}, ${s.suffix}` : s.name,
+                        title: s.position || s.title || '',
                         role: s.role || 'AUTHORIZED_REP'
                     })));
                 } else {

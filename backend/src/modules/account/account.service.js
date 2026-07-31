@@ -3,9 +3,44 @@ import { supabaseAdmin } from '../../config/supabaseAdmin.js';
 const AVATAR_BUCKET = 'avatars';
 
 class AccountService {
-    async updateProfile(authUserId, { fullName, username }) {
-        const [firstName, ...rest] = fullName.trim().split(' ');
-        const lastName = rest.join(' ');
+    async getProfile(authUserId) {
+        const { data, error } = await supabaseAdmin
+            .from('staff')
+            .select('id, first_name, middle_initial, last_name, username, email, avatar_url, position, suffix, admin_level, roles(code, name)')
+            .eq('auth_user_id', authUserId)
+            .single();
+
+        if (error) throw new Error(error.message);
+        const mi = data.middle_initial ? data.middle_initial.replace(/\.$/, '') + '.' : '';
+        return {
+            id: data.id,
+            firstName: data.first_name,
+            middleInitial: data.middle_initial,
+            lastName: data.last_name,
+            fullName: `${data.first_name} ${mi} ${data.last_name}`.replace(/\s+/g, ' ').trim(),
+            username: data.username,
+            email: data.email,
+            avatarUrl: data.avatar_url,
+            position: data.position,
+            suffix: data.suffix,
+            adminLevel: data.admin_level,
+            role: data.roles?.code,
+            roleName: data.roles?.name,
+        };
+    }
+
+    async updateProfile(authUserId, { fullName, username, position, suffix }) {
+        // Parse "First M. Last": if the second token is a single letter
+        // (with optional period), treat it as the middle initial.
+        const tokens = fullName.trim().split(/\s+/);
+        let firstName = tokens[0] || '';
+        let middleInitial = null;
+        let lastName = tokens.slice(1).join(' ');
+        if (tokens.length >= 3 && /^[A-Za-z]\.?$/.test(tokens[1])) {
+            middleInitial = tokens[1].replace(/\.$/, '');
+            firstName = tokens[0];
+            lastName = tokens.slice(2).join(' ');
+        }
 
         const { data: existing } = await supabaseAdmin
             .from('staff')
@@ -18,15 +53,26 @@ class AccountService {
             throw new Error('That username is already taken.');
         }
 
+        const updateFields = {
+            first_name: firstName || '',
+            middle_initial: middleInitial,
+            last_name: lastName || '',
+            username,
+        };
+
+        if (position !== undefined) {
+            updateFields.position = position || null;
+        }
+
+        if (suffix !== undefined) {
+            updateFields.suffix = suffix || null;
+        }
+
         const { data, error } = await supabaseAdmin
             .from('staff')
-            .update({
-                first_name: firstName || '',
-                last_name: lastName || '',
-                username,
-            })
+            .update(updateFields)
             .eq('auth_user_id', authUserId)
-            .select('first_name, last_name, username')
+            .select('first_name, middle_initial, last_name, username, position, suffix')
             .single();
 
         if (error) throw new Error(error.message);

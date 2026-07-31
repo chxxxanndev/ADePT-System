@@ -20,7 +20,8 @@ export interface StaffRow {
     createdBy: string | null;
     adminLevel: 'HIGH' | 'MEDIUM' | 'LOW' | null;
     isSignatory: boolean;
-    title: string | null;
+    position: string | null;
+    suffix: string | null;
 }
 
 function formatDate(iso: string): string {
@@ -52,7 +53,7 @@ function mapToRow(member: StaffMember): StaffRow {
     };
      return {
         id:             member.id,
-        name:           `${member.first_name} ${member.last_name}`,
+        name:           `${member.first_name} ${member.middle_initial ? member.middle_initial.replace(/\.$/, '') + '. ' : ''}${member.last_name}`.replace(/\s+/g, ' ').trim(),
         username:       member.username || '—',
         role:           toRoleLabel(member.roles?.code),
         roleCode:       member.roles?.code,
@@ -63,7 +64,8 @@ function mapToRow(member: StaffMember): StaffRow {
         createdBy:      member.created_by ?? null,
         adminLevel:     member.admin_level ?? null,
         isSignatory:    member.is_signatory ?? false,
-        title:          member.title ?? null,
+        position:       member.position ?? null,
+        suffix:         member.suffix ?? null,
     };
 }
 

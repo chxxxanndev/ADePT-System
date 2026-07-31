@@ -10,10 +10,19 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 }
 
 export const accountService = {
-    async updateProfile(fullName: string, username: string) {
+    async getProfile() {
+        try {
+            const res = await api.get('/account/profile');
+            return res.data.data;
+        } catch (err) {
+            throw new Error(extractErrorMessage(err, 'Failed to fetch profile.'));
+        }
+    },
+
+    async updateProfile(fullName: string, username: string, position?: string, suffix?: string) {
         try {
             // We use 'api'. It handles the URL and the Auth headers automatically.
-            const res = await api.put('/account/profile', { fullName, username });
+            const res = await api.put('/account/profile', { fullName, username, position, suffix });
             return res.data;
         } catch (err) {
             throw new Error(extractErrorMessage(err, 'Failed to update profile.'));

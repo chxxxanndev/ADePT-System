@@ -5,6 +5,7 @@ export interface StaffMember {
     id: string;
     auth_user_id: string;
     first_name: string;
+    middle_initial: string | null;
     last_name: string;
     email: string;
     username: string;
@@ -13,7 +14,8 @@ export interface StaffMember {
     created_by: string | null;
     admin_level: 'HIGH' | 'MEDIUM' | 'LOW' | null;
     is_signatory: boolean;
-    title: string | null;
+    position: string | null;
+    suffix: string | null;
     roles: { code: string } | null;
 }
 
@@ -109,14 +111,14 @@ export async function unassignSignatory(staffId: string): Promise<StaffMember> {
 }
 
 /**
- * Sets a staff member's official title.
+ * Sets a staff member's official position.
  */
-export async function setStaffTitle(
+export async function setStaffPosition(
     staffId: string,
-    title: string
-): Promise<StaffMember> {
-    const res = await api.patch(`/users/staff/${staffId}/set-title`, { title });
-    return res.data.staff as StaffMember;
+    position: string
+) {
+    const res = await api.patch(`/users/staff/${staffId}/set-position`, { position });
+    return res.data.staff;
 }
 
 /**

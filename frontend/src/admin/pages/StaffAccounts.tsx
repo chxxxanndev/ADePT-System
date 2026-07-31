@@ -8,7 +8,7 @@ import {
     promoteToAdmin,
     demoteToStaff,
     setAdminLevel,
-    setStaffTitle,
+    setStaffPosition,
     assignSignatory,
     unassignSignatory,
 } from '../services/userManagementService';
@@ -122,8 +122,8 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const [confirmSignatory, setConfirmSignatory] = useState<StaffRow | null>(null);
 
     // ── Title picker state ──────────────────────────────────────────────────
-    const [titlePicker, setTitlePicker] = useState<StaffRow | null>(null);
-    const [pickedTitle, setPickedTitle] = useState<string>('');
+    const [positionPicker, setPositionPicker] = useState<StaffRow | null>(null);
+    const [pickedPosition, setPickedPosition] = useState<string>('');
 
     // ── Icon-button menu state ──────────────────────────────────────────────
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -339,28 +339,28 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         }
     };
 
-    // ── Set Title flow ──────────────────────────────────────────────────────
-    const openTitlePicker = (member: StaffRow) => {
+    // ── Set Position flow ───────────────────────────────────────────────────
+    const openPositionPicker = (member: StaffRow) => {
         setRoleActionError(null);
-        setPickedTitle(member.title || '');
-        setTitlePicker(member);
+        setPickedPosition(member.position || '');
+        setPositionPicker(member);
     };
 
-    const handleTitleSubmit = async () => {
-        if (!titlePicker || !pickedTitle) return;
-        const member = titlePicker;
+    const handlePositionSubmit = async () => {
+        if (!positionPicker || !pickedPosition) return;
+        const member = positionPicker;
         setRoleActionLoadingId(member.id);
         setRoleActionError(null);
         try {
-            await setStaffTitle(member.id, pickedTitle);
+            await setStaffPosition(member.id, pickedPosition);
             addAdminAuditEntry({
                 type: 'staff_promote',
-                description: `set ${member.name}'s title to "${pickedTitle}"`,
+                description: `set ${member.name}'s position to "${pickedPosition}"`,
             });
-            setTitlePicker(null);
+            setPositionPicker(null);
             await refresh();
         } catch (err: unknown) {
-            setRoleActionError(err instanceof Error ? err.message : 'Failed to set title.');
+            setRoleActionError(err instanceof Error ? err.message : 'Failed to set position.');
         } finally {
             setRoleActionLoadingId(null);
         }
@@ -535,7 +535,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                     return (
                                         <tr key={member.id}>
                                             <td>
-                                                <strong>{member.name}</strong>
+                                                <strong>{member.name}{member.suffix ? `, ${member.suffix}` : ''}</strong>
                                                 {member.isSignatory && (
                                                     <span style={{
                                                         marginLeft: 6,
@@ -549,9 +549,9 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                         Signatory
                                                     </span>
                                                 )}
-                                                {member.title && (
+                                                {member.position && (
                                                     <div style={{ fontSize: '0.72rem', color: '#6B7280', marginTop: '2px' }}>
-                                                        {member.title}
+                                                        {member.position}
                                                     </div>
                                                 )}
                                             </td>
@@ -700,14 +700,14 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                             <button
                                                                 type="button"
                                                                 disabled={isInactive}
-                                                                onClick={() => openTitlePicker(member)}
-                                                                title={isInactive ? 'Reactivate to set title' : `Set Title${member.title ? ` (${member.title})` : ''}`}
+                                                                onClick={() => openPositionPicker(member)}
+                                                                title={isInactive ? 'Reactivate to set position' : `Set Position${member.position ? ` (${member.position})` : ''}`}
                                                                 style={{
                                                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                                     width: '32px', height: '32px', borderRadius: '10px',
                                                                     border: 'none',
-                                                                    background: member.title ? '#EDE9FE' : (isInactive ? '#F1F5F9' : '#E0E7FF'),
-                                                                    color: member.title ? '#5B21B6' : (isInactive ? '#94A3B8' : '#3730A3'),
+                                                                    background: member.position ? '#EDE9FE' : (isInactive ? '#F1F5F9' : '#E0E7FF'),
+                                                                    color: member.position ? '#5B21B6' : (isInactive ? '#94A3B8' : '#3730A3'),
                                                                     cursor: isInactive ? 'not-allowed' : 'pointer',
                                                                     opacity: isInactive ? 0.85 : 1,
                                                                 }}
@@ -1048,16 +1048,16 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                     </div>
                 </div>
             )}
-            {/* ── Title picker modal ─────────────────────────────────────── */}
-            {titlePicker && (
-                <div className="staff-modal-backdrop" onClick={() => setTitlePicker(null)}>
+            {/* ── Position picker modal ──────────────────────────────────── */}
+            {positionPicker && (
+                <div className="staff-modal-backdrop" onClick={() => setPositionPicker(null)}>
                     <div className="staff-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
                         <div className="staff-modal-header">
                             <div>
-                                <h3>Set Official Title</h3>
-                                <p>{titlePicker.name}</p>
+                                <h3>Set Official Position</h3>
+                                <p>{positionPicker.name}</p>
                             </div>
-                            <button className="staff-modal-close" onClick={() => setTitlePicker(null)}>×</button>
+                            <button className="staff-modal-close" onClick={() => setPositionPicker(null)}>×</button>
                         </div>
                         <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             {([
@@ -1067,7 +1067,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 'Provincial Assessor',
                                 'Assistant Provincial Assessor',
                             ] as const).map((t) => {
-                                const selected = pickedTitle === t;
+                                const selected = pickedPosition === t;
                                 return (
                                     <label
                                         key={t}
@@ -1086,9 +1086,9 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                     >
                                         <input
                                             type="radio"
-                                            name="staffTitle"
+                                            name="staffPosition"
                                             checked={selected}
-                                            onChange={() => setPickedTitle(t)}
+                                            onChange={() => setPickedPosition(t)}
                                             style={{ accentColor: '#5B21B6', width: '15px', height: '15px', flexShrink: 0 }}
                                         />
                                         <span style={{
@@ -1103,11 +1103,11 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                             })}
                         </div>
                         <div className="staff-modal-actions">
-                            <button type="button" className="staff-manage-btn" onClick={() => setTitlePicker(null)} disabled={roleActionLoadingId === titlePicker.id}>
+                            <button type="button" className="staff-manage-btn" onClick={() => setPositionPicker(null)} disabled={roleActionLoadingId === positionPicker.id}>
                                 Cancel
                             </button>
-                            <button type="button" className="admin-add-btn" onClick={handleTitleSubmit} disabled={!pickedTitle || roleActionLoadingId === titlePicker.id}>
-                                {roleActionLoadingId === titlePicker.id ? 'Saving…' : 'Confirm'}
+                            <button type="button" className="admin-add-btn" onClick={handlePositionSubmit} disabled={!pickedPosition || roleActionLoadingId === positionPicker.id}>
+                                {roleActionLoadingId === positionPicker.id ? 'Saving…' : 'Confirm'}
                             </button>
                         </div>
                     </div>

@@ -11,10 +11,12 @@ interface SignupFormProps {
     loading: boolean;
     onSignUp: (form: {
         firstName: string;
+        middleInitial?: string;
         lastName: string;
         email: string;
         username: string;
         password: string;
+        suffix?: string;
     }) => Promise<{ success: boolean; message: string }>;
     navigateTo: (view: View) => void;
     prefillUsername: (username: string) => void;
@@ -22,7 +24,9 @@ interface SignupFormProps {
 
 export function SignupForm({ active, loading, onSignUp, navigateTo, prefillUsername }: SignupFormProps) {
     const [firstName, setFirstName] = useState('');
+    const [middleInitial, setMiddleInitial] = useState('');
     const [lastName, setLastName] = useState('');
+    const [suffix, setSuffix] = useState('');
     const [email, setEmail] = useState('');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -48,7 +52,7 @@ export function SignupForm({ active, loading, onSignUp, navigateTo, prefillUsern
             return;
         }
 
-        const result = await onSignUp({ firstName, lastName, email, username, password });
+        const result = await onSignUp({ firstName, middleInitial: middleInitial.trim() || undefined, lastName, suffix: suffix.trim() || undefined, email, username, password });
         if (result.success) {
             setSuccessMsg(result.message);
             prefillUsername(username);
@@ -89,6 +93,18 @@ export function SignupForm({ active, loading, onSignUp, navigateTo, prefillUsern
                         />
                     </div>
                     <div className="form-group">
+                        <label className="form-label" htmlFor="middleInitial">Middle Initial</label>
+                        <input
+                            type="text"
+                            id="middleInitial"
+                            className="form-input"
+                            placeholder="M."
+                            maxLength={3}
+                            value={middleInitial}
+                            onChange={(e) => setMiddleInitial(e.target.value)}
+                        />
+                    </div>
+                    <div className="form-group">
                         <label className="form-label" htmlFor="lastName">Last Name</label>
                         <input
                             type="text"
@@ -100,6 +116,18 @@ export function SignupForm({ active, loading, onSignUp, navigateTo, prefillUsern
                             required
                         />
                     </div>
+                </div>
+
+                <div className="form-group">
+                    <label className="form-label" htmlFor="signupSuffix">Title</label>
+                    <input
+                        type="text"
+                        id="signupSuffix"
+                        className="form-input"
+                        placeholder="e.g. REA, Enp, RN (optional)"
+                        value={suffix}
+                        onChange={(e) => setSuffix(e.target.value)}
+                    />
                 </div>
 
                 <div className="form-group">

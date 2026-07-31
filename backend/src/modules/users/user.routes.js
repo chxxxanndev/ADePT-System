@@ -9,7 +9,7 @@ import {
     setAdminLevel,
     promoteToAdmin,
     demoteToStaff,
-    setStaffTitle,
+    setStaffPosition,
     assignSignatory,
     unassignSignatory,
     getStaffPerformance,
@@ -30,7 +30,7 @@ router.patch('/staff/:id/status', updateStaffStatus);
 router.patch('/staff/:id/admin-level', setAdminLevel);
 router.patch('/staff/:id/promote-to-admin', promoteToAdmin);
 router.patch('/staff/:id/demote-to-staff', demoteToStaff);
-router.patch('/staff/:id/set-title', setStaffTitle);
+router.patch('/staff/:id/set-position', setStaffPosition);
 router.patch('/staff/:id/assign-signatory', assignSignatory);
 router.patch('/staff/:id/unassign-signatory', unassignSignatory);
 

@@ -3,13 +3,13 @@ import { api } from '../../users/services/requestService';
 // We no longer need the hardcoded API_BASE_URL
 // We no longer need the manual authHeaders function (the api interceptor handles this)
 
-export async function updateProfile(fullName: string, username: string) {
+export async function updateProfile(fullName: string, username: string, position?: string, suffix?: string) {
     // api.put automatically adds /api/ and the Bearer token
-    const res = await api.put('/account/profile', { fullName, username });
+    const res = await api.put('/account/profile', { fullName, username, position, suffix });
     
     // Axios returns the body in res.data
     const { data } = res.data;
-    return data as { first_name: string; last_name: string; username: string };
+    return data as { first_name: string; middle_initial: string | null; last_name: string; username: string; position: string | null; suffix: string | null };
 }
 
 export async function uploadPhoto(file: File) {
