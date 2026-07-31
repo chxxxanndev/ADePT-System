@@ -68,8 +68,13 @@ export interface TaxDeclarationFormData {
     taxability: 'TAXABLE' | 'EXEMPT';
 
     // — Signatories & Certification —
-    verifiedBy: string;              // Municipal Assessor name
-    verifiedByTitle: string;         // Municipal Assessor or Provincial Assessor title
+    verifiedBy: string;              // NOTE: reserved for Document Release Panel signatory wiring — not used by the TD form.
+    verifiedByTitle: string;         // NOTE: reserved for Document Release Panel signatory wiring — not used by the TD form.
+    // Municipal/Provincial Assessor who signs the Declaration of Real Property.
+    // Free text — depends on whichever assessor is on record for the property's
+    // municipality (or the Provincial Assessor, in some cases). Encoded manually.
+    assessorName: string;
+    assessorTitle: string;           // e.g. "Municipal Assessor" or "Provincial Assessor"
     memoranda: string;
     notes: string;
 
@@ -143,6 +148,8 @@ export const EMPTY_TAX_DECLARATION = (): TaxDeclarationFormData => ({
     taxability: 'TAXABLE',
     verifiedBy: '',
     verifiedByTitle: 'Municipal Assessor',
+    assessorName: '',
+    assessorTitle: 'Municipal Assessor',
     memoranda: '',
     notes: '',
     certifiedCopyName: 'ENGR. FLORIPES R. BAEL, REA, REB',

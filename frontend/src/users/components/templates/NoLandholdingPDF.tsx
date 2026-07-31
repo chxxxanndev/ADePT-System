@@ -50,16 +50,16 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
     },
     title: {
-        fontSize: 14,
+        fontSize: 23,
         fontFamily: 'Georgia',
         fontWeight: 'bold',
         textAlign: 'center',
         marginTop: 35,
-        marginBottom: 40,
+        marginBottom: 50,
     },
     salutation: {
         fontWeight: 'bold',
-        marginBottom: 35,
+        marginBottom: 40,
         fontSize: 10,
         marginLeft: 0, 
     },
@@ -75,12 +75,12 @@ const styles = StyleSheet.create({
     },
     // Signatories Block
     signatoryContainer: {
-        marginTop: 35,
+        marginTop: 80,
         width: '100%',
         alignItems: 'flex-end',
     },
     signatoryBlock: {
-        marginBottom: 35,
+        marginBottom: 60,
         textAlign: 'center',
         width: 260,
     },

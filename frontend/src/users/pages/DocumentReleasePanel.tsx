@@ -94,12 +94,12 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                         />
                     ) : isGeneratingPdf ? (
                         <div className="pd-pdf-placeholder">
-                            <span className="pd-pdf-placeholder-icon">⏳</span>
+                            {/* <span className="pd-pdf-placeholder-icon">⏳</span> */}
                             Generating preview…
                         </div>
                     ) : (
                         <div className="pd-pdf-placeholder">
-                            <span className="pd-pdf-placeholder-icon">📄</span>
+                            {/* <span className="pd-pdf-placeholder-icon">📄</span> */}
                             Select a document from the panel to preview
                         </div>
                     )}
@@ -154,7 +154,7 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                                     </div>
                                     <div className="pd-compact-action">
                                         {isGeneratingPdf === doc.id ? (
-                                            <span className="pd-status-text">⏳ Loading...</span>
+                                            <span className="pd-status-text">Loading...</span>
                                         ) : isActive ? (
                                             <span className="pd-status-text active-text">👁 Viewing</span>
                                         ) : (

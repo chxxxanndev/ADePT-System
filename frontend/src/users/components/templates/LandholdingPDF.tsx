@@ -11,17 +11,20 @@ Font.register({
   ]
 });
 
-const getOrdinalSuffix = (dayInput: string | number) => {
+// Helper to return day number and suffix separately for styling
+const getOrdinalSuffixParts = (dayInput: string | number) => {
   const num = parseInt(String(dayInput), 10);
-  if (isNaN(num)) return dayInput;
+  if (isNaN(num)) return { number: String(dayInput), suffix: '' };
 
   const j = num % 10;
   const k = num % 100;
 
-  if (j === 1 && k !== 11) return `${num}st`;
-  if (j === 2 && k !== 12) return `${num}nd`;
-  if (j === 3 && k !== 13) return `${num}rd`;
-  return `${num}th`;
+  let suffix = 'th';
+  if (j === 1 && k !== 11) suffix = 'st';
+  else if (j === 2 && k !== 12) suffix = 'nd';
+  else if (j === 3 && k !== 13) suffix = 'rd';
+
+  return { number: String(num), suffix };
 };
 
 const formatCurrency = (value: string | number) => {
@@ -93,13 +96,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     minHeight: 22,
     alignItems: 'stretch',
-    position: 'relative',
-  },
-  doubleRowDivider: {
-    width: '100%',
     borderBottomWidth: 0.75,
     borderColor: '#000',
-    paddingBottom: 1.5,
   },
   cell: {
     borderRightWidth: 0.75,
@@ -123,7 +121,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   signatoryBlock: {
-    marginBottom: 60,
+    marginBottom: 65,
     textAlign: 'center',
     width: 250,
   },
@@ -219,6 +217,8 @@ export const CertOfLandholdingPDF = (props: CertOfLandholdingPDFProps) => {
   const selectedPageSize = paperSizeOverride || (properties.length > 4 ? 'LEGAL' : 'LETTER');
   const INDENT = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0';
 
+  const dayParts = displayDay ? getOrdinalSuffixParts(displayDay) : null;
+
   return (
     <Document>
       <Page size={selectedPageSize as any} style={styles.page}>
@@ -238,61 +238,66 @@ export const CertOfLandholdingPDF = (props: CertOfLandholdingPDFProps) => {
           </Text>
 
           <View style={styles.table}>
-            <View style={styles.doubleRowDivider}>
-              <View style={[styles.tableRow, { borderBottomWidth: 0.75, borderColor: '#000' }]}>
-                <View style={[styles.cell, { width: '18%' }]}><Text style={styles.thText}>TD/ARP No.</Text></View>
-                <View style={[styles.cell, { width: '26%' }]}><Text style={styles.thText}>Location of Prop.</Text></View>
-                <View style={[styles.cell, { width: '12%' }]}><Text style={styles.thText}>Lot No.</Text></View>
-                <View style={[styles.cell, { width: '12%' }]}><Text style={styles.thText}>Title No.</Text></View>
-                <View style={[styles.cell, { width: '14%' }]}><Text style={styles.thText}>Area</Text></View>
-                <View style={[styles.cell, { width: '18%' }]}><Text style={styles.thText}>Assd. Value</Text></View>
-              </View>
+            {/* Header Row */}
+            <View style={styles.tableRow}>
+              <View style={[styles.cell, { width: '18%' }]}><Text style={styles.thText}>TD/ARP No.</Text></View>
+              <View style={[styles.cell, { width: '26%' }]}><Text style={styles.thText}>Location of Prop.</Text></View>
+              <View style={[styles.cell, { width: '12%' }]}><Text style={styles.thText}>Lot No.</Text></View>
+              <View style={[styles.cell, { width: '12%' }]}><Text style={styles.thText}>Title No.</Text></View>
+              <View style={[styles.cell, { width: '14%' }]}><Text style={styles.thText}>Area</Text></View>
+              <View style={[styles.cell, { width: '18%' }]}><Text style={styles.thText}>Assd. Value</Text></View>
             </View>
 
+            {/* Property Rows */}
             {properties.map((prop: any, index: number) => {
-                // Check all possible key variants (camelCase, snake_case, and legacy)
-                const td = prop.tdArpNumber || prop.td_arp_number || prop.tdNo || prop.td_number || '';
-                const loc = prop.locationOfProperty || prop.location_of_property || prop.location || prop.property_location || prop.propertyLocation || '';
-                const lot = prop.lotNumber || prop.lot_number || prop.lotNo || '';
-                const title = prop.titleNumber || prop.title_number || prop.titleNo || '';
-                const areaVal = prop.area || prop.areaSqM || '';
-                const assd = prop.assessedValue || prop.assessed_value || prop.assdValue || '';
+              const td = prop.tdArpNumber || prop.td_arp_number || prop.tdNo || prop.td_number || '';
+              const loc = prop.locationOfProperty || prop.location_of_property || prop.location || prop.property_location || prop.propertyLocation || '';
+              const lot = prop.lotNumber || prop.lot_number || prop.lotNo || '';
+              const title = prop.titleNumber || prop.title_number || prop.titleNo || '';
+              const areaVal = prop.area || prop.areaSqM || '';
+              const assd = prop.assessedValue || prop.assessed_value || prop.assdValue || '';
 
-                return (
-                    <View key={index} style={styles.doubleRowDivider}>
-                        <View style={[styles.tableRow, { borderBottomWidth: 0.75, borderColor: '#000' }]} wrap={false}>
-                            <View style={[styles.cell, { width: '18%', alignItems: 'center' }]}>
-                                <Text style={styles.tdText}>{td}</Text>
-                            </View>
-                            <View style={[styles.cell, { width: '26%', alignItems: 'center', paddingHorizontal: 2 }]}>
-                                <Text style={styles.tdText}>{loc}</Text>
-                            </View>
-                            <View style={[styles.cell, { width: '12%', alignItems: 'center' }]}>
-                                <Text style={styles.tdText}>{lot}</Text>
-                            </View>
-                            <View style={[styles.cell, { width: '12%', alignItems: 'center' }]}>
-                                <Text style={styles.tdText}>{title}</Text>
-                            </View>
-                            <View style={[styles.cell, { width: '14%', alignItems: 'center' }]}>
-                                <Text style={styles.tdText}>{areaVal}</Text>
-                            </View>
-                            <View style={[styles.cell, { width: '18%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6 }]}>
-                                {assd !== '' && (
-                                    <>
-                                        <Text style={styles.tdText}>PHP</Text>
-                                        <Text style={styles.tdText}>{formatCurrency(assd)}</Text>
-                                    </>
-                                )}
-                            </View>
-                        </View>
-                    </View>
-                );
+              return (
+                <View key={index} style={styles.tableRow} wrap={false}>
+                  <View style={[styles.cell, { width: '18%', alignItems: 'center' }]}>
+                    <Text style={styles.tdText}>{td}</Text>
+                  </View>
+                  <View style={[styles.cell, { width: '26%', alignItems: 'center', paddingHorizontal: 2 }]}>
+                    <Text style={styles.tdText}>{loc}</Text>
+                  </View>
+                  <View style={[styles.cell, { width: '12%', alignItems: 'center' }]}>
+                    <Text style={styles.tdText}>{lot}</Text>
+                  </View>
+                  <View style={[styles.cell, { width: '12%', alignItems: 'center' }]}>
+                    <Text style={styles.tdText}>{title}</Text>
+                  </View>
+                  <View style={[styles.cell, { width: '14%', alignItems: 'center' }]}>
+                    <Text style={styles.tdText}>{areaVal}</Text>
+                  </View>
+                  <View style={[styles.cell, { width: '18%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6 }]}>
+                    {assd !== '' && (
+                      <>
+                        <Text style={styles.tdText}>PHP</Text>
+                        <Text style={styles.tdText}>{formatCurrency(assd)}</Text>
+                      </>
+                    )}
+                  </View>
+                </View>
+              );
             })}
           </View>
 
           <Text style={styles.officialParagraph}>
+            <Text>{INDENT}</Text>
             <Text>Given this </Text>
-            <Text style={styles.underlineText}>{displayDay ? getOrdinalSuffix(displayDay) : '____'}</Text>
+            {dayParts ? (
+              <Text style={styles.underlineText}>
+                {dayParts.number}
+                <Text style={{ fontSize: 7 }}>{dayParts.suffix}</Text>
+              </Text>
+            ) : (
+              <Text style={styles.underlineText}>____</Text>
+            )}
             <Text> day of </Text>
             <Text style={styles.underlineText}>{displayMonthYear || '________________'}</Text>
             <Text>, at Dipolog City for whatever legal purpose/intent it may serve best.</Text>
