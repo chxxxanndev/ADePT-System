@@ -1,6 +1,12 @@
 import { supabase, useMock } from '../../config/supabase.js';
 import { validatePassword } from '../../utils/validators.js';
 
+// Composes "First M. Last" when a middle initial exists, "First Last" otherwise.
+function composeFullName(firstName, middleInitial, lastName) {
+    const mi = middleInitial ? middleInitial.replace(/\.$/, '') + '.' : '';
+    return `${firstName} ${mi} ${lastName}`.replace(/\s+/g, ' ').trim();
+}
+
 // ─── Mock fallback ────────────────────────────────────────────────────────────
 const MOCK_STAFF = [
     {
@@ -53,6 +59,12 @@ const MOCK_STAFF = [
     },
 ];
 
+const MOCK_SIGNATORIES = [
+    { id: 1, name: 'ELVIRA T. ENAO, REA', position: 'Local Assessment Operations Officer IV', role: 'AUTHORIZED_REP', is_active: true },
+    { id: 2, name: 'ENGR. VICENTE P. DESOY, REA', position: 'Provincial Assessor', role: 'ASSESSOR', is_active: true },
+    { id: 3, name: 'CHINA CHAN-OLARIO, RN, REA, REB, Enp', position: 'Assistant Provincial Assessor', role: 'ASST_ASSESSOR', is_active: true }
+];
+
 const isRejectedRequest = (member) => {
     const reason = member?.disable_reason || '';
     return member?.account_status === 'REJECTED' || (member?.account_status === 'DISABLED' && /rejected/i.test(reason));
@@ -100,7 +112,7 @@ class UserService {
         }
         const { data, error } = await supabase
             .from('staff')
-            .select('id, auth_user_id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)')
+            .select('id, auth_user_id, first_name, last_name, suffix, email, username, account_status, created_at, created_by, admin_level, is_signatory, position, roles(code)')
             .is('deleted_at', null)
             .neq('account_status', 'PENDING_APPROVAL')
             .order('created_at', { ascending: false });
@@ -119,7 +131,7 @@ class UserService {
             if (member.account_status === 'ACTIVE') {
                 return {
                     id: member.id,
-                    applicantName: `${member.first_name} ${member.last_name}`,
+                    applicantName: composeFullName(member.first_name, member.middle_initial, member.last_name),
                     email: member.email,
                     username: member.username,
                     requestedRole: member.roles?.code === 'SUPER_ADMIN' ? 'Super Admin' : 'Office Staff',
@@ -132,7 +144,7 @@ class UserService {
             if (isRejectedRequest(member)) {
                 return {
                     id: member.id,
-                    applicantName: `${member.first_name} ${member.last_name}`,
+                    applicantName: composeFullName(member.first_name, member.middle_initial, member.last_name),
                     email: member.email,
                     username: member.username,
                     requestedRole: member.roles?.code === 'SUPER_ADMIN' ? 'Super Admin' : 'Office Staff',
@@ -145,7 +157,7 @@ class UserService {
             if (member.account_status === 'PENDING_APPROVAL') {
                 return {
                     id: member.id,
-                    applicantName: `${member.first_name} ${member.last_name}`,
+                    applicantName: composeFullName(member.first_name, member.middle_initial, member.last_name),
                     email: member.email,
                     username: member.username,
                     requestedRole: member.roles?.code === 'SUPER_ADMIN' ? 'Super Admin' : 'Office Staff',
@@ -167,7 +179,7 @@ class UserService {
 
         const { data, error } = await supabase
             .from('staff')
-            .select('id, first_name, last_name, email, username, account_status, created_at, updated_at, roles(code), disable_reason')
+            .select('id, first_name, middle_initial, last_name, email, username, account_status, created_at, updated_at, roles(code), disable_reason')
             .in('account_status', ['PENDING_APPROVAL', 'ACTIVE', 'DISABLED', 'REJECTED'])
             .is('deleted_at', null)
             .order('created_at', { ascending: false });
@@ -198,7 +210,7 @@ class UserService {
             member.disable_reason = normalizedReason;
             return {
                 id: member.id,
-                applicantName: `${member.first_name} ${member.last_name}`,
+                applicantName: composeFullName(member.first_name, member.middle_initial, member.last_name),
                 email: member.email,
                 username: member.username,
                 requestedRole: member.roles?.code === 'SUPER_ADMIN' ? 'Super Admin' : 'Office Staff',
@@ -220,7 +232,7 @@ class UserService {
             .eq('id', requestId)
             .eq('account_status', 'PENDING_APPROVAL')
             .is('deleted_at', null)
-            .select('id, first_name, last_name, email, username, account_status, created_at, updated_at, roles(code)');
+            .select('id, first_name, middle_initial, last_name, email, username, account_status, created_at, updated_at, roles(code)');
 
         console.log('[decideAccountRequest] update result — error:', error, 'data:', data);
 
@@ -229,7 +241,7 @@ class UserService {
         if (!updatedMember) throw new Error('Account request not found.');
         return {
             id: updatedMember.id,
-            applicantName: `${updatedMember.first_name} ${updatedMember.last_name}`,
+            applicantName: composeFullName(updatedMember.first_name, updatedMember.middle_initial, updatedMember.last_name),
             email: updatedMember.email,
             username: updatedMember.username,
             requestedRole: updatedMember.roles?.code === 'SUPER_ADMIN' ? 'Super Admin' : 'Office Staff',
@@ -324,7 +336,7 @@ class UserService {
                 created_by: actingStaff.id,
                 admin_level: resolvedAdminLevel,
             }])
-            .select('id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)')
+            .select('id, first_name, middle_initial, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)')
             .single();
 
         if (error) throw error;
@@ -379,7 +391,7 @@ class UserService {
             })
             .eq('id', staffId)
             .is('deleted_at', null)
-            .select('id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)');
+            .select('id, first_name, middle_initial, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)');
         if (error) throw error;
         const updatedMember = Array.isArray(data) ? data[0] : data;
         if (!updatedMember) throw new Error('Staff member not found.');
@@ -448,7 +460,7 @@ class UserService {
             .from('staff')
             .update({ admin_level: newLevel })
             .eq('id', staffId)
-            .select('id, first_name, last_name, email, username, account_status, admin_level, roles(code)')
+            .select('id, first_name, middle_initial, last_name, email, username, account_status, admin_level, roles(code)')
             .single();
 
         if (error) throw error;
@@ -506,7 +518,7 @@ class UserService {
                 admin_level: adminLevel,
             })
             .eq('id', staffId)
-            .select('id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)')
+            .select('id, first_name, middle_initial, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)')
             .single();
 
         if (error) throw error;
@@ -561,10 +573,123 @@ class UserService {
                 admin_level: null,
             })
             .eq('id', staffId)
-            .select('id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)')
+            .select('id, first_name, middle_initial, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)')
             .single();
 
         if (error) throw error;
+        return data;
+    }
+
+    async setStaffPosition(staffId, position, actingStaff) {
+        if (!hasAdminLevel(actingStaff, 'HIGH')) {
+            throw new Error('Your admin access level does not permit setting a staff position.');
+        }
+
+        const VALID_POSITIONS = [
+            'Local Assessment Operations Officer IV',
+            'Local Assessment Operations Officer III',
+            'Local Assessment Operations Officer II',
+            'Provincial Assessor',
+            'Assistant Provincial Assessor',
+        ];
+
+        if (!VALID_POSITIONS.includes(position)) {
+            throw new Error('Invalid position.');
+        }
+
+        if (useMock || !supabase) {
+            const member = MOCK_STAFF.find((s) => s.id === staffId);
+            if (!member) throw new Error('Staff member not found.');
+            member.position = position;
+            // If member is a signatory, sync their position in the signatories table
+            const fullName = composeFullName(member.first_name, member.middle_initial, member.last_name);
+            const existing = MOCK_SIGNATORIES.find(s => s.name === fullName);
+            if (existing) existing.position = position;
+            return member;
+        }
+
+        const { data, error } = await supabase
+            .from('staff')
+            .update({ position })
+            .eq('id', staffId)
+            .select('id, first_name, middle_initial, last_name, suffix, email, username, account_status, created_at, created_by, admin_level, is_signatory, position, roles(code)')
+            .single();
+
+        if (error) throw error;
+
+        // If this staff is a signatory, sync their position in the signatories table
+        if (data && data.is_signatory) {
+            const fullName = composeFullName(data.first_name, data.middle_initial, data.last_name);
+            await supabase
+                .from('signatories')
+                .update({ position })
+                .eq('name', fullName);
+        }
+
+        return data;
+    }
+
+    async assignSignatory(staffId, actingStaff) {
+        if (!hasAdminLevel(actingStaff, 'HIGH')) {
+            throw new Error('Your admin access level does not permit assigning the signatory.');
+        }
+
+        if (useMock || !supabase) {
+            const member = MOCK_STAFF.find((s) => s.id === staffId);
+            if (!member) throw new Error('Staff member not found.');
+            member.is_signatory = true;
+
+            const fullName = composeFullName(member.first_name, member.middle_initial, member.last_name);
+            const pos = member.position || 'Local Assessment Operations Officer IV';
+
+            const existing = MOCK_SIGNATORIES.find(s => s.name === fullName);
+            if (existing) {
+                existing.is_active = true;
+                existing.position = pos;
+                existing.role = 'AUTHORIZED_REP';
+            } else {
+                MOCK_SIGNATORIES.push({
+                    id: MOCK_SIGNATORIES.length + 1,
+                    name: fullName,
+                    position: pos,
+                    role: 'AUTHORIZED_REP',
+                    is_active: true
+                });
+            }
+            return member;
+        }
+
+        const { data, error } = await supabase
+            .from('staff')
+            .update({ is_signatory: true })
+            .eq('id', staffId)
+            .select('id, first_name, middle_initial, last_name, suffix, email, username, account_status, created_at, created_by, admin_level, is_signatory, position, roles(code)')
+            .single();
+
+        if (error) throw error;
+
+        if (data) {
+            const fullName = composeFullName(data.first_name, data.middle_initial, data.last_name);
+            const pos = data.position || 'Local Assessment Operations Officer IV';
+
+            const { data: existingSig } = await supabase
+                .from('signatories')
+                .select('id')
+                .eq('name', fullName)
+                .maybeSingle();
+
+            if (existingSig) {
+                await supabase
+                    .from('signatories')
+                    .update({ is_active: true, position: pos, role: 'AUTHORIZED_REP', suffix: data.suffix || null })
+                    .eq('id', existingSig.id);
+            } else {
+                await supabase
+                    .from('signatories')
+                    .insert({ name: fullName, position: pos, role: 'AUTHORIZED_REP', is_active: true, suffix: data.suffix || null });
+            }
+        }
+
         return data;
     }
 
@@ -577,6 +702,12 @@ class UserService {
             const member = MOCK_STAFF.find((s) => s.id === staffId);
             if (!member) throw new Error('Staff member not found.');
             member.is_signatory = false;
+
+            const fullName = composeFullName(member.first_name, member.middle_initial, member.last_name);
+            const existing = MOCK_SIGNATORIES.find(s => s.name === fullName);
+            if (existing) {
+                existing.is_active = false;
+            }
             return member;
         }
 
@@ -584,11 +715,54 @@ class UserService {
             .from('staff')
             .update({ is_signatory: false })
             .eq('id', staffId)
-            .select('id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, is_signatory, roles(code)')
+            .select('id, first_name, middle_initial, last_name, suffix, email, username, account_status, created_at, created_by, admin_level, is_signatory, roles(code)')
             .single();
 
         if (error) throw error;
+
+        if (data) {
+            const fullName = composeFullName(data.first_name, data.middle_initial, data.last_name);
+            await supabase
+                .from('signatories')
+                .update({ is_active: false })
+                .eq('name', fullName);
+        }
+
         return data;
+    }
+
+    async getSignatories() {
+        if (useMock || !supabase) {
+            return MOCK_SIGNATORIES.filter(s => s.is_active);
+        }
+
+        const { data, error } = await supabase
+            .from('signatories')
+            .select('id, name, position, role, is_active, suffix')
+            .eq('is_active', true);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            const { data: staffData } = await supabase
+                .from('staff')
+                .select('id, first_name, middle_initial, last_name, suffix, admin_level, is_signatory')
+                .eq('is_signatory', true)
+                .eq('account_status', 'ACTIVE');
+
+            if (staffData && staffData.length > 0) {
+                return staffData.map(s => ({
+                    id: s.id,
+                    name: composeFullName(s.first_name, s.middle_initial, s.last_name),
+                    position: s.admin_level ? `${s.admin_level} Admin` : 'Local Assessment Operations Officer IV',
+                    role: 'AUTHORIZED_REP',
+                    is_active: true,
+                    suffix: s.suffix || null
+                }));
+            }
+        }
+
+        return data ?? [];
     }
     /**
      * Returns all staff members ranked by the number of requests they have
@@ -600,7 +774,7 @@ class UserService {
                 .filter((m) => m.account_status === 'ACTIVE')
                 .map((m, i) => ({
                     id: m.id,
-                    name: `${m.first_name} ${m.last_name}`,
+                    name: composeFullName(m.first_name, m.middle_initial, m.last_name),
                     initials: `${m.first_name[0]}${m.last_name[0]}`.toUpperCase(),
                     requests: [12, 8, 6, 4][i] ?? 0,
                     avatarBg: ['#3D2E7C', '#00BCD4', '#1976D2', '#4CAF50'][i % 4],
@@ -612,7 +786,7 @@ class UserService {
         const [{ data: staffRows }, { data: requestRows }, { data: auditRows }] = await Promise.all([
             supabase
                 .from('staff')
-                .select('id, first_name, last_name')
+                .select('id, first_name, middle_initial, last_name')
                 .eq('account_status', 'ACTIVE')
                 .is('deleted_at', null),
             supabase
@@ -642,7 +816,7 @@ class UserService {
         return (staffRows ?? [])
             .map((m, i) => ({
                 id: m.id,
-                name: `${m.first_name} ${m.last_name}`.trim(),
+                name: composeFullName(m.first_name, m.middle_initial, m.last_name).trim(),
                 initials: `${(m.first_name || ' ')[0]}${(m.last_name || ' ')[0]}`.toUpperCase(),
                 requests: countMap[m.id] ?? 0,
                 avatarBg: AVATAR_COLORS[i % AVATAR_COLORS.length],

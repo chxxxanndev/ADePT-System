@@ -8,6 +8,7 @@ import {
     promoteToAdmin,
     demoteToStaff,
     setAdminLevel,
+    setStaffPosition,
     assignSignatory,
     unassignSignatory,
 } from '../services/userManagementService';
@@ -54,6 +55,17 @@ function ClipboardArrowIcon({ size = 16 }: { size?: number }) {
                 strokeLinecap="round"
                 strokeLinejoin="round"
             />
+        </svg>
+    );
+}
+
+function BadgeIcon({ size = 16 }: { size?: number }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="4" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.4" fill="none" />
+            <path d="M7 8h6M7 11h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            <circle cx="10" cy="2.5" r="1.5" fill="currentColor" />
+            <path d="M8.5 2.5h3v2.5h-3z" fill="currentColor" />
         </svg>
     );
 }
@@ -108,6 +120,10 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
 
     // ── Signatory flow state ────────────────────────────────────────────────
     const [confirmSignatory, setConfirmSignatory] = useState<StaffRow | null>(null);
+
+    // ── Title picker state ──────────────────────────────────────────────────
+    const [positionPicker, setPositionPicker] = useState<StaffRow | null>(null);
+    const [pickedPosition, setPickedPosition] = useState<string>('');
 
     // ── Icon-button menu state ──────────────────────────────────────────────
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -323,6 +339,33 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         }
     };
 
+    // ── Set Position flow ───────────────────────────────────────────────────
+    const openPositionPicker = (member: StaffRow) => {
+        setRoleActionError(null);
+        setPickedPosition(member.position || '');
+        setPositionPicker(member);
+    };
+
+    const handlePositionSubmit = async () => {
+        if (!positionPicker || !pickedPosition) return;
+        const member = positionPicker;
+        setRoleActionLoadingId(member.id);
+        setRoleActionError(null);
+        try {
+            await setStaffPosition(member.id, pickedPosition);
+            addAdminAuditEntry({
+                type: 'staff_promote',
+                description: `set ${member.name}'s position to "${pickedPosition}"`,
+            });
+            setPositionPicker(null);
+            await refresh();
+        } catch (err: unknown) {
+            setRoleActionError(err instanceof Error ? err.message : 'Failed to set position.');
+        } finally {
+            setRoleActionLoadingId(null);
+        }
+    };
+
     return (
         <>
             {/* Page header */}
@@ -492,7 +535,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                     return (
                                         <tr key={member.id}>
                                             <td>
-                                                <strong>{member.name}</strong>
+                                                <strong>{member.name}{member.suffix ? `, ${member.suffix}` : ''}</strong>
                                                 {member.isSignatory && (
                                                     <span style={{
                                                         marginLeft: 6,
@@ -505,6 +548,11 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                     }}>
                                                         Signatory
                                                     </span>
+                                                )}
+                                                {member.position && (
+                                                    <div style={{ fontSize: '0.72rem', color: '#6B7280', marginTop: '2px' }}>
+                                                        {member.position}
+                                                    </div>
                                                 )}
                                             </td>
                                             <td>{member.username}</td>
@@ -638,13 +686,33 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                                     width: '32px', height: '32px', borderRadius: '10px',
                                                                     border: 'none',
-                                                                    background: isInactive ? '#FDE2E2' : '#DDF3E4',
-                                                                    color: isInactive ? '#DC2626' : '#14532D',
+                                                                    background: member.isSignatory ? '#FEF9C3' : (isInactive ? '#F1F5F9' : '#DDF3E4'),
+                                                                    color: member.isSignatory ? '#854D0E' : (isInactive ? '#94A3B8' : '#14532D'),
                                                                     cursor: isInactive ? 'not-allowed' : 'pointer',
                                                                     opacity: isInactive ? 0.85 : 1,
                                                                 }}
                                                             >
                                                                 <ClipboardArrowIcon size={15} />
+                                                            </button>
+                                                        )}
+
+                                                        {canManageSignatory && member.roleCode !== 'SUPER_ADMIN' && (
+                                                            <button
+                                                                type="button"
+                                                                disabled={isInactive}
+                                                                onClick={() => openPositionPicker(member)}
+                                                                title={isInactive ? 'Reactivate to set position' : `Set Position${member.position ? ` (${member.position})` : ''}`}
+                                                                style={{
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                    width: '32px', height: '32px', borderRadius: '10px',
+                                                                    border: 'none',
+                                                                    background: member.position ? '#EDE9FE' : (isInactive ? '#F1F5F9' : '#E0E7FF'),
+                                                                    color: member.position ? '#5B21B6' : (isInactive ? '#94A3B8' : '#3730A3'),
+                                                                    cursor: isInactive ? 'not-allowed' : 'pointer',
+                                                                    opacity: isInactive ? 0.85 : 1,
+                                                                }}
+                                                            >
+                                                                <BadgeIcon size={15} />
                                                             </button>
                                                         )}
                                                     </div>
@@ -963,11 +1031,9 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                         <div style={{ padding: '20px' }}>
                             <p style={{ margin: 0, fontSize: '0.9rem', color: '#33364A' }}>
                                 {confirmSignatory.isSignatory ? (
-                                    <>Remove <strong>{confirmSignatory.name}</strong> as the signatory? Their name will no longer appear on newly generated documents.</>
-                                ) : currentSignatory ? (
-                                    <>Assign <strong>{confirmSignatory.name}</strong> as the new signatory? This will replace <strong>{currentSignatory.name}</strong>, the current signatory.</>
+                                    <>Remove <strong>{confirmSignatory.name}</strong> as a signatory? Their name will no longer appear on newly generated documents.</>
                                 ) : (
-                                    <>Assign <strong>{confirmSignatory.name}</strong> as the signatory? Their name will appear on generated documents as the approving official.</>
+                                    <>Assign <strong>{confirmSignatory.name}</strong> as an authorized signatory? Their name will be added to the available signatory selection list for documents.</>
                                 )}
                             </p>
                         </div>
@@ -977,6 +1043,71 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                             </button>
                             <button type="button" className="admin-add-btn" onClick={handleSignatoryConfirmYes} disabled={roleActionLoadingId === confirmSignatory.id}>
                                 {roleActionLoadingId === confirmSignatory.id ? 'Saving…' : 'Confirm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* ── Position picker modal ──────────────────────────────────── */}
+            {positionPicker && (
+                <div className="staff-modal-backdrop" onClick={() => setPositionPicker(null)}>
+                    <div className="staff-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+                        <div className="staff-modal-header">
+                            <div>
+                                <h3>Set Official Position</h3>
+                                <p>{positionPicker.name}</p>
+                            </div>
+                            <button className="staff-modal-close" onClick={() => setPositionPicker(null)}>×</button>
+                        </div>
+                        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {([
+                                'Local Assessment Operations Officer IV',
+                                'Local Assessment Operations Officer III',
+                                'Local Assessment Operations Officer II',
+                                'Provincial Assessor',
+                                'Assistant Provincial Assessor',
+                            ] as const).map((t) => {
+                                const selected = pickedPosition === t;
+                                return (
+                                    <label
+                                        key={t}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px',
+                                            cursor: 'pointer',
+                                            borderRadius: '10px',
+                                            border: `1px solid ${selected ? '#5B21B6' : '#E2E4EC'}`,
+                                            background: selected ? '#F5F3FF' : '#FFFFFF',
+                                            padding: '12px 14px',
+                                            transition: 'border-color 0.2s, background 0.2s',
+                                            boxShadow: selected ? '0 0 0 3px rgba(91,33,182,0.08)' : 'none',
+                                        }}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="staffPosition"
+                                            checked={selected}
+                                            onChange={() => setPickedPosition(t)}
+                                            style={{ accentColor: '#5B21B6', width: '15px', height: '15px', flexShrink: 0 }}
+                                        />
+                                        <span style={{
+                                            fontSize: '0.88rem',
+                                            fontWeight: selected ? 700 : 500,
+                                            color: selected ? '#3B0764' : '#374151',
+                                        }}>
+                                            {t}
+                                        </span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                        <div className="staff-modal-actions">
+                            <button type="button" className="staff-manage-btn" onClick={() => setPositionPicker(null)} disabled={roleActionLoadingId === positionPicker.id}>
+                                Cancel
+                            </button>
+                            <button type="button" className="admin-add-btn" onClick={handlePositionSubmit} disabled={!pickedPosition || roleActionLoadingId === positionPicker.id}>
+                                {roleActionLoadingId === positionPicker.id ? 'Saving…' : 'Confirm'}
                             </button>
                         </div>
                     </div>

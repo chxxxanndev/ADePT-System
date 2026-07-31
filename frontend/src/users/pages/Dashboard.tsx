@@ -248,6 +248,25 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         sessionStorage.setItem('adept-active-view', activeView);
     }, [activeView]);
 
+    // Fetch the latest profile from the backend when viewing account settings,
+    // so changes made by an admin (e.g. title) are reflected immediately.
+    useEffect(() => {
+        if (activeView === 'account-settings') {
+            accountService.getProfile().then((profile) => {
+                onUserUpdate({
+                    firstName: profile.firstName,
+                    middleInitial: profile.middleInitial,
+                    lastName: profile.lastName,
+                    username: profile.username,
+                    email: profile.email,
+                    avatarUrl: profile.avatarUrl,
+                    position: profile.position,
+                    suffix: profile.suffix,
+                });
+            }).catch(() => {});
+        }
+    }, [activeView]);
+
     // FIX: keep sessionStorage in sync with completedEntryData so a refresh
     // rehydrates it (see the lazy useState initializer above). When it's
     // cleared (e.g. handleAddAnother sets it back to null), remove the key
@@ -311,7 +330,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         setActiveView('void-amend');
     };
 
-    const fullName = `${user.firstName || ''} ${user.lastName || ''}`;
+    const fullName = `${user.firstName || ''} ${user.middleInitial ? user.middleInitial.replace(/\.$/, '') + '. ' : ''}${user.lastName || ''}`.replace(/\s+/g, ' ').trim();
 
     const headerUser = {
         name: fullName,
@@ -340,7 +359,9 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         role: (user as any).roleName || 'Staff',
         avatarUrl: user.avatarUrl,
         lastPasswordChange: (user as any).lastPasswordChange,
-        status: (user as any).status || 'ACTIVE'
+        status: (user as any).status || 'ACTIVE',
+        position: user.position || undefined,
+        suffix: user.suffix || undefined,
     };
 
     if ((user as any).roleCode === ROLES.SUPER_ADMIN) {
@@ -348,11 +369,14 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     }
 
     const handleAccountSave = async (data: AccountSettingsFormData) => {
-        const result = await accountService.updateProfile(data.fullName, data.username);
+        const result = await accountService.updateProfile(data.fullName, data.username, data.position, data.suffix);
         onUserUpdate({
             firstName: result.data.first_name,
+            middleInitial: result.data.middle_initial,
             lastName: result.data.last_name,
             username: result.data.username,
+            position: result.data.position || data.position,
+            suffix: result.data.suffix || data.suffix,
         });
     };
 

@@ -70,7 +70,14 @@ function useAuthState() {
         const token = localStorage.getItem('adept_token');
         const refreshToken = localStorage.getItem('adept_refresh_token');
         if (token && refreshToken) {
-            supabase.auth.setSession({ access_token: token, refresh_token: refreshToken });
+            supabase.auth.setSession({ access_token: token, refresh_token: refreshToken }).catch(() => {
+                // Token is stale (e.g. after an outage or expiry) — clear it so
+                // the app drops to the login screen instead of firing 401s.
+                localStorage.removeItem('adept_token');
+                localStorage.removeItem('adept_refresh_token');
+                localStorage.removeItem('adept_user');
+                setCurrentUser(null);
+            });
         }
 
         return () => subscription.unsubscribe();
@@ -126,10 +133,12 @@ function useAuthState() {
                                 id: 'mock-id',
                                 staffId: 'mock-staff-id',
                                 firstName: user.firstName,
+                                middleInitial: user.middleInitial,
                                 lastName: user.lastName,
                                 email: user.email,
                                 username: user.username,
                                 role: userIndex === 0 ? 'SUPER_ADMIN' : 'OFFICE_STAFF',
+                                suffix: user.suffix,
                             };
                             localStorage.setItem('adept_user', JSON.stringify(userObj));
                             setCurrentUser(userObj);
@@ -190,10 +199,12 @@ function useAuthState() {
 
     const signUp = async (form: {
         firstName: string;
+        middleInitial?: string;
         lastName: string;
         email: string;
         username: string;
         password: string;
+        suffix?: string;
     }): Promise<{ success: boolean; message: string }> => {
         setLoading(true);
         try {

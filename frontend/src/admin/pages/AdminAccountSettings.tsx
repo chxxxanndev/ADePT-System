@@ -42,8 +42,10 @@ function getInitials(fullName: string): string {
 export function AdminAccountSettings() {
     const { currentUser, updateCurrentUser, logout } = useAuth();
 
-    const fullName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const fullName = `${currentUser?.firstName || ''} ${currentUser?.middleInitial ? currentUser.middleInitial.replace(/\.$/, '') + '. ' : ''}${currentUser?.lastName || ''}`.replace(/\s+/g, ' ').trim();
     const initialUsername = currentUser?.username || currentUser?.email?.split('@')[0] || '';
+    const initialPosition = currentUser?.position || '';
+    const initialSuffix = currentUser?.suffix || '';
     const roleLabel = currentUser?.role === 'SUPER_ADMIN' ? 'Super Admin' : currentUser?.role === 'OFFICE_STAFF' ? 'Office Staff' : currentUser?.role || 'Super Admin';
 
     // Super Admin accounts cannot disable themselves — every other admin
@@ -54,9 +56,11 @@ export function AdminAccountSettings() {
     const [form, setForm] = useState({
         fullName,
         username: initialUsername,
+        position: initialPosition,
+        suffix: initialSuffix,
     });
     const [saving, setSaving] = useState(false);
-    const isDirty = form.fullName !== fullName || form.username !== initialUsername;
+    const isDirty = form.fullName !== fullName || form.username !== initialUsername || form.position !== initialPosition || form.suffix !== initialSuffix;
 
     // --- 2. INSTANT STATES ---
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -83,11 +87,14 @@ export function AdminAccountSettings() {
     const handleSaveProfile = async () => {
         setSaving(true);
         try {
-            const result = await accountService.updateProfile(form.fullName, form.username);
+            const result = await accountService.updateProfile(form.fullName, form.username, form.position, form.suffix);
             updateCurrentUser({
                 firstName: result.first_name,
+                middleInitial: result.middle_initial || undefined,
                 lastName: result.last_name,
                 username: result.username,
+                position: result.position || form.position,
+                suffix: result.suffix || form.suffix,
             });
             showToast('Profile updated successfully!');
         } catch (err: any) {
@@ -98,7 +105,7 @@ export function AdminAccountSettings() {
     };
 
     const handleDiscard = () => {
-        setForm({ fullName, username: initialUsername });
+        setForm({ fullName, username: initialUsername, position: initialPosition, suffix: initialSuffix });
     };
 
     const handleEmailUpdate = async () => {
@@ -180,7 +187,8 @@ export function AdminAccountSettings() {
                         {currentUser.avatarUrl ? <img src={currentUser.avatarUrl} alt={fullName} /> : getInitials(fullName)}
                     </div>
                     <div className="aas-profile-text">
-                        <span className="aas-profile-name">{fullName}</span>
+                        <span className="aas-profile-name">{fullName}{currentUser.suffix ? `, ${currentUser.suffix}` : ''}</span>
+                        {currentUser.position && <span className="aas-profile-position">{currentUser.position}</span>}
                         <span className="aas-profile-meta">
                             {currentUser.email}
                             <span className="aas-profile-meta-dot" />
@@ -233,6 +241,34 @@ export function AdminAccountSettings() {
                             />
                         </div>
                         <span className="aas-field-hint">Used for login and your public profile URL.</span>
+                    </div>
+
+                    <div className="aas-field">
+                        <label className="aas-field-label" htmlFor="aas-suffix">Title</label>
+                        <div className="aas-input-wrap">
+                            <input
+                                id="aas-suffix"
+                                className="aas-input"
+                                placeholder="e.g. REA, Enp, RN"
+                                value={form.suffix}
+                                onChange={(e) => setForm((prev) => ({ ...prev, suffix: e.target.value }))}
+                            />
+                        </div>
+                        <span className="aas-field-hint">Your professional designation.</span>
+                    </div>
+
+                    <div className="aas-field">
+                        <label className="aas-field-label" htmlFor="aas-position">Position</label>
+                        <div className="aas-input-wrap">
+                            <input
+                                id="aas-position"
+                                className="aas-input"
+                                placeholder="e.g. Assessor, Treasurer"
+                                value={form.position}
+                                onChange={(e) => setForm((prev) => ({ ...prev, position: e.target.value }))}
+                            />
+                        </div>
+                        <span className="aas-field-hint">Your official position.</span>
                     </div>
                 </div>
 
