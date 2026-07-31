@@ -2,11 +2,41 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { User, MockUser } from '../../auth-folder/types/auth';
 import { supabase } from '../../lib/supabaseClient';
 import { addAdminAuditEntry } from '../../admin/services/auditLogService';
-// 1. Import the dynamic URL
 import { API_ROOT } from '../../config';
 
-// 2. Remove the hardcoded localhost:5000
 const BASE_URL = API_ROOT;
+
+// Module-level singleton — ensures the session restore below runs at most
+// ONCE per page load, no matter how many times this effect fires (e.g.
+// React StrictMode's intentional double-invoke in dev). Two concurrent
+// setSession() calls on the same client can race and leave getSession()
+// returning nothing right after — this is what caused the notification/
+// metadata 401s that only "fixed themselves" after a manual retry.
+let sessionInitPromise: Promise<void> | null = null;
+
+function initSessionOnce(): Promise<void> {
+    if (!sessionInitPromise) {
+        sessionInitPromise = (async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                const token = localStorage.getItem('adept_token');
+                const refreshToken = localStorage.getItem('adept_refresh_token');
+                if (token && refreshToken) {
+                    try {
+                        await supabase.auth.setSession({ access_token: token, refresh_token: refreshToken });
+                    } catch {
+                        // Token is stale (e.g. after an outage or expiry) — clear it so
+                        // the app drops to the login screen instead of firing 401s.
+                        localStorage.removeItem('adept_token');
+                        localStorage.removeItem('adept_refresh_token');
+                        localStorage.removeItem('adept_user');
+                    }
+                }
+            }
+        })();
+    }
+    return sessionInitPromise;
+}
 
 function useAuthState() {
     const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -40,7 +70,6 @@ function useAuthState() {
     useEffect(() => {
         const checkHealth = async () => {
             try {
-                // Use BASE_URL instead of hardcoded localhost
                 const res = await fetch(`${BASE_URL}/api/health`);
                 if (res.ok) {
                     const data = await res.json();
@@ -56,6 +85,12 @@ function useAuthState() {
         checkHealth();
     }, []);
 
+    // Keep localStorage tokens in sync with Supabase's session, AND restore
+    // the client's session on load via the module-level singleton above.
+    // sessionReady only flips true once that restore attempt has actually
+    // resolved (successfully or by clearing a stale token) — this is the
+    // ONLY place that drives sessionReady on initial load. Do not add a
+    // second setSession() call anywhere else in a mount-time effect.
     useEffect(() => {
         const {
             data: { subscription },
@@ -69,19 +104,10 @@ function useAuthState() {
             }
         });
 
-        const token = localStorage.getItem('adept_token');
-        const refreshToken = localStorage.getItem('adept_refresh_token');
+        initSessionOnce().then(() => {
+            setSessionReady(true);
+        });
 
-        if (token && refreshToken) {
-            supabase.auth.setSession({ access_token: token, refresh_token: refreshToken }).catch(() => {
-                // Token is stale (e.g. after an outage or expiry) — clear it so
-                // the app drops to the login screen instead of firing 401s.
-                localStorage.removeItem('adept_token');
-                localStorage.removeItem('adept_refresh_token');
-                localStorage.removeItem('adept_user');
-                setCurrentUser(null);
-            });
-        }
         return () => subscription.unsubscribe();
     }, []);
 
@@ -122,6 +148,7 @@ function useAuthState() {
                     localStorage.setItem('adept_user', JSON.stringify(data.user));
 
                     setCurrentUser(data.user); // only now does Dashboard get permission to mount
+                    setSessionReady(true);
 
                     addAdminAuditEntry({ type: 'login', description: 'logged in' }).catch(() => { });
                     return { success: true, message: 'Successfully signed in.' };
@@ -196,6 +223,7 @@ function useAuthState() {
                 localStorage.setItem('adept_refresh_token', data.refreshToken);
                 localStorage.setItem('adept_user', JSON.stringify(data.user));
                 setCurrentUser(data.user);
+                setSessionReady(true);
                 return { success: true, message: data.message || 'Account reactivated.' };
             }
             return { success: false, message: data.error || 'Failed to reactivate account.' };
@@ -280,6 +308,7 @@ function useAuthState() {
 
     const logout = () => {
         addAdminAuditEntry({ type: 'logout', description: 'logged out' }).catch(() => { });
+
         localStorage.removeItem('adept_user');
         localStorage.removeItem('adept_token');
         localStorage.removeItem('adept_refresh_token');
