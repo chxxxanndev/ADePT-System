@@ -145,11 +145,18 @@ class RequestService {
     /**
      * Returns requests shaped to match the frontend's Transaction type.
      * Combines logic from Code 1 with additional schema safety.
+     *
+     * FIX: previously hardcoded `activityTimeline: []` for every row, which
+     * meant the frontend's findReleaseInfo() (in CertifiedTrueCopy.tsx) could
+     * never find a "released" entry and always showed "—" for Date Released
+     * / Released By. Now joins released_by → staff name (same pattern as
+     * encoded_by) and, when the request is actually released, emits a real
+     * activityTimeline entry the frontend can match on.
      */
     async getTransactionRegistry() {
         const { data: requests, error: reqErr } = await supabase
             .from('requests')
-            .select('*, staff:encoded_by(first_name, last_name)')
+            .select('*, staff:encoded_by(first_name, last_name), released_staff:released_by(first_name, last_name)')
             .order('created_at', { ascending: false });
 
         if (reqErr) throw reqErr;
@@ -162,7 +169,7 @@ class RequestService {
             DRAFT: 'Pending',
             IN_PROGRESS: 'Processing',
             PAID: 'Payment Verified',
-            RELEASED: 'Released',   // ← added
+            RELEASED: 'Released',
             VOID: 'Void',
             CANCELLED: 'Cancelled',
             ARCHIVED: 'Archived',
@@ -173,6 +180,23 @@ class RequestService {
                 .filter((d) => d.request_id === r.id)
                 .map((d) => d.document_types?.name)
                 .filter(Boolean);
+
+            const releasedByName = r.released_staff
+                ? `${r.released_staff.first_name} ${r.released_staff.last_name}`
+                : null;
+
+            // Build a real activityTimeline only when the request has
+            // actually been released and we know who released it.
+            const activityTimeline = [];
+            if (r.status === 'RELEASED' && releasedByName) {
+                activityTimeline.push({
+                    id: `${r.id}-released`,
+                    action: 'Released by Staff',
+                    actor: releasedByName,
+                    date: r.released_at || r.updated_at || r.request_date,
+                    time: '',
+                });
+            }
 
             return {
                 id: r.id,
@@ -200,7 +224,7 @@ class RequestService {
                     verifiedBy: r.authorized_signatory || null,
                 },
                 generatedDocuments: [],
-                activityTimeline: [],
+                activityTimeline,
                 isVoid: r.status === 'VOID',
                 voidReason: r.status === 'VOID' ? (r.or_override_justification || '') : undefined,
             };
@@ -312,12 +336,18 @@ class RequestService {
         return data;
     }
 
+    /**
+     * FIX: now also records released_at, so getTransactionRegistry() has a
+     * real timestamp to surface as the release date (previously only
+     * status + released_by were set, leaving no date to show).
+     */
     async markAsReleased(id, releasedByStaffId) {
         const { data, error } = await supabase
             .from('requests')
             .update({
                 status: 'RELEASED',
                 released_by: releasedByStaffId,
+                released_at: new Date().toISOString(),
             })
             .eq('id', id)
             .select()
