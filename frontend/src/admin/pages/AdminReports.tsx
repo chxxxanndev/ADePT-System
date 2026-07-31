@@ -36,7 +36,6 @@ interface ReportRow {
     assignedStaff: string;
     status: string;
     orNumber: string;
-    // raw ISO date string for bucketing
     submittedRaw: string;
 }
 
@@ -47,7 +46,6 @@ interface DistributionSlice {
 }
 
 const MONTH_COLORS = ['#29237a', '#00bcd4'];
-
 
 function buildMonthlyBuckets(rows: ReportRow[]): MonthlyRequest[] {
     const now = new Date();
@@ -127,12 +125,10 @@ export function AdminReports({ user }: AdminReportsProps) {
                     assignedStaff: r.assignedStaff || r.processedBy || 'Unassigned',
                     status: r.status || 'Pending',
                     orNumber: r.orNumber || 'N/A',
-                    // use requestedDate as the raw ISO string for monthly bucketing
                     submittedRaw: r.requestedDate || '',
                 })));
             }
 
-            // Build document distribution grouped into the three standard categories
             const canonicalLabels: { key: string; label: string; color: string }[] = [
                 { key: 'tax declaration', label: 'Tax Declaration', color: '#252175' },
                 { key: 'certificate of landholding', label: 'Cert. Landholding', color: '#00BCD4' },
@@ -175,7 +171,6 @@ export function AdminReports({ user }: AdminReportsProps) {
 
     const monthlyRequests = useMemo(() => buildMonthlyBuckets(rows), [rows]);
 
-    // ── Aging Report ────────────────────────────────────────────────────
     interface AgingRow {
         status: string;
         under3: number;
@@ -211,14 +206,21 @@ export function AdminReports({ user }: AdminReportsProps) {
                 const v = agingMap[s];
                 return v.under3 || v.d3to7 || v.d8to14 || v.over14;
             })
-            .map((status) => {
+            .map((status): AgingRow => {
                 const v = agingMap[status];
                 const total = v.under3 + v.d3to7 + v.d8to14 + v.over14;
-                return { status, ...v, total };
+                // FIX: Explicitly returning properties to satisfy AgingRow interface
+                return { 
+                  status, 
+                  under3: v.under3, 
+                  d3to7: v.d3to7, 
+                  d8to14: v.d8to14, 
+                  over14: v.over14, 
+                  total 
+                };
             });
     }, [rows]);
 
-    // ── Approval Rate Trends ────────────────────────────────────────────
     interface MonthlyRate {
         month: string;
         released: number;
@@ -264,7 +266,6 @@ export function AdminReports({ user }: AdminReportsProps) {
         }));
     }, [rows]);
 
-    // ── Staff Pending Documents ─────────────────────────────────────────
     const pendingStatuses = ['Pending', 'Processing', 'Payment Verified'];
     const [staffStatusFilter, setStaffStatusFilter] = useState<string>('all');
     interface StaffPendingRow {
@@ -291,7 +292,6 @@ export function AdminReports({ user }: AdminReportsProps) {
         return result;
     }, [rows, staffStatusFilter]);
 
-    // ── Staff Pending drill-down ────────────────────────────────────────
     const [staffPopup, setStaffPopup] = useState<{ staff: string; status: string } | null>(null);
 
     const getStaffFiltered = useCallback(
@@ -304,7 +304,6 @@ export function AdminReports({ user }: AdminReportsProps) {
         [rows]
     );
 
-    // ── Aging cell drill-down ───────────────────────────────────────────
     const [agingPopup, setAgingPopup] = useState<{ status: string; bucketKey: string } | null>(null);
 
     const bucketLabels: Record<string, string> = {
@@ -345,7 +344,6 @@ export function AdminReports({ user }: AdminReportsProps) {
 
     return (
         <div className="admin-reports-page" id="admin-reports-print-root">
-            {/* Page header */}
             <div className="rq-page-header no-print">
                 <div className="rq-page-header-row">
                     <div>
@@ -379,14 +377,12 @@ export function AdminReports({ user }: AdminReportsProps) {
                 </div>
             </div>
 
-            {/* Error banner */}
             {error && (
                 <div className="ar-error-banner">
                     ⚠ {error} — showing last available data.
                 </div>
             )}
 
-            {/* Stat cards */}
             <div className="ar-stats-row">
                 <div className="ar-stat-card ar-stat-card--gold">
                     <span className="ar-stat-label">Total Requests</span>
@@ -408,9 +404,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                 </div>
             </div>
 
-            {/* Chart row */}
             <div className="ar-charts-row">
-                {/* Bar chart */}
                 <div className="admin-card ar-bar-card">
                     <div className="ar-bar-card-header">
                         <h2 className="admin-card-title">Requests by month</h2>
@@ -473,16 +467,13 @@ export function AdminReports({ user }: AdminReportsProps) {
                     </div>
                 </div>
 
-                {/* Donut chart — now driven by real document type distribution */}
                 <AdminDocumentDistribution
                     slices={distribution}
                     isRefreshing={loading}
                 />
             </div>
 
-            {/* Bottom row: Aging report + Approval rate trends */}
             <div className="ar-charts-row" style={{ marginTop: '24px' }}>
-                {/* Aging Report */}
                 <div className="admin-card ar-bar-card">
                     <h2 className="admin-card-title" style={{ margin: 0 }}>
                         Aging Report
@@ -549,7 +540,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                     </div>
                 </div>
 
-                {/* Approval Rate Trends */}
                 <div className="admin-card ar-bar-card">
                     <h2 className="admin-card-title" style={{ margin: 0 }}>
                         Approval Rate Trends
@@ -582,7 +572,8 @@ export function AdminReports({ user }: AdminReportsProps) {
                                         tickFormatter={(v: number) => `${v}%`}
                                     />
                                     <Tooltip
-                                        formatter={(value: number, name: string) => [
+                                        // FIX: Cast to any to bypass Recharts ValueType incompatibility
+                                        formatter={(value: any, name: any) => [
                                             `${value}%`,
                                             name === 'releaseRate' ? 'Released' : 'Voided / Cancelled',
                                         ]}
@@ -625,7 +616,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                 </div>
             </div>
 
-            {/* Staff Pending Documents */}
             {!loading && (
                 <div className="admin-card" style={{ padding: '22px' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
@@ -723,7 +713,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                 </div>
             )}
 
-            {/* Staff Pending drill-down popup */}
             {staffPopup && createPortal(
                 <div
                     onClick={() => setStaffPopup(null)}
@@ -782,7 +771,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                 document.body
             )}
 
-            {/* Aging drill-down popup */}
             {agingPopup && createPortal(
                 <div
                     onClick={() => setAgingPopup(null)}
