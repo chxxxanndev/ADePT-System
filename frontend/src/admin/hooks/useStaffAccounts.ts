@@ -20,6 +20,7 @@ export interface StaffRow {
     createdBy: string | null;
     adminLevel: 'HIGH' | 'MEDIUM' | 'LOW' | null;
     isSignatory: boolean;
+    title: string | null;
 }
 
 function formatDate(iso: string): string {
@@ -62,6 +63,7 @@ function mapToRow(member: StaffMember): StaffRow {
         createdBy:      member.created_by ?? null,
         adminLevel:     member.admin_level ?? null,
         isSignatory:    member.is_signatory ?? false,
+        title:          member.title ?? null,
     };
 }
 

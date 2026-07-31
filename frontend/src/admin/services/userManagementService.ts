@@ -13,6 +13,7 @@ export interface StaffMember {
     created_by: string | null;
     admin_level: 'HIGH' | 'MEDIUM' | 'LOW' | null;
     is_signatory: boolean;
+    title: string | null;
     roles: { code: string } | null;
 }
 
@@ -108,11 +109,30 @@ export async function unassignSignatory(staffId: string): Promise<StaffMember> {
 }
 
 /**
+ * Sets a staff member's official title.
+ */
+export async function setStaffTitle(
+    staffId: string,
+    title: string
+): Promise<StaffMember> {
+    const res = await api.patch(`/users/staff/${staffId}/set-title`, { title });
+    return res.data.staff as StaffMember;
+}
+
+/**
  * Fetches staff performance metrics.
  */
 export async function fetchStaffPerformance(): Promise<StaffPerformanceItem[]> {
     const res = await api.get('/users/staff-performance');
     return res.data.performance as StaffPerformanceItem[];
+}
+
+/**
+ * Fetches active signatories from the signatories table.
+ */
+export async function fetchSignatories(): Promise<any[]> {
+    const res = await api.get('/users/signatories');
+    return res.data.signatories;
 }
 
 /**

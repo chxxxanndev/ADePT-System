@@ -53,6 +53,12 @@ const MOCK_STAFF = [
     },
 ];
 
+const MOCK_SIGNATORIES = [
+    { id: 1, name: 'ELVIRA T. ENAO, REA', title: 'Local Assessment Operations Officer IV', role: 'AUTHORIZED_REP', is_active: true },
+    { id: 2, name: 'ENGR. VICENTE P. DESOY, REA', title: 'Provincial Assessor', role: 'ASSESSOR', is_active: true },
+    { id: 3, name: 'CHINA CHAN-OLARIO, RN, REA, REB, Enp', title: 'Assistant Provincial Assessor', role: 'ASST_ASSESSOR', is_active: true }
+];
+
 const isRejectedRequest = (member) => {
     const reason = member?.disable_reason || '';
     return member?.account_status === 'REJECTED' || (member?.account_status === 'DISABLED' && /rejected/i.test(reason));
@@ -100,7 +106,7 @@ class UserService {
         }
         const { data, error } = await supabase
             .from('staff')
-            .select('id, auth_user_id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, roles(code)')
+            .select('id, auth_user_id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, is_signatory, title, roles(code)')
             .is('deleted_at', null)
             .neq('account_status', 'PENDING_APPROVAL')
             .order('created_at', { ascending: false });
@@ -568,6 +574,119 @@ class UserService {
         return data;
     }
 
+    async setStaffTitle(staffId, title, actingStaff) {
+        if (!hasAdminLevel(actingStaff, 'HIGH')) {
+            throw new Error('Your admin access level does not permit setting a staff title.');
+        }
+
+        const VALID_TITLES = [
+            'Local Assessment Operations Officer IV',
+            'Local Assessment Operations Officer III',
+            'Local Assessment Operations Officer II',
+            'Provincial Assessor',
+            'Assistant Provincial Assessor',
+        ];
+
+        if (!VALID_TITLES.includes(title)) {
+            throw new Error('Invalid title.');
+        }
+
+        if (useMock || !supabase) {
+            const member = MOCK_STAFF.find((s) => s.id === staffId);
+            if (!member) throw new Error('Staff member not found.');
+            member.title = title;
+            // If member is a signatory, update the signatories table too
+            const fullName = `${member.first_name} ${member.last_name}`;
+            const existing = MOCK_SIGNATORIES.find(s => s.name === fullName);
+            if (existing) existing.title = title;
+            return member;
+        }
+
+        const { data, error } = await supabase
+            .from('staff')
+            .update({ title })
+            .eq('id', staffId)
+            .select('id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, is_signatory, title, roles(code)')
+            .single();
+
+        if (error) throw error;
+
+        // If this staff is a signatory, sync their title in the signatories table
+        if (data && data.is_signatory) {
+            const fullName = `${data.first_name} ${data.last_name}`;
+            await supabase
+                .from('signatories')
+                .update({ title })
+                .eq('name', fullName);
+        }
+
+        return data;
+    }
+
+    async assignSignatory(staffId, actingStaff) {
+        if (!hasAdminLevel(actingStaff, 'HIGH')) {
+            throw new Error('Your admin access level does not permit assigning the signatory.');
+        }
+
+        if (useMock || !supabase) {
+            const member = MOCK_STAFF.find((s) => s.id === staffId);
+            if (!member) throw new Error('Staff member not found.');
+            member.is_signatory = true;
+
+            const fullName = `${member.first_name} ${member.last_name}`;
+            const title = member.title || 'Local Assessment Operations Officer IV';
+
+            const existing = MOCK_SIGNATORIES.find(s => s.name === fullName);
+            if (existing) {
+                existing.is_active = true;
+                existing.title = title;
+                existing.role = 'AUTHORIZED_REP';
+            } else {
+                MOCK_SIGNATORIES.push({
+                    id: MOCK_SIGNATORIES.length + 1,
+                    name: fullName,
+                    title,
+                    role: 'AUTHORIZED_REP',
+                    is_active: true
+                });
+            }
+            return member;
+        }
+
+        const { data, error } = await supabase
+            .from('staff')
+            .update({ is_signatory: true })
+            .eq('id', staffId)
+            .select('id, first_name, last_name, email, username, account_status, created_at, created_by, admin_level, is_signatory, title, roles(code)')
+            .single();
+
+        if (error) throw error;
+
+        if (data) {
+            const fullName = `${data.first_name} ${data.last_name}`;
+            const title = data.title || 'Local Assessment Operations Officer IV';
+
+            const { data: existingSig } = await supabase
+                .from('signatories')
+                .select('id')
+                .eq('name', fullName)
+                .maybeSingle();
+
+            if (existingSig) {
+                await supabase
+                    .from('signatories')
+                    .update({ is_active: true, title, role: 'AUTHORIZED_REP' })
+                    .eq('id', existingSig.id);
+            } else {
+                await supabase
+                    .from('signatories')
+                    .insert({ name: fullName, title, role: 'AUTHORIZED_REP', is_active: true });
+            }
+        }
+
+        return data;
+    }
+
     async unassignSignatory(staffId, actingStaff) {
         if (!hasAdminLevel(actingStaff, 'HIGH')) {
             throw new Error('Your admin access level does not permit removing the signatory.');
@@ -577,6 +696,12 @@ class UserService {
             const member = MOCK_STAFF.find((s) => s.id === staffId);
             if (!member) throw new Error('Staff member not found.');
             member.is_signatory = false;
+
+            const fullName = `${member.first_name} ${member.last_name}`;
+            const existing = MOCK_SIGNATORIES.find(s => s.name === fullName);
+            if (existing) {
+                existing.is_active = false;
+            }
             return member;
         }
 
@@ -588,7 +713,49 @@ class UserService {
             .single();
 
         if (error) throw error;
+
+        if (data) {
+            const fullName = `${data.first_name} ${data.last_name}`;
+            await supabase
+                .from('signatories')
+                .update({ is_active: false })
+                .eq('name', fullName);
+        }
+
         return data;
+    }
+
+    async getSignatories() {
+        if (useMock || !supabase) {
+            return MOCK_SIGNATORIES.filter(s => s.is_active);
+        }
+
+        const { data, error } = await supabase
+            .from('signatories')
+            .select('id, name, title, role, is_active')
+            .eq('is_active', true);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            const { data: staffData } = await supabase
+                .from('staff')
+                .select('id, first_name, last_name, admin_level, is_signatory')
+                .eq('is_signatory', true)
+                .eq('account_status', 'ACTIVE');
+
+            if (staffData && staffData.length > 0) {
+                return staffData.map(s => ({
+                    id: s.id,
+                    name: `${s.first_name} ${s.last_name}`,
+                    title: s.admin_level ? `${s.admin_level} Admin` : 'Local Assessment Operations Officer IV',
+                    role: 'AUTHORIZED_REP',
+                    is_active: true
+                }));
+            }
+        }
+
+        return data ?? [];
     }
     /**
      * Returns all staff members ranked by the number of requests they have
