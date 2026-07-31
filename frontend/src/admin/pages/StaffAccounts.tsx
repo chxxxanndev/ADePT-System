@@ -82,6 +82,46 @@ const menuItemStyle: React.CSSProperties = {
     cursor: 'pointer',
 };
 
+// Icon button with a custom CSS hover tooltip explaining what the icon does.
+function IconTooltipButton({
+    label,
+    disabled = false,
+    onClick,
+    background,
+    color,
+    cursor = 'pointer',
+    opacity = 1,
+    children,
+}: {
+    label: string;
+    disabled?: boolean;
+    onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+    background: string;
+    color: string;
+    cursor?: string;
+    opacity?: number;
+    children: React.ReactNode;
+}) {
+    return (
+        <span className="staff-icon-tooltip-wrap">
+            <button
+                type="button"
+                disabled={disabled}
+                onClick={onClick}
+                style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: '32px', height: '32px', borderRadius: '10px',
+                    border: 'none',
+                    background, color, cursor, opacity,
+                }}
+            >
+                {children}
+            </button>
+            <span className="staff-icon-tooltip">{label}</span>
+        </span>
+    );
+}
+
 export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const {
         staff,
@@ -597,10 +637,9 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                             </td>
                                             {superAdmin && (
                                                 <td>
-                                                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', position: 'relative' }}>
+                                                    <div className="staff-icon-actions" style={{ display: 'flex', gap: '6px', justifyContent: 'center', position: 'relative' }}>
                                                         {member.roleCode !== 'SUPER_ADMIN' && (
-                                                            <button
-                                                                type="button"
+                                                            <IconTooltipButton
                                                                 disabled={isInactive}
                                                                 onClick={(e) => {
                                                                     if (member.roleCode === 'ADMIN') {
@@ -615,25 +654,20 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                                         openPromoteConfirm(member);
                                                                     }
                                                                 }}
-                                                                title={
+                                                                label={
                                                                     isInactive
                                                                         ? 'Reactivate this staff member to manage admin access'
                                                                         : member.roleCode === 'ADMIN'
                                                                         ? 'Manage Admin Access'
                                                                         : 'Promote to Admin'
                                                                 }
-                                                                style={{
-                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                    width: '32px', height: '32px', borderRadius: '10px',
-                                                                    border: 'none',
-                                                                    background: isInactive ? '#FDE2E2' : '#DDF3E4',
-                                                                    color: isInactive ? '#DC2626' : '#14532D',
-                                                                    cursor: isInactive ? 'not-allowed' : 'pointer',
-                                                                    opacity: isInactive ? 0.85 : 1,
-                                                                }}
+                                                                background={isInactive ? '#FDE2E2' : '#DDF3E4'}
+                                                                color={isInactive ? '#DC2626' : '#14532D'}
+                                                                cursor={isInactive ? 'not-allowed' : 'pointer'}
+                                                                opacity={isInactive ? 0.85 : 1}
                                                             >
                                                                 <PersonLockIcon size={15} />
-                                                            </button>
+                                                            </IconTooltipButton>
                                                         )}
 
                                                         {openMenuId === member.id && member.roleCode === 'ADMIN' && !isInactive &&
@@ -670,49 +704,37 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                             )}
 
                                                         {canManageSignatory && member.roleCode !== 'SUPER_ADMIN' && (
-                                                            <button
-                                                                type="button"
+                                                            <IconTooltipButton
                                                                 disabled={isInactive}
                                                                 onClick={() => openSignatoryConfirm(member)}
-                                                                title={
+                                                                label={
                                                                     isInactive
                                                                         ? 'Reactivate this staff member to assign as signatory'
                                                                         : member.isSignatory
                                                                         ? 'Remove as Signatory'
                                                                         : 'Assign as Signatory'
                                                                 }
-                                                                style={{
-                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                    width: '32px', height: '32px', borderRadius: '10px',
-                                                                    border: 'none',
-                                                                    background: member.isSignatory ? '#FEF9C3' : (isInactive ? '#F1F5F9' : '#DDF3E4'),
-                                                                    color: member.isSignatory ? '#854D0E' : (isInactive ? '#94A3B8' : '#14532D'),
-                                                                    cursor: isInactive ? 'not-allowed' : 'pointer',
-                                                                    opacity: isInactive ? 0.85 : 1,
-                                                                }}
+                                                                background={member.isSignatory ? '#FEF9C3' : (isInactive ? '#F1F5F9' : '#DDF3E4')}
+                                                                color={member.isSignatory ? '#854D0E' : (isInactive ? '#94A3B8' : '#14532D')}
+                                                                cursor={isInactive ? 'not-allowed' : 'pointer'}
+                                                                opacity={isInactive ? 0.85 : 1}
                                                             >
                                                                 <ClipboardArrowIcon size={15} />
-                                                            </button>
+                                                            </IconTooltipButton>
                                                         )}
 
                                                         {canManageSignatory && member.roleCode !== 'SUPER_ADMIN' && (
-                                                            <button
-                                                                type="button"
+                                                            <IconTooltipButton
                                                                 disabled={isInactive}
                                                                 onClick={() => openPositionPicker(member)}
-                                                                title={isInactive ? 'Reactivate to set position' : `Set Position${member.position ? ` (${member.position})` : ''}`}
-                                                                style={{
-                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                    width: '32px', height: '32px', borderRadius: '10px',
-                                                                    border: 'none',
-                                                                    background: member.position ? '#EDE9FE' : (isInactive ? '#F1F5F9' : '#E0E7FF'),
-                                                                    color: member.position ? '#5B21B6' : (isInactive ? '#94A3B8' : '#3730A3'),
-                                                                    cursor: isInactive ? 'not-allowed' : 'pointer',
-                                                                    opacity: isInactive ? 0.85 : 1,
-                                                                }}
+                                                                label={isInactive ? 'Reactivate to set position' : 'Set Position'}
+                                                                background={member.position ? '#EDE9FE' : (isInactive ? '#F1F5F9' : '#E0E7FF')}
+                                                                color={member.position ? '#5B21B6' : (isInactive ? '#94A3B8' : '#3730A3')}
+                                                                cursor={isInactive ? 'not-allowed' : 'pointer'}
+                                                                opacity={isInactive ? 0.85 : 1}
                                                             >
                                                                 <BadgeIcon size={15} />
-                                                            </button>
+                                                            </IconTooltipButton>
                                                         )}
                                                     </div>
                                                 </td>
