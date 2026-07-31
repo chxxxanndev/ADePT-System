@@ -138,18 +138,28 @@ export async function fetchSignatories(): Promise<any[]> {
 }
 
 /**
- * Fetches real-time dashboard metrics (URL standardized)
+ * Fetches real-time dashboard metrics (URL standardized).
+ * Optional from/to (YYYY-MM-DD) restrict the data to a date range.
  */
-export async function fetchDashboardMetrics() {
-    const res = await api.get('/requests/dashboard-metrics');
+export async function fetchDashboardMetrics(from?: string, to?: string) {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    const qs = params.toString();
+    const res = await api.get(`/requests/dashboard-metrics${qs ? `?${qs}` : ''}`);
     return res.data;
 }
 
 /**
  * Fetches and maps recent transactions. Logic exactly as original.
+ * Optional from/to (YYYY-MM-DD) restrict the data to a date range.
  */
-export async function fetchRecentTransactions(limit = 5): Promise<any[]> {
-    const res = await api.get('/requests/registry');
+export async function fetchRecentTransactions(limit = 5, from?: string, to?: string): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    const qs = params.toString();
+    const res = await api.get(`/requests/registry${qs ? `?${qs}` : ''}`);
     const data = res.data;
     
     const transactions = (data.transactions || []).slice(0, limit).map((t: any) => {

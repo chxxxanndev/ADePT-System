@@ -146,11 +146,15 @@ class RequestService {
      * Returns requests shaped to match the frontend's Transaction type.
      * Combines logic from Code 1 with additional schema safety.
      */
-    async getTransactionRegistry() {
-        const { data: requests, error: reqErr } = await supabase
+    async getTransactionRegistry(from, to) {
+        let query = supabase
             .from('requests')
             .select('*, staff:encoded_by(first_name, last_name)')
             .order('created_at', { ascending: false });
+        if (from) query = query.gte('request_date', from);
+        if (to) query = query.lte('request_date', to);
+
+        const { data: requests, error: reqErr } = await query;
 
         if (reqErr) throw reqErr;
 
@@ -336,9 +340,16 @@ class RequestService {
     /**
      * Aggregates real-time dashboard metrics (access requests, transaction status breakdown, document type distribution) from Supabase.
      */
-    async getDashboardMetrics() {
+    async getDashboardMetrics(from, to) {
+        let requestsQuery = supabase
+            .from('requests')
+            .select('id, status, request_date, created_at, declarant_name, reference_number, property_location, encoded_by, staff:encoded_by(first_name, last_name)')
+            .order('created_at', { ascending: false });
+        if (from) requestsQuery = requestsQuery.gte('request_date', from);
+        if (to) requestsQuery = requestsQuery.lte('request_date', to);
+
         const [{ data: requests }, { data: docLinks }, { data: docTypes }] = await Promise.all([
-            supabase.from('requests').select('id, status, request_date, created_at, declarant_name, reference_number, property_location, encoded_by, staff:encoded_by(first_name, last_name)').order('created_at', { ascending: false }),
+            requestsQuery,
             supabase.from('request_documents').select('request_id, document_type_id, document_types(name, prefix)'),
             supabase.from('document_types').select('id, name, prefix'),
         ]);
@@ -373,7 +384,13 @@ class RequestService {
                 && date.getMonth() === today.getMonth()
                 && date.getDate() === today.getDate();
         };
-        const requestedTodayCount = allReqs.filter(r => isToday(r.request_date || r.created_at)).length;
+
+        // When a date range is selected, "Request Today" becomes "requests
+        // in the selected range" — the SQL query already filtered to it.
+        // Without a range, fall back to counting only today's requests.
+        const requestedTodayCount = (from && to)
+            ? allReqs.length
+            : allReqs.filter(r => isToday(r.request_date || r.created_at)).length;
         const processingCount = allReqs.filter(r => ['IN_PROGRESS'].includes(r.status)).length;
 
         // Document Distribution

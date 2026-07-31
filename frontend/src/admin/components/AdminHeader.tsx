@@ -9,7 +9,7 @@ interface AdminHeaderProps {
     setSearchQuery: (query: string) => void;
     dateFilter: string;
     onToggleMobileMenu: () => void;
-    onDateFilterChange?: (period: string) => void;
+    onDateFilterChange?: (period: string, range: { from: string; to: string }) => void;
 }
 
 const PERIOD_OPTIONS = [
@@ -24,6 +24,74 @@ const PERIOD_OPTIONS = [
     'This Year',
     'Custom Range...',
 ];
+
+// Returns the inclusive [from, to] date range (YYYY-MM-DD) for a period label.
+function toLocalISO(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function rangeForPeriod(period: string): { from: string; to: string } {
+    const now = new Date();
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+    switch (period) {
+        case 'Today': {
+            const d = startOfDay(now);
+            return { from: toLocalISO(d), to: toLocalISO(d) };
+        }
+        case 'Yesterday': {
+            const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+            return { from: toLocalISO(d), to: toLocalISO(d) };
+        }
+        case 'This Week': {
+            const start = startOfDay(now);
+            const dow = (start.getDay() + 6) % 7; // Monday = 0
+            const from = new Date(start.getFullYear(), start.getMonth(), start.getDate() - dow);
+            const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        case 'Last Week': {
+            const start = startOfDay(now);
+            const dow = (start.getDay() + 6) % 7;
+            const mondayThisWeek = new Date(start.getFullYear(), start.getMonth(), start.getDate() - dow);
+            const from = new Date(mondayThisWeek.getFullYear(), mondayThisWeek.getMonth(), mondayThisWeek.getDate() - 7);
+            const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        case 'This Month': {
+            const from = new Date(now.getFullYear(), now.getMonth(), 1);
+            const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        case 'Last Month': {
+            const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const to = new Date(now.getFullYear(), now.getMonth(), 0);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        case 'This Quarter': {
+            const quarter = Math.floor(now.getMonth() / 3);
+            const from = new Date(now.getFullYear(), quarter * 3, 1);
+            const to = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        case 'Last Quarter': {
+            const quarter = Math.floor(now.getMonth() / 3) - 1;
+            const from = new Date(now.getFullYear(), quarter * 3, 1);
+            const to = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        case 'This Year': {
+            const from = new Date(now.getFullYear(), 0, 1);
+            const to = new Date(now.getFullYear(), 11, 31);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        default:
+            return { from: toLocalISO(startOfDay(now)), to: toLocalISO(startOfDay(now)) };
+    }
+}
 
 function formatShort(date: Date) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -76,7 +144,7 @@ export function AdminHeader({
             setView('calendar');
             return;
         }
-        onDateFilterChange?.(period);
+        onDateFilterChange?.(period, rangeForPeriod(period));
         setDateDropdownOpen(false);
         setView('list');
     }
@@ -85,7 +153,7 @@ export function AdminHeader({
         const label = isSameDate(start, end)
             ? formatShort(start)
             : `${formatShort(start)} \u2013 ${formatShort(end)}`;
-        onDateFilterChange?.(label);
+        onDateFilterChange?.(label, { from: toLocalISO(start), to: toLocalISO(end) });
         setDateDropdownOpen(false);
         setView('list');
     }

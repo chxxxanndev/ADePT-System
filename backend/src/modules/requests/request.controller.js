@@ -50,7 +50,8 @@ export const getAllRequests = async (req, res) => {
  */
 export const getTransactionRegistry = async (req, res) => {
     try {
-        const transactions = await RequestService.getTransactionRegistry();
+        const { from, to } = req.query;
+        const transactions = await RequestService.getTransactionRegistry(from, to);
         res.status(200).json({ transactions });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -132,7 +133,8 @@ export const markAsReleased = async (req, res) => {
 
 export const getDashboardMetrics = async (req, res) => {
     try {
-        const metrics = await RequestService.getDashboardMetrics();
+        const { from, to } = req.query;
+        const metrics = await RequestService.getDashboardMetrics(from, to);
         res.status(200).json(metrics);
     } catch (error) {
         res.status(500).json({ error: error.message });
