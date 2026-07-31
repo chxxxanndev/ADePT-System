@@ -2,12 +2,12 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { User, MockUser } from '../../auth-folder/types/auth';
 import { supabase } from '../../lib/supabaseClient';
 import { addAdminAuditEntry } from '../../admin/services/auditLogService';
+// 1. Import the dynamic URL
+import { API_ROOT } from '../../config';
 
-const API_BASE_URL = 'http://localhost:5000';
+// 2. Remove the hardcoded localhost:5000
+const BASE_URL = API_ROOT;
 
-// ─── The actual auth logic — UNCHANGED from before, just renamed and no ───────
-// ─── longer exported directly. Only the AuthProvider below calls this,   ───────
-// ─── so there is exactly ONE instance of this state for the whole app.   ───────
 function useAuthState() {
     const [currentUser, setCurrentUser] = useState<User | null>(() => {
         const saved = localStorage.getItem('adept_user');
@@ -38,7 +38,8 @@ function useAuthState() {
     useEffect(() => {
         const checkHealth = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/health`);
+                // Use BASE_URL instead of hardcoded localhost
+                const res = await fetch(`${BASE_URL}/api/health`);
                 if (res.ok) {
                     const data = await res.json();
                     setBackendHealthy(true);
@@ -53,9 +54,6 @@ function useAuthState() {
         checkHealth();
     }, []);
 
-    // Keep localStorage tokens in sync with Supabase's session (auto-refresh
-    // updates the internal tokens, but we need to persist the new ones so
-    // page reloads work with a fresh token instead of a stale/expired one).
     useEffect(() => {
         const {
             data: { subscription },
@@ -69,10 +67,6 @@ function useAuthState() {
             }
         });
 
-        // Restore the browser's Supabase session on page load/refresh — the React
-        // state above is rehydrated from localStorage automatically, but the
-        // supabase-js client's own session is not, and Realtime subscriptions
-        // (the notification bell) need that session to pass RLS checks.
         const token = localStorage.getItem('adept_token');
         const refreshToken = localStorage.getItem('adept_refresh_token');
         if (token && refreshToken) {
@@ -89,7 +83,7 @@ function useAuthState() {
         setLoading(true);
         try {
             if (backendHealthy) {
-                const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                const res = await fetch(`${BASE_URL}/api/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password }),
@@ -168,7 +162,7 @@ function useAuthState() {
     ): Promise<{ success: boolean; message: string }> => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/api/auth/reactivate`, {
+            const res = await fetch(`${BASE_URL}/api/auth/reactivate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password }),
@@ -204,7 +198,7 @@ function useAuthState() {
         setLoading(true);
         try {
             if (backendHealthy) {
-                const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+                const res = await fetch(`${BASE_URL}/api/auth/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(form),
@@ -240,7 +234,7 @@ function useAuthState() {
         setLoading(true);
         try {
             if (backendHealthy) {
-                const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+                const res = await fetch(`${BASE_URL}/api/auth/forgot-password`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email }),
@@ -265,11 +259,7 @@ function useAuthState() {
     };
 
     const logout = () => {
-        // Fire-and-forget, and BEFORE signOut() — once the session is cleared
-        // the bearer token this needs is gone. A failed write here should
-        // never block the user from actually logging out.
         addAdminAuditEntry({ type: 'logout', description: 'logged out' }).catch(() => {});
-    
         localStorage.removeItem('adept_user');
         localStorage.removeItem('adept_token');
         localStorage.removeItem('adept_refresh_token');

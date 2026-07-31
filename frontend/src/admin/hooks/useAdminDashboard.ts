@@ -4,12 +4,20 @@ import {
     type AdminTransactionRow,
     type AdminActivityItem,
 } from '../data/adminTypes';
-import { fetchAllStaff, authHeaders, fetchStaffPerformance, fetchDashboardMetrics, fetchRecentTransactions, type StaffMember, type StaffPerformanceItem } from '../services/userManagementService';
+// 1. Cleaned up imports - removed authHeaders
+import { 
+    fetchAllStaff, 
+    fetchStaffPerformance, 
+    fetchDashboardMetrics, 
+    fetchRecentTransactions, 
+    type StaffMember, 
+    type StaffPerformanceItem 
+} from '../services/userManagementService';
 import { getAuditLog, type AuditLogEntry, type AuditActionType } from '../services/auditLogService';
+// 2. Import our smart api instance
+import { api } from '../../users/services/requestService';
 
-// Simulated network delay for refresh actions so the spinning state is visible.
 const REFRESH_DELAY_MS = 700;
-const API_BASE_URL = 'http://localhost:5000/api/users';
 
 interface AccountRequestSummary {
     id: string;
@@ -18,6 +26,7 @@ interface AccountRequestSummary {
     created_at?: string;
 }
 
+// ... (keep isSameDay, buildAccessRequestItems, buildRequestQueueItems exactly as they are)
 function isSameDay(value: string | undefined, reference: Date) {
     if (!value) return false;
     const date = new Date(value);
@@ -49,12 +58,6 @@ interface RequestQueueSummary {
     voidCount: number;
 }
 
-/**
- * Builds the 4 "Document Request Queue" summary cards from the aggregated
- * counts in getDashboardMetrics()'s summaryCounts field — NOT from the raw
- * `requestQueue` array (that's one row per request, meant for a detail
- * list/table, not these cards). Mirrors buildAccessRequestItems() above.
- */
 function buildRequestQueueItems(summary: RequestQueueSummary): AdminStatItem[] {
     return [
         { id: 'request-today', label: 'Request Today', value: summary.requestedTodayCount, icon: 'inboxDown', accent: 'teal' },
@@ -64,23 +67,6 @@ function buildRequestQueueItems(summary: RequestQueueSummary): AdminStatItem[] {
     ];
 }
 
-// Audit entry types -> the widget's color-coded statuses. Only 6 status
-// values exist (approved / declined / pending / login / logout / system),
-// so the newer action types reuse whichever existing status reads closest —
-// there's no dedicated status for "promoted" or "printed a report", for
-// instance. account_activate/staff_promote reuse 'approved' (positive
-// change); account_deactivate/staff_demote reuse 'declined' (negative
-// change) — if the red "declined" styling reads as alarming for a routine
-// demotion in the actual UI, switch it to 'system' (neutral) instead.
-// report_print/document_draft/document_archive reuse 'system' (neutral,
-// routine staff actions); document_void reuses 'declined'.
-//
-// FIXED: this used to reference document_upload/document_voided/
-// document_archived/document_released, which don't exist in the finalized
-// AuditActionType union (document_pending/document_void/document_draft/
-// document_archive/report_print) — since this map is typed as
-// Record<AuditActionType, ...>, the old version would fail to compile the
-// moment auditLogService.ts's taxonomy update landed.
 const AUDIT_STATUS_MAP: Record<AuditActionType, AdminActivityItem['status']> = {
     approval: 'approved',
     decline: 'declined',
@@ -122,7 +108,6 @@ async function buildActivityFeed(): Promise<AdminActivityItem[]> {
 }
 
 export function useAdminDashboard() {
-    // Navigation / layout state
     const [activeView, setActiveView] = useState<string>(
         () => sessionStorage.getItem('adept-admin-active-view') || 'overview'
     );
@@ -133,11 +118,9 @@ export function useAdminDashboard() {
         sessionStorage.setItem('adept-admin-active-view', activeView);
     }, [activeView]);
 
-    // Header controls
     const [searchQuery, setSearchQuery] = useState('');
     const [dateFilter] = useState('Today');
 
-    // Data states
     const [accessRequests, setAccessRequests] = useState<AdminStatItem[]>([]);
     const [requestQueue, setRequestQueue] = useState<AdminStatItem[]>([]);
     const [transactions, setTransactions] = useState<AdminTransactionRow[]>([]);
@@ -145,7 +128,6 @@ export function useAdminDashboard() {
     const [staffPerformance, setStaffPerformance] = useState<StaffPerformanceItem[]>([]);
     const [activities, setActivities] = useState<AdminActivityItem[]>([]);
 
-    // Per-section refresh indicators
     const [refreshingTransactions, setRefreshingTransactions] = useState(false);
     const [refreshingPerformance, setRefreshingPerformance] = useState(false);
     const [refreshingDistribution, setRefreshingDistribution] = useState(false);
@@ -180,27 +162,21 @@ export function useAdminDashboard() {
         }
     };
 
+    /**
+     * UPDATED: Now uses our 'api' instance. 
+     * No more manual authHeaders, no more 401 glitches.
+     */
     const loadAccessRequestMetrics = async () => {
         try {
-            const headers = await authHeaders();
-            if (!headers.Authorization) return;
-
             const [staffMembers, requestResponse] = await Promise.all([
                 fetchAllStaff(),
-                fetch(`${API_BASE_URL}/account-requests`, { headers }),
+                api.get('/users/account-requests') // Standardized call
             ]);
 
-            if (requestResponse.status === 401) return;
-
-            if (!requestResponse.ok) {
-                throw new Error('Unable to load access request metrics.');
-            }
-
-            const requestPayload = await requestResponse.json();
-            const requests = (requestPayload.requests || []) as AccountRequestSummary[];
+            const requests = (requestResponse.data.requests || []) as AccountRequestSummary[];
             setAccessRequests(buildAccessRequestItems(staffMembers, requests));
-        } catch {
-            // silently keep current state
+        } catch (err) {
+            console.error("Dashboard error:", err);
         }
     };
 
@@ -209,19 +185,13 @@ export function useAdminDashboard() {
         void loadDashboardData();
     }, []);
 
-    // Load the real activity feed on mount, and keep it live — refresh the
-    // instant a new audit entry is written anywhere in the app (logins,
-    // approvals, declines, etc.) via the shared 'admin-audit-log:updated'
-    // event that auditLogService.ts dispatches after every successful write.
     useEffect(() => {
         let isMounted = true;
-
         const refreshActivities = () => {
             void buildActivityFeed().then((feed) => {
                 if (isMounted) setActivities(feed);
             });
         };
-
         refreshActivities();
         window.addEventListener('admin-audit-log:updated', refreshActivities);
         return () => {
@@ -240,22 +210,15 @@ export function useAdminDashboard() {
         }, REFRESH_DELAY_MS);
     };
 
-    const refreshTransactions = () => withSpinner(setRefreshingTransactions, async () => {
-        await loadDashboardData();
-    });
+    const refreshTransactions = () => withSpinner(setRefreshingTransactions, () => loadDashboardData());
     const refreshPerformance = () => withSpinner(setRefreshingPerformance, async () => {
         const data = await fetchStaffPerformance();
         setStaffPerformance(data);
     });
-    const refreshDistribution = () => withSpinner(setRefreshingDistribution, async () => {
-        await loadDashboardData();
-    });
+    const refreshDistribution = () => withSpinner(setRefreshingDistribution, () => loadDashboardData());
     const refreshAccessRequests = () => withSpinner(setRefreshingAccessRequests, () => loadAccessRequestMetrics());
-    const refreshQueue = () => withSpinner(setRefreshingQueue, async () => {
-        await loadDashboardData();
-    });
+    const refreshQueue = () => withSpinner(setRefreshingQueue, () => loadDashboardData());
 
-    // Load real staff performance data on mount
     useEffect(() => {
         fetchStaffPerformance()
             .then(setStaffPerformance)
@@ -272,23 +235,17 @@ export function useAdminDashboard() {
         searchQuery,
         setSearchQuery,
         dateFilter,
-
-        // Data states
         accessRequests,
         requestQueue,
         transactions,
         distribution,
         staffPerformance,
         activities,
-
-        // Refresh indicators
         refreshingTransactions,
         refreshingPerformance,
         refreshingDistribution,
         refreshingAccessRequests,
         refreshingQueue,
-
-        // Handlers
         refreshTransactions,
         refreshPerformance,
         refreshDistribution,
