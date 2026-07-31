@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 9.5, fontFamily: 'Times-Bold', width: '40%', textAlign: 'right', paddingRight: 10, marginTop: 2 },
 
   // Signature & Memo Styles
-  signatureSection: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, marginBottom: 6 },
+  signatureSection: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2, marginBottom: 6 },
   verifiedBlock: { width: '45%' },
   assessorBlock: { width: '45%', alignItems: 'center' },
   signatureUnderline: { borderBottomWidth: 1, width: '100%', textAlign: 'center', fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10, minHeight: 14 },

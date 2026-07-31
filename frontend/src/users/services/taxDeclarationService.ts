@@ -42,6 +42,8 @@ export const taxDeclarationService = {
             amountInWords: formData.amountInWords,
             taxability: formData.taxability,
             cancelledTdNumber: formData.arpNumber,
+            assessorName: formData.assessorName,
+            assessorTitle: formData.assessorTitle,
             memoranda: formData.memoranda,
             notes: formData.notes,
             assessmentRows: formData.assessmentRows.map((row, idx) => ({
@@ -151,6 +153,8 @@ export const taxDeclarationService = {
                 taxable: dbData.taxability === 'TAXABLE',
                 taxEffectivity: dbData.effectivity_year,
                 cancelsArpNo: dbData.cancelled_td_number,
+                assessorName: dbData.assessor_name,
+                assessorTitle: dbData.assessor_title,
                 memoranda: dbData.memoranda,
                 area: totalArea > 0 ? `${totalArea}${areaUnitSuffix ? ' ' + areaUnitSuffix : ''}` : '',
                 assessmentRows,
