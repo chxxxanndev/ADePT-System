@@ -23,13 +23,40 @@ const api = axios.create({ baseURL: API_ROOT });
 // Always pull the CURRENT, live session token from Supabase itself
 api.interceptors.request.use(async (config) => {
     const { data } = await supabase.auth.getSession();
+    console.log('[DEBUG interceptor]', config.url, '| session exists:', !!data.session);
     const token = data.session?.access_token;
     if (token) {
-        // Bypass strict AxiosHeaders type check by casting to any
         (config.headers as any).Authorization = `Bearer ${token}`;
     }
     return config;
 }, (error) => Promise.reject(error));
+
+// NEW — on first load, Supabase may still be hydrating the session from
+// storage when a request goes out, so it can leave with no token and get
+// a 401 even though the user IS logged in. This retries such a request
+// exactly once, after re-checking for a session, instead of surfacing the
+// error to the UI (which is why "Retry" always fixed it manually before).
+api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+            originalRequest._retry = true;
+            try {
+                const { data } = await supabase.auth.getSession();
+                const token = data.session?.access_token;
+                if (token) {
+                    originalRequest.headers = originalRequest.headers || {};
+                    (originalRequest.headers as any).Authorization = `Bearer ${token}`;
+                    return api(originalRequest);
+                }
+            } catch (refreshErr) {
+                console.error('Session retry failed', refreshErr);
+            }
+        }
+        return Promise.reject(error);
+    }
+);
 
 export const requestService = {
     getMetadata: async () => {
