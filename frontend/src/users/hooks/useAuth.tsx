@@ -14,6 +14,8 @@ function useAuthState() {
         return saved ? JSON.parse(saved) : null;
     });
 
+    const [sessionReady, setSessionReady] = useState(false);
+
     const [mockDb, setMockDb] = useState<MockUser[]>(() => {
         const saved = localStorage.getItem('adept_mock_db');
         if (saved) return JSON.parse(saved);
@@ -69,6 +71,7 @@ function useAuthState() {
 
         const token = localStorage.getItem('adept_token');
         const refreshToken = localStorage.getItem('adept_refresh_token');
+
         if (token && refreshToken) {
             supabase.auth.setSession({ access_token: token, refresh_token: refreshToken }).catch(() => {
                 // Token is stale (e.g. after an outage or expiry) — clear it so
@@ -79,7 +82,6 @@ function useAuthState() {
                 setCurrentUser(null);
             });
         }
-
         return () => subscription.unsubscribe();
     }, []);
 
@@ -107,15 +109,21 @@ function useAuthState() {
                 }
 
                 if (res.ok) {
-                    localStorage.setItem('adept_token', data.token);
-                    localStorage.setItem('adept_refresh_token', data.refreshToken);
-                    localStorage.setItem('adept_user', JSON.stringify(data.user));
-                    setCurrentUser(data.user);
+                    // Establish the Supabase session FIRST — Dashboard (and its
+                    // notification/metadata fetches) must not mount until the
+                    // client actually has the token to attach to requests.
                     await supabase.auth.setSession({
                         access_token: data.token,
                         refresh_token: data.refreshToken,
                     });
-                    addAdminAuditEntry({ type: 'login', description: 'logged in' }).catch(() => {});
+
+                    localStorage.setItem('adept_token', data.token);
+                    localStorage.setItem('adept_refresh_token', data.refreshToken);
+                    localStorage.setItem('adept_user', JSON.stringify(data.user));
+
+                    setCurrentUser(data.user); // only now does Dashboard get permission to mount
+
+                    addAdminAuditEntry({ type: 'login', description: 'logged in' }).catch(() => { });
                     return { success: true, message: 'Successfully signed in.' };
                 }
                 return { success: false, message: data.error || 'Invalid credentials.' };
@@ -142,6 +150,7 @@ function useAuthState() {
                             };
                             localStorage.setItem('adept_user', JSON.stringify(userObj));
                             setCurrentUser(userObj);
+                            setSessionReady(true);
                             resolve({ success: true, message: 'Successfully signed in (Standalone Demo Mode).' });
                         } else {
                             resolve({ success: false, message: 'Invalid username/email or password.' });
@@ -179,14 +188,14 @@ function useAuthState() {
             const data = await res.json();
 
             if (res.ok) {
-                localStorage.setItem('adept_token', data.token);
-                localStorage.setItem('adept_refresh_token', data.refreshToken);
-                localStorage.setItem('adept_user', JSON.stringify(data.user));
-                setCurrentUser(data.user);
                 await supabase.auth.setSession({
                     access_token: data.token,
                     refresh_token: data.refreshToken,
                 });
+                localStorage.setItem('adept_token', data.token);
+                localStorage.setItem('adept_refresh_token', data.refreshToken);
+                localStorage.setItem('adept_user', JSON.stringify(data.user));
+                setCurrentUser(data.user);
                 return { success: true, message: data.message || 'Account reactivated.' };
             }
             return { success: false, message: data.error || 'Failed to reactivate account.' };
@@ -270,7 +279,7 @@ function useAuthState() {
     };
 
     const logout = () => {
-        addAdminAuditEntry({ type: 'logout', description: 'logged out' }).catch(() => {});
+        addAdminAuditEntry({ type: 'logout', description: 'logged out' }).catch(() => { });
         localStorage.removeItem('adept_user');
         localStorage.removeItem('adept_token');
         localStorage.removeItem('adept_refresh_token');
@@ -280,6 +289,7 @@ function useAuthState() {
 
     return {
         currentUser,
+        sessionReady,
         updateCurrentUser,
         backendHealthy,
         loading,
@@ -291,30 +301,15 @@ function useAuthState() {
     };
 }
 
-// ─── Context wiring ────────────────────────────────────────────────────────────
 type AuthContextValue = ReturnType<typeof useAuthState>;
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-/**
- * Wrap your whole app in this ONCE (in App.tsx). Every component that calls
- * useAuth() below will then share this exact same state instance — so
- * updateCurrentUser() called from ANY page (Settings, Admin Settings, etc.)
- * immediately reflects everywhere else too (header, sidebar, other pages),
- * instead of each component silently keeping its own disconnected copy.
- */
 export function AuthProvider({ children }: { children: ReactNode }) {
     const authState = useAuthState();
     return <AuthContext.Provider value={authState}>{children}</AuthContext.Provider>;
 }
 
-/**
- * Same name, same import path as before — every existing
- * `import { supabase } from '../../lib/supabaseClient';
-import { addAdminAuditEntry } from '../../admin/services/auditLogService';` across your codebase
- * keeps working with ZERO changes. It now pulls from the shared context
- * instead of creating an isolated state instance.
- */
 export function useAuth(): AuthContextValue {
     const ctx = useContext(AuthContext);
     if (!ctx) {

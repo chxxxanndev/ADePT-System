@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { supabase } from '../../lib/supabaseClient';
-import { API_ROOT } from '../../config'; // Import the central config we made
 
 export interface RequestFormData {
     id?: string;
@@ -17,38 +16,42 @@ export interface RequestFormData {
     purposeOtherText?: string;
 }
 
-// We add /api here because your routes below start with /requests
-const BASE_URL = `${API_ROOT}/api`; 
+const API_ROOT = 'http://localhost:5000/api';
 
-export const api = axios.create({ baseURL: BASE_URL });
+const api = axios.create({ baseURL: API_ROOT });
 
-// 1. REQUEST INTERCEPTOR (Stops the 401)
+// Always pull the CURRENT, live session token from Supabase itself
 api.interceptors.request.use(async (config) => {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
-
-    if (!token) {
-        const source = axios.CancelToken.source();
-        config.cancelToken = source.token;
-        // We use a specific string 'SILENT_CANCEL'
-        source.cancel('SILENT_CANCEL'); 
-        return config;
-    }
-
     if (token) {
         (config.headers as any).Authorization = `Bearer ${token}`;
     }
     return config;
 }, (error) => Promise.reject(error));
 
-// 2. RESPONSE INTERCEPTOR (Stops the Red CanceledError text)
+// NEW — on first load, Supabase may still be hydrating the session from
+// storage when a request goes out, so it can leave with no token and get
+// a 401 even though the user IS logged in. This retries such a request
+// exactly once, after re-checking for a session, instead of surfacing the
+// error to the UI (which is why "Retry" always fixed it manually before).
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
-        // If the error is our 'SILENT_CANCEL', we return a promise that 
-        // never resolves. This makes the error vanish from the console.
-        if (axios.isCancel(error) && error.message === 'SILENT_CANCEL') {
-            return new Promise(() => {}); 
+    async (error) => {
+        const originalRequest = error.config;
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+            originalRequest._retry = true;
+            try {
+                const { data } = await supabase.auth.getSession();
+                const token = data.session?.access_token;
+                if (token) {
+                    originalRequest.headers = originalRequest.headers || {};
+                    (originalRequest.headers as any).Authorization = `Bearer ${token}`;
+                    return api(originalRequest);
+                }
+            } catch (refreshErr) {
+                console.error('Session retry failed', refreshErr);
+            }
         }
         return Promise.reject(error);
     }

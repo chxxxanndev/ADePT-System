@@ -17,6 +17,7 @@ function App() {
 
   const {
     currentUser,
+    sessionReady,
     backendHealthy,
     loading,
     login,
@@ -39,6 +40,10 @@ function App() {
     }
   }, []);
 
+  if (currentUser && !sessionReady) {
+    return <div className="white-screen-fix">Restoring session...</div>;
+  }
+
   if (currentUser) {
     const isAdminOrAbove =
       currentUser.role === 'SUPER_ADMIN' ||
@@ -60,7 +65,7 @@ function App() {
         </CartProvider>
       </BrowserRouter>
     );
-}
+  }
 
   return (
     <BrowserRouter>

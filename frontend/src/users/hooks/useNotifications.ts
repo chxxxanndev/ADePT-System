@@ -21,7 +21,10 @@ export function useNotifications(user: User | null | undefined) {
     const unreadCount = notifications.filter((n) => !n.is_read).length;
 
     const fetchNotifications = useCallback(async () => {
-        if (!user?.staffId) return;
+        if (!user?.staffId) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         setError('');
         try {
@@ -39,7 +42,6 @@ export function useNotifications(user: User | null | undefined) {
         fetchNotifications();
     }, [fetchNotifications]);
 
-    // Realtime subscription — one channel per staff member, lives for the whole session
     useEffect(() => {
         if (!user?.staffId) return;
 
@@ -48,12 +50,12 @@ export function useNotifications(user: User | null | undefined) {
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${user.staffId}` },
-                (payload) => setNotifications((prev) => [payload.new as NotificationItem, ...prev])
+                () => { fetchNotifications(); }
             )
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [user?.staffId]);
+    }, [user?.staffId, fetchNotifications]);
 
     const markAsRead = useCallback((notificationId: string) => {
         setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)));
