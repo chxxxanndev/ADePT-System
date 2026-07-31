@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -52,6 +52,11 @@ const STATUS_CLASS: Record<DeclarantStatus, string> = {
   "Pending Verification": "status-badge--pending-verification",
    Flagged: "status-badge--flagged",
 };
+
+// FIX: pagination options for the Declarant Records table, mirroring
+// TransactionTable.tsx's ROWS_PER_PAGE_OPTIONS so behavior/labels match
+// across the app (see TransactionRegistry's "Rows per page" control).
+const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
 /* ------------------------------------------------------------------ */
 /*  Small building blocks                                             */
@@ -164,6 +169,10 @@ export default function Reports() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<DeclarantStatus | "All">("All");
 
+  // FIX: pagination state for the Declarant Records table.
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [page, setPage] = useState(1);
+
   const filteredDeclarants = useMemo(() => {
     return analytics.declarantRows.filter((d) => {
       const matchesSearch =
@@ -177,6 +186,26 @@ export default function Reports() {
       return matchesSearch && matchesStatus;
     });
   }, [analytics.declarantRows, search, statusFilter]);
+
+  // FIX: whenever the filtered result set changes (new search term or
+  // status filter), jump back to page 1 — otherwise a user filtering down
+  // to fewer results could get stranded on a now out-of-range page.
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredDeclarants.length / rowsPerPage));
+  const currentPage = Math.min(page, totalPages);
+
+  const pageItems = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredDeclarants.slice(start, start + rowsPerPage);
+  }, [filteredDeclarants, currentPage, rowsPerPage]);
+
+  const handleRowsPerPageChange = (value: number) => {
+    setRowsPerPage(value);
+    setPage(1);
+  };
 
   if (analytics.loading) {
     return (
@@ -354,7 +383,7 @@ export default function Reports() {
                 </tr>
               </thead>
               <tbody>
-                {filteredDeclarants.map((d, idx) => (
+                {pageItems.map((d, idx) => (
                   <tr key={d.reference} className={idx % 2 !== 0 ? "row-alt" : ""}>
                     <td className="cell-reference">#{d.reference}</td>
                     <td className="cell-name">{d.declarantName}</td>
@@ -376,6 +405,50 @@ export default function Reports() {
             </table>
           </div>
         </div>
+
+        {/* FIX: pagination controls for Declarant Records, mirroring
+            TransactionTable.tsx's .tr-pagination layout/behavior. Hidden
+            when there are no matching records so the empty-state message
+            in the table isn't crowded by a redundant "0 of 0" bar. */}
+        {filteredDeclarants.length > 0 && (
+          <div className="reports-pagination">
+            <div className="reports-pagination-rows">
+              <span>Rows per page:</span>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
+              >
+                {ROWS_PER_PAGE_OPTIONS.map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </div>
+
+            <span className="reports-pagination-label">
+              {`${(currentPage - 1) * rowsPerPage + 1}–${Math.min(currentPage * rowsPerPage, filteredDeclarants.length)} of ${filteredDeclarants.length}`}
+            </span>
+
+            <div className="reports-pagination-controls">
+              <button
+                type="button"
+                className="reports-pagination-btn"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </button>
+              <span className="reports-pagination-label">Page {currentPage} of {totalPages}</span>
+              <button
+                type="button"
+                className="reports-pagination-btn"
+                disabled={currentPage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

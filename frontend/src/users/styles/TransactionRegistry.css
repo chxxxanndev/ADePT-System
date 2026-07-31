@@ -288,7 +288,7 @@
 /* Actions */
 
 .tr-row {
-    cursor: pointer;
+    cursor: default;
     transition: background-color 0.15s ease, box-shadow 0.15s ease;
     box-shadow: inset 3px 0 0 0 transparent;
 }

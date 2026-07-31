@@ -21,8 +21,12 @@ export function TransactionRow({ group, onViewDetails, onVoidGroup }: Transactio
         ? `${latest.referenceNumber} (+${group.transactions.length - 1} more)`
         : latest.referenceNumber;
 
+    // FIX: the row itself no longer has an onClick. Previously
+    // `onClick={() => onViewDetails(group)}` lived on the <tr>, so clicking
+    // anywhere in the row (not just the eye icon) opened the details panel.
+    // Now the eye-icon button below is the only trigger for onViewDetails.
     return (
-        <tr className="tr-row" onClick={() => onViewDetails(group)} title="Click to view full transaction details">
+        <tr className="tr-row">
             <td className="tr-ref">{referenceLabel}</td>
             <td>
                 <span className="tr-declarant">{group.declarantName}</span>
@@ -31,7 +35,7 @@ export function TransactionRow({ group, onViewDetails, onVoidGroup }: Transactio
             <td>{latest.dateRequested}</td>
             <td>{latest.assignedStaff}</td>
             <td><StatusBadge status={latest.status} /></td>
-            <td onClick={(e) => e.stopPropagation()}>
+            <td>
                 <div className="tr-actions">
                     <button className="tr-action-btn" title="View details" aria-label="View details" onClick={() => onViewDetails(group)}><EyeIcon /></button>
                     <button className="tr-action-btn tr-action-btn--danger" title="Void documents" aria-label="Void documents" onClick={() => onVoidGroup(group)}><VoidIcon /></button>

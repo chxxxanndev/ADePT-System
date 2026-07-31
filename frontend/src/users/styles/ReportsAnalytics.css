@@ -575,6 +575,76 @@
   color: var(--color-archived);
 }
 
+/* ---------- Pagination ----------
+   FIX: added to support the Declarant Records pagination bar in
+   Reports.tsx. Mirrors .tr-pagination / .tr-pagination-* from
+   TransactionRegistry.css so both tables look and behave the same way,
+   just re-themed with this file's own CSS variables. */
+
+.reports-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 4px 4px 0;
+}
+
+.reports-pagination-rows {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+
+.reports-pagination-rows select {
+  border: 1px solid var(--input-border);
+  border-radius: 7px;
+  padding: 5px 8px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  color: var(--color-primary);
+  font-weight: 600;
+  background-color: var(--input-bg);
+  cursor: pointer;
+}
+
+.reports-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reports-pagination-btn {
+  background: var(--color-surface);
+  border: 1px solid var(--glass-border);
+  color: var(--color-primary);
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.reports-pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.reports-pagination-btn:not(:disabled):hover {
+  background: var(--table-header-bg);
+}
+
+.reports-pagination-label {
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* ---------- Responsive (single breakpoint, matches PendingPayment.css) ---------- */
 
 @media (max-width: 720px) {
@@ -622,6 +692,15 @@
 
   .reports-table {
     min-width: 640px;
+  }
+
+  .reports-pagination {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .reports-pagination-controls {
+    justify-content: center;
   }
 }
 
