@@ -107,8 +107,8 @@ export const requestService = {
         return response.data;
     },
 
-    forwardRequest: async (requestId: string, recipientStaffId: string, note: string) => {
-        const response = await api.post(`/requests/${requestId}/forward`, { recipientStaffId, note });
+    forwardRequest: async (requestId: string, recipientStaffId: string, note: string, actorStaffId: string) => {
+        const response = await api.post(`/requests/${requestId}/forward`, { recipientStaffId, note, actorStaffId });
         return response.data;
     },
 

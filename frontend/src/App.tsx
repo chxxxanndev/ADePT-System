@@ -28,6 +28,20 @@ function App() {
     logout
   } = useAuth();
 
+  // Only show the "Restoring session..." UI if the restore is taking a
+  // noticeable amount of time (>150ms). Most restores resolve well under
+  // that, so this avoids a jarring flash on every refresh while still
+  // blocking Dashboard from mounting until sessionReady is actually true.
+  const [showRestoring, setShowRestoring] = useState(false);
+
+  useEffect(() => {
+    if (currentUser && !sessionReady) {
+      const timer = setTimeout(() => setShowRestoring(true), 150);
+      return () => clearTimeout(timer);
+    }
+    setShowRestoring(false);
+  }, [currentUser, sessionReady]);
+
   const handleSignupSuccess = (username: string) => {
     setPrefilledUsername(username);
   };
@@ -41,7 +55,9 @@ function App() {
   }, []);
 
   if (currentUser && !sessionReady) {
-    return <div className="white-screen-fix">Restoring session...</div>;
+    return showRestoring
+      ? <div className="white-screen-fix">Restoring session...</div>
+      : null;
   }
 
   if (currentUser) {
