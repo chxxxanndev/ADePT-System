@@ -108,7 +108,7 @@ export const forwardRequest = async (req, res) => {
         const result = await RequestService.forwardRequest(id, {
             recipientStaffId: recipientStaffId || targetStaffId,
             note,
-            actorStaffId: req.user?.id
+            actorStaffId: req.staffId   // ← trustworthy, server-verified, no client involvement needed
         });
         res.status(200).json({ message: 'Request forwarded.', request: result });
     } catch (error) {
@@ -116,6 +116,7 @@ export const forwardRequest = async (req, res) => {
         res.status(statusCode).json({ error: error.message });
     }
 };
+
 export const markAsReleased = async (req, res) => {
     try {
         const { id } = req.params;
