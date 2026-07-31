@@ -69,9 +69,12 @@ export const navSections: NavSection[] = [
         label: 'Processing',
         items: [
             {
-                label: 'Pending Payments', // Renamed for clarity
+                label: 'Pending Requests',
                 icon: 'documentProcessing',
-                view: 'pending-payment', // Direct link, no subItems
+                subItems: [
+                    { label: 'Pending Payments', dotColor: 'green', view: 'pending-payment' },
+                    { label: 'Pending For Release', dotColor: 'blue', view: 'pending-for-release' },
+                ],
             },
         ],
     },
@@ -95,7 +98,7 @@ export const navSections: NavSection[] = [
         items: [{ label: 'Reports & Analytics', icon: 'reports', view: 'reports' }],
     },
     {
-        label: 'Other',
+        label: 'Others',
         items: [
             { label: 'Settings', icon: 'settings', view: 'account-settings' },
         ],
