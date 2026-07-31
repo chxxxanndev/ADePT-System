@@ -327,7 +327,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
         }
 
         try {
-            await requestService.forwardRequest(requestId, staffId, note);
+            await requestService.forwardRequest(requestId, staffId, note, user.staffId);
             setShowForwardModal(false);
             onCancel();
         } catch (err) {
