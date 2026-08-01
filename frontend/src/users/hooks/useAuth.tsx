@@ -19,17 +19,17 @@ function initSessionOnce(): Promise<void> {
         sessionInitPromise = (async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
-                const token = localStorage.getItem('adept_token');
-                const refreshToken = localStorage.getItem('adept_refresh_token');
+                const token = sessionStorage.getItem('adept_token');
+                const refreshToken = sessionStorage.getItem('adept_refresh_token');
                 if (token && refreshToken) {
                     try {
                         await supabase.auth.setSession({ access_token: token, refresh_token: refreshToken });
                     } catch {
                         // Token is stale (e.g. after an outage or expiry) — clear it so
                         // the app drops to the login screen instead of firing 401s.
-                        localStorage.removeItem('adept_token');
-                        localStorage.removeItem('adept_refresh_token');
-                        localStorage.removeItem('adept_user');
+                        sessionStorage.removeItem('adept_token');
+                        sessionStorage.removeItem('adept_refresh_token');
+                        sessionStorage.removeItem('adept_user');
                     }
                 }
             }
@@ -40,12 +40,15 @@ function initSessionOnce(): Promise<void> {
 
 function useAuthState() {
     const [currentUser, setCurrentUser] = useState<User | null>(() => {
-        const saved = localStorage.getItem('adept_user');
+        const saved = sessionStorage.getItem('adept_user');
         return saved ? JSON.parse(saved) : null;
     });
 
     const [sessionReady, setSessionReady] = useState(false);
 
+    // NOTE: mockDb intentionally stays on localStorage — it's just the
+    // offline-demo-mode fallback account list, not a live session, so
+    // there's no security reason to wipe it when the tab closes.
     const [mockDb, setMockDb] = useState<MockUser[]>(() => {
         const saved = localStorage.getItem('adept_mock_db');
         if (saved) return JSON.parse(saved);
@@ -85,22 +88,28 @@ function useAuthState() {
         checkHealth();
     }, []);
 
-    // Keep localStorage tokens in sync with Supabase's session, AND restore
+    // Keep sessionStorage tokens in sync with Supabase's session, AND restore
     // the client's session on load via the module-level singleton above.
     // sessionReady only flips true once that restore attempt has actually
     // resolved (successfully or by clearing a stale token) — this is the
     // ONLY place that drives sessionReady on initial load. Do not add a
     // second setSession() call anywhere else in a mount-time effect.
+    //
+    // SECURITY: session data lives in sessionStorage (not localStorage) so
+    // closing the tab/browser clears it — staff are forced back to the
+    // login screen next time the app is opened, instead of staying signed
+    // in indefinitely. Supabase's own client storage is likewise set to
+    // sessionStorage in supabaseClient.ts; both must stay in sync.
     useEffect(() => {
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
             if (session) {
-                localStorage.setItem('adept_token', session.access_token);
-                localStorage.setItem('adept_refresh_token', session.refresh_token);
+                sessionStorage.setItem('adept_token', session.access_token);
+                sessionStorage.setItem('adept_refresh_token', session.refresh_token);
             } else {
-                localStorage.removeItem('adept_token');
-                localStorage.removeItem('adept_refresh_token');
+                sessionStorage.removeItem('adept_token');
+                sessionStorage.removeItem('adept_refresh_token');
             }
         });
 
@@ -143,9 +152,9 @@ function useAuthState() {
                         refresh_token: data.refreshToken,
                     });
 
-                    localStorage.setItem('adept_token', data.token);
-                    localStorage.setItem('adept_refresh_token', data.refreshToken);
-                    localStorage.setItem('adept_user', JSON.stringify(data.user));
+                    sessionStorage.setItem('adept_token', data.token);
+                    sessionStorage.setItem('adept_refresh_token', data.refreshToken);
+                    sessionStorage.setItem('adept_user', JSON.stringify(data.user));
 
                     setCurrentUser(data.user); // only now does Dashboard get permission to mount
                     setSessionReady(true);
@@ -175,7 +184,7 @@ function useAuthState() {
                                 role: userIndex === 0 ? 'SUPER_ADMIN' : 'OFFICE_STAFF',
                                 suffix: user.suffix,
                             };
-                            localStorage.setItem('adept_user', JSON.stringify(userObj));
+                            sessionStorage.setItem('adept_user', JSON.stringify(userObj));
                             setCurrentUser(userObj);
                             setSessionReady(true);
                             resolve({ success: true, message: 'Successfully signed in (Standalone Demo Mode).' });
@@ -196,7 +205,7 @@ function useAuthState() {
         setCurrentUser((prev) => {
             if (!prev) return prev;
             const updated = { ...prev, ...patch };
-            localStorage.setItem('adept_user', JSON.stringify(updated));
+            sessionStorage.setItem('adept_user', JSON.stringify(updated));
             return updated;
         });
     };
@@ -219,9 +228,9 @@ function useAuthState() {
                     access_token: data.token,
                     refresh_token: data.refreshToken,
                 });
-                localStorage.setItem('adept_token', data.token);
-                localStorage.setItem('adept_refresh_token', data.refreshToken);
-                localStorage.setItem('adept_user', JSON.stringify(data.user));
+                sessionStorage.setItem('adept_token', data.token);
+                sessionStorage.setItem('adept_refresh_token', data.refreshToken);
+                sessionStorage.setItem('adept_user', JSON.stringify(data.user));
                 setCurrentUser(data.user);
                 setSessionReady(true);
                 return { success: true, message: data.message || 'Account reactivated.' };
@@ -309,9 +318,9 @@ function useAuthState() {
     const logout = () => {
         addAdminAuditEntry({ type: 'logout', description: 'logged out' }).catch(() => { });
 
-        localStorage.removeItem('adept_user');
-        localStorage.removeItem('adept_token');
-        localStorage.removeItem('adept_refresh_token');
+        sessionStorage.removeItem('adept_user');
+        sessionStorage.removeItem('adept_token');
+        sessionStorage.removeItem('adept_refresh_token');
         supabase.auth.signOut();
         setCurrentUser(null);
     };
