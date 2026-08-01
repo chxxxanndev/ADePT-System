@@ -1,4 +1,4 @@
-import type { Transaction, TransactionSummary, DocumentType, RequestedDocumentItem } from '../types/transaction';
+import type { Transaction, TransactionSummary } from '../types/transaction';
 
 // ===== Mock Transaction Records =====
 // Swap this file for a Supabase/service call later.
