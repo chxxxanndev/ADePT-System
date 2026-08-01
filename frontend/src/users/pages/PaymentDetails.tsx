@@ -291,17 +291,23 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
         addAdminAuditEntry({
             type: 'document_released',
             description: `Released ${documents.length} document(s) to ${requesterName}`,
-        }).catch(() => {});
+        }).catch(() => { });
     };
 
     return (
         <div className="pd-page page-transition">
+            {workflowStep === 'VERIFICATION' && (
+                <nav className="pd-breadcrumbs" aria-label="Breadcrumb">
+                    <button type="button" className="pd-breadcrumb-link" onClick={onBack}>
+                        Pending Payments
+                    </button>
+                    <span className="pd-breadcrumb-sep">›</span>
+                    <span className="pd-breadcrumb-current">Verification and Payment</span>
+                </nav>
+            )}
+
             <div className="pd-panel">
                 <div className="pd-header-banner">
-                    {workflowStep === 'VERIFICATION' && (
-                        <button onClick={onBack} className="pd-header-back-btn" title="Back to Queue">&larr;</button>
-                    )}
-
                     <div className="pd-header-text">
                         <h2 className="pd-header-title">
                             {workflowStep === 'VERIFICATION'

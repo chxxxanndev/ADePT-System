@@ -129,4 +129,8 @@ export const requestService = {
         const response = await api.patch(`/requests/${id}/mark-released`, { releasedBy });
         return response.data;
     },
+    getTransactionRegistry: async () => {
+        const response = await api.get('/requests/registry');
+        return response.data; // { transactions: [...] }
+    },
 };

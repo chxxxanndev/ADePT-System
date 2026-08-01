@@ -461,6 +461,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
 
     const handleConfirmDiscard = () => {
         setShowDiscardModal(false);
+        try { localStorage.removeItem(RFE_LS_KEY); } catch { }
         onCancel();
     };
 
@@ -496,6 +497,17 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                     </div>
                 </div>
             )}
+
+            <div className="rfe-breadcrumb">
+                <span className="rfe-breadcrumb-link" onClick={onCancel}>Document Request</span>
+                <span className="rfe-breadcrumb-separator">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 6l6 6-6 6" />
+                    </svg>
+                </span>
+                <span className="rfe-breadcrumb-current">Request Form</span>
+            </div>
+
             <div className="rfe-page-inner">
                 <div className="rfe-card">
                     <div className="rfe-card-header">

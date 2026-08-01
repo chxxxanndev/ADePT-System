@@ -14,9 +14,49 @@
     margin-top: -18px;
 }
 
+/* ── Breadcrumb ───────────────────────────────────────────── */
+.rfe-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 28px 28px 25px 35px;
+    /* Aligned exactly with form card, nice top spacing */
+    margin: 0;
+}
+
+.rfe-breadcrumb-link {
+    color: #64748b;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+
+.rfe-breadcrumb-link:hover,
+.rfe-breadcrumb-link:active {
+    color: #0891b2;
+}
+
+.rfe-breadcrumb-separator {
+    color: #94a3b8;
+    /* Softer color for the separator */
+    font-size: 0.9rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+}
+
+.rfe-breadcrumb-current {
+    color: #29237a;
+    font-weight: 800;
+    text-decoration: none;
+}
+
 .rfe-page-inner {
     flex: 1;
-    padding: 4px 16px 20px;
+    padding: 0 28px 24px 28px;
+    /* Removed top padding, perfectly aligned sides */
     display: flex;
     flex-direction: column;
     gap: 0;
@@ -42,6 +82,7 @@
     justify-content: space-between;
     gap: 16px;
     flex-shrink: 0;
+    padding-bottom: 10px;
 }
 
 .rfe-card-header-left {

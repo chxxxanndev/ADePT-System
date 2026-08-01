@@ -133,6 +133,13 @@ export function DocumentRequestDashboard({
         });
     };
 
+    const formatDate = (value: string) => {
+        if (!value) return '—';
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return value;
+        return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+    };
+
     const REQUEST_CARDS = [
         {
             type: 'tax-declaration' as const,
@@ -220,7 +227,10 @@ export function DocumentRequestDashboard({
             <div className="doc-req-drafts-section">
                 <div className="doc-req-drafts-header">
                     <div className="doc-req-drafts-header-title">
-                        <h2>Saved Request Drafts</h2>
+                        <h2>
+                            Saved Request Drafts
+                            {drafts.length > 0 && <span className="doc-req-drafts-count">{drafts.length}</span>}
+                        </h2>
                         <p>Draft requests that need document generation or staff action</p>
                     </div>
                     {drafts.length > 0 && (
@@ -235,7 +245,7 @@ export function DocumentRequestDashboard({
                                     <span>Select</span>
                                 </button>
                             ) : (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div className="doc-req-select-actions">
                                     <button
                                         className="doc-req-select-all-btn"
                                         onClick={handleToggleSelectAll}
@@ -246,10 +256,6 @@ export function DocumentRequestDashboard({
                                         className="doc-req-delete-selected-btn"
                                         onClick={handleDeleteSelected}
                                         disabled={selectedDraftIds.length === 0}
-                                        style={{
-                                            opacity: selectedDraftIds.length === 0 ? 0.5 : 1,
-                                            cursor: selectedDraftIds.length === 0 ? 'not-allowed' : 'pointer',
-                                        }}
                                     >
                                         <TrashIcon size={14} />
                                         <span>Delete Selected ({selectedDraftIds.length})</span>
@@ -294,53 +300,56 @@ export function DocumentRequestDashboard({
                         {/* Table Layout Headers */}
                         <div className={`doc-req-draft-table-header ${selectMode ? 'has-checkbox' : ''}`}>
                             {selectMode && (
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div className="doc-req-checkbox-cell">
                                     <input
                                         type="checkbox"
                                         checked={selectedDraftIds.length === drafts.length && drafts.length > 0}
                                         onChange={handleToggleSelectAll}
                                         title="Select all drafts"
-                                        style={{ cursor: 'pointer', width: 16, height: 16 }}
                                     />
                                 </div>
                             )}
-                            <div>Reference Number</div>
+                            <div>Reference</div>
                             <div>Declarant</div>
-                            <div>Date Created</div>
                             <div>Document Details</div>
-                            <div style={{ textAlign: 'right', paddingRight: '12px' }}>Actions</div>
+                            <div className="doc-req-col-actions">Actions</div>
                         </div>
 
                         <div className="doc-req-drafts-list">
                             {drafts.map((draft) => {
                                 const docNames = getDocTypeNames(draft.documentTypeIds || []);
                                 const isSelected = selectedDraftIds.includes(draft.id);
+                                const declarant = draft.declarant_name || draft.declarantName || 'Unnamed Declarant';
                                 return (
                                     <div
                                         className={`doc-req-draft-row ${selectMode ? 'has-checkbox' : ''} ${isSelected ? 'selected' : ''}`}
                                         key={draft.id}
-                                        onClick={() => (selectMode ? toggleSelectDraft(draft.id) : onSelectDraft(draft))}
-                                        title={selectMode ? 'Click to select/deselect draft' : 'Click to resume processing this draft request'}
+                                        onClick={() => selectMode && toggleSelectDraft(draft.id)}
+                                        title={selectMode ? 'Click to select/deselect draft' : undefined}
                                     >
                                         {selectMode && (
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
+                                            <div className="doc-req-checkbox-cell" onClick={(e) => e.stopPropagation()}>
                                                 <input
                                                     type="checkbox"
                                                     checked={isSelected}
                                                     onChange={() => toggleSelectDraft(draft.id)}
-                                                    style={{ cursor: 'pointer', width: 16, height: 16 }}
                                                 />
                                             </div>
                                         )}
-                                        <div className="doc-req-draft-ref">
-                                            <FilePlusIcon size={14} />
-                                            <span>{draft.control_number || draft.referenceNumber || 'REF-XXXX'}</span>
+                                        <div className="doc-req-draft-ref-group">
+                                            <div className="doc-req-draft-ref">
+                                                <FilePlusIcon size={14} />
+                                                <span>{draft.control_number || draft.referenceNumber || 'REF-XXXX'}</span>
+                                                <span className="doc-req-draft-badge-status">
+                                                    {draft.status || 'Draft'}
+                                                </span>
+                                            </div>
+                                            <div className="doc-req-draft-date">
+                                                {formatDate(draft.request_date || draft.requestDate)}
+                                            </div>
                                         </div>
-                                        <div className="doc-req-draft-declarant">
-                                            {draft.declarant_name || draft.declarantName}
-                                        </div>
-                                        <div className="doc-req-draft-date">
-                                            {draft.request_date || draft.requestDate}
+                                        <div className="doc-req-draft-declarant" title={declarant}>
+                                            {declarant}
                                         </div>
                                         <div className="doc-req-draft-docs">
                                             {docNames.map((name, i) => (
@@ -350,19 +359,29 @@ export function DocumentRequestDashboard({
                                             ))}
                                         </div>
                                         <div className="doc-req-draft-actions">
-                                            <span className="doc-req-draft-badge-status">
-                                                {draft.status || 'Draft'}
-                                            </span>
-                                            <button className="doc-req-draft-action-btn" aria-label="Edit Draft">
-                                                <ClipboardListIcon size={15} />
+                                            {/* New Icon Edit Button */}
+                                            <button
+                                                className="doc-req-draft-edit-btn"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onSelectDraft(draft);
+                                                }}
+                                                title="Continue Editing"
+                                                aria-label="Edit Draft"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M12 20h9"></path>
+                                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                                                </svg>
                                             </button>
+
                                             <button
                                                 className="doc-req-draft-delete-btn"
                                                 onClick={(e) => handleDeleteDraft(e, draft)}
                                                 title="Delete Abandoned Draft"
                                                 aria-label="Delete Draft"
                                             >
-                                                <TrashIcon size={14} />
+                                                <TrashIcon size={15} />
                                             </button>
                                         </div>
                                     </div>

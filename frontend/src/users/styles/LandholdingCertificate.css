@@ -633,3 +633,28 @@
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(55, 48, 163, 0.15);
 }
+
+/* Save & Add Another / Review Transaction (footer-right buttons) */
+.lh-btn-secondary {
+    background: #16a34a;
+    color: #ffffff;
+    border: 1.5px solid #15803d;
+    box-shadow: 0 4px 14px rgba(22, 163, 74, 0.25);
+}
+
+.lh-btn-secondary:hover:not(:disabled) {
+    background: #15803d;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(22, 163, 74, 0.35);
+}
+
+.lh-btn-primary {
+    background: linear-gradient(135deg, #29237a 0%, #3730a3 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(41, 35, 122, 0.30);
+}
+
+.lh-btn-primary:hover:not(:disabled) {
+    box-shadow: 0 6px 20px rgba(41, 35, 122, 0.40);
+    transform: translateY(-1px);
+}

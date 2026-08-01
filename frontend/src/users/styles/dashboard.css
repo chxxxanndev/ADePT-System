@@ -1007,16 +1007,46 @@
 }
 
 /* Accent colors at rest — matched to reference */
-.stat-card.accent-teal  { background-color: #A8E2E8 !important; }
-.stat-card.accent-gold  { background-color: #FCEEA0 !important; }
-.stat-card.accent-green { background-color: #B8E0C0 !important; }
-.stat-card.accent-red   { background-color: #F8C8CA !important; }
+.stat-card.accent-teal {
+    background-color: #A8E2E8 !important;
+}
+
+.stat-card.accent-gold {
+    background-color: #FCEEA0 !important;
+}
+
+.stat-card.accent-green {
+    background-color: #B8E0C0 !important;
+}
+
+.stat-card.accent-red {
+    background-color: #F8C8CA !important;
+}
 
 /* Icon badge at rest — small rounded square with slightly deeper shade */
-.accent-teal .stat-card-icon  { background-color: rgba(0, 172, 193, 0.22); color: #007a8a; border-radius: 8px; }
-.accent-gold .stat-card-icon  { background-color: rgba(245, 158, 11, 0.22); color: #b45309; border-radius: 8px; }
-.accent-green .stat-card-icon { background-color: rgba(34, 160, 74, 0.22);  color: #1a6b35; border-radius: 8px; }
-.accent-red .stat-card-icon   { background-color: rgba(220, 53, 69, 0.22);  color: #9b1c2a; border-radius: 8px; }
+.accent-teal .stat-card-icon {
+    background-color: rgba(0, 172, 193, 0.22);
+    color: #007a8a;
+    border-radius: 8px;
+}
+
+.accent-gold .stat-card-icon {
+    background-color: rgba(245, 158, 11, 0.22);
+    color: #b45309;
+    border-radius: 8px;
+}
+
+.accent-green .stat-card-icon {
+    background-color: rgba(34, 160, 74, 0.22);
+    color: #1a6b35;
+    border-radius: 8px;
+}
+
+.accent-red .stat-card-icon {
+    background-color: rgba(220, 53, 69, 0.22);
+    color: #9b1c2a;
+    border-radius: 8px;
+}
 
 /* Hover — lift + shadow */
 .stat-card:hover {
@@ -1292,6 +1322,7 @@
         opacity: 0;
         transform: translate(-50%, 6px);
     }
+
     to {
         opacity: 1;
         transform: translate(-50%, 0);
@@ -1824,6 +1855,86 @@
 .page-transition {
     animation: page-enter 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+
+/* =========================================================
+   Unsaved Transaction Warning Modal (Dashboard-level guard)
+   ========================================================= */
+.utw-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+}
+
+.utw-modal {
+    background-color: var(--db-glass-card-bg);
+    border-radius: var(--db-radius-lg);
+    padding: 28px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.35);
+    animation: dropdown-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.utw-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.utw-icon-wrap {
+    background-color: var(--db-badge-gold-bg);
+    border-radius: 999px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.utw-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--db-text);
+}
+
+.utw-desc {
+    margin: 6px 0 0;
+    font-size: 0.9rem;
+    color: var(--db-text-muted);
+    line-height: 1.5;
+}
+
+.utw-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.utw-confirm-btn {
+    background-color: var(--db-primary);
+    color: #ffffff;
+    border: 1px solid var(--db-primary);
+    padding: 10px 22px;
+    border-radius: var(--db-radius-sm);
+    font-weight: 800;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-family: inherit;
+    transition: background-color 0.2s;
+}
+
+.utw-confirm-btn:hover {
+    background-color: var(--db-primary-hover);
+}
+
 
 /* =========================================================
    Print (used by Cashier Checkout's "Mark Paid & Print")

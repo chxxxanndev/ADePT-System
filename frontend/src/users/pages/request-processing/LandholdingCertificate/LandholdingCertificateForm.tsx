@@ -10,7 +10,6 @@ import { landholdingService } from '../../../services/landholdingService';
 import { useCart } from '../../../hooks/TransactionCartContext';
 import {
     XIcon,
-    CheckCircleIcon,
     AlertTriangleIcon,
     PlusIcon,
     ClipboardListIcon,
@@ -45,12 +44,10 @@ function resolvePropertyLocationLabel(
     return `${barangay.name}, ${municipalityName}, Z.N.`;
 }
 
-
-
 interface LandholdingCertificateFormProps {
     user: User;
     entryData: CompletedEntryData;
-    onBack: () => void;
+    onDiscard: () => void;
     onAddAnother: () => void;
     onGoToSummary: () => void;
 }
@@ -69,7 +66,7 @@ function PropertyRowItem({ row, onUpdate, onRemove, canRemove }: { row: Landhold
     );
 }
 
-export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnother, onGoToSummary }: LandholdingCertificateFormProps) {
+export function LandholdingCertificateForm({ user, entryData, onDiscard, onAddAnother, onGoToSummary }: LandholdingCertificateFormProps) {
     const LS_KEY = `adept-lh-${entryData.requestId}`;
 
     const [form, setForm] = useState<LandholdingFormData>(() => {
@@ -79,10 +76,14 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
         } catch { }
         return { ...EMPTY_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '' };
     });
+
     const { addItem } = useCart();
     const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
+
+    const [showDiscardModal, setShowDiscardModal] = useState(false);
+    const [discarding, setDiscarding] = useState(false);
+    const [discardError, setDiscardError] = useState('');
 
     // Auto-persist to localStorage on every change
     useEffect(() => {
@@ -124,15 +125,13 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
     const addRow = () => setForm((prev) => ({ ...prev, propertyRows: [...prev.propertyRows, EMPTY_LANDHOLDING_ROW()] }));
     const removeRow = (id: string) => setForm((prev) => ({ ...prev, propertyRows: prev.propertyRows.filter((r) => r.id !== id) }));
 
-    // Support review action
-    const handleSave = async (action: 'draft' | 'review' | 'add_another') => {
+    const handleSave = async (action: 'review' | 'add_another') => {
         if (!form.declarantName.trim()) return setSaveError('Declarant / Owner Name is required.');
         if (form.propertyRows.some((r) => !r.tdArpNumber.trim())) return setSaveError('TD/ARP No. is required for every property row.');
 
         setSaveError('');
         setSaving(true);
         try {
-            // NEW: actually save the certificate to the backend
             await landholdingService.saveCertificate({
                 requestId: entryData.requestId,
                 declarantName: form.declarantName,
@@ -141,31 +140,40 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
                 dateGiven: form.dateGiven,
                 givenAt: form.givenAt,
                 purpose: form.purpose,
-                action: action === 'draft' ? 'draft' : 'send_to_payment',
+                action: 'send_to_payment',
             }, user.id);
             localStorage.removeItem(LS_KEY);
 
-            // Replace the old addItem logic:
-            if (action !== 'draft') {
-                addItem({
-                    id: entryData.requestId,                  // FIX: Use real DB ID instead of Math.random()
-                    referenceNumber: entryData.referenceNumber, // FIX: Pass the ref number
-                    documentType: 'Certificate of Landholding', // (Change string based on the form)
-                    fee: 40.00,
-                    declarantName: entryData.declarantName,
-                    requestedByName: entryData.requestedByName,
-                });
-            }
+            addItem({
+                id: entryData.requestId,
+                referenceNumber: entryData.referenceNumber,
+                documentType: 'Certificate of Landholding',
+                fee: 40.00,
+                declarantName: entryData.declarantName,
+                requestedByName: entryData.requestedByName,
+            });
 
-            setSaved(true);
-            setTimeout(() => {
-                if (action === 'review') onGoToSummary();
-                else if (action === 'add_another') onAddAnother();
-            }, 1500);
+            if (action === 'review') onGoToSummary();
+            else onAddAnother();
         } catch (err: any) {
             setSaveError(err?.response?.data?.error || 'Failed to save. Please try again.');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleConfirmDiscard = async () => {
+        setDiscarding(true);
+        setDiscardError('');
+        try {
+            await requestService.updateRequest(entryData.requestId, { status: 'CANCELLED' });
+            try { localStorage.removeItem(LS_KEY); } catch { }
+            setShowDiscardModal(false);
+            onDiscard();
+        } catch (err) {
+            setDiscardError('Failed to discard this document. Please try again.');
+        } finally {
+            setDiscarding(false);
         }
     };
 
@@ -182,16 +190,6 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
                         </div>
                         <span className="lh-ref-chip">{entryData.referenceNumber}</span>
                     </div>
-
-                    {saved && (
-                        <div className="lh-success-banner">
-                            <span className="lh-success-icon"><CheckCircleIcon size={18} /></span>
-                            <div className="lh-success-text">
-                                <strong>Certificate saved successfully!</strong>
-                                <span>Record stored. Sent to payment queue.</span>
-                            </div>
-                        </div>
-                    )}
 
                     {saveError && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, padding: '12px 20px', margin: '0 32px 16px', color: '#b91c1c', fontSize: '0.88rem', fontWeight: 600 }}>
@@ -274,21 +272,66 @@ export function LandholdingCertificateForm({ user, entryData, onBack, onAddAnoth
                     {/* ── Footer actions ── */}
                     <div className="lh-footer">
                         <div className="lh-footer-left">
-                            <button type="button" className="lh-btn lh-btn-back" onClick={onBack}>← Back</button>
+                            <button
+                                type="button"
+                                className="lh-btn"
+                                style={{ background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3' }}
+                                onClick={() => setShowDiscardModal(true)}
+                                disabled={saving}
+                            >
+                                ✕ Discard Document
+                            </button>
                         </div>
                         <div className="lh-footer-right">
-
-                            <button type="button" className="lh-btn lh-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving} style={{ backgroundColor: '#10b981', color: 'white' }}>
-                                {saving ? <span className="lh-spinner" /> : <PlusIcon size={14} />} Save & Add Another
+                            <button type="button" className="lh-btn lh-btn-secondary" onClick={() => handleSave('add_another')} disabled={saving}>
+                                <ClipboardListIcon size={16} /> Save & Add Another
                             </button>
-                            <button type="button" className="lh-btn lh-btn-submit" onClick={() => handleSave('review')} disabled={saving}>
-                                {saving ? <span className="lh-spinner" /> : <ClipboardListIcon size={14} />} Review Transaction
+                            <button type="button" className="lh-btn lh-btn-primary" onClick={() => handleSave('review')} disabled={saving}>
+                                {saving ? 'Saving...' : 'Review Transaction →'}
                             </button>
                         </div>
                     </div>
 
                 </div>
             </div>
+
+            {/* ── Discard Modal ── */}
+            {showDiscardModal && (
+                <div
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}
+                    onClick={() => !discarding && setShowDiscardModal(false)}
+                >
+                    <div
+                        style={{ background: '#ffffff', borderRadius: '16px', padding: '28px', maxWidth: '420px', width: '100%', boxShadow: '0 20px 40px -8px rgba(0,0,0,0.35)' }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', marginBottom: '16px' }}>
+                            <div style={{ background: '#ffe4e6', borderRadius: '999px', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <AlertTriangleIcon size={22} />
+                            </div>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#1e293b' }}>Discard this document?</h3>
+                                <p style={{ margin: '6px 0 0', fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5 }}>
+                                    Reference <strong style={{ color: '#334155' }}>{entryData.referenceNumber}</strong> and everything entered on this form will be permanently cancelled. This can't be undone.
+                                </p>
+                            </div>
+                        </div>
+                        {discardError && (
+                            <div style={{ background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3', borderRadius: '8px', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '16px' }}>
+                                {discardError}
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                            <button type="button" onClick={() => setShowDiscardModal(false)} disabled={discarding} style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>
+                                Keep Editing
+                            </button>
+                            <button type="button" onClick={handleConfirmDiscard} disabled={discarding} style={{ background: '#e11d48', color: '#fff', border: '1px solid #e11d48', padding: '10px 20px', borderRadius: '8px', fontWeight: 800, cursor: 'pointer', fontSize: '0.9rem', opacity: discarding ? 0.7 : 1 }}>
+                                {discarding ? 'Discarding...' : 'Yes, Discard'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

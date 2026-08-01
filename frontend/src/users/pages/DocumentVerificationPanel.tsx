@@ -29,6 +29,30 @@ const docTypeLabel = (doc: any) =>
             ? 'Certificate of No Landholding'
             : 'Certificate of Landholding');
 
+// Maps a reference number prefix to a badge variant so ref numbers are
+// scannable at a glance (mirrors the color-coding used in the compact
+// document cards elsewhere in the app).
+const refBadgeVariant = (referenceNumber: string) => {
+    if (referenceNumber.startsWith('NLH')) return 'pd-ref-badge--nlh';
+    if (referenceNumber.startsWith('LH')) return 'pd-ref-badge--lh';
+    if (referenceNumber.startsWith('TD')) return 'pd-ref-badge--td';
+    return 'pd-ref-badge--default';
+};
+
+const EyeIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+        <circle cx="12" cy="12" r="3" />
+    </svg>
+);
+
+const PencilIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+);
+
 export const DocumentVerificationPanel: React.FC<DocumentVerificationPanelProps> = ({
     documents,
     totalAmount,
@@ -56,22 +80,26 @@ export const DocumentVerificationPanel: React.FC<DocumentVerificationPanelProps>
                                 <th>Ref. No</th>
                                 <th>Type</th>
                                 <th>Declarant / Owner</th>
-                                <th style={{ textAlign: 'right' }}>Actions</th>
+                                <th className="pd-col-action">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {documents.map((doc: any, i: number) => (
                                 <tr key={doc.id || i}>
-                                    <td className="pd-doc-ref">{doc.referenceNumber}</td>
+                                    <td>
+                                        <span className={`pd-ref-badge ${refBadgeVariant(doc.referenceNumber)}`}>
+                                            {doc.referenceNumber}
+                                        </span>
+                                    </td>
                                     <td className="pd-doc-type">{docTypeLabel(doc)}</td>
                                     <td className="pd-doc-declarant">{doc.declarantName || doc.declarant_name}</td>
-                                    <td style={{ textAlign: 'right' }}>
+                                    <td className="pd-col-action">
                                         <button
                                             onClick={() => onPreviewDoc(doc)}
-                                            style={{ color: '#4f46e5', backgroundColor: '#e0e7ff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontWeight: 500, cursor: 'pointer', fontSize: '13px' }}
-                                            title="Preview initial form details & edit typos"
+                                            className="pd-btn--view-details"
+                                            title="View and edit encoded details"
                                         >
-                                            👁 Preview / Edit Details
+                                            <EyeIcon /> View & Edit
                                         </button>
                                     </td>
                                 </tr>
@@ -99,17 +127,36 @@ export const DocumentVerificationPanel: React.FC<DocumentVerificationPanelProps>
 
                     <div className="pd-form-group">
                         <label className="pd-field-label">Official Receipt (O.R.) Number</label>
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            placeholder="e.g. 1234567"
-                            value={orNumber}
-                            onChange={(e) => onOrNumberChange(e.target.value.replace(/\D/g, ''))}
-                            disabled={isVerified}
-                            className={`pd-field-input${fieldErrors.orNumber ? ' pd-field-invalid' : ''}`}
-                        />
-                        {fieldErrors.orNumber && <span className="pd-field-error">{fieldErrors.orNumber}</span>}
+
+                        {!isVerified ? (
+                            <>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    maxLength={8}
+                                    placeholder="#1127307"
+                                    value={orNumber}
+                                    onChange={(e) => onOrNumberChange(e.target.value.replace(/\D/g, ''))}
+                                    className={`pd-field-input pd-field-input--or${fieldErrors.orNumber ? ' pd-field-invalid' : ''}`}
+                                />
+                                {fieldErrors.orNumber && <span className="pd-field-error">{fieldErrors.orNumber}</span>}
+                            </>
+                        ) : (
+                            <div className="pd-or-display">
+                                <span className="pd-or-spacer" aria-hidden="true"></span>
+                                <span className="pd-or-value">{orNumber}</span>
+                                <button
+                                    type="button"
+                                    onClick={onEditVerify}
+                                    className="pd-btn-icon-edit"
+                                    title="Edit O.R. Number"
+                                    aria-label="Edit O.R. Number"
+                                >
+                                    <PencilIcon />
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="pd-actions-row">
@@ -118,16 +165,9 @@ export const DocumentVerificationPanel: React.FC<DocumentVerificationPanelProps>
                                 {isVerifying ? 'Verifying Receipt...' : 'Verify Receipt'}
                             </button>
                         ) : (
-                            <div className="pd-verified-actions" style={{ flexDirection: 'column', gap: '10px' }}>
-                                <button onClick={onEditVerify} className="pd-btn pd-btn--edit-verify">Edit OR Info</button>
-                                <button
-                                    onClick={onConfirmAndGenerate}
-                                    className="pd-btn pd-btn--print"
-                                    style={{ backgroundColor: '#22c55e', color: 'white' }}
-                                >
-                                    Confirm & Generate Document(s) &rarr;
-                                </button>
-                            </div>
+                            <button onClick={onConfirmAndGenerate} className="pd-btn pd-btn--print pd-btn--compact">
+                                Confirm & Generate Document(s)
+                            </button>
                         )}
                     </div>
                 </div>

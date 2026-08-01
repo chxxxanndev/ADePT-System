@@ -1,0 +1,497 @@
+/* ==========================================================================
+   Document Release Panel Styles
+   ========================================================================== */
+
+.animation-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.pd-split-layout--viewer {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    gap: 24px;
+}
+
+.pd-pdf-viewer-container {
+    background-color: #323639;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    width: 100%;
+    max-width: 720px;
+    aspect-ratio: 8.5 / 11;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+}
+
+.pd-pdf-iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background-color: white;
+    display: block;
+}
+
+.pd-pdf-placeholder {
+    color: #94a3b8;
+    font-weight: 500;
+    text-align: center;
+    font-size: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.pd-placeholder-icon {
+    width: 42px;
+    height: 42px;
+    margin-bottom: 12px;
+    color: #cbd5e1;
+}
+
+.pd-placeholder-icon.spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.pd-split-layout--viewer .pd-col-left {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    justify-content: center;
+}
+
+.pd-split-layout--viewer .pd-col-right {
+    width: 400px;
+    flex: 0 0 400px;
+    flex-shrink: 0;
+}
+
+/* --- Sidebar Controls --- */
+.pd-sidebar-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-sizing: border-box;
+    height: 100%;
+}
+
+.pd-sidebar-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.pd-section-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+}
+
+/* --- Status row (separate element, sits above the Payment Verified card) --- */
+.pd-status-row {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.pd-status-badge--standalone {
+    box-shadow: 0 2px 6px rgba(159, 18, 57, 0.12);
+}
+
+/* --- Card 1: Payment Verified --- */
+.pd-payment-verified-card {
+    padding: 18px;
+    background-color: #f2fcf5;
+    /* Very pale green */
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+.pd-status-badge {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background-color: #ffe4e6;
+    /* Pale pink/red */
+    color: #9f1239;
+    /* Dark red */
+    border: 1px solid #fecdd3;
+}
+
+.pd-payment-details {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.pd-success-icon-minimal {
+    background: #22c55e;
+    color: white;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(34, 197, 94, 0.25);
+    flex-shrink: 0;
+}
+
+.pd-success-icon-minimal svg {
+    width: 22px;
+    height: 22px;
+}
+
+.pd-payment-text h3 {
+    margin: 0 0 4px 0;
+    color: #166534;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.pd-payment-text p {
+    margin: 0;
+    color: #15803d;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.pd-dot-separator {
+    color: #86efac;
+    margin: 0 4px;
+}
+
+/* --- Card 2: Document Lists & Color Codes --- */
+.pd-print-list-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pd-compact-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pd-compact-card:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.pd-compact-card--active {
+    border-color: #818cf8;
+    background: #eef2ff;
+    box-shadow: 0 0 0 1px #818cf8;
+}
+
+.pd-compact-card--active:hover {
+    background: #eef2ff;
+}
+
+.pd-compact-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pd-doc-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    width: max-content;
+}
+
+.pd-badge-icon {
+    width: 14px;
+    height: 14px;
+}
+
+.pd-doc-badge--nlh {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.pd-doc-badge--lh {
+    background-color: #fef9c3;
+    color: #b45309;
+    border: 1px solid #fef08a;
+}
+
+.pd-doc-badge--td {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.pd-doc-type-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748b;
+    padding-left: 2px;
+}
+
+.pd-compact-action {
+    display: flex;
+    align-items: center;
+}
+
+.pd-status-text {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.pd-status-text.pd-viewing {
+    color: #4f46e5;
+}
+
+.pd-status-text.pd-loading {
+    color: #94a3b8;
+}
+
+.pd-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #cbd5e1;
+}
+
+.pd-pulse-dot--active {
+    background-color: #4f46e5;
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4);
+    animation: pulse-dot 1.5s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+@keyframes pulse-dot {
+    to {
+        box-shadow: 0 0 0 6px rgba(79, 70, 229, 0);
+    }
+}
+
+.pd-btn--tiny-view {
+    background: transparent;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.pd-btn--tiny-view:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
+/* --- Dropdown / Select --- */
+.pd-sig-selectors {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.pd-field-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 8px;
+}
+
+/* Custom styled select box */
+.pd-select-fixed {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 44px 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 500;
+    color: #1e293b;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 16px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pd-select-fixed:hover {
+    border-color: #94a3b8;
+    background-color: #ffffff;
+}
+
+.pd-select-fixed:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    background-color: #ffffff;
+}
+
+.pd-field-error {
+    color: #ef4444;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* --- Actions Block --- */
+.pd-actions-card {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Pinned to the bottom of the sidebar column so it lines up with the
+   bottom corner of the PDF preview on the left */
+.pd-sidebar-actions-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: auto;
+    padding-top: 8px;
+}
+
+.pd-actions-row-compact {
+    display: flex;
+    gap: 12px;
+}
+
+.pd-btn--secondary-outline {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.pd-btn--secondary-outline:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+.pd-btn--secondary-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pd-btn--download-large {
+    width: 100%;
+    background-color: #312e81;
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 14px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(49, 46, 129, 0.2);
+    transition: all 0.2s ease;
+    display: block;
+}
+
+.pd-btn--download-large:hover:not(:disabled) {
+    background-color: #4338ca;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(49, 46, 129, 0.3);
+}
+
+.pd-btn--download-large:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* --- Responsive --- */
+@media (max-width: 1180px) {
+    .pd-split-layout--viewer .pd-col-right {
+        width: 340px;
+        flex: 0 0 340px;
+    }
+}
+
+@media (max-width: 980px) {
+    .pd-split-layout--viewer {
+        flex-direction: column;
+    }
+
+    .pd-split-layout--viewer .pd-col-right {
+        width: 100%;
+        flex-basis: auto;
+    }
+
+    .pd-sidebar-controls {
+        height: auto;
+    }
+
+    .pd-sidebar-actions-bottom {
+        margin-top: 0;
+    }
+}

@@ -31,6 +31,7 @@ import { TransactionRegistry } from './TransactionRegistry';
 import { TransactionSummary } from './request-processing/TransactionSummary';
 import { ROLES } from '../constants/roles';
 import { useNotifications } from '../hooks/useNotifications';
+import { useCart } from '../hooks/TransactionCartContext';
 
 // Single shared source of truth for registry-derived analytics — also used
 // by Reports.tsx, so the Analytics Overview / Document Distribution here and
@@ -60,14 +61,14 @@ const formatTransactionDateTime = (dateStr: string): string => {
 
 // Map a Transaction (from registry) to TransactionRow (for RecentTransactions)
 const mapTransactionToRow = (t: Transaction): TransactionRow => {
-    const docTypes = t.requestedDocuments?.map(d => d.documentType).join(', ') || 'N/A';
-        return {
+    const docTypes = t.requestedDocuments?.map((d) => d.documentType).join(', ') || 'N/A';
+    return {
         id: t.id,
         controlNumber: t.referenceNumber,
         declarant: t.client.declarantName,
         document: docTypes,
         // Cast status to match expected BadgeStatus in TransactionRow
-        status: (t.status as unknown) as any,
+        status: t.status as unknown as any,
         dateTime: formatTransactionDateTime(t.dateRequested),
     };
 };
@@ -90,6 +91,47 @@ const VIEW_LABELS: Record<string, string> = {
     'no-land-holding': 'Certificate of No Landholding',
 };
 
+const DOCUMENT_PROCESSING_VIEWS = new Set([
+    'tax-declaration', 'tax-dec',
+    'certificate-land-holding', 'land-holding',
+    'certificate-no-landholding', 'no-land-holding',
+]);
+
+// Mirrors RequestFormEntry's own localStorage key ('adept-rfe') and its
+// definition of "meaningfully filled in" — checked from outside that
+// component so Dashboard can guard navigation without prop drilling.
+function hasUnsavedRequestFormEntry(): boolean {
+    try {
+        const raw = localStorage.getItem('adept-rfe');
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        return !!(
+            data.declarantName?.trim() ||
+            data.requestedByName?.trim() ||
+            data.propertyLocation ||
+            (Array.isArray(data.documentTypeIds) && data.documentTypeIds.length > 0)
+        );
+    } catch {
+        return false;
+    }
+}
+
+// Mirrors the per-document localStorage keys written by
+// TaxDeclarationForm / LandholdingCertificateForm / NoLandholdingCertificateForm
+// ('adept-td-{id}', 'adept-lh-{id}', 'adept-nlh-{id}').
+function hasUnsavedDocumentForm(requestId?: string): boolean {
+    if (!requestId) return false;
+    try {
+        return !!(
+            localStorage.getItem(`adept-td-${requestId}`) ||
+            localStorage.getItem(`adept-lh-${requestId}`) ||
+            localStorage.getItem(`adept-nlh-${requestId}`)
+        );
+    } catch {
+        return false;
+    }
+}
+
 interface DashboardProps {
     user: User;
     onLogout: () => void;
@@ -101,9 +143,14 @@ const formatLastLogin = (dateString?: string) => {
     if (!dateString) return 'Just now';
     try {
         const date = new Date(dateString);
-        return date.toLocaleString('en-US', {
-            weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true
-        }).replace(',', ' •');
+        return date
+            .toLocaleString('en-US', {
+                weekday: 'short',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+            })
+            .replace(',', ' •');
     } catch (e) {
         return dateString;
     }
@@ -115,15 +162,67 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     );
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const [completedEntryData, setCompletedEntryData] = useState<CompletedEntryData | null>(null);
+    const [completedEntryData, setCompletedEntryData] = useState<CompletedEntryData | null>(() => {
+        try {
+            const raw = sessionStorage.getItem('adept-completed-entry-data');
+            return raw ? JSON.parse(raw) : null;
+        } catch {
+            return null;
+        }
+    });
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
     const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
     const [pendingVoidItems, setPendingVoidItems] = useState<VoidAmendRecord[]>([]);
+    const [navigationWarning, setNavigationWarning] = useState<
+        | { type: 'cart' }
+        | { type: 'entry-form' }
+        | { type: 'document-form'; label: string; goBackView: string }
+        | null
+    >(null);
 
     // --- Live registry analytics (weekly trend, document distribution, recent transactions) ---
     // Called unconditionally (rules-of-hooks) even though it's only rendered
     // for the 'dashboard' view, mirroring how useNotifications is used below.
     const analytics = useReportsAnalytics();
+    const { items: cartItems } = useCart();
+
+    const guardedSetActiveView = (view: string) => {
+        if (cartItems.length > 0 && view !== 'transaction-summary') {
+            setNavigationWarning({ type: 'cart' });
+            return;
+        }
+
+        if (activeView === 'new-request' && view !== 'new-request' && hasUnsavedRequestFormEntry()) {
+            setNavigationWarning({ type: 'entry-form' });
+            return;
+        }
+
+        if (
+            DOCUMENT_PROCESSING_VIEWS.has(activeView) &&
+            view !== activeView &&
+            hasUnsavedDocumentForm(completedEntryData?.requestId)
+        ) {
+            setNavigationWarning({
+                type: 'document-form',
+                label: VIEW_LABELS[activeView] ?? activeView,
+                goBackView: activeView,
+            });
+            return;
+        }
+
+        setActiveView(view);
+    };
+
+    const handleAcknowledgeNavigationWarning = () => {
+        if (!navigationWarning) return;
+        const target =
+            navigationWarning.type === 'cart' ? 'transaction-summary' :
+                navigationWarning.type === 'entry-form' ? 'new-request' :
+                    navigationWarning.goBackView;
+
+        setNavigationWarning(null);
+        setActiveView(target);
+    };
 
     // Recent transactions is just the 5 most-recently-requested Released
     // transactions out of the same registry fetch the rest of this hook
@@ -162,7 +261,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         try {
             const res = await requestService.getRequestById(requestId);
             setPrefilledRequestData(res.data || res);
-            setActiveView('new-request');
+            guardedSetActiveView('new-request');
         } catch (err) {
             console.error('Failed to load forwarded request', err);
             alert('Failed to load this request.');
@@ -177,14 +276,29 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
             let prefix = 'REF';
 
             if (type === 'tax') {
-                const found = docTypes.find((d: any) => d.name.toLowerCase().includes('tax declaration') || d.id === 'dt1');
-                if (found) { documentTypeIds = [found.id]; prefix = 'TD'; }
+                const found = docTypes.find(
+                    (d: any) => d.name.toLowerCase().includes('tax declaration') || d.id === 'dt1'
+                );
+                if (found) {
+                    documentTypeIds = [found.id];
+                    prefix = 'TD';
+                }
             } else if (type === 'landholding') {
-                const found = docTypes.find((d: any) => d.name.toLowerCase().includes('landholding') || d.id === 'dt3');
-                if (found) { documentTypeIds = [found.id]; prefix = 'LH'; }
+                const found = docTypes.find(
+                    (d: any) => d.name.toLowerCase().includes('landholding') || d.id === 'dt3'
+                );
+                if (found) {
+                    documentTypeIds = [found.id];
+                    prefix = 'LH';
+                }
             } else if (type === 'nolandholding') {
-                const found = docTypes.find((d: any) => d.name.toLowerCase().includes('no landholding') || d.id === 'dt4');
-                if (found) { documentTypeIds = [found.id]; prefix = 'NLH'; }
+                const found = docTypes.find(
+                    (d: any) => d.name.toLowerCase().includes('no landholding') || d.id === 'dt4'
+                );
+                if (found) {
+                    documentTypeIds = [found.id];
+                    prefix = 'NLH';
+                }
             }
 
             setPrefilledRequestData({
@@ -218,6 +332,29 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         setActiveView('document-request');
     };
 
+    const handleDiscardDocumentForm = async () => {
+        if (completedEntryData?.requestId) {
+            try {
+                await requestService.updateRequest(completedEntryData.requestId, { status: 'CANCELLED' });
+            } catch (err) {
+                console.error('Failed to cancel request on discard', err);
+            }
+            try {
+                localStorage.removeItem(`adept-td-${completedEntryData.requestId}`);
+                localStorage.removeItem(`adept-lh-${completedEntryData.requestId}`);
+                localStorage.removeItem(`adept-nlh-${completedEntryData.requestId}`);
+            } catch { }
+        }
+        setCompletedEntryData(null);
+        setActiveView('document-request');
+    };
+
+    const handleDiscardRequestFormEntry = () => {
+        try { localStorage.removeItem('adept-rfe'); } catch { }
+        setNavigationWarning(null);
+        setActiveView('document-request');
+    };
+
     useEffect(() => {
         const scrollContainer = document.querySelector('.dashboard-main');
         scrollContainer?.scrollTo(0, 0);
@@ -226,6 +363,33 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     useEffect(() => {
         sessionStorage.setItem('adept-active-view', activeView);
     }, [activeView]);
+
+    useEffect(() => {
+        try {
+            if (completedEntryData) {
+                sessionStorage.setItem('adept-completed-entry-data', JSON.stringify(completedEntryData));
+            } else {
+                sessionStorage.removeItem('adept-completed-entry-data');
+            }
+        } catch { }
+    }, [completedEntryData]);
+
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            const hasCartItems = cartItems.length > 0;
+            const hasEntryDraft = activeView === 'new-request' && hasUnsavedRequestFormEntry();
+            const hasDocDraft =
+                DOCUMENT_PROCESSING_VIEWS.has(activeView) &&
+                hasUnsavedDocumentForm(completedEntryData?.requestId);
+
+            if (hasCartItems || hasEntryDraft || hasDocDraft) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [cartItems, activeView, completedEntryData]);
 
     const handleEntryComplete = (data: CompletedEntryData) => {
         setCompletedEntryData(data);
@@ -238,7 +402,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
 
     const handleSelectPayment = (payment: PendingPaymentRequest) => {
         setSelectedPayment(payment);
-        setActiveView('payment-details');
+        guardedSetActiveView('payment-details');
     };
 
     const handleAddAnother = () => {
@@ -265,7 +429,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     if (!user) return <div className="white-screen-fix">Loading Session...</div>;
 
     const handleNavigate = (view: string) => {
-        setActiveView(view);
+        guardedSetActiveView(view);
         setMobileMenuOpen(false);
     };
 
@@ -281,16 +445,29 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         email: user.email || '',
         role: (user as any).roleName || 'Staff',
         lastLogin: formatLastLogin((user as any).lastLogin),
-        avatarUrl: user.avatarUrl
+        avatarUrl: user.avatarUrl,
     };
 
     const hideHeader = [
-        'new-request', 'request-form', 'tax-declaration', 'tax-dec',
-        'certificate-land-holding', 'land-holding', 'certificate-no-landholding',
-        'no-land-holding', 'account-settings', 'pending-payment',
-        'payment-details', 'document-request', 'reports',
-        'transaction-registry', 'void-amend', 'certified-true-copy',
-        'archive-management', 'transaction-summary', 'notifications'
+        'new-request',
+        'request-form',
+        'tax-declaration',
+        'tax-dec',
+        'certificate-land-holding',
+        'land-holding',
+        'certificate-no-landholding',
+        'no-land-holding',
+        'account-settings',
+        'pending-payment',
+        'payment-details',
+        'document-request',
+        'reports',
+        'transaction-registry',
+        'void-amend',
+        'certified-true-copy',
+        'archive-management',
+        'transaction-summary',
+        'notifications',
     ].includes(activeView);
 
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
@@ -303,7 +480,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         role: (user as any).roleName || 'Staff',
         avatarUrl: user.avatarUrl,
         lastPasswordChange: (user as any).lastPasswordChange,
-        status: (user as any).status || 'ACTIVE'
+        status: (user as any).status || 'ACTIVE',
     };
 
     if ((user as any).roleCode === ROLES.SUPER_ADMIN) {
@@ -343,7 +520,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 }, 500);
             }
         } catch (err) {
-            console.error("Failed to update account status", err);
+            console.error('Failed to update account status', err);
             throw err;
         }
     };
@@ -359,11 +536,17 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 collapsed={sidebarCollapsed}
                 onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
                 unreadCount={unreadCount}
-                onOpenNotifications={() => setActiveView('notifications')}
+                onOpenNotifications={() => guardedSetActiveView('notifications')}
             />
 
             <div className="dashboard-main">
-                {!hideHeader && <DashboardHeader user={headerUser as any} userName={fullName} onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)} />}
+                {!hideHeader && (
+                    <DashboardHeader
+                        user={headerUser as any}
+                        userName={fullName}
+                        onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
+                    />
+                )}
 
                 <div className="dashboard-content">
                     {activeView === 'dashboard' ? (
@@ -384,15 +567,18 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             <DashboardSummary title="Administrative Summary" items={administrativeSummary} iconType="admin" />
                             <div className="dashboard-row">
                                 <AnalyticsOverview data={analytics.weeklyTrend} lastUpdated="Today • 2:45 PM" />
-                                <DocumentDistribution slices={analytics.documentDistribution} totalDocuments={analytics.totalDocuments} />
+                                <DocumentDistribution
+                                    slices={analytics.documentDistribution}
+                                    totalDocuments={analytics.totalDocuments}
+                                />
                             </div>
                             <div className="dashboard-row">
                                 <RecentTransactions
                                     rows={recentTransactionsData}
                                     allRows={allTransactionsData}
-                                    onViewAll={() => setActiveView('transaction-registry')}
+                                    onViewAll={() => guardedSetActiveView('transaction-registry')}
                                 />
-                                <QuickActions actions={quickActions} onSelect={setActiveView} />
+                                <QuickActions actions={quickActions} onSelect={guardedSetActiveView} />
                             </div>
                         </>
                     ) : activeView === 'reports' ? (
@@ -412,61 +598,112 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onMarkAllRead={markAllAsRead}
                         />
                     ) : isRequestFormView ? (
-                        <RequestFormEntry user={user} onCancel={handleCancelEntry} onEntryComplete={handleEntryComplete} onNavigateToProcessing={handleNavigateToProcessing} prefilledRequestData={prefilledRequestData} />
+                        <RequestFormEntry
+                            user={user}
+                            onCancel={handleCancelEntry}
+                            onEntryComplete={handleEntryComplete}
+                            onNavigateToProcessing={handleNavigateToProcessing}
+                            prefilledRequestData={prefilledRequestData}
+                        />
                     ) : activeView === 'tax-declaration' || activeView === 'tax-dec' ? (
                         completedEntryData ? (
                             <TaxDeclarationForm
                                 user={user}
                                 entryData={completedEntryData}
-                                onBack={() => setActiveView('new-request')}
+                                onDiscard={handleDiscardDocumentForm}
                                 onGoToSummary={() => setActiveView('transaction-summary')}
                                 onAddAnother={handleAddAnother}
                             />
-                        ) : (<RequestGuard attemptedView="Tax Declaration" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
+                        ) : (
+                            <RequestGuard
+                                attemptedView="Tax Declaration"
+                                onGoToEntry={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                            />
+                        )
                     ) : activeView === 'certificate-land-holding' || activeView === 'land-holding' ? (
                         completedEntryData ? (
                             <LandholdingCertificateForm
                                 user={user}
                                 entryData={completedEntryData}
-                                onBack={() => setActiveView('new-request')}
+                                onDiscard={handleDiscardDocumentForm}
                                 onGoToSummary={() => setActiveView('transaction-summary')}
                                 onAddAnother={handleAddAnother}
                             />
                         ) : (
-                            <RequestGuard attemptedView="Certificate of Land Holding" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />
+                            <RequestGuard
+                                attemptedView="Certificate of Land Holding"
+                                onGoToEntry={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                            />
                         )
                     ) : activeView === 'certificate-no-landholding' || activeView === 'no-land-holding' ? (
                         completedEntryData ? (
                             <NoLandholdingCertificateForm
                                 user={user}
                                 entryData={completedEntryData}
-                                onBack={() => setActiveView('new-request')}
+                                onDiscard={handleDiscardDocumentForm}
                                 onGoToSummary={() => setActiveView('transaction-summary')}
                                 onAddAnother={handleAddAnother}
                             />
-                        ) : (<RequestGuard attemptedView="Certificate of No Landholding" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
+                        ) : (
+                            <RequestGuard
+                                attemptedView="Certificate of No Landholding"
+                                onGoToEntry={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                            />
+                        )
                     ) : activeView === 'document-request' ? (
-                        <DocumentRequestDashboard user={user} onSelectNewRequest={handleSelectNewRequest} onSelectDraft={handleSelectDraft} onSelectDocumentView={(view) => setActiveView(view)} />
+                        <DocumentRequestDashboard
+                            user={user}
+                            onSelectNewRequest={handleSelectNewRequest}
+                            onSelectDraft={handleSelectDraft}
+                            onSelectDocumentView={(view) => setActiveView(view)}
+                        />
                     ) : activeView === 'transaction-summary' ? (
                         completedEntryData ? (
                             <TransactionSummary
                                 entryData={completedEntryData}
                                 onBackToForms={handleAddAnother}
-                                onProceedToQueue={() => setActiveView('pending-payment')}
+                                onProceedToQueue={() => {
+                                    setCompletedEntryData(null);
+                                    setActiveView('pending-payment');
+                                }}
                             />
-                        ) : (<RequestGuard attemptedView="Transaction Summary" onGoToEntry={() => setActiveView('new-request')} onBackToDashboard={() => setActiveView('dashboard')} />)
+                        ) : (
+                            <RequestGuard
+                                attemptedView="Transaction Summary"
+                                onGoToEntry={() => setActiveView('new-request')}
+                                onBackToDashboard={() => setActiveView('dashboard')}
+                            />
+                        )
                     ) : activeView === 'account-settings' ? (
-                        <AccountSettings user={accountUser} onSave={handleAccountSave} onUpdateEmail={handleUpdateEmail} onChangePassword={handleChangePassword} onChangePhoto={handleChangePhoto} onDisableAccount={handleDisableAccount} />
+                        <AccountSettings
+                            user={accountUser}
+                            onSave={handleAccountSave}
+                            onUpdateEmail={handleUpdateEmail}
+                            onChangePassword={handleChangePassword}
+                            onChangePhoto={handleChangePhoto}
+                            onDisableAccount={handleDisableAccount}
+                        />
                     ) : activeView === 'pending-payment' ? (
-                        <PendingPayment onSelectPayment={handleSelectPayment} />
+                        <PendingPayment
+                            onSelectPayment={handleSelectPayment}
+                            onNavigateBack={() => setActiveView('document-request')}
+                        />
                     ) : activeView === 'payment-details' ? (
                         <PaymentDetails
                             payment={selectedPayment}
                             onBack={() => setActiveView('pending-payment')}
+                            onReleased={() => setActiveView('transaction-registry')}
                             onEditDocument={(_controlNumber) => {
-                                if (selectedPayment?.documentType.toLowerCase().includes('landholding')) setActiveView('certificate-land-holding');
-                                else if (selectedPayment?.documentType.toLowerCase().includes('no landholding')) setActiveView('certificate-no-landholding');
-                                else setActiveView('tax-declaration');
+                                if (selectedPayment?.documentType.toLowerCase().includes('landholding')) {
+                                    setActiveView('certificate-land-holding');
+                                } else if (selectedPayment?.documentType.toLowerCase().includes('no landholding')) {
+                                    setActiveView('certificate-no-landholding');
+                                } else {
+                                    setActiveView('tax-declaration');
+                                }
                             }}
                         />
                     ) : activeView === 'transaction-registry' ? (
@@ -492,6 +729,84 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 </div>
                 <DashboardFooter />
             </div>
+
+            {navigationWarning && (
+                <div className="utw-backdrop" onClick={handleAcknowledgeNavigationWarning}>
+                    <div className="utw-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="utw-body">
+                            <div className="utw-icon-wrap">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                        d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"
+                                        stroke="#C9A227"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </div>
+                            <div>
+                                {navigationWarning.type === 'cart' && (
+                                    <>
+                                        <h3 className="utw-title">Unsubmitted Transaction</h3>
+                                        <p className="utw-desc">
+                                            You have documents waiting in your transaction. Please submit them to{' '}
+                                            <strong>Pending Payments</strong> or cancel the document(s) before continuing.
+                                        </p>
+                                    </>
+                                )}
+                                {navigationWarning.type === 'entry-form' && (
+                                    <>
+                                        <h3 className="utw-title">Unfinished Request Form</h3>
+                                        <p className="utw-desc">
+                                            You haven't finished filling in the <strong>Request Form Entry</strong>.{' '}
+                                            Your progress is saved, but you need to complete or discard it before going elsewhere.
+                                        </p>
+                                    </>
+                                )}
+                                {navigationWarning.type === 'document-form' && (
+                                    <>
+                                        <h3 className="utw-title">Unfinished Document</h3>
+                                        <p className="utw-desc">
+                                            You haven't finished filling in the <strong>{navigationWarning.label}</strong>{' '}
+                                            form. Please save it or go back to finish before continuing.
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                        <div className="utw-actions">
+                            {navigationWarning.type === 'document-form' && (
+                                <button
+                                    type="button"
+                                    onClick={handleDiscardDocumentForm}
+                                    style={{ background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem', marginRight: '10px' }}
+                                >
+                                    Discard Document
+                                </button>
+                            )}
+                            {navigationWarning.type === 'entry-form' && (
+                                <button
+                                    type="button"
+                                    onClick={handleDiscardRequestFormEntry}
+                                    style={{ background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem', marginRight: '10px' }}
+                                >
+                                    Discard Request
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                className="utw-confirm-btn"
+                                onClick={handleAcknowledgeNavigationWarning}
+                            >
+                                {navigationWarning.type === 'cart' && 'Go to Transaction Summary'}
+                                {navigationWarning.type === 'entry-form' && 'Go back to Request Form Entry'}
+                                {navigationWarning.type === 'document-form' && `Go back to ${navigationWarning.label}`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -80,12 +80,12 @@ function AssessmentRowItem({ row, onUpdate, onRemove, canRemove, classificationO
 interface TaxDeclarationFormProps {
     user: User;
     entryData: CompletedEntryData;
-    onBack: () => void;
+    onDiscard: () => void;
     onAddAnother: () => void;
     onGoToSummary: () => void;
 }
 
-export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGoToSummary }: TaxDeclarationFormProps) {
+export function TaxDeclarationForm({ user, entryData, onDiscard, onAddAnother, onGoToSummary }: TaxDeclarationFormProps) {
     // ═══ ALL HOOKS MUST RUN UNCONDITIONALLY (React Rules of Hooks) ═══
     const LS_KEY = `adept-td-${entryData?.requestId ?? 'tmp'}`;
 
@@ -97,9 +97,15 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
         } catch { }
         return { ...EMPTY_TAX_DECLARATION(), ownerName: entryData.declarantName || '' };
     });
+
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
+
+    const [showDiscardModal, setShowDiscardModal] = useState(false);
+    const [discarding, setDiscarding] = useState(false);
+    const [discardError, setDiscardError] = useState('');
+
     const [metadata, setMetadata] = useState<{ classifications: { id: string; label: string; code: string }[]; propertyTypes: { id: string; label: string; code: string }[]; }>({ classifications: [], propertyTypes: [], });
 
     useEffect(() => {
@@ -177,6 +183,21 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
     const addRow = () => setForm((prev) => ({ ...prev, assessmentRows: [...prev.assessmentRows, EMPTY_ASSESSMENT_ROW()] }));
     const removeRow = (id: string) => setForm((prev) => ({ ...prev, assessmentRows: prev.assessmentRows.filter((r) => r.id !== id) }));
 
+    const handleConfirmDiscard = async () => {
+        setDiscarding(true);
+        setDiscardError('');
+        try {
+            await requestService.updateRequest(entryData.requestId, { status: 'CANCELLED' });
+            try { localStorage.removeItem(LS_KEY); } catch { }
+            setShowDiscardModal(false);
+            onDiscard();
+        } catch (err) {
+            setDiscardError('Failed to discard this document. Please try again.');
+        } finally {
+            setDiscarding(false);
+        }
+    };
+
     // ── Safety guard placed AFTER all hooks ──
     if (!entryData) {
         return (
@@ -184,7 +205,7 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
                 <div className="td-card" style={{ padding: '40px', textAlign: 'center' }}>
                     <div className="td-spinner"></div>
                     <p>Loading request details...</p>
-                    <button onClick={onBack}>Return to Dashboard</button>
+                    <button onClick={onDiscard}>Return to Dashboard</button>
                 </div>
             </div>
         );
@@ -375,7 +396,17 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
                     </div>
 
                     <div className="td-footer">
-                        <div className="td-footer-left"><button type="button" className="td-btn td-btn-back" onClick={onBack}>← Back</button></div>
+                        <div className="td-footer-left">
+                            <button
+                                type="button"
+                                className="td-btn"
+                                style={{ background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3' }}
+                                onClick={() => setShowDiscardModal(true)}
+                                disabled={saving}
+                            >
+                                ✕ Discard Document
+                            </button>
+                        </div>
                         <div className="td-footer-right">
 
                             <button type="button" className="td-btn td-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving} style={{ backgroundColor: '#10b981', color: 'white' }}>{saving ? <span className="td-spinner" /> : <PlusIcon size={14} />} Save & Add Another Doc</button>
@@ -385,6 +416,44 @@ export function TaxDeclarationForm({ user, entryData, onBack, onAddAnother, onGo
 
                 </div>
             </div>
+
+            {/* ── Discard Modal ── */}
+            {showDiscardModal && (
+                <div
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}
+                    onClick={() => !discarding && setShowDiscardModal(false)}
+                >
+                    <div
+                        style={{ background: '#ffffff', borderRadius: '16px', padding: '28px', maxWidth: '420px', width: '100%', boxShadow: '0 20px 40px -8px rgba(0,0,0,0.35)' }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', marginBottom: '16px' }}>
+                            <div style={{ background: '#ffe4e6', borderRadius: '999px', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <AlertTriangleIcon size={22} />
+                            </div>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#1e293b' }}>Discard this document?</h3>
+                                <p style={{ margin: '6px 0 0', fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5 }}>
+                                    Reference <strong style={{ color: '#334155' }}>{entryData.referenceNumber}</strong> and everything entered on this form will be permanently cancelled. This can't be undone.
+                                </p>
+                            </div>
+                        </div>
+                        {discardError && (
+                            <div style={{ background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3', borderRadius: '8px', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '16px' }}>
+                                {discardError}
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                            <button type="button" onClick={() => setShowDiscardModal(false)} disabled={discarding} style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>
+                                Keep Editing
+                            </button>
+                            <button type="button" onClick={handleConfirmDiscard} disabled={discarding} style={{ background: '#e11d48', color: '#fff', border: '1px solid #e11d48', padding: '10px 20px', borderRadius: '8px', fontWeight: 800, cursor: 'pointer', fontSize: '0.9rem', opacity: discarding ? 0.7 : 1 }}>
+                                {discarding ? 'Discarding...' : 'Yes, Discard'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

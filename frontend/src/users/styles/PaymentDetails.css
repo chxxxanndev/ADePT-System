@@ -80,7 +80,8 @@
 /* --- Split Layout Grid (payment verification step) --- */
 .pd-split-layout {
     display: grid;
-    grid-template-columns: 1.25fr 1fr;
+    /* Changed from 1.25fr 1fr to 1fr 320px to shrink the right column */
+    grid-template-columns: 1fr 320px;
     gap: 32px;
     align-items: start;
 }
@@ -150,19 +151,53 @@
     vertical-align: middle;
 }
 
-.pd-doc-ref {
+/* Action column — header label and the view/edit button both centered
+   over the same axis, instead of pinned to the cell's right edge, so the
+   "ACTION" label sits directly above the eye icon + text underneath it. */
+.pd-doc-table th.pd-col-action,
+.pd-doc-table td.pd-col-action {
+    text-align: center;
+}
+
+/* Ref number badge, color-coded by document prefix */
+.pd-ref-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
     font-weight: 700;
-    font-family: inherit;
+    font-size: 0.8rem;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+.pd-ref-badge--nlh {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
+.pd-ref-badge--lh {
+    background-color: #fef9c3;
+    color: #92400e;
+}
+
+.pd-ref-badge--td {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.pd-ref-badge--default {
+    background-color: var(--db-table-header);
     color: var(--db-primary);
+}
+
+.pd-doc-type {
+    font-weight: 600;
+    color: var(--db-slate);
 }
 
 .pd-doc-declarant {
     font-weight: 600;
     color: var(--db-slate);
-}
-
-.pd-doc-type {
-    color: var(--db-text-muted);
 }
 
 /* Smaller variant used under a document reference in compact cards */
@@ -175,6 +210,33 @@
     color: var(--db-success);
     text-align: right;
     white-space: nowrap;
+}
+
+/* "View & Edit" action button inside the document verification table */
+.pd-btn--view-details {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #eef2ff;
+    color: #4338ca;
+    border: 1px solid #c7d2fe;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pd-btn--view-details:hover {
+    background-color: #4338ca;
+    border-color: #4338ca;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(67, 56, 202, 0.2);
+}
+
+.pd-btn--view-details svg {
+    stroke: currentColor;
 }
 
 .pd-total-row {
@@ -201,12 +263,13 @@
 /* --- Right Column: Receipt Form Card --- */
 .pd-receipt-card {
     background-color: rgba(41, 35, 122, 0.03);
-    padding: 28px;
+    padding: 18px;
+    /* Slightly reduced padding */
     border-radius: var(--db-radius-lg);
     border: 1px solid var(--db-glass-border-alt);
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 12px;
 }
 
 .pd-form-group {
@@ -219,6 +282,23 @@
     font-weight: 700;
     color: var(--db-slate);
     font-size: 13px;
+}
+
+/* OR number field — now fills the full width of its card instead of
+   capping out at 180px, so it doesn't leave a slab of empty space on the
+   right of the receipt card. */
+.pd-field-input--or {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    letter-spacing: 0.12em;
+    font-size: 16px;
+    padding: 12px 14px;
+}
+
+.pd-field-input--or::placeholder {
+    letter-spacing: 0.12em;
+    color: var(--db-text-muted);
 }
 
 .pd-field-input,
@@ -278,8 +358,12 @@
 }
 
 /* --- Form Actions --- */
+/* Confirm & Generate now sizes to its content and sits flush right,
+   instead of stretching full-width like the primary Verify Receipt step. */
 .pd-actions-row {
     margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
 }
 
 .pd-verified-actions {
@@ -332,15 +416,75 @@
     background-color: #3d8b40;
 }
 
-.pd-btn--edit-verify {
-    background: transparent;
-    border: 1px solid var(--db-glass-border-alt);
-    color: var(--db-text-muted);
+/* Compact modifier — shrinks a full-size .pd-btn down to fit its label
+   instead of stretching the row. Used on Confirm & Generate Document(s)
+   so it stops dominating the receipt card. */
+.pd-btn--compact {
+    width: auto;
+    padding: 10px 20px;
+    font-size: 13px;
 }
 
-.pd-btn--edit-verify:hover {
-    background-color: rgba(0, 0, 0, 0.03);
-    color: var(--db-primary);
+/* Verified OR number — compact display + a clearly visible edit button */
+/* Grid instead of flex: an invisible spacer the same width as the edit
+   icon sits opposite it, so the OR value centers against the full card
+   width instead of centering only in the leftover space next to the
+   icon (which would visually shift it left). */
+.pd-or-display {
+    display: grid;
+    grid-template-columns: 34px 1fr 34px;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background-color: #f8fafc;
+    border: 2px solid var(--db-glass-border-alt);
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.pd-or-spacer {
+    width: 34px;
+    height: 34px;
+}
+
+.pd-or-value {
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: 0.1em;
+    color: #dc2626;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
+/* Edit icon button — now a solid, filled button instead of a faint
+   outline so it reads clearly as an actionable control next to the
+   verified O.R. number. */
+.pd-btn-icon-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: var(--db-primary);
+    border: 1px solid var(--db-primary);
+    color: #ffffff;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 6px rgba(41, 35, 122, 0.25);
+}
+
+.pd-btn-icon-edit:hover {
+    background-color: var(--db-primary-hover);
+    border-color: var(--db-primary-hover);
+    transform: translateY(-1px);
+}
+
+.pd-btn-icon-edit:focus-visible {
+    outline: 2px solid var(--db-primary);
+    outline-offset: 2px;
 }
 
 /* --- Shared Receipt Warning Badge inside Card --- */
@@ -461,6 +605,10 @@
 
 /* ==========================================================================
    SIGNATORY ASSIGNMENT VIEW
+   (Note: .pd-sig-card / .pd-sig-card-header / .pd-sig-selectors now live in
+   DocumentReleasePanel.css since that component owns them. The remaining
+   classes below — the wrapper view, helper text, list, and footer — belong
+   to a different step and are kept here.)
    ========================================================================== */
 
 .pd-signatory-view {
@@ -494,52 +642,6 @@
     margin-bottom: 30px;
 }
 
-.pd-sig-card {
-    background: #ffffff;
-    border: 1px solid var(--db-glass-border-alt);
-    border-radius: var(--db-radius-md);
-    box-shadow: 0 4px 12px rgba(41, 35, 122, 0.04);
-    overflow: hidden;
-    /* CRITICAL: "overflow: hidden" above removes this card's min-height
-       floor inside the flex column below — without flex-shrink: 0 the
-       browser is free to collapse it to 0px (hiding the signatory
-       selects entirely) instead of just scrolling, whenever the sidebar's
-       content runs long. This was the actual bug. Spacing between this
-       card and its neighbors now comes from the parent's `gap`, not a
-       margin on the card itself. */
-    flex-shrink: 0;
-}
-
-.pd-sig-card-header {
-    background-color: var(--db-table-header);
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--db-glass-border-alt);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.pd-section-label--flush {
-    margin-bottom: 0;
-}
-
-/* Signatories stack vertically — a side-by-side grid squeezed the select
-   text and the confirm/edit icon inside each select right up against the
-   card edge, so every document type (single or dual signatory) now uses
-   one column. */
-.pd-sig-selectors {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 18px;
-    padding: 20px;
-}
-
-/* Kept as a harmless alias — dual and single-signatory documents already
-   render identically now that the base layout is a single column. */
-.pd-sig-selectors--single {
-    grid-template-columns: 1fr;
-}
-
 .pd-sig-footer {
     display: flex;
     justify-content: flex-end;
@@ -547,390 +649,12 @@
     border-top: 1px solid var(--db-glass-border-alt);
 }
 
-
-/* ==========================================================================
-   INLINE SPLIT PDF VIEWER (RELEASE STEP)
-   ========================================================================== */
-
-.animation-fade-in {
-    animation: fadeIn 0.4s ease-out forwards;
-}
-
-/* PDF preview ~74% / sidebar ~26% on desktop, per the release-step spec. */
-.pd-split-layout--viewer {
-    height: min(760px, calc(100vh - 220px));
-    position: relative;
-    /* anchor for the collapse toggle */
-    display: flex;
-    gap: 24px;
-}
-
-.pd-split-layout--viewer .pd-col-left,
-.pd-split-layout--viewer .pd-col-right {
-    height: 100%;
-    min-height: 100%;
-}
-
-/* --- Left Side: PDF Container --- */
-.pd-pdf-viewer-container {
-    background-color: #323639;
-    border-radius: var(--db-radius-md);
-    border: 1px solid var(--db-glass-border-alt);
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.15);
-}
-
-.pd-pdf-iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-    background-color: white;
-    display: block;
-}
-
-.pd-pdf-placeholder {
-    color: #9ca3af;
-    font-weight: 600;
-    text-align: center;
-    font-size: 14px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.pd-pdf-placeholder-icon {
-    font-size: 32px;
-    display: block;
-    margin-bottom: 12px;
-}
-
-.pd-split-layout--viewer .pd-col-left {
-    flex: 1;
-    min-width: 0;
-}
-
-.pd-split-layout--viewer .pd-col-right {
-    width: 400px;
-    flex: 0 0 400px;
-    flex-shrink: 0;
-    transition: width 0.28s ease, flex-basis 0.28s ease, opacity 0.2s ease,
-        padding 0.28s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.pd-split-layout--viewer .pd-col-right.pd-sidebar-collapsed {
-    width: 0;
-    flex-basis: 0;
-    padding: 0;
-    opacity: 0;
-    border-color: transparent;
-    box-shadow: none;
-    pointer-events: none;
-}
-
-/* --- Right Side: Sidebar, organized as independent cards --- */
-.pd-sidebar-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 22px;
-    height: 100%;
-    background: transparent;
-    box-sizing: border-box;
-    overflow-y: auto;
-    overflow-x: hidden;
-    /* Belt-and-suspenders: if total card content ever exceeds the
-       sidebar's height, this outer scrollbar handles it. In normal use
-       only .pd-print-list-compact (capped below) scrolls internally, so
-       the rest of the sidebar stays fully visible without nested
-       scrollbars. */
-}
-
-/* Shared card shell for every section in the release sidebar (Card 2 and
-   Card 4 use this directly; Card 1's success banner and Card 3's
-   .pd-sig-card already carry their own card-like styling). */
-.pd-sidebar-card {
-    background: #ffffff;
-    border: 1px solid var(--db-glass-border-alt);
-    border-radius: var(--db-radius-md);
-    box-shadow: 0 2px 10px rgba(41, 35, 122, 0.04);
-    padding: 20px;
-    box-sizing: border-box;
-    flex-shrink: 0;
-}
-
-/* Card 1 — Payment Status */
-.pd-success-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    background: rgba(34, 197, 94, 0.1);
-    padding: 20px;
-    border-radius: var(--db-radius-md);
-    border: 1px solid rgba(34, 197, 94, 0.2);
-    flex-shrink: 0;
-}
-
-.pd-success-header-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.pd-success-icon-small {
-    background: #22c55e;
-    color: white;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 18px;
-    box-shadow: 0 4px 8px rgba(34, 197, 94, 0.25);
-    flex-shrink: 0;
-}
-
-.pd-success-header h3 {
-    margin: 0 0 4px 0;
-    color: #166534;
-    font-size: 1.05rem;
-    font-weight: 800;
-}
-
-.pd-success-header p {
-    margin: 0;
-    color: #15803d;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.pd-status-badge {
-    flex-shrink: 0;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    padding: 4px 10px;
-    border-radius: 6px;
-    white-space: nowrap;
-    background-color: #fee2e2;
-    color: #991b1b;
-}
-
-/* Card 2 — Documents list */
-.pd-print-list-compact {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    overflow-y: auto;
-    padding-right: 4px;
-    margin-top: 16px;
-    /* Capped rather than flex-grow: 1 — it scrolls internally once there
-       are several documents for one client, but never eats space the
-       cards below it need. */
-    max-height: 230px;
-    flex-shrink: 0;
-}
-
-.pd-print-list-compact::-webkit-scrollbar {
-    width: 6px;
-}
-
-.pd-print-list-compact::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.pd-print-list-compact::-webkit-scrollbar-thumb {
-    background-color: #cbd5e1;
-    border-radius: 10px;
-}
-
-.pd-compact-card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    border: 1px solid var(--db-glass-border-alt);
-    border-radius: var(--db-radius-sm);
-    background: #f8fafc;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.pd-compact-card:hover {
-    border-color: #cbd5e1;
-    background: #f1f5f9;
-}
-
-.pd-compact-card--active {
-    background: #eef2ff;
-    border-color: #c7d2fe;
-    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.1);
-}
-
-.pd-compact-card--active:hover {
-    background: #eef2ff;
-    border-color: #a5b4fc;
-}
-
-.pd-compact-card:focus-visible {
-    outline: 2px solid var(--db-primary);
-    outline-offset: 2px;
-}
-
-.pd-compact-info {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.pd-compact-action {
-    display: flex;
-    align-items: center;
-}
-
-.pd-status-text {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--db-text-muted);
-}
-
-.pd-status-text.active-text {
-    color: var(--db-primary);
-}
-
-.pd-btn--tiny-view {
-    background: transparent;
-    border: 1px solid #cbd5e1;
-    color: #475569;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
-
-.pd-compact-card:hover .pd-btn--tiny-view {
-    background: #e2e8f0;
-}
-
-/* Card 5 — Actions */
-.pd-sidebar-actions-bottom {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: auto;
-    flex-shrink: 0;
-}
-
-/* Print + Download condensed into one row so only "Mark as released"
-   stays a full-width primary action. */
-.pd-actions-row-compact {
-    display: flex;
-    gap: 10px;
-}
-
-.pd-actions-row-compact .pd-btn--secondary-outline {
-    flex: 1;
-    min-width: 0;
-    padding: 12px 8px;
-    font-size: 13px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.pd-btn--download-large {
-    background-color: var(--db-primary);
-    color: white;
-    font-size: 15px;
-    padding: 16px;
-    box-shadow: 0 4px 12px rgba(41, 35, 122, 0.2);
-}
-
-.pd-btn--download-large:hover {
-    background-color: var(--db-primary-hover);
-    transform: translateY(-1px);
-}
-
-.pd-btn--secondary-outline {
-    background: transparent;
-    border: 2px solid var(--db-glass-border-alt);
-    color: var(--db-slate);
-}
-
-.pd-btn--secondary-outline:hover {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-}
-
-/* Toggle tab sitting on the seam between viewer and sidebar */
-.pd-sidebar-toggle {
-    position: absolute;
-    top: 50%;
-    right: 400px;
-    transform: translate(50%, -50%);
-    width: 22px;
-    height: 56px;
-    border: 1px solid var(--db-glass-border-alt);
-    background: #ffffff;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    color: var(--db-text-muted);
-    z-index: 5;
-    transition: right 0.28s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-}
-
-.pd-sidebar-toggle:hover {
-    color: var(--db-primary);
-    border-color: var(--db-primary);
-}
-
-.pd-sidebar-toggle:focus-visible {
-    outline: 2px solid var(--db-primary);
-    outline-offset: 2px;
-}
-
-.pd-sidebar-toggle--collapsed {
-    right: 0;
-}
-
 /* --- Responsive Adjustments --- */
-@media (max-width: 1180px) {
-    .pd-split-layout--viewer .pd-col-right {
-        width: 340px;
-        flex: 0 0 340px;
-    }
-
-    .pd-sidebar-toggle {
-        right: 340px;
-    }
-}
-
 @media (max-width: 980px) {
 
-    .pd-split-layout,
-    .pd-split-layout--viewer {
+    .pd-split-layout {
         grid-template-columns: 1fr;
-        flex-direction: column;
         gap: 24px;
-        height: auto;
-    }
-
-    .pd-pdf-viewer-container {
-        height: 500px;
     }
 
     .pd-header-banner {
@@ -948,27 +672,39 @@
     .pd-doc-table-wrap {
         overflow-x: auto;
     }
+}
 
-    .pd-sig-selectors {
-        gap: 16px;
-        padding: 16px;
-    }
+/* --- Breadcrumbs (sits above the panel, light background) --- */
+.pd-breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    padding: 0 8px;
+    margin-bottom: 10px;
+}
 
-    .pd-split-layout--viewer .pd-col-right {
-        width: 100%;
-        flex-basis: auto;
-    }
+.pd-breadcrumb-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--db-text-muted);
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: color 0.15s;
+}
 
-    .pd-split-layout--viewer .pd-col-right.pd-sidebar-collapsed {
-        width: 100%;
-        flex-basis: auto;
-        padding: 0;
-        opacity: 1;
-        pointer-events: auto;
-        border-color: var(--db-glass-border-alt);
-    }
+.pd-breadcrumb-link:hover {
+    color: #0891b2;
+}
 
-    .pd-sidebar-toggle {
-        display: none;
-    }
+.pd-breadcrumb-sep {
+    color: var(--db-text-muted);
+    font-weight: 600;
+}
+
+.pd-breadcrumb-current {
+    color: var(--db-primary);
+    font-weight: 800;
 }
