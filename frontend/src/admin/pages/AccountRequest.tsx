@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import "../styles/StaffAccounts.css";
 import "../styles/AccountRequest.css";
 import { addAdminAuditEntry } from '../services/auditLogService';
-import { authHeaders } from '../services/userManagementService';
-import { useAuth } from '../../users/hooks/useAuth';
+// 1. Updated Imports: removed authHeaders, added api
+import { api } from '../../users/services/requestService';
+import { useAuth } from "../../users/hooks/useAuth";
 
 // ---------- Types ----------
 type RequestStatus = "pending" | "approved" | "disapproved";
@@ -13,18 +14,16 @@ interface AccountRequestItem {
   applicantName: string;
   username: string;
   initials: string;
-  avatarColor: string; // css class, e.g. "avatar-rose"
+  avatarColor: string; 
   email: string;
   requestedRole: string;
-  submitted: string; // display string, e.g. "Jul 14, 8:02 AM"
+  submitted: string; 
   status: RequestStatus;
-  /** When the approve/disapprove decision was made — null while still pending. */
   decidedOn: string | null;
-  /** ACTIVE/INACTIVE for an approved account; not applicable for pending/disapproved. */
   accountStatus: string | null;
 }
 
-const API_BASE_URL = 'http://localhost:5000/api/users';
+// 2. Removed hardcoded API_BASE_URL
 
 function formatSubmitted(value: string) {
   const date = new Date(value);
@@ -62,14 +61,9 @@ function toAccountRequestItem(payload: any): AccountRequestItem {
     requestedRole: payload.requestedRole || 'Office Staff',
     submitted: formatSubmitted(payload.submitted || payload.created_at || new Date().toISOString()),
     status,
-    // Backend field name may vary (decided_at / reviewed_at / updated_at) —
-    // whichever one your account-requests endpoint returns gets picked up
-    // here. Shows as a dash in the table until the backend provides one.
     decidedOn: payload.decided_at || payload.reviewed_at
       ? formatSubmitted(payload.decided_at || payload.reviewed_at)
       : null,
-    // A disapproved application never becomes a real staff account, so
-    // there is no "account status" to show for it — same for pending.
     accountStatus: status === 'approved' ? (payload.account_status || 'ACTIVE') : null,
   };
 }
@@ -99,23 +93,17 @@ export default function AccountRequest({ user }: AccountRequestProps) {
   const [loading, setLoading] = useState(false);
   const [decidingId, setDecidingId] = useState<string | null>(null);
 
-  // Live user state from the shared auth context — updates instantly
-  // whenever updateCurrentUser() runs anywhere (Account Settings, etc.),
-  // instead of the old localStorage snapshot taken once on mount which
-  // never picked up name/email/avatar changes made elsewhere.
   const { currentUser } = useAuth();
-
   const safeUser = currentUser ?? user ?? { firstName: "Admin", lastName: "User", email: "provincialassessor@gmail.com", role: "SUPER_ADMIN" };
 
+  /**
+   * 3. Updated loadRequests to use standardized 'api'
+   */
   const loadRequests = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE_URL}/account-requests`, {
-        headers: await authHeaders(),
-      });
-      if (!res.ok) throw new Error('Unable to load account requests.');
-      const data = await res.json();
-      const nextRequests = (data.requests || []).map(toAccountRequestItem);
+      const res = await api.get('/users/account-requests');
+      const nextRequests = (res.data.requests || []).map(toAccountRequestItem);
       setRequests(nextRequests);
     } catch {
       setRequests([]);
@@ -152,42 +140,42 @@ export default function AccountRequest({ user }: AccountRequestProps) {
       });
   }, [requests, activeTab, query]);
 
+  /**
+   * 4. Updated handleDecision to use standardized 'api'
+   */
   async function handleDecision(id: string, decision: "approved" | "disapproved") {
-    if (decidingId) return; // a decision is already in flight — ignore extra clicks
+    if (decidingId) return; 
     const applicant = requests.find((request) => request.id === id);
     setDecidingId(id);
 
     try {
-      // Backend still expects 'rejected' for a disapproval — only the
-      // frontend wording changed to Approve/Disapprove.
       const normalizedDecision = decision === 'disapproved' ? 'rejected' : decision;
-      const res = await fetch(`${API_BASE_URL}/account-requests/${id}/decision`, {
-        method: 'PATCH',
-        headers: await authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ decision: normalizedDecision, reason: decision === 'approved' ? 'Approved by super admin.' : 'Disapproved by super admin.' }),
+      
+      // Using api.patch handles the headers, URL, and stringifying automatically
+      await api.patch(`/users/account-requests/${id}/decision`, { 
+        decision: normalizedDecision, 
+        reason: decision === 'approved' ? 'Approved by super admin.' : 'Disapproved by super admin.' 
       });
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || 'Unable to complete the decision.');
-      }
-
-    await addAdminAuditEntry({
-      type: decision === 'approved' ? 'approval' : 'decline',
-      description: `${decision === 'approved' ? 'approved' : 'disapproved'} account request — ${applicant?.applicantName || 'an applicant'}`,
-    }).catch((err) => console.error('Audit log write failed:', err));
+      await addAdminAuditEntry({
+        type: decision === 'approved' ? 'approval' : 'decline',
+        description: `${decision === 'approved' ? 'approved' : 'disapproved'} account request — ${applicant?.applicantName || 'an applicant'}`,
+      }).catch((err) => console.error('Audit log write failed:', err));
 
       window.dispatchEvent(new Event('staff-directory:updated'));
       await loadRequests();
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to save the decision. Please try again.');
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to save the decision.';
+      alert(errorMsg);
     } finally {
       setDecidingId(null);
     }
   }
 
+  // ... (rest of your component JSX stays exactly the same)
   return (
     <div className="account-request-page">
+      {/* ... keeping all original JSX ... */}
       <div className="staff-page-header">
         <div className="staff-page-header-row">
           <div>
@@ -273,7 +261,6 @@ export default function AccountRequest({ user }: AccountRequestProps) {
             ))}
           </div>
 
-          {/* Table */}
           <table className="account-request-table">
             <thead>
               <tr>
@@ -346,7 +333,6 @@ export default function AccountRequest({ user }: AccountRequestProps) {
             </tbody>
           </table>
 
-          {/* Footer note */}
           <div className="account-request-footer-note">
             <p>
               Approving a request grants entry to the main system dashboard

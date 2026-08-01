@@ -9,9 +9,11 @@ import {
     setAdminLevel,
     promoteToAdmin,
     demoteToStaff,
+    setStaffPosition,
     assignSignatory,
     unassignSignatory,
     getStaffPerformance,
+    getSignatories,
 } from './user.controller.js';
 
 const router = express.Router();
@@ -20,6 +22,7 @@ router.use(requireAuth);
 
 router.get('/staff', getAllStaff);
 router.post('/staff', createStaff);
+router.get('/signatories', getSignatories);
 router.get('/account-requests', getAccountRequests);
 router.get('/staff-performance', getStaffPerformance);
 router.patch('/account-requests/:id/decision', decideAccountRequest);
@@ -27,6 +30,7 @@ router.patch('/staff/:id/status', updateStaffStatus);
 router.patch('/staff/:id/admin-level', setAdminLevel);
 router.patch('/staff/:id/promote-to-admin', promoteToAdmin);
 router.patch('/staff/:id/demote-to-staff', demoteToStaff);
+router.patch('/staff/:id/set-position', setStaffPosition);
 router.patch('/staff/:id/assign-signatory', assignSignatory);
 router.patch('/staff/:id/unassign-signatory', unassignSignatory);
 

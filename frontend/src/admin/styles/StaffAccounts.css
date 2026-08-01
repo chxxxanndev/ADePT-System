@@ -262,6 +262,74 @@
     background: #FCD7D7;
 }
 
+/* ===== Icon Buttons With Hover Tooltips ===== */
+.staff-icon-tooltip-wrap {
+    position: relative;
+    display: inline-flex;
+}
+
+.staff-icon-tooltip {
+    position: absolute;
+    bottom: calc(100% + 7px);
+    left: 50%;
+    transform: translateX(-50%) translateY(3px);
+    background: #1E293B;
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.35;
+    padding: 5px 9px;
+    border-radius: 7px;
+    white-space: nowrap;
+    max-width: 240px;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25);
+    z-index: 10;
+}
+
+.staff-icon-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #1E293B;
+}
+
+.staff-icon-tooltip-wrap:hover .staff-icon-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.staff-icon-tooltip-wrap:hover > button {
+    filter: brightness(0.96);
+}
+
+/* In the Admin Access cell (rightmost column) the table container scrolls
+   horizontally, so centered tooltips get clipped at the table's right edge.
+   Anchor them to the cell's right side instead — they grow leftward and
+   stay inside the table. */
+.staff-icon-actions .staff-icon-tooltip {
+    left: auto;
+    right: 0;
+    transform: translateY(3px);
+}
+
+.staff-icon-actions .staff-icon-tooltip-wrap:hover .staff-icon-tooltip {
+    transform: translateY(0);
+}
+
+.staff-icon-actions .staff-icon-tooltip::after {
+    left: auto;
+    right: 11px;
+    transform: translateX(0);
+}
+
 /* ===== Add Staff Modal ===== */
 .staff-modal-backdrop {
     position: fixed;

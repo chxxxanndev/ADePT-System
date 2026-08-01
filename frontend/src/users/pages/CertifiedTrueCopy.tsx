@@ -14,8 +14,6 @@ interface CertifiedCopyRecord {
   id: string;
   reference: string;
   declarantName: string;
-  initials: string;
-  avatarColor: string;
   originalDocument: string;
   purpose: string;
   dateRequested: string;
@@ -32,25 +30,6 @@ const STATUS_CLASS: Record<CTCStatus, string> = {
   Voided: "ctc-badge--voided",
   Archived: "ctc-badge--archived",
 };
-
-const AVATAR_PALETTE = ["#00BCD4", "#7C6FE8", "#5EB6A8", "#E8A94E", "#1976D2", "#4CAF50", "#D32F2F", "#8B5CF6"];
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => n[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
-function getAvatarColor(seed: string): string {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
-}
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return "—";
@@ -133,9 +112,10 @@ export default function CertifiedTrueCopy() {
           id: doc.id,
           reference: t.referenceNumber,
           declarantName: t.client.declarantName,
-          initials: getInitials(t.client.declarantName),
-          avatarColor: getAvatarColor(t.client.declarantName),
-          originalDocument: `${doc.documentType} ${t.referenceNumber}`,
+          // FIX: Original Document now shows only the reference number —
+          // the document type name (e.g. "Tax Declaration") is no longer
+          // prefixed here.
+          originalDocument: t.referenceNumber,
           purpose: t.reasonPurpose || "—",
           dateRequested: formatDate(t.dateRequested),
           dateReleased: dateReleased === "—" ? "—" : formatDate(dateReleased),
@@ -226,7 +206,6 @@ export default function CertifiedTrueCopy() {
                       <th>Reference No.</th>
                       <th>Declarant</th>
                       <th>Original Document</th>
-                      <th>Purpose</th>
                       <th>Date Requested</th>
                       <th>Date Released</th>
                       <th>Released By</th>
@@ -237,20 +216,11 @@ export default function CertifiedTrueCopy() {
                   <tbody>
                     {filteredRecords.map((record, idx) => (
                       <tr key={record.id} className={idx % 2 !== 0 ? "ctc-row-alt" : ""}>
-                        <td className="ctc-cell-reference">#{record.reference}</td>
-                        <td>
-                          <div className="ctc-declarant-cell">
-                            <div
-                              className="ctc-avatar"
-                              style={{ backgroundColor: record.avatarColor }}
-                            >
-                              {record.initials}
-                            </div>
-                            <span>{record.declarantName}</span>
-                          </div>
-                        </td>
+                        {/* FIX: hashtag prefix removed */}
+                        <td className="ctc-cell-reference">{record.reference}</td>
+                        {/* FIX: avatar/initials circle removed — plain name text */}
+                        <td className="ctc-cell-name">{record.declarantName}</td>
                         <td className="ctc-cell-muted">{record.originalDocument}</td>
-                        <td className="ctc-cell-muted">{record.purpose}</td>
                         <td className="ctc-cell-muted">{record.dateRequested}</td>
                         <td className="ctc-cell-muted">{record.dateReleased}</td>
                         <td className="ctc-cell-muted">{record.releasedBy}</td>
@@ -262,7 +232,8 @@ export default function CertifiedTrueCopy() {
                     ))}
                     {filteredRecords.length === 0 && (
                       <tr className="ctc-empty-row">
-                        <td colSpan={9}>
+                        {/* FIX: colSpan reduced from 9 to 8 after removing the Purpose column */}
+                        <td colSpan={8}>
                           No documents have been reprinted yet. Reprint a document from the
                           Transaction Registry to see it appear here.
                         </td>

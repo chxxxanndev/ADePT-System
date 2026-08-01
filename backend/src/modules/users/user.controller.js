@@ -198,6 +198,35 @@ export const demoteToStaff = async (req, res) => {
 };
 
 /**
+ * PATCH /api/users/staff/:id/set-position
+ * Body: { position: string }
+ * SUPER_ADMIN or ADMIN(HIGH) only.
+ */
+export const setStaffPosition = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { position } = req.body;
+        if (!id) {
+            return res.status(400).json({ error: 'Staff ID is required.' });
+        }
+        if (!position) {
+            return res.status(400).json({ error: 'position field is required in the request body.' });
+        }
+
+        const actingStaff = await UserService.getActingStaff(req.user.id);
+        const updated = await UserService.setStaffPosition(id, position, actingStaff);
+        res.status(200).json({ message: 'Staff position updated.', staff: updated });
+    } catch (error) {
+        const statusCode = error.message.includes('not found')
+            ? 404
+            : error.message.includes('permit') || error.message.includes('Invalid position')
+                ? 403
+                : 400;
+        res.status(statusCode).json({ error: error.message });
+    }
+};
+
+/**
  * PATCH /api/users/staff/:id/assign-signatory
  * Assigns this staff member as the sole signatory. SUPER_ADMIN or ADMIN(HIGH).
  */
@@ -252,6 +281,18 @@ export const getStaffPerformance = async (req, res) => {
     try {
         const performance = await UserService.getStaffPerformance();
         res.status(200).json({ performance });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * GET /api/users/signatories
+ */
+export const getSignatories = async (req, res) => {
+    try {
+        const signatories = await UserService.getSignatories();
+        res.status(200).json({ signatories });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

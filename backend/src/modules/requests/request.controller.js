@@ -50,7 +50,8 @@ export const getAllRequests = async (req, res) => {
  */
 export const getTransactionRegistry = async (req, res) => {
     try {
-        const transactions = await RequestService.getTransactionRegistry();
+        const { from, to } = req.query;
+        const transactions = await RequestService.getTransactionRegistry(from, to);
         res.status(200).json({ transactions });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -108,7 +109,7 @@ export const forwardRequest = async (req, res) => {
         const result = await RequestService.forwardRequest(id, {
             recipientStaffId: recipientStaffId || targetStaffId,
             note,
-            actorStaffId: req.user?.id
+            actorStaffId: req.staffId   // ← trustworthy, server-verified, no client involvement needed
         });
         res.status(200).json({ message: 'Request forwarded.', request: result });
     } catch (error) {
@@ -116,6 +117,7 @@ export const forwardRequest = async (req, res) => {
         res.status(statusCode).json({ error: error.message });
     }
 };
+
 export const markAsReleased = async (req, res) => {
     try {
         const { id } = req.params;
@@ -130,9 +132,21 @@ export const markAsReleased = async (req, res) => {
     }
 };
 
+export const voidRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+        const result = await RequestService.voidRequest(id, reason);
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export const getDashboardMetrics = async (req, res) => {
     try {
-        const metrics = await RequestService.getDashboardMetrics();
+        const { from, to } = req.query;
+        const metrics = await RequestService.getDashboardMetrics(from, to);
         res.status(200).json(metrics);
     } catch (error) {
         res.status(500).json({ error: error.message });

@@ -42,6 +42,11 @@ export function AdminDocumentDistribution({ slices = [], onRefresh, isRefreshing
     const strokeWidth = 22;
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
+    // Extra canvas margin so the 1.06x hover scale-up has room to grow
+    // without being clipped by the SVG viewBox edge.
+    const viewBoxPadding = 8;
+    const viewBoxSize = size + viewBoxPadding * 2;
+    const center = viewBoxSize / 2;
 
     let cumulativeOffset = 0;
     const segments = slices.map((slice) => {
@@ -56,6 +61,18 @@ export function AdminDocumentDistribution({ slices = [], onRefresh, isRefreshing
         cumulativeOffset += dashLength;
         return segment;
     });
+
+    // Render order for the SVG circles: the hovered segment is moved to the
+    // end of the array so it paints on top of its neighbors. Without this,
+    // a scaled-up hovered segment can get visually clipped at the seam by
+    // whichever adjacent segment happens to be drawn after it in DOM order.
+    const renderOrder = segments
+        .map((seg, i) => ({ ...seg, i }))
+        .sort((a, b) => {
+            if (a.i === hoveredIndex) return 1;
+            if (b.i === hoveredIndex) return -1;
+            return 0;
+        });
 
     return (
         <div className="admin-card donut-chart-card">
@@ -84,23 +101,27 @@ export function AdminDocumentDistribution({ slices = [], onRefresh, isRefreshing
             ) : (
                 <>
                     <div className="donut-chart-container">
-                        <svg viewBox={`0 0 ${size} ${size}`} className="donut-chart-svg">
+                        <svg
+                            viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
+                            className="donut-chart-svg"
+                            style={{ overflow: 'visible' }}
+                        >
                             <circle
-                                cx={size / 2}
-                                cy={size / 2}
+                                cx={center}
+                                cy={center}
                                 r={radius}
                                 fill="none"
                                 stroke="#ECEFF1"
                                 strokeWidth={strokeWidth}
                             />
-                            {segments.map((seg, i) => {
-                                const isHovered = hoveredIndex === i;
+                            {renderOrder.map((seg) => {
+                                const isHovered = hoveredIndex === seg.i;
                                 return (
                                     <circle
                                         key={seg.label}
                                         className="donut-segment"
-                                        cx={size / 2}
-                                        cy={size / 2}
+                                        cx={center}
+                                        cy={center}
                                         r={radius}
                                         stroke={seg.color}
                                         strokeDasharray={seg.dasharray}
@@ -108,12 +129,12 @@ export function AdminDocumentDistribution({ slices = [], onRefresh, isRefreshing
                                         strokeLinecap="butt"
                                         style={{
                                             transition: 'transform 0.22s ease, opacity 0.22s ease',
-                                            transformOrigin: `${size / 2}px ${size / 2}px`,
+                                            transformOrigin: `${center}px ${center}px`,
                                             transform: isHovered ? 'scale(1.06)' : 'scale(1)',
                                             opacity: hoveredIndex === null || isHovered ? 1 : 0.5,
                                             cursor: 'pointer',
                                         }}
-                                        onMouseEnter={() => setHoveredIndex(i)}
+                                        onMouseEnter={() => setHoveredIndex(seg.i)}
                                         onMouseLeave={() => setHoveredIndex(null)}
                                     />
                                 );

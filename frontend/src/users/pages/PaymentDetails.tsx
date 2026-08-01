@@ -12,6 +12,7 @@ import { TaxDeclarationPDF } from '../components/templates/TaxDeclarationPDF';
 import { landholdingService } from '../services/landholdingService';
 import { taxDeclarationService } from '../services/taxDeclarationService';
 
+import { fetchAllStaff, fetchSignatories, type StaffMember } from '../../admin/services/userManagementService';
 import '../styles/PaymentDetails.css';
 
 interface PaymentDetailsProps {
@@ -21,8 +22,7 @@ interface PaymentDetailsProps {
     onEditDocument?: (referenceNumber: string) => void;
 }
 
-// --- MOCK DATABASE SIGNATORIES (Replace with API call later) ---
-const ACTIVE_SIGNATORIES = [
+const DEFAULT_SIGNATORIES = [
     { id: 'sig_1', name: 'ELVIRA T. ENAO, REA', title: 'Local Assessment Operations Officer IV', role: 'AUTHORIZED_REP' },
     { id: 'sig_2', name: 'ENGR. VICENTE P. DESOY, REA', title: 'Provincial Assessor', role: 'ASSESSOR' },
     { id: 'sig_3', name: 'CHINA CHAN-OLARIO, RN, REA, REB, Enp', title: 'Assistant Provincial Assessor', role: 'ASST_ASSESSOR' },
@@ -38,7 +38,10 @@ const getFormattedDates = () => {
 };
 
 export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsProps) {
-    const [orNumber, setOrNumber] = useState('');
+    // Resuming from the "Pending for Release" queue means this payment already
+    // has an O.R. number attached (set by releaseRequest when status flipped
+    // to PAID) — in that case skip VERIFICATION and land straight on RELEASE.
+    const [orNumber, setOrNumber] = useState(payment?.orNumber || '');
     const [isVerified, setIsVerified] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<{ orNumber?: string }>({});
@@ -54,11 +57,56 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
     const [selectedDocForPreview, setSelectedDocForPreview] = useState<any | null>(null);
 
     // Step 1 = O.R. verification only. Step 2 = generation, signatory confirmation & release.
-    const [workflowStep, setWorkflowStep] = useState<'VERIFICATION' | 'RELEASE'>('VERIFICATION');
+    const [workflowStep, setWorkflowStep] = useState<'VERIFICATION' | 'RELEASE'>(
+        payment?.orNumber ? 'RELEASE' : 'VERIFICATION'
+    );
     const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
     const [docSignatories, setDocSignatories] = useState<Record<string, any>>({});
     const [activePreview, setActivePreview] = useState<{ docId: string; url: string; label: string } | null>(null);
     const [releaseStaff, setReleaseStaff] = useState<{ id: string; name: string }[]>([]);
+    const [activeSignatories, setActiveSignatories] = useState(DEFAULT_SIGNATORIES);
+
+    useEffect(() => {
+        const loadFromStaffFallback = () => {
+            fetchAllStaff()
+                .then((staffList) => {
+                    const assigned = staffList.filter((s: StaffMember) => s.account_status === 'ACTIVE' && s.is_signatory);
+                    if (assigned.length > 0) {
+                        const dynamicSigs = [
+                            ...assigned.map((s) => {
+                                const mi = s.middle_initial ? `${s.middle_initial.replace(/\.$/, '')}. ` : '';
+                                return {
+                                    id: s.id,
+                                    name: `${s.first_name} ${mi}${s.last_name}${s.suffix ? `, ${s.suffix}` : ''}`.replace(/\s+/g, ' ').trim(),
+                                    title: s.position || (s.admin_level ? `${s.admin_level} Admin` : 'Local Assessment Operations Officer IV'),
+                                    role: 'AUTHORIZED_REP',
+                                };
+                            }),
+                            ...DEFAULT_SIGNATORIES.filter((s) => s.role !== 'AUTHORIZED_REP'),
+                        ];
+                        setActiveSignatories(dynamicSigs);
+                    }
+                })
+                .catch((err) => console.error('Failed to load active signatories from staff list:', err));
+        };
+
+        fetchSignatories()
+            .then((sigs) => {
+                if (sigs && sigs.length > 0) {
+                    setActiveSignatories(sigs.map(s => ({
+                        id: String(s.id),
+                        name: s.suffix ? `${s.name}, ${s.suffix}` : s.name,
+                        title: s.position || s.title || '',
+                        role: s.role || 'AUTHORIZED_REP'
+                    })));
+                } else {
+                    loadFromStaffFallback();
+                }
+            })
+            .catch(() => {
+                loadFromStaffFallback();
+            });
+    }, []);
 
     useEffect(() => {
         requestService.getMetadata()
@@ -70,18 +118,21 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
         if (payment && payment.documents) {
             setDocuments(payment.documents);
 
+            const primarySig = activeSignatories.find(s => s.role === 'AUTHORIZED_REP') || activeSignatories[0];
+            const secondarySig = activeSignatories.find(s => s.role === 'ASST_ASSESSOR');
+
             // Pre-filled defaults — staff confirms/edits these at the release step, not here.
             const initialSigs: Record<string, any> = {};
             payment.documents.forEach((doc: any) => {
                 const isTD = doc.referenceNumber.startsWith('TD');
                 initialSigs[doc.id] = {
-                    primary: ACTIVE_SIGNATORIES.find(s => s.role === 'AUTHORIZED_REP'),
-                    secondary: isTD ? null : ACTIVE_SIGNATORIES.find(s => s.role === 'ASST_ASSESSOR')
+                    primary: primarySig,
+                    secondary: isTD ? null : secondarySig
                 };
             });
             setDocSignatories(initialSigs);
         }
-    }, [payment]);
+    }, [payment, activeSignatories]);
 
     useEffect(() => {
         return () => {
@@ -91,6 +142,17 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
             });
         };
     }, []);
+
+    // Resuming straight into RELEASE (from Pending for Release) skips the
+    // VERIFICATION step entirely, so nothing has generated a preview yet —
+    // handleConfirmAndGenerate normally does that, but it never runs on this
+    // path. Fire once documents + signatories are both populated.
+    useEffect(() => {
+        if (workflowStep === 'RELEASE' && documents.length > 0 && !activePreview && !isGeneratingPdf) {
+            handlePrintDocument(documents[0]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [workflowStep, documents]);
 
     if (!payment) {
         return (
@@ -172,10 +234,8 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
         setSelectedDocForPreview(null);
     };
 
-    // Used only at the release step now — regenerates the active preview so the
-    // signatory shown on the PDF stays in sync with the dropdown.
     const handleSignatoryChange = (docId: string, roleType: 'primary' | 'secondary', sigId: string) => {
-        const selectedSig = ACTIVE_SIGNATORIES.find(s => s.id === sigId);
+        const selectedSig = activeSignatories.find(s => s.id === sigId);
         setDocSignatories(prev => {
             const updated = { ...prev, [docId]: { ...prev[docId], [roleType]: selectedSig } };
             const doc = documents.find(d => d.id === docId);
@@ -350,7 +410,7 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
                             activePreview={activePreview}
                             isGeneratingPdf={isGeneratingPdf}
                             onSelectDocument={handlePrintDocument}
-                            activeSignatories={ACTIVE_SIGNATORIES}
+                            activeSignatories={activeSignatories}
                             docSignatories={docSignatories}
                             onSignatoryChange={handleSignatoryChange}
                             releaseStaffOptions={releaseStaff}

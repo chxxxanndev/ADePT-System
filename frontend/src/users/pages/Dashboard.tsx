@@ -15,6 +15,7 @@ import Reports from './Reports';
 import CertifiedTrueCopy from './CertifiedTrueCopy';
 import ArchiveManagement from './ArchiveManagement';
 import { NotificationPage } from './NotificationPage';
+import { PendingForRelease } from './PendingForRelease';
 import { requestService } from '../services/requestService';
 import { RequestGuard } from '../components/RequestGuard';
 import { DashboardSummary } from '../components/StatCard';
@@ -48,6 +49,12 @@ import {
 } from '../data/dashboardMockData';
 import VoidAndAmend from './VoidAndAmend';
 import type { VoidAmendRecord } from './VoidAndAmend';
+
+// sessionStorage key for the in-progress "completed entry" (the data that
+// gates the Tax Declaration / Landholding / No-Landholding / Transaction
+// Summary views). Mirrors the 'adept-active-view' pattern already used
+// below for activeView, so a page refresh doesn't fall back to RequestGuard.
+const COMPLETED_ENTRY_STORAGE_KEY = 'adept-completed-entry';
 
 // Helper to format date as "MM/DD/YYYY hh:mm AM/PM"
 const formatTransactionDateTime = (dateStr: string): string => {
@@ -162,14 +169,16 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     );
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
     const [completedEntryData, setCompletedEntryData] = useState<CompletedEntryData | null>(() => {
         try {
-            const raw = sessionStorage.getItem('adept-completed-entry-data');
-            return raw ? JSON.parse(raw) : null;
+            const saved = sessionStorage.getItem(COMPLETED_ENTRY_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : null;
         } catch {
             return null;
         }
     });
+
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
     const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
     const [pendingVoidItems, setPendingVoidItems] = useState<VoidAmendRecord[]>([]);
@@ -391,6 +400,41 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [cartItems, activeView, completedEntryData]);
 
+    // Fetch the latest profile from the backend when viewing account settings,
+    // so changes made by an admin (e.g. title) are reflected immediately.
+    useEffect(() => {
+        if (activeView === 'account-settings') {
+            accountService.getProfile().then((profile) => {
+                onUserUpdate({
+                    firstName: profile.firstName,
+                    middleInitial: profile.middleInitial,
+                    lastName: profile.lastName,
+                    username: profile.username,
+                    email: profile.email,
+                    avatarUrl: profile.avatarUrl,
+                    position: profile.position,
+                    suffix: profile.suffix,
+                });
+            }).catch(() => { });
+        }
+    }, [activeView]);
+
+    // FIX: keep sessionStorage in sync with completedEntryData so a refresh
+    // rehydrates it (see the lazy useState initializer above). When it's
+    // cleared (e.g. handleAddAnother sets it back to null), remove the key
+    // entirely rather than persisting "null".
+    useEffect(() => {
+        try {
+            if (completedEntryData) {
+                sessionStorage.setItem(COMPLETED_ENTRY_STORAGE_KEY, JSON.stringify(completedEntryData));
+            } else {
+                sessionStorage.removeItem(COMPLETED_ENTRY_STORAGE_KEY);
+            }
+        } catch {
+            // ignore storage write failures (e.g. private browsing quota)
+        }
+    }, [completedEntryData]);
+
     const handleEntryComplete = (data: CompletedEntryData) => {
         setCompletedEntryData(data);
         setPrefilledRequestData(null);
@@ -438,7 +482,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         setActiveView('void-amend');
     };
 
-    const fullName = `${user.firstName || ''} ${user.lastName || ''}`;
+    const fullName = `${user.firstName || ''} ${user.middleInitial ? user.middleInitial.replace(/\.$/, '') + '. ' : ''}${user.lastName || ''}`.replace(/\s+/g, ' ').trim();
 
     const headerUser = {
         name: fullName,
@@ -481,6 +525,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         avatarUrl: user.avatarUrl,
         lastPasswordChange: (user as any).lastPasswordChange,
         status: (user as any).status || 'ACTIVE',
+        position: user.position || undefined,
+        suffix: user.suffix || undefined,
     };
 
     if ((user as any).roleCode === ROLES.SUPER_ADMIN) {
@@ -488,11 +534,14 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     }
 
     const handleAccountSave = async (data: AccountSettingsFormData) => {
-        const result = await accountService.updateProfile(data.fullName, data.username);
+        const result = await accountService.updateProfile(data.fullName, data.username, data.position, data.suffix);
         onUserUpdate({
             firstName: result.data.first_name,
+            middleInitial: result.data.middle_initial,
             lastName: result.data.last_name,
             username: result.data.username,
+            position: result.data.position || data.position,
+            suffix: result.data.suffix || data.suffix,
         });
     };
 
@@ -706,6 +755,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                                 }
                             }}
                         />
+                    ) : activeView === 'pending-for-release' ? (
+                        <PendingForRelease onSelectPayment={handleSelectPayment} />
                     ) : activeView === 'transaction-registry' ? (
                         <TransactionRegistry user={user} onNavigateToVoidAmend={handleNavigateToVoidAmend} />
                     ) : activeView === 'void-amend' ? (

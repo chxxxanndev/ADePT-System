@@ -1,13 +1,22 @@
 import AccountService from './account.service.js';
 
+export const getProfile = async (req, res) => {
+    try {
+        const result = await AccountService.getProfile(req.user.id);
+        res.status(200).json({ data: result });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+
 export const updateProfile = async (req, res) => {
     try {
-        const { fullName, username } = req.body;
+        const { fullName, username, position, suffix } = req.body;
         if (!fullName?.trim() || !username?.trim()) {
             return res.status(400).json({ error: 'Full name and username are required.' });
         }
 
-        const result = await AccountService.updateProfile(req.user.id, { fullName, username });
+        const result = await AccountService.updateProfile(req.user.id, { fullName, username, position, suffix });
         res.status(200).json({ message: 'Profile updated.', data: result });
     } catch (error) {
         res.status(400).json({ error: error.message });

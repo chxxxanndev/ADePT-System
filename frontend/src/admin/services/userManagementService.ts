@@ -1,15 +1,11 @@
-import { supabase } from '../../lib/supabaseClient';
-
-const API_BASE_URL = 'http://localhost:5000/api/users';
+import { api } from '../../users/services/requestService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface StaffMember {
     id: string;
-    // Supabase Auth user id — required to match this staff row against the
-    // Realtime Presence channel keyed by auth id (see useOnlinePresence.ts
-    // and AdminAuditLog.tsx). Now returned by user.service.js's getAllStaff().
     auth_user_id: string;
     first_name: string;
+    middle_initial: string | null;
     last_name: string;
     email: string;
     username: string;
@@ -18,6 +14,8 @@ export interface StaffMember {
     created_by: string | null;
     admin_level: 'HIGH' | 'MEDIUM' | 'LOW' | null;
     is_signatory: boolean;
+    position: string | null;
+    suffix: string | null;
     roles: { code: string } | null;
 }
 
@@ -31,165 +29,6 @@ export interface CreateStaffPayload {
     adminLevel?: 'HIGH' | 'MEDIUM' | 'LOW';
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-// Pulls the current access token straight from supabase-js's own session
-// (kept fresh by its built-in autoRefreshToken) rather than a hand-rolled
-// localStorage copy — see useAuth.ts for why that copy was removed.
-export async function authHeaders(extra: Record<string, string> = {}): Promise<Record<string, string>> {
-    const { data: { session } } = await supabase.auth.getSession();
-    return {
-        ...extra,
-        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-    };
-}
-
-// ─── API calls ────────────────────────────────────────────────────────────────
-
-/**
- * Fetches all staff members from the backend.
- */
-export async function fetchAllStaff(): Promise<StaffMember[]> {
-    const res = await fetch(`${API_BASE_URL}/staff`, {
-        headers: await authHeaders(),
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Failed to fetch staff (${res.status})`);
-    }
-    const data = await res.json();
-    return data.staff as StaffMember[];
-}
-
-export async function createStaffAccount(payload: CreateStaffPayload): Promise<StaffMember> {
-    const res = await fetch(`${API_BASE_URL}/staff`, {
-        method: 'POST',
-        headers: await authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Failed to create staff account (${res.status})`);
-    }
-    const data = await res.json();
-    return data.staff as StaffMember;
-}
-
-/**
- * Toggles a staff member's account status.
- * @param staffId  The staff row UUID.
- * @param status   'ACTIVE' or 'DISABLED'.
- */
-export async function updateStaffStatus(
-    staffId: string,
-    status: 'ACTIVE' | 'DISABLED',
-    reason?: string
-): Promise<StaffMember> {
-    const res = await fetch(`${API_BASE_URL}/staff/${staffId}/status`, {
-        method: 'PATCH',
-        headers: await authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ status, reason }),
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Failed to update staff status (${res.status})`);
-    }
-    const data = await res.json();
-    return data.staff as StaffMember;
-}
-
-/**
- * Sets an Admin's access level (HIGH / MEDIUM / LOW). Super Admin only —
- * the backend will reject this call if the caller isn't a Super Admin.
- * @param staffId    The staff row UUID (must have role ADMIN).
- * @param adminLevel The new level to assign.
- */
-export async function setAdminLevel(
-    staffId: string,
-    adminLevel: 'HIGH' | 'MEDIUM' | 'LOW'
-): Promise<StaffMember> {
-    const res = await fetch(`${API_BASE_URL}/staff/${staffId}/admin-level`, {
-        method: 'PATCH',
-        headers: await authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ adminLevel }),
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Failed to update admin level (${res.status})`);
-    }
-    const data = await res.json();
-    return data.staff as StaffMember;
-}
-
-/**
- * Promotes an Office Staff member to Admin with an initial level.
- * Super Admin only.
- */
-export async function promoteToAdmin(
-    staffId: string,
-    adminLevel: 'HIGH' | 'MEDIUM' | 'LOW'
-): Promise<StaffMember> {
-    const res = await fetch(`${API_BASE_URL}/staff/${staffId}/promote-to-admin`, {
-        method: 'PATCH',
-        headers: await authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ adminLevel }),
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Failed to promote staff to Admin (${res.status})`);
-    }
-    const data = await res.json();
-    return data.staff as StaffMember;
-}
-
-/**
- * Demotes an Admin back to Office Staff. Super Admin only.
- */
-export async function demoteToStaff(staffId: string): Promise<StaffMember> {
-    const res = await fetch(`${API_BASE_URL}/staff/${staffId}/demote-to-staff`, {
-        method: 'PATCH',
-        headers: await authHeaders(),
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Failed to demote Admin (${res.status})`);
-    }
-    const data = await res.json();
-    return data.staff as StaffMember;
-}
-
-/**
- * Assigns this staff member as the sole signatory (replaces any previous one).
- * Requires SUPER_ADMIN or ADMIN(HIGH).
- */
-export async function assignSignatory(staffId: string): Promise<StaffMember> {
-    const res = await fetch(`${API_BASE_URL}/staff/${staffId}/assign-signatory`, {
-        method: 'PATCH',
-        headers: await authHeaders(),
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Failed to assign signatory (${res.status})`);
-    }
-    const data = await res.json();
-    return data.staff as StaffMember;
-}
-
-/**
- * Removes the signatory designation from this staff member.
- */
-export async function unassignSignatory(staffId: string): Promise<StaffMember> {
-    const res = await fetch(`${API_BASE_URL}/staff/${staffId}/unassign-signatory`, {
-        method: 'PATCH',
-        headers: await authHeaders(),
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Failed to remove signatory (${res.status})`);
-    }
-    const data = await res.json();
-    return data.staff as StaffMember;
-}
-
 export interface StaffPerformanceItem {
     id: string;
     name: string;
@@ -198,50 +37,136 @@ export interface StaffPerformanceItem {
     avatarBg: string;
 }
 
+// ─── API calls ────────────────────────────────────────────────────────────────
+
+/**
+ * Fetches all staff members from the backend.
+ */
+export async function fetchAllStaff(): Promise<StaffMember[]> {
+    const res = await api.get('/users/staff');
+    return res.data.staff as StaffMember[];
+}
+
+export async function createStaffAccount(payload: CreateStaffPayload): Promise<StaffMember> {
+    const res = await api.post('/users/staff', payload);
+    return res.data.staff as StaffMember;
+}
+
+/**
+ * Toggles a staff member's account status.
+ */
+export async function updateStaffStatus(
+    staffId: string,
+    status: 'ACTIVE' | 'DISABLED',
+    reason?: string
+): Promise<StaffMember> {
+    const res = await api.patch(`/users/staff/${staffId}/status`, { status, reason });
+    return res.data.staff as StaffMember;
+}
+
+/**
+ * Sets an Admin's access level.
+ */
+export async function setAdminLevel(
+    staffId: string,
+    adminLevel: 'HIGH' | 'MEDIUM' | 'LOW'
+): Promise<StaffMember> {
+    const res = await api.patch(`/users/staff/${staffId}/admin-level`, { adminLevel });
+    return res.data.staff as StaffMember;
+}
+
+/**
+ * Promotes an Office Staff member to Admin.
+ */
+export async function promoteToAdmin(
+    staffId: string,
+    adminLevel: 'HIGH' | 'MEDIUM' | 'LOW'
+): Promise<StaffMember> {
+    const res = await api.patch(`/users/staff/${staffId}/promote-to-admin`, { adminLevel });
+    return res.data.staff as StaffMember;
+}
+
+/**
+ * Demotes an Admin back to Office Staff.
+ */
+export async function demoteToStaff(staffId: string): Promise<StaffMember> {
+    const res = await api.patch(`/users/staff/${staffId}/demote-to-staff`);
+    return res.data.staff as StaffMember;
+}
+
+/**
+ * Assigns this staff member as the sole signatory.
+ */
+export async function assignSignatory(staffId: string): Promise<StaffMember> {
+    const res = await api.patch(`/users/staff/${staffId}/assign-signatory`);
+    return res.data.staff as StaffMember;
+}
+
+/**
+ * Removes the signatory designation.
+ */
+export async function unassignSignatory(staffId: string): Promise<StaffMember> {
+    const res = await api.patch(`/users/staff/${staffId}/unassign-signatory`);
+    return res.data.staff as StaffMember;
+}
+
+/**
+ * Sets a staff member's official position.
+ */
+export async function setStaffPosition(
+    staffId: string,
+    position: string
+) {
+    const res = await api.patch(`/users/staff/${staffId}/set-position`, { position });
+    return res.data.staff;
+}
+
+/**
+ * Fetches staff performance metrics.
+ */
 export async function fetchStaffPerformance(): Promise<StaffPerformanceItem[]> {
-    const res = await fetch(`${API_BASE_URL}/staff-performance`, {
-        headers: await authHeaders(),
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Failed to fetch staff performance (${res.status})`);
-    }
-    const data = await res.json();
-    return data.performance as StaffPerformanceItem[];
+    const res = await api.get('/users/staff-performance');
+    return res.data.performance as StaffPerformanceItem[];
 }
 
 /**
- * Fetches real-time dashboard metrics (access requests, request queue, distribution)
- * from the backend requests endpoint.
+ * Fetches active signatories from the signatories table.
  */
-export async function fetchDashboardMetrics() {
-    const res = await fetch('http://localhost:5000/api/requests/dashboard-metrics', {
-        headers: await authHeaders(),
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Failed to fetch dashboard metrics (${res.status})`);
-    }
-    return res.json();
+export async function fetchSignatories(): Promise<any[]> {
+    const res = await api.get('/users/signatories');
+    return res.data.signatories;
 }
 
 /**
- * Fetches recent transactions from the request registry for the dashboard widget.
- * Returns the most recent entries mapped to AdminTransactionRow format.
+ * Fetches real-time dashboard metrics (URL standardized).
+ * Optional from/to (YYYY-MM-DD) restrict the data to a date range.
  */
-export async function fetchRecentTransactions(limit = 5): Promise<any[]> {
-    const res = await fetch('http://localhost:5000/api/requests/registry', {
-        headers: await authHeaders(),
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Failed to fetch recent transactions (${res.status})`);
-    }
-    const data = await res.json();
+export async function fetchDashboardMetrics(from?: string, to?: string) {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    const qs = params.toString();
+    const res = await api.get(`/requests/dashboard-metrics${qs ? `?${qs}` : ''}`);
+    return res.data;
+}
+
+/**
+ * Fetches and maps recent transactions. Logic exactly as original.
+ * Optional from/to (YYYY-MM-DD) restrict the data to a date range.
+ */
+export async function fetchRecentTransactions(limit = 5, from?: string, to?: string): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    const qs = params.toString();
+    const res = await api.get(`/requests/registry${qs ? `?${qs}` : ''}`);
+    const data = res.data;
+    
     const transactions = (data.transactions || []).slice(0, limit).map((t: any) => {
         let status: 'Approved' | 'Disapproved' | 'Pending' = 'Pending';
         if (t.status === 'Released') status = 'Approved';
         else if (t.status === 'Void' || t.status === 'Cancelled') status = 'Disapproved';
+        
         return {
             id: t.id,
             controlNo: t.referenceNumber || `REF-${(t.id || '').slice(0, 6).toUpperCase()}`,
@@ -260,15 +185,9 @@ export async function fetchRecentTransactions(limit = 5): Promise<any[]> {
 }
 
 /**
- * Fetches real-time reports & analytics data directly from the backend requests endpoint.
+ * Fetches real-time reports & analytics (URL standardized)
  */
 export async function fetchReportsAnalytics() {
-    const res = await fetch('http://localhost:5000/api/requests/reports-data', {
-        headers: await authHeaders(),
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Failed to fetch reports analytics (${res.status})`);
-    }
-    return res.json();
+    const res = await api.get('/requests/reports-data');
+    return res.data;
 }

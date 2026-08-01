@@ -1,157 +1,262 @@
-/* ===== Transaction Registry ===== */
+/* ===== Transaction Registry =====
+   Restyled to match PendingPayment.css's glass-card design language
+   (var(--db-*) tokens, glass cards, stat chips, chip colors, pagination). */
 
 .tr-page {
     background-color: transparent;
     min-height: 100%;
     padding: 0 4px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
-/* ---- Page header ---- */
+/* ---- Header card (title, refresh, summary stats, legend) ---- */
 
-.tr-header {
+.tr-header-card {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--db-glass-card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: var(--db-radius-lg);
+    padding: 24px 28px;
+    box-shadow: var(--db-shadow-card);
+    margin: 24px 32px 0;
+}
+
+.tr-header-top {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin: 0 24px 22px;
-    padding-top: 24px;
+    gap: 20px;
 }
 
-.tr-header h2 {
+.tr-header-titles {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tr-header-titles h2 {
     margin: 0;
     font-size: 1.5rem;
     font-weight: 800;
-    color: #29237A;
+    color: var(--db-primary);
+    letter-spacing: -0.02em;
 }
 
-.tr-header p {
+.tr-header-titles p {
     margin: 4px 0 0;
-    color: #64748b;
-    font-size: 0.88rem;
+    color: var(--db-text-muted);
+    font-size: 0.85rem;
 }
 
-/* ---- Summary cards ---- */
+.tr-refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    border: 1px solid var(--db-glass-border-alt);
+    background-color: rgba(255, 255, 255, 0.6);
+    color: var(--db-primary);
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.4s ease;
+    flex-shrink: 0;
+}
+
+.tr-refresh-btn:hover {
+    background-color: #ffffff;
+}
+
+.tr-refresh-btn.is-spinning svg {
+    animation: tr-spin 0.7s linear;
+}
+
+@keyframes tr-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ---- Summary stat chips (rendered by <SummaryCards/>, classnames below
+   are the ones it already outputs — restyled here to match pp-stat-chip) ---- */
 
 .tr-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 14px;
-    margin: 0 24px 22px;
+    display: flex;
+    gap: 12px;
+    margin-top: 18px;
+    flex-wrap: wrap;
 }
 
 .tr-summary-card {
-    background-color: #FFFFFF;
-    border: 1px solid #D7D2F2;
-    border-radius: 14px;
-    padding: 14px 16px;
-    box-shadow: 0 6px 16px rgba(43, 42, 110, 0.08);
+    flex: 1;
+    min-width: 130px;
     display: flex;
     flex-direction: column;
+    gap: 2px;
+    padding: 12px 18px;
+    border-radius: var(--db-radius-sm);
+    background-color: rgba(41, 35, 122, 0.05);
+    border: 1px solid var(--db-glass-border-alt);
+    box-shadow: none;
+    min-height: 62px;
     justify-content: center;
-    gap: 4px;
-    min-width: 0;
-    min-height: 78px;
+    transition: background-color 0.15s ease;
+}
+
+.tr-summary-card:hover {
+    background-color: rgba(41, 35, 122, 0.08);
 }
 
 .tr-summary-card-label {
-    font-size: 0.7rem;
+    font-size: 10.5px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
-    color: #7A76A8;
+    letter-spacing: 0.03em;
+    color: var(--db-text-muted);
     white-space: normal;
-    overflow-wrap: normal;
-    word-break: keep-all;
     line-height: 1.25;
 }
 
 .tr-summary-card-value {
-    font-size: 1.4rem;
+    font-size: 17px;
     font-weight: 800;
-    color: #16161F;
+    color: var(--db-primary);
 }
 
-.tr-summary-card--accent-total {
-    border-left: 4px solid #29237A;
-}
-
-.tr-summary-card--accent-pending {
-    border-left: 4px solid #D19E00;
-}
-
-.tr-summary-card--accent-processing {
-    border-left: 4px solid #2563EB;
-}
-
-.tr-summary-card--accent-ready {
-    border-left: 4px solid #0D9488;
-}
-
-.tr-summary-card--accent-released {
-    border-left: 4px solid #1E7A46;
-}
-
+/* Accent left-borders from the previous design are dropped so the chips read
+   flat/uniform, matching PendingPayment's stat chips. */
+.tr-summary-card--accent-total,
+.tr-summary-card--accent-pending,
+.tr-summary-card--accent-processing,
+.tr-summary-card--accent-ready,
+.tr-summary-card--accent-released,
 .tr-summary-card--accent-void {
-    border-left: 4px solid #B0281C;
+    border-left: 1px solid var(--db-glass-border-alt);
 }
 
-/* ---- Toolbar: search + filters ---- */
+/* SummaryCards currently renders exactly one "Total Transactions" chip, so
+   keep it compact and left-aligned rather than letting flex:1 stretch it
+   across the whole header card width. */
+.tr-summary-grid--single {
+    justify-content: flex-start;
+}
 
-.tr-toolbar {
+.tr-summary-grid--single .tr-summary-card {
+    flex: 0 0 auto;
+    min-width: 220px;
+    max-width: 320px;
+}
+
+/* ---- Legend row ---- */
+
+.tr-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+
+.tr-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--db-text-muted);
+}
+
+.tr-legend-item svg {
+    flex-shrink: 0;
+}
+
+.tr-legend-item--lh svg {
+    color: #0369A1;
+}
+
+.tr-legend-item--nlh svg {
+    color: #92400E;
+}
+
+.tr-legend-item--td svg {
+    color: #166534;
+}
+
+/* ---- Toolbar: search + filters (rendered inside the table card now) ---- */
+
+.tr-table-toolbar {
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
     gap: 10px;
-    margin: 0 24px 16px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--db-glass-border-alt);
+    background-color: rgba(41, 35, 122, 0.02);
+}
+
+.tr-search-wrapper {
+    flex: 1 1 auto;
+    min-width: 160px;
 }
 
 .tr-search {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: #FFFFFF;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 10px 16px;
-    flex: 1 1 auto;
-    min-width: 160px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    color: #7A76A8;
+    background-color: var(--db-input-bg);
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: 999px;
+    padding: 8px 16px;
+    width: 100%;
+    min-width: 240px;
+    max-width: 640px;
+    color: var(--db-text-muted);
+    transition: all 0.2s ease;
+}
+
+.tr-search:focus-within {
+    background: #ffffff;
+    border-color: var(--db-secondary);
+    box-shadow: 0 4px 12px rgba(41, 35, 122, 0.08);
+    color: var(--db-primary);
 }
 
 .tr-search input {
     border: none;
     outline: none;
     width: 100%;
-    font-size: 0.88rem;
-    color: #1e293b;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--db-slate);
     background: transparent;
 }
 
 .tr-filter-select {
-    background: #FFFFFF;
-    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    border: 1px solid var(--db-glass-border-alt);
     border-radius: 10px;
-    padding: 10px 14px;
+    padding: 9px 14px;
     font-size: 0.85rem;
-    color: #29237A;
+    color: var(--db-primary);
     font-weight: 600;
     cursor: pointer;
     flex: 0 1 150px;
     min-width: 110px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .tr-filter-date {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #FFFFFF;
-    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    border: 1px solid var(--db-glass-border-alt);
     border-radius: 10px;
     padding: 8px 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     flex: 0 0 auto;
 }
 
@@ -159,7 +264,7 @@
     border: none;
     outline: none;
     font-size: 0.82rem;
-    color: #29237A;
+    color: var(--db-primary);
     font-weight: 600;
     background: transparent;
     width: 100px;
@@ -171,11 +276,11 @@
 }
 
 .tr-filter-reset {
-    background: #F1EFFB;
-    border: 1px solid #D7D2F2;
-    color: #29237A;
+    background-color: rgba(41, 35, 122, 0.06);
+    border: 1px solid var(--db-glass-border-alt);
+    color: var(--db-primary);
     border-radius: 10px;
-    padding: 10px 16px;
+    padding: 9px 16px;
     font-size: 0.82rem;
     font-weight: 700;
     cursor: pointer;
@@ -184,50 +289,57 @@
 }
 
 .tr-filter-reset:hover {
-    background: #E4E0FA;
+    background-color: rgba(41, 35, 122, 0.12);
 }
 
-/* ---- Card / table ---- */
+/* ---- Table card ---- */
 
 .tr-card {
-    background-color: #FFFFFF;
-    border: 1px solid #D7D2F2;
-    border-radius: 16px;
-    margin: 0 24px;
-    padding: 4px 20px 6px;
-    box-shadow: 0 10px 28px rgba(43, 42, 110, 0.12), 0 2px 6px rgba(43, 42, 110, 0.06);
+    background-color: var(--db-glass-card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: var(--db-radius-lg);
+    box-shadow: var(--db-shadow-card);
+     margin: 0 32px; 
+    overflow: hidden;
+}
+
+.tr-table-scroll {
     overflow-x: auto;
-    /* kept as a safety net for very narrow screens, no longer relied on at desktop widths */
+    width: 100%;
 }
 
 .tr-table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    /* columns share available width instead of forcing min-width overflow */
+    min-width: 1180px;
+}
+
+.tr-table thead {
+    background-color: var(--db-table-header);
+    border-bottom: 1px solid var(--db-glass-border-alt);
 }
 
 .tr-table thead th {
-    text-align: left;
-    padding: 16px 10px;
-    font-size: 12.5px;
-    font-weight: 700;
+    padding: 14px 20px;
+    font-size: 0.7rem;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: #475569;
-    border-bottom: 2px solid #B7B0F0;
+    letter-spacing: 0.05em;
+    color: var(--db-primary);
     white-space: normal;
     word-break: keep-all;
-    /* only wrap at spaces, never mid-word */
     overflow-wrap: normal;
     hyphens: none;
 }
 
 .tr-table tbody td {
-    padding: 14px 10px;
+    padding: 16px 20px;
     font-size: 13.5px;
     color: #2B2A34;
-    border-bottom: 1px solid #EEECFB;
+    border-bottom: 1px solid var(--db-glass-border-alt);
     vertical-align: middle;
     white-space: normal;
     overflow-wrap: break-word;
@@ -237,124 +349,107 @@
     border-bottom: none;
 }
 
-/* Column width proportions — 7 columns now that Requested Documents is removed */
-.tr-table th:nth-child(1),
-.tr-table td:nth-child(1) {
-    width: 16%;
-}
-
-/* Reference Number */
-
-.tr-table th:nth-child(2),
-.tr-table td:nth-child(2) {
-    width: 16%;
-}
-
-/* Declarant */
-
-.tr-table th:nth-child(3),
-.tr-table td:nth-child(3) {
-    width: 14%;
-}
-
-/* Requested By */
-
-.tr-table th:nth-child(4),
-.tr-table td:nth-child(4) {
-    width: 12%;
-}
-
-/* Date Requested */
-
-.tr-table th:nth-child(5),
-.tr-table td:nth-child(5) {
-    width: 14%;
-}
-
-/* Assigned Staff */
-
-.tr-table th:nth-child(6),
-.tr-table td:nth-child(6) {
-    width: 14%;
-}
-
-/* Current Status */
-
-.tr-table th:nth-child(7),
-.tr-table td:nth-child(7) {
-    width: 14%;
-}
-
-/* Actions */
-
 .tr-row {
-    cursor: pointer;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease;
-    box-shadow: inset 3px 0 0 0 transparent;
+    transition: background-color 0.15s ease;
 }
 
 .tr-row:hover {
-    background-color: #FBF7FF;
-    box-shadow: inset 3px 0 0 0 #534AB7;
+    background-color: var(--db-hover-highlight);
+}
+
+/* ---- Stacked per-document columns (Reference Number, OR Number,
+   OR Justification) — one line per requested document, aligned across
+   columns via a count-label/spacer pair at the top, same pattern used by
+   PendingPayment's pp-doc-count-label / pp-ref-list / pp-doc-line. ---- */
+
+.tr-stack-count-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #9CA3AF;
+    margin-bottom: 10px;
+}
+
+.tr-stack-count-label--spacer {
+    visibility: hidden;
+}
+
+.tr-stack-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.tr-stack-line {
+    display: flex;
+    align-items: center;
+    min-height: 24px;
 }
 
 .tr-ref {
     font-weight: 700;
-    color: #29237A;
+    color: var(--db-primary);
     font-family: inherit;
     font-size: 0.93rem;
-}
-
-.tr-declarant {
-    font-weight: 600;
-    color: #1e293b;
-}
-
-.tr-declarant-sub {
-    display: block;
-    font-weight: 400;
-    font-size: 0.76rem;
-    color: #94a3b8;
-    margin-top: 2px;
 }
 
 .tr-doc-pill {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    background: #f1f5f9;
-    border: 1px solid #cbd5e1;
-    color: #475569;
-    padding: 3px 9px;
-    border-radius: 999px;
-    font-size: 0.74rem;
+    font-family: inherit;
+    font-size: 0.78rem;
     font-weight: 600;
-    margin: 2px 3px 2px 0;
-    white-space: normal;
-    /* allow pills to wrap instead of forcing row width */
+    background-color: #f1f5f9;
+    color: var(--db-text-muted);
+    padding: 4px 10px;
+    border-radius: 5px;
+    border: 1px solid #e2e8f0;
+    white-space: nowrap;
 }
 
 .tr-doc-pill svg {
     flex-shrink: 0;
 }
 
-/* Document-type color variants, matching the No Landholding / Tax Declaration / Landholding chips */
+/* Document-type color variants — matches PendingPayment's pp-ref-chip
+   variants exactly so a reference number reads the same color on both screens. */
 .tr-doc-pill--nlh {
-    background: #FEF9E7;
-    border-color: #F6E4A8;
-    color: #92650B;
+    background-color: #FEF3C7;
+    color: #92400E;
+    border-color: #FDE9A8;
 }
 
 .tr-doc-pill--td {
-    background: #EAFBF1;
-    border-color: #BCEBD1;
-    color: #1E7A46;
+    background-color: #DCFCE7;
+    color: #166534;
+    border-color: #BBF7D0;
 }
 
 .tr-doc-pill--lh {
-    background: #EAF3FE;
-    border-color: #C6DEFB;
-    color: #1D4ED8;
+    background-color: #E0F2FE;
+    color: #0369A1;
+    border-color: #BFE3FA;
+}
+
+.tr-or-number {
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+}
+
+.tr-or-justification {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #1e293b;
+}
+
+.tr-or-justification--none {
+    color: #94a3b8;
+    font-style: italic;
 }
 
 .tr-table-empty {
@@ -370,6 +465,19 @@
     margin-bottom: 4px;
 }
 
+.tr-declarant {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.tr-declarant-sub {
+    display: block;
+    font-weight: 400;
+    font-size: 0.76rem;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
 /* ---- Actions ---- */
 
 .tr-actions {
@@ -382,9 +490,9 @@
 }
 
 .tr-action-btn {
-    background: #F1EFFB;
+    background: rgba(41, 35, 122, 0.06);
     border: none;
-    color: #29237A;
+    color: var(--db-primary);
     width: 32px;
     height: 32px;
     border-radius: 7px;
@@ -397,7 +505,7 @@
 }
 
 .tr-action-btn:hover {
-    background: #E4E0FA;
+    background: rgba(41, 35, 122, 0.12);
 }
 
 .tr-action-btn--more {
@@ -413,13 +521,32 @@
     background: #F9D2CE;
 }
 
+.tr-view-details-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: rgba(41, 35, 122, 0.06);
+    border: 1px solid var(--db-glass-border-alt);
+    color: var(--db-primary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 7px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.15s ease;
+}
+
+.tr-view-details-btn:hover {
+    background: rgba(41, 35, 122, 0.12);
+}
 
 /* ---- Status badge ---- */
 
 .tr-badge {
     display: inline-block;
     padding: 5px 10px;
-    /* border-radius: 999px; */
     font-size: 11.5px;
     font-weight: 700;
     white-space: normal;
@@ -457,80 +584,95 @@
     color: #475569;
 }
 
-/* ---- Pagination ---- */
-
-.tr-pagination {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin: 18px 24px 0;
-    padding-bottom: 8px;
-}
-
-.tr-pagination-rows {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.82rem;
-    color: #64748b;
-}
-
-.tr-pagination-rows select {
-    border: 1px solid #e2e8f0;
-    border-radius: 7px;
-    padding: 5px 8px;
-    font-size: 0.82rem;
-    color: #29237A;
-    font-weight: 600;
-}
-
-.tr-pagination-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.tr-pagination-btn {
-    background: #FFFFFF;
-    border: 1px solid #D7D2F2;
-    color: #29237A;
-    padding: 7px 14px;
-    border-radius: 8px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.tr-pagination-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.tr-pagination-btn:not(:disabled):hover {
-    background: #F1EFFB;
-}
-
-.tr-pagination-label {
-    font-size: 0.82rem;
-    color: #64748b;
-    font-weight: 600;
-}
-
-.tr-ref-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
 .tr-badge--reprinted {
     color: #7C3AED;
     margin-left: 6px;
 }
 
-.tr-summary-grid--single {
-    grid-template-columns: minmax(200px, 320px);
+/* ---- Pagination footer (matches pp-pagination-footer's 3-column layout) ---- */
+
+.tr-pagination-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background-color: var(--db-table-header, #f8fafc);
+    border-top: 1px solid var(--db-glass-border-alt);
+}
+
+.tr-pagination-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.tr-pagination-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--db-text-muted, #64748b);
+}
+
+.tr-items-per-page {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 32px 6px 12px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--db-primary, #29237a);
+    background-color: #ffffff;
+    cursor: pointer;
+    outline: none;
+}
+
+.tr-items-per-page:focus {
+    border-color: var(--db-primary);
+}
+
+.tr-pagination-center {
+    flex: 1;
+    text-align: center;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--db-primary, #29237a);
+}
+
+.tr-pagination-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    flex: 1;
+}
+
+.tr-page-current {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--db-text-muted, #64748b);
+}
+
+.tr-page-btn-text {
+    padding: 6px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    color: var(--db-primary, #29237a);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.tr-page-btn-text:hover:not(:disabled) {
+    background-color: var(--db-hover-highlight);
+    border-color: var(--db-secondary);
+}
+
+.tr-page-btn-text:disabled {
+    color: #94a3b8;
+    background-color: #f8fafc;
+    border-color: #e2e8f0;
+    cursor: not-allowed;
 }
 
 .tr-more-menu--wide {
@@ -555,7 +697,7 @@
     font-family: inherit;
     font-weight: 700;
     font-size: 0.78rem;
-    color: #29237A;
+    color: var(--db-primary);
     padding: 6px 8px 4px;
 }
 
@@ -583,7 +725,7 @@
     justify-content: space-between;
     padding: 6px 8px;
     font-size: 0.78rem;
-    color: #29237A;
+    color: var(--db-primary);
 }
 
 .tr-more-menu-doc-row button {
@@ -592,7 +734,7 @@
     gap: 4px;
     background: #F1EFFB;
     border: none;
-    color: #29237A;
+    color: var(--db-primary);
     font-size: 0.72rem;
     font-weight: 700;
     padding: 4px 8px;
@@ -677,7 +819,7 @@
 }
 
 .td-header {
-    background: #29237A;
+    background: var(--db-primary, #29237A);
     color: #FFFFFF;
     padding: 20px 28px;
     display: flex;
@@ -719,6 +861,25 @@
     background: rgba(255, 255, 255, 0.28);
 }
 
+.td-header-void-btn {
+    background: rgba(255, 255, 255, 0.16);
+    border: none;
+    color: #FCA5A5;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.td-header-void-btn:hover {
+    background: rgba(239, 68, 68, 0.35);
+    color: #FEE2E2;
+}
+
 .td-body {
     padding: 20px 28px 40px;
 }
@@ -737,11 +898,24 @@
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #29237A;
+    color: var(--db-primary);
     margin: 0 0 14px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    position: relative;
+    padding-left: 16px;
+}
+
+.td-section-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 1px;
+    bottom: 1px;
+    width: 3px;
+    border-radius: 2px;
+    background: currentColor;
 }
 
 .td-grid {
@@ -847,7 +1021,7 @@
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: #29237A;
+    background: var(--db-primary, #29237A);
     border: 2px solid #FFFFFF;
     box-shadow: 0 0 0 2px #D7D2F2;
 }
@@ -873,40 +1047,35 @@
 
 /* ---- Responsive ---- */
 
-/* Laptop / smaller desktop widths: tighten table so it never needs horizontal scroll */
 @media (max-width: 1440px) {
-
     .tr-table thead th,
     .tr-table tbody td {
-        padding: 12px 8px;
+        padding: 12px 16px;
         font-size: 12.5px;
     }
 }
 
 @media (max-width: 1100px) {
     .tr-summary-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-
-    .tr-toolbar {
         flex-wrap: wrap;
     }
 
-    .tr-search {
+    .tr-summary-card {
+        min-width: 45%;
+    }
+
+    .tr-table-toolbar {
+        flex-wrap: wrap;
+    }
+
+    .tr-search-wrapper {
         flex: 1 1 100%;
     }
 }
 
 @media (max-width: 720px) {
-    .tr-summary-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .tr-header,
-    .tr-toolbar,
-    .tr-card,
-    .tr-pagination,
-    .tr-summary-grid {
+    .tr-header-card,
+    .tr-card {
         margin-left: 12px;
         margin-right: 12px;
     }
@@ -919,15 +1088,17 @@
         width: 100%;
     }
 
-    /* Below this width the fixed layout can't fit legibly anymore,
-       so fall back to a horizontally scrollable table just on small/mobile screens */
-    .tr-table {
-        table-layout: auto;
-        min-width: 720px;
+    .tr-pagination-footer {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
     }
 
-    .tr-card {
-        overflow-x: auto;
+    .tr-pagination-left,
+    .tr-pagination-center,
+    .tr-pagination-right {
+        justify-content: center;
+        flex: none;
     }
 }
 
@@ -955,9 +1126,6 @@
 
 /* Skeleton loading states */
 
-/* Toolbar skeleton container: children are SkeletonBox elements with
-   their own width/height/borderRadius props (see components/common/Skeleton.tsx),
-   this just lays them out in a row matching .tr-toolbar's spacing. */
 .tr-toolbar-skeleton {
     display: flex;
     flex-wrap: nowrap;
@@ -1045,6 +1213,16 @@
     flex-direction: column;
     justify-content: center;
     gap: 8px;
+}
+
+.tr-summary-skeleton-card {
+    flex: 0 0 auto;
+    min-width: 220px;
+    max-width: 320px;
+    min-height: 62px;
+    height: auto;
+    padding: 12px 18px;
+    border-left: 1px solid var(--db-glass-border-alt);
 }
 
 .td-docitem--clickable {

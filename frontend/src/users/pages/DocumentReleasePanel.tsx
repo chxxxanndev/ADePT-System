@@ -128,16 +128,24 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                         />
                     ) : isGeneratingPdf ? (
                         <div className="pd-pdf-placeholder">
+<<<<<<< HEAD
                             <svg className="pd-placeholder-icon spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                             </svg>
+=======
+                            {/* <span className="pd-pdf-placeholder-icon">⏳</span> */}
+>>>>>>> main
                             Generating preview…
                         </div>
                     ) : (
                         <div className="pd-pdf-placeholder">
+<<<<<<< HEAD
                             <svg className="pd-placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                             </svg>
+=======
+                            {/* <span className="pd-pdf-placeholder-icon">📄</span> */}
+>>>>>>> main
                             Select a document from the panel to preview
                         </div>
                     )}
@@ -192,9 +200,13 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                                     </div>
                                     <div className="pd-compact-action">
                                         {isGeneratingPdf === doc.id ? (
+<<<<<<< HEAD
                                             <span className="pd-status-text pd-loading">
                                                 <span className="pd-pulse-dot"></span> Loading
                                             </span>
+=======
+                                            <span className="pd-status-text">Loading...</span>
+>>>>>>> main
                                         ) : isActive ? (
                                             <span className="pd-status-text pd-viewing">
                                                 <span className="pd-pulse-dot pd-pulse-dot--active"></span> Viewing

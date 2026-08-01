@@ -3,9 +3,10 @@ import '../styles/RequestQueue.css';
 import { SearchIcon } from '../components/icons';
 import { RefreshIcon } from '../../users/components/icons';
 import type { User } from '../../auth-folder/types/auth';
-import { authHeaders } from '../services/userManagementService';
+// 1. Updated Imports: Removed authHeaders, Added api
+import { api } from '../../users/services/requestService';
 
-const API_BASE = 'http://localhost:5000/api/requests';
+// 2. Removed hardcoded API_BASE
 
 type RequestStatus = 'Pending' | 'Processing' | 'Payment Verified' | 'Released' | 'Void' | 'Cancelled';
 
@@ -63,15 +64,17 @@ export function RequestQueue({ user }: RequestQueueProps) {
         user.role === 'OFFICE_STAFF' ? 'Office Staff' :
         user.role || 'Staff';
 
+    /**
+     * 3. Updated fetchRequests to use standardized 'api'
+     */
     const fetchRequests = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
         else setLoading(true);
         setError(null);
         try {
-            const headers = await authHeaders();
-            const res = await fetch(`${API_BASE}/dashboard-metrics`, { headers });
-            if (!res.ok) throw new Error(`Server error ${res.status}`);
-            const data = await res.json();
+            // Standardized call to /requests/dashboard-metrics
+            const res = await api.get('/requests/dashboard-metrics');
+            const data = res.data;
 
             const queue: DocumentRequest[] = (data.requestQueue || []).map((r: any) => ({
                 id: r.id,
@@ -85,7 +88,8 @@ export function RequestQueue({ user }: RequestQueueProps) {
             }));
             setRequests(queue);
         } catch (err: any) {
-            setError(err.message || 'Failed to load request queue.');
+            const errorMsg = err.response?.data?.error || err.message || 'Failed to load request queue.';
+            setError(errorMsg);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -96,6 +100,8 @@ export function RequestQueue({ user }: RequestQueueProps) {
         void fetchRequests();
     }, [fetchRequests]);
 
+    // ... (Keep all mapping logic, pagination, and JSX exactly the same)
+    
     // Count helpers
     const countForTab = (tab: TabKey) => {
         if (tab === 'all') return requests.length;
@@ -128,12 +134,10 @@ export function RequestQueue({ user }: RequestQueueProps) {
     const endIndex = Math.min(startIndex + rowsPerPage, filteredRequests.length);
     const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
 
-    // Reset to page 1 when filters change
     useEffect(() => { setCurrentPage(1); }, [activeTab, searchQuery, rowsPerPage]);
 
     return (
         <div className="request-queue-page">
-            {/* Page header */}
             <div className="rq-page-header">
                 <div className="rq-page-header-row">
                     <div>
@@ -154,7 +158,6 @@ export function RequestQueue({ user }: RequestQueueProps) {
                     </div>
                 </div>
 
-                {/* Search + Refresh row */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div className="rq-search-wrapper" style={{ flex: 1 }}>
                         <input
@@ -180,9 +183,7 @@ export function RequestQueue({ user }: RequestQueueProps) {
                 </div>
             </div>
 
-            {/* Card */}
             <div className="admin-card rq-card">
-                {/* Summary pills */}
                 <div className="rq-summary-pills">
                     {tabs.map((tab) => (
                         <button
@@ -197,7 +198,6 @@ export function RequestQueue({ user }: RequestQueueProps) {
                     ))}
                 </div>
 
-                {/* Table */}
                 <div className="admin-table-container">
                     {loading ? (
                         <div className="rq-state-message">

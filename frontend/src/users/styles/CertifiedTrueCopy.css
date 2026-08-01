@@ -7,7 +7,6 @@
 .ctc-page {
   --color-primary: #29237a;
   --color-secondary: #00bcd4;
-  --color-background: #fffcf9;
   --color-text: #2c3338;
   --color-muted: #8b8fa3;
   --color-muted-light: #9aa0af;
@@ -207,27 +206,16 @@
   white-space: nowrap;
 }
 
+/* FIX: plain declarant name cell — replaces the removed
+   .ctc-declarant-cell / .ctc-avatar wrapper now that the initials
+   circle has been dropped from the Declarant column. */
+.ctc-cell-name {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
 .ctc-cell-muted {
   color: var(--color-muted);
-}
-
-.ctc-declarant-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.ctc-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 9999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: #ffffff;
-  flex-shrink: 0;
 }
 
 .ctc-empty-row td {

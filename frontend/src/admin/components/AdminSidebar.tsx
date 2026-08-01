@@ -21,6 +21,7 @@ interface AdminSidebarProps {
     onToggleCollapse: () => void;
     mobileOpen: boolean;
     setMobileOpen: (open: boolean) => void;
+    accountRequestCount?: number;
 }
 
 // Icon mapper for general navigation
@@ -40,7 +41,8 @@ export function AdminSidebar({
     collapsed,
     onToggleCollapse,
     mobileOpen,
-    setMobileOpen
+    setMobileOpen,
+    accountRequestCount = 0
 }: AdminSidebarProps) {
     const [userManagementExpanded, setUserManagementExpanded] = useState(true);
 
@@ -126,6 +128,11 @@ export function AdminSidebar({
                                                     onClick={() => handleSubItemClick(sub.view)}
                                                 >
                                                     {sub.label}
+                                                    {sub.view === 'account-request' && accountRequestCount > 0 && (
+                                                        <span className="sidebar-badge" title={`${accountRequestCount} pending account request${accountRequestCount > 1 ? 's' : ''}`}>
+                                                            {accountRequestCount}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>

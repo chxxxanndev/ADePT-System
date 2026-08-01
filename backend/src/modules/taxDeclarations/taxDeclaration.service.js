@@ -98,6 +98,8 @@ class TaxDeclarationService {
             taxability: data.taxability ?? 'TAXABLE',
             effectivity_year: data.effectivityYear ?? null,
             cancelled_td_number: data.cancelledTdNumber ?? null,
+            assessor_name: data.assessorName ?? null,
+            assessor_title: data.assessorTitle ?? null,
             memoranda: data.memoranda ?? null,
             notes: data.notes ?? null,
         };
@@ -279,6 +281,8 @@ class TaxDeclarationService {
             effectivity_year: data.effectivityYear,
             taxability: data.taxability ?? 'TAXABLE',
             total_assessed_value: data.totalAssessedValue,
+            assessor_name: data.assessorName ?? null,
+            assessor_title: data.assessorTitle ?? null,
             encoded_by: staffAuthId,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -305,7 +309,9 @@ class TaxDeclarationService {
             total_market_value: formData.totalMarketValue || formData.total_market_value,
             total_assessed_value: formData.totalAssessedValue || formData.total_assessed_value,
             taxability: formData.taxability,
-            effectivity_year: formData.effectivityYear || formData.effectivity_year
+            effectivity_year: formData.effectivityYear || formData.effectivity_year,
+            assessor_name: formData.assessorName || formData.assessor_name,
+            assessor_title: formData.assessorTitle || formData.assessor_title
         }).eq('id', id).select().single();
 
         if (error) throw error;

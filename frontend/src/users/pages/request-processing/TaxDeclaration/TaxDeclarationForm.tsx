@@ -387,6 +387,32 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onAddAnother, o
                             </div>
                             <div className="td-field"><label className="td-label">Memoranda</label><textarea id="td-memoranda" className="td-input" rows={3} placeholder="e.g. Revised Under Provincial Ordinance No. ZN-19-183…" value={form.memoranda} onChange={(e) => set('memoranda', e.target.value)} /></div>
                         </div>
+
+                        <div className="td-section">
+                            <div className="td-section-title">Assessor Signatory</div>
+                            <div className="td-row td-row-2">
+                                <div className="td-field">
+                                    <label className="td-label">Assessor Name</label>
+                                    <input
+                                        id="td-assessor-name"
+                                        className="td-input"
+                                        placeholder="e.g. Engr. Vicente P. Desoy"
+                                        value={form.assessorName}
+                                        onChange={(e) => set('assessorName', e.target.value)}
+                                    />
+                                </div>
+                                <div className="td-field">
+                                    <label className="td-label">Assessor Title</label>
+                                    <input
+                                        id="td-assessor-title"
+                                        className="td-input"
+                                        placeholder="e.g. Municipal Assessor"
+                                        value={form.assessorTitle}
+                                        onChange={(e) => set('assessorTitle', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
                         <div className="td-important-notice"><strong>IMPORTANT:</strong> This declaration is issued only in connection with real property taxation and the valuation indicated herein is based on a schedule of market values prepared for the purpose. It should <em>not</em> be considered as title to the property.</div>
                     </div>
 

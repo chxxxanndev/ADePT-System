@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import '../styles/RequestQueue.css';
 import { SearchIcon, ChevronDownIcon } from './icons';
 import type { User } from '../../auth-folder/types/auth';
-import { authHeaders } from '../services/userManagementService';
+// 1. Updated Imports: Removed authHeaders, Added api
+import { api } from '../../users/services/requestService';
 
 type RequestStatus = 'Pending' | 'Processing' | 'Payment Verified' | 'Released' | 'Void' | 'Cancelled';
 
@@ -34,11 +35,10 @@ export function AdminRequestQueue({ user }: AdminRequestQueueProps) {
         const fetchLiveQueue = async () => {
             try {
                 setLoading(true);
-                const res = await fetch('http://localhost:5000/api/requests/registry', {
-                    headers: await authHeaders(),
-                });
-                if (!res.ok) return;
-                const data = await res.json();
+
+                const res = await api.get('/requests/registry');
+                const data = res.data;
+                
                 if (data.transactions && Array.isArray(data.transactions)) {
                     const mapped: DocumentRequest[] = data.transactions.map((t: any) => {
                         let status: RequestStatus = 'Pending';
@@ -65,8 +65,8 @@ export function AdminRequestQueue({ user }: AdminRequestQueueProps) {
                         setRequests(mapped);
                     }
                 }
-            } catch {
-                /* silently keep current state */
+            } catch (err) {
+                console.error("Admin Queue load failed:", err);
             } finally {
                 setLoading(false);
             }
@@ -75,6 +75,7 @@ export function AdminRequestQueue({ user }: AdminRequestQueueProps) {
         void fetchLiveQueue();
     }, []);
 
+    // ... (All other logic and JSX remains exactly as you wrote it)
     const fullName = `${user.firstName || 'Vicente'} ${user.lastName || 'Desoy'}`;
     const initials = `${user.firstName?.[0] || 'V'}${user.lastName?.[0] || 'D'}`;
     const roleLabel = user.role === 'SUPER_ADMIN' ? 'Super admin' : user.role === 'OFFICE_STAFF' ? 'Office staff' : user.role || 'Super admin';
@@ -130,7 +131,6 @@ export function AdminRequestQueue({ user }: AdminRequestQueueProps) {
 
     return (
         <div className="request-queue-page">
-            {/* Header */}
             <div className="rq-header-row">
                 <div className="rq-header-title-group">
                     <h1 className="rq-page-title">Request queue</h1>
@@ -166,7 +166,6 @@ export function AdminRequestQueue({ user }: AdminRequestQueueProps) {
                 </div>
             </div>
 
-            {/* Card */}
             <div className="admin-card rq-card">
                 <div className="rq-tabs-row">
                     {tabs.map((tab) => (

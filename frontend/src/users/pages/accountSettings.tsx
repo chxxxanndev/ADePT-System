@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { AccountUser, AccountSettingsFormData } from '../types/accountSettings';
 import { CameraIcon, ShieldIcon,CloseIcon } from '../components/icons';
 import { PasswordInput } from '../../auth-folder/components/PasswordInput';
@@ -11,17 +11,25 @@ interface AccountSettingsProps {
     onChangePassword: (currentPassword: string, newPassword: string) => Promise<void>;
     onChangePhoto: (file: File) => Promise<string>;
     onDisableAccount: (disabled: boolean) => Promise<void> | void;
+    readOnlyFields?: string[];
 }
 
 function getInitials(fullName: string): string {
     return fullName.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('');
 }
 
-export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword, onChangePhoto, onDisableAccount }: AccountSettingsProps) {
+export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword, onChangePhoto, onDisableAccount, readOnlyFields = ['position'] }: AccountSettingsProps) {
     // --- 1. STAGED PROFILE STATE (Requires Save Changes button) ---
-    const [form, setForm] = useState({ fullName: user.fullName, username: user.username });
+    const [form, setForm] = useState({ fullName: user.fullName, username: user.username, position: user.position || '', suffix: user.suffix || '' });
+    const [savedBaseline, setSavedBaseline] = useState({ fullName: user.fullName, username: user.username, position: user.position || '', suffix: user.suffix || '' });
     const [saving, setSaving] = useState(false);
-    const isDirty = form.fullName !== user.fullName || form.username !== user.username;
+    const isDirty = form.fullName !== savedBaseline.fullName || form.username !== savedBaseline.username || form.position !== savedBaseline.position || form.suffix !== savedBaseline.suffix;
+
+    // Sync form when user prop changes (e.g., after navigating back)
+    useEffect(() => {
+        setForm({ fullName: user.fullName, username: user.username, position: user.position || '', suffix: user.suffix || '' });
+        setSavedBaseline({ fullName: user.fullName, username: user.username, position: user.position || '', suffix: user.suffix || '' });
+    }, [user.fullName, user.username, user.position, user.suffix]);
 
     // --- 2. INSTANT STATES (Updates immediately on click) ---
     const [avatarUrl, setAvatarUrl] = useState<string | undefined>(user.avatarUrl);
@@ -51,12 +59,19 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
     const handleSaveProfile = async () => {
         setSaving(true);
         try {
-            await onSave({ ...form, email: user.email } as any);
+            await onSave({ ...form, email: user.email } as AccountSettingsFormData);
+            setSavedBaseline({ fullName: form.fullName, username: form.username, position: form.position, suffix: form.suffix });
             showToast('Profile updated successfully!');
         } catch (err: any) {
             showToast(err.message || 'Failed to update profile');
         } finally { setSaving(false); }
     };
+
+    const handleDiscard = () => {
+        setForm({ fullName: savedBaseline.fullName, username: savedBaseline.username, position: savedBaseline.position, suffix: savedBaseline.suffix });
+    };
+
+    const isFieldReadOnly = (field: string) => readOnlyFields.includes(field);
 
     // Update Email
     const handleEmailUpdate = async () => {
@@ -118,7 +133,8 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
                         {avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(user.fullName)}
                     </div>
                     <div className="as-profile-text">
-                        <span className="as-profile-name">{user.fullName}</span>
+                        <span className="as-profile-name">{user.fullName}{user.suffix ? `, ${user.suffix}` : ''}</span>
+                        {user.position && <span className="as-profile-position">{user.position}</span>}
                         <span className="as-profile-meta">
                             {user.email}
                             <span className="as-profile-meta-dot" />
@@ -157,11 +173,24 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
                             <input className="as-input" value={form.username} onChange={e => setForm({...form, username: e.target.value})} />
                         </div>
                     </div>
+                    <div className="as-field">
+                        <label className="as-field-label">Title</label>
+                        <div className="as-input-wrap">
+                            <input className="as-input" placeholder="e.g. REA, Enp, RN" value={form.suffix} onChange={e => setForm({...form, suffix: e.target.value})} />
+                        </div>
+                    </div>
+                    <div className="as-field">
+                        <label className="as-field-label">Position</label>
+                        <div className="as-input-wrap">
+                            <input className={`as-input ${isFieldReadOnly('position') ? 'as-input--locked' : ''}`} placeholder="e.g. Assessor, Treasurer" value={form.position} readOnly={isFieldReadOnly('position')} />
+                        </div>
+                        {isFieldReadOnly('position') && <span className="as-field-hint">Position can only be set by an administrator.</span>}
+                    </div>
                 </div>
 
                 {isDirty && (
                     <div className="as-card-actions" style={{ display: 'flex', marginTop: '16px' }}>
-                        <button type="button" className="as-btn as-btn-discard" onClick={() => setForm({fullName: user.fullName, username: user.username})}>Discard Changes</button>
+                        <button type="button" className="as-btn as-btn-discard" onClick={handleDiscard}>Discard Changes</button>
                         <button type="button" className="as-btn as-btn-save" onClick={handleSaveProfile} disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button>
                     </div>
                 )}

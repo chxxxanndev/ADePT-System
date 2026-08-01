@@ -30,9 +30,9 @@ interface VoidAndAmendProps {
 // fetchTransactionRegistry) is the source of truth for *which* transactions
 // are voided, so this list always matches what Reports & Analytics counts.
 // It only caches the "who / when" for each void, since the Transaction type
-// has no voidedBy/voidedAt columns yet (only a `voidReason`). Once the
-// backend adds those, this cache — and the whole metadata-merge dance below —
-// can be deleted and everything can come straight from the registry fetch.
+// has no voidedBy column yet (only voidReason and voidedAt). Once the
+// backend adds voidedBy too, this cache — and the whole metadata-merge
+// dance below — can be shrunk further / removed entirely.
 const METADATA_STORAGE_KEY = "voidAmendMetadata";
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
@@ -89,9 +89,9 @@ function isSameCalendarDay(a: Date, b: Date): boolean {
 
 function matchesTimeRange(isoString: string | null, range: TimeRange): boolean {
   if (range === "All Time") return true;
-  // If we don't actually know when this was voided (no cached metadata for
-  // it — e.g. it was voided from a different browser/session), it can only
-  // ever match "All Time" rather than guessing.
+  // If we don't actually know when this was voided (no voidedAt from the
+  // backend and no cached metadata for it), it can only ever match
+  // "All Time" rather than guessing.
   if (!isoString) return false;
 
   const actionedDate = new Date(isoString);
@@ -128,7 +128,16 @@ function ActionBadge() {
   );
 }
 
-/** Maps a live Void-status Transaction + whatever metadata we have cached for it into a display record. */
+/**
+ * Maps a live Void-status Transaction + whatever metadata we have cached
+ * for it into a display record.
+ *
+ * actionedAt prefers t.voidedAt — the real timestamp the backend recorded
+ * (requests.updated_at) at the moment voidRequest() ran — since that's
+ * accurate regardless of which browser/session performed the void. The
+ * local metadata cache is only used as a fallback for records voided
+ * before voidedAt existed on the backend response.
+ */
 function toDisplayRecord(t: Transaction, metadata: VoidMetadataEntry | undefined): VoidAmendRecord {
   return {
     id: t.id,
@@ -138,7 +147,7 @@ function toDisplayRecord(t: Transaction, metadata: VoidMetadataEntry | undefined
     actionType: "void",
     detail: metadata?.detail || t.voidReason || "Voided from registry",
     actionedBy: metadata?.actionedBy || t.assignedStaff || "—",
-    actionedAt: metadata?.actionedAt || "",
+    actionedAt: t.voidedAt || metadata?.actionedAt || "",
   };
 }
 
@@ -202,6 +211,9 @@ export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItem
   );
 
   // ─── Filtering & Sorting ─────────────────────────────────
+  // Sorted newest void first — records.actionedAt is now backend-sourced
+  // (t.voidedAt) for any transaction voided after this fix shipped, so this
+  // sort is accurate across sessions/devices, not just the current browser.
   const filteredRecords = useMemo(() => {
     return records
       .filter((record) => {

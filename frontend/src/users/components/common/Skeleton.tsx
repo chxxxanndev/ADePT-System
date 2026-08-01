@@ -10,9 +10,9 @@ export const SkeletonBox = ({ width = '100%', height = '20px', borderRadius = '4
 export const RegistrySummarySkeleton = () => {
     return (
         <div className="tr-summary-grid tr-summary-grid--single">
-            <div className="skeleton-card-ghost">
-                <SkeletonBox width="60%" height="10px" margin="0 0 8px 0" />
-                <SkeletonBox width="35%" height="22px" />
+            <div className="skeleton-card-ghost tr-summary-skeleton-card">
+                <SkeletonBox width="65%" height="11px" margin="0 0 10px 0" />
+                <SkeletonBox width="45%" height="26px" />
             </div>
         </div>
     );

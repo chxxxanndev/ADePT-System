@@ -1,15 +1,7 @@
 import axios from 'axios';
-import { supabase } from '../../lib/supabaseClient';
+import { api } from './requestService'; // Import the smart 'api' you just verified
 
-const API_BASE_URL = 'http://localhost:5000';
-
-async function authHeaders(extra: Record<string, string> = {}) {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    return { Authorization: `Bearer ${token}`, ...extra };
-}
-
-// axios throws on non-2xx by default, so we just need to normalize the error message shape
+// We keep your teammate's error extraction logic exactly as she wrote it
 function extractErrorMessage(err: unknown, fallback: string): string {
     if (axios.isAxiosError(err)) {
         return err.response?.data?.error || fallback;
@@ -18,13 +10,19 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 }
 
 export const accountService = {
-    async updateProfile(fullName: string, username: string) {
+    async getProfile() {
         try {
-            const res = await axios.put(
-                `${API_BASE_URL}/api/account/profile`,
-                { fullName, username },
-                { headers: await authHeaders({ 'Content-Type': 'application/json' }) }
-            );
+            const res = await api.get('/account/profile');
+            return res.data.data;
+        } catch (err) {
+            throw new Error(extractErrorMessage(err, 'Failed to fetch profile.'));
+        }
+    },
+
+    async updateProfile(fullName: string, username: string, position?: string, suffix?: string) {
+        try {
+            // We use 'api'. It handles the URL and the Auth headers automatically.
+            const res = await api.put('/account/profile', { fullName, username, position, suffix });
             return res.data;
         } catch (err) {
             throw new Error(extractErrorMessage(err, 'Failed to update profile.'));
@@ -36,9 +34,8 @@ export const accountService = {
             const formData = new FormData();
             formData.append('photo', file);
 
-            const res = await axios.post(`${API_BASE_URL}/api/account/photo`, formData, {
-                headers: await authHeaders(), // let axios set the multipart boundary itself — don't set Content-Type manually
-            });
+            // 'api' handles the multipart boundary automatically
+            const res = await api.post('/account/photo', formData);
             return res.data.avatarUrl as string;
         } catch (err) {
             throw new Error(extractErrorMessage(err, 'Failed to upload photo.'));
@@ -47,11 +44,7 @@ export const accountService = {
 
     async updateEmail(email: string) {
         try {
-            const res = await axios.put(
-                `${API_BASE_URL}/api/account/email`,
-                { email },
-                { headers: await authHeaders({ 'Content-Type': 'application/json' }) }
-            );
+            const res = await api.put('/account/email', { email });
             return res.data;
         } catch (err) {
             throw new Error(extractErrorMessage(err, 'Failed to update email.'));
@@ -60,24 +53,17 @@ export const accountService = {
 
     async changePassword(currentPassword: string, newPassword: string) {
         try {
-            const res = await axios.put(
-                `${API_BASE_URL}/api/account/password`,
-                { currentPassword, newPassword },
-                { headers: await authHeaders({ 'Content-Type': 'application/json' }) }
-            );
+            const res = await api.put('/account/password', { currentPassword, newPassword });
             return res.data;
         } catch (err) {
+            // Updated to match teammate's fallback message
             throw new Error(extractErrorMessage(err, 'Failed to change password.'));
         }
     },
 
     async setAccountStatus(disabled: boolean) {
         try {
-            const res = await axios.patch(
-                `${API_BASE_URL}/api/account/status`,
-                { disabled },
-                { headers: await authHeaders({ 'Content-Type': 'application/json' }) }
-            );
+            const res = await api.patch('/account/status', { disabled });
             return res.data;
         } catch (err) {
             throw new Error(extractErrorMessage(err, 'Failed to update account status.'));

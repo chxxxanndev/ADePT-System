@@ -1,8 +1,5 @@
-import axios from 'axios';
 import type { TaxDeclarationFormData } from '../types/taxDeclaration';
-import { requestService } from './requestService';
-
-const API_BASE = 'http://localhost:5000/api/tax-declarations';
+import { requestService, api } from './requestService'; // Import the smart 'api'
 
 export const taxDeclarationService = {
     /**
@@ -16,6 +13,7 @@ export const taxDeclarationService = {
         const payload = {
             staffAuthId,
             requestId,
+            // ... (rest of your payload logic is unchanged)
             taxDeclarationNumber: formData.taxDeclarationNumber,
             propertyIndexNumber: formData.propertyIndexNumber,
             arpNumber: formData.arpNumber,
@@ -44,6 +42,8 @@ export const taxDeclarationService = {
             amountInWords: formData.amountInWords,
             taxability: formData.taxability,
             cancelledTdNumber: formData.arpNumber,
+            assessorName: formData.assessorName,
+            assessorTitle: formData.assessorTitle,
             memoranda: formData.memoranda,
             notes: formData.notes,
             assessmentRows: formData.assessmentRows.map((row, idx) => ({
@@ -61,9 +61,11 @@ export const taxDeclarationService = {
         };
 
         try {
-            const res = await axios.post(API_BASE, payload);
+            // Use the smart api instance
+            const res = await api.post('/tax-declarations', payload);
             return res.data;
         } catch (err: any) {
+            // This preserves your fallback logic
             if (!err.response) {
                 console.warn('[taxDeclarationService] Server unreachable — using local mock.');
                 return {
@@ -77,27 +79,24 @@ export const taxDeclarationService = {
 
     /**
      * FETCH AND TRANSLATE DATA FOR PDF
-     * This bridges the gap between Supabase column names and the PDF Template's expected prop names.
      */
     getTaxDeclaration: async (requestId: string) => {
         try {
+            // Both of these now use the same smart 'api' logic
             const [res, meta] = await Promise.all([
-                axios.get(`${API_BASE}/${requestId}`),
+                api.get(`/tax-declarations/${requestId}`),
                 requestService.getMetadata(),
             ]);
+            
             const dbData = res.data.data;
-
             if (!dbData) return null;
 
+            // ... (Your mapping logic below remains exactly the same)
             const classificationMap: Record<string, string> = {};
             (meta?.classifications || []).forEach((c: any) => {
                 classificationMap[c.id] = c.label;
             });
 
-            // kind_of_property is stored as a CODE (e.g. "RESIDENTIAL"), not a
-            // lookup id — matches how the backend's saveTaxDeclaration already
-            // resolves it against lookup_values.code for encoded_property_types.
-            // So this map is keyed by code, not id (unlike classificationMap above).
             const propertyTypeMap: Record<string, string> = {};
             (meta?.propertyTypes || []).forEach((p: any) => {
                 propertyTypeMap[p.code] = p.label;
@@ -113,18 +112,11 @@ export const taxDeclarationService = {
                 assessedValue: row.assessed_value,
             }));
 
-            // No dedicated "total area" column exists yet — derive it by
-            // summing the per-row areas, since that's the only source of
-            // area data currently captured by the form.
             const totalArea = assessmentRows.reduce(
                 (sum: number, r: any) => sum + (parseFloat(r.area) || 0),
                 0
             );
 
-            // area_unit is free text typed by the encoder (e.g. "has.",
-            // "HAS.", "sqm.") — not a fixed set of values — so we can't map
-            // it to a canonical label. Instead, carry through whatever the
-            // encoder actually typed on the first row that has one.
             const distinctUnits = [
                 ...new Set(
                     assessmentRows
@@ -133,17 +125,8 @@ export const taxDeclarationService = {
                 ),
             ];
 
-            if (distinctUnits.length > 1) {
-                console.warn(
-                    '[taxDeclarationService] Assessment rows have mixed area units:',
-                    distinctUnits,
-                    '— totalArea sums them as if they were the same unit.'
-                );
-            }
-
             const areaUnitSuffix = distinctUnits[0] || '';
 
-            // TRANSLATOR: Maps database snake_case to PDF camelCase
             return {
                 id: dbData.id,
                 request: dbData.request,
@@ -170,9 +153,10 @@ export const taxDeclarationService = {
                 taxable: dbData.taxability === 'TAXABLE',
                 taxEffectivity: dbData.effectivity_year,
                 cancelsArpNo: dbData.cancelled_td_number,
+                assessorName: dbData.assessor_name,
+                assessorTitle: dbData.assessor_title,
                 memoranda: dbData.memoranda,
                 area: totalArea > 0 ? `${totalArea}${areaUnitSuffix ? ' ' + areaUnitSuffix : ''}` : '',
-
                 assessmentRows,
             };
         } catch (error) {
@@ -181,7 +165,8 @@ export const taxDeclarationService = {
         }
     },
     updateDraft: async (id: string, updateData: any) => {
-        const res = await axios.put(`${API_BASE}/${id}/edit-draft`, updateData);
+        // Use the smart api
+        const res = await api.put(`/tax-declarations/${id}/edit-draft`, updateData);
         return res.data;
     },
 };

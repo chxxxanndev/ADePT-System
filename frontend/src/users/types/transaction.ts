@@ -1,5 +1,7 @@
 // ===== Transaction Registry — Type Definitions =====
 
+export type PropertySource = 'TAX_DECLARATION' | 'LAND_HOLDING' | 'NO_LANDHOLDING' | 'UNKNOWN';
+
 export type TransactionStatus =
     | 'Pending'
     | 'For Payment'
@@ -47,6 +49,8 @@ export interface GeneratedDocument {
 export interface RequestedDocumentItem {
     id: string;
     documentType: DocumentType | string;
+    documentTypeId?: string;
+    requiresTaxDeclaration?: boolean;
     reprintCount: number;
 }
 
@@ -57,23 +61,78 @@ export interface PaymentInfo {
     paymentDate: string | null;
     paymentMethod: 'Cash' | 'GCash' | 'Bank Transfer' | 'Unpaid';
     verifiedBy: string | null;
+    /**
+     * Free-text reason recorded when an OR Number is waived/exempted/not
+     * yet issued (e.g. "Senior citizen exemption", "Indigency waiver").
+     * Backed by requests.or_override_justification.
+     */
+    orJustification?: string | null;
+}
+
+/**
+ * One row from encoded_assessment_rows — a tax declaration can have
+ * multiple assessment rows (e.g. part residential + part agricultural on
+ * the same property), distinguished by row_order.
+ */
+export interface AssessmentRow {
+    id: string;
+    rowOrder: number;
+    classification?: string;
+    actualUse?: string;
+    actualUseOtherText?: string;
+    area?: string;
+    areaUnit?: string;
+    marketValue?: number | null;
+    assessmentLevel?: number | null;
+    assessedValue?: number | null;
+    kindOfProperty?: string;
 }
 
 export interface PropertyInfo {
-    taxDeclarationNo: string;
-    location: string;
+    /** Which encoded record this data came from — drives which fields are populated vs dashed. */
+    source?: PropertySource;
+    taxDeclarationNo: string;      // Assessment/TD/ARP No.
+    pin?: string;                  // Property Identification Number
+    octTctNumber?: string;         // OCT/TCT/CLOA No.
+    surveyNumber?: string;
     lotNo?: string;
+    blockNumber?: string;
+    titleNumber?: string;          // populated for Land Holding rows
+    location: string;
     ownerOnRecord: string;
+    ownerAddress?: string;
+    ownerTin?: string;
+    ownerTelephone?: string;
+    administratorName?: string;
+    administratorAddress?: string;
+    administratorTin?: string;
+    administratorTelephone?: string;
+    boundaryNorth?: string;
+    boundarySouth?: string;
+    boundaryEast?: string;
+    boundaryWest?: string;
+    /** Classification of the first assessment row — kept for quick display; see assessmentRows for the full set. */
     classification?: string;
-    assessedValue?: number;
+    /** Area of the first assessment row — kept for quick display; see assessmentRows for the full set. */
+    area?: string;
+    marketValue?: number | null;
+    assessedValue?: number | null;
+    taxability?: string;
+    amountInWords?: string;
+    effectivityYear?: number | null;
+    cancelledTdNumber?: string;
+    memoranda?: string;
+    notes?: string;
+    assessorName?: string;
+    assessorTitle?: string;
+    /** Every encoded_assessment_rows entry tied to this tax declaration, in row_order. */
+    assessmentRows?: AssessmentRow[];
 }
 
 export interface ClientInfo {
     declarantName: string;
-    contactNumber?: string;
     address?: string;
     requestedBy: string;
-    relationshipToDeclarant?: 'Self' | 'Authorized Representative' | 'Legal Heir';
     authorizationOnFile: boolean;
 }
 
@@ -82,8 +141,21 @@ export interface Transaction {
     referenceNumber: string;
     client: ClientInfo;
     property: PropertyInfo;
-    requestedDocuments: RequestedDocumentItem[]; // was DocumentType[]
+    requestedDocuments: RequestedDocumentItem[];
     dateRequested: string;
+    /**
+     * When this request's documents were actually released (mm/dd/yyyy, same
+     * format as dateRequested). Only meaningfully populated once status is
+     * 'Released' — null/undefined beforehand. Backed by requests.release_date
+     * (see transactionService.ts for the raw-field fallback mapping).
+     */
+    dateReleased?: string | null;
+    /**
+     * Display name of the staff member who released the documents (resolved
+     * server-side from requests.released_by, a staff uuid). Null until the
+     * request is actually released.
+     */
+    releasedBy?: string | null;
     assignedStaff: string;
     status: TransactionStatus;
     payment: PaymentInfo;
@@ -92,6 +164,7 @@ export interface Transaction {
     reasonPurpose?: string;
     isVoid?: boolean;
     voidReason?: string;
+    voidedAt?: string;
 }
 
 /**
@@ -102,7 +175,7 @@ export interface Transaction {
  */
 export interface DeclarantGroup {
     declarantName: string;
-    transactions: Transaction[]; // most recent first
+    transactions: Transaction[]; // most recently released first
 }
 
 export interface TransactionFilters {

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { supabase } from '../../lib/supabaseClient';
+import { API_ROOT } from '../../config';
 
 export interface RequestFormData {
     id?: string;
@@ -16,14 +17,13 @@ export interface RequestFormData {
     purposeOtherText?: string;
 }
 
-const API_ROOT = 'http://localhost:5000/api';
+const BASE_URL = `${API_ROOT}/api`;
 
-const api = axios.create({ baseURL: API_ROOT });
+export const api = axios.create({ baseURL: BASE_URL });
 
 // Always pull the CURRENT, live session token from Supabase itself
 api.interceptors.request.use(async (config) => {
     const { data } = await supabase.auth.getSession();
-    console.log('[DEBUG interceptor]', config.url, '| session exists:', !!data.session);
     const token = data.session?.access_token;
     if (token) {
         (config.headers as any).Authorization = `Bearer ${token}`;
@@ -31,11 +31,12 @@ api.interceptors.request.use(async (config) => {
     return config;
 }, (error) => Promise.reject(error));
 
-// NEW — on first load, Supabase may still be hydrating the session from
-// storage when a request goes out, so it can leave with no token and get
-// a 401 even though the user IS logged in. This retries such a request
-// exactly once, after re-checking for a session, instead of surfacing the
-// error to the UI (which is why "Retry" always fixed it manually before).
+// Safety net for a request that goes out before the session is fully
+// established (should be rare now that useAuth.ts gates login/restore
+// properly, but this keeps any straggler from surfacing a raw 401 to the
+// UI). Retries exactly once after re-checking for a session, and always
+// resolves or rejects normally — never hangs — so loading states always
+// clear correctly either way.
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -106,8 +107,8 @@ export const requestService = {
         return response.data;
     },
 
-    forwardRequest: async (requestId: string, recipientStaffId: string, note: string) => {
-        const response = await api.post(`/requests/${requestId}/forward`, { recipientStaffId, note });
+    forwardRequest: async (requestId: string, recipientStaffId: string, note: string, actorStaffId: string) => {
+        const response = await api.post(`/requests/${requestId}/forward`, { recipientStaffId, note, actorStaffId });
         return response.data;
     },
 
