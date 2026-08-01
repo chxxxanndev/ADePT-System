@@ -1,7 +1,8 @@
 import type { Transaction, RequestedDocumentItem } from '../types/transaction';
 import { supabase } from '../../lib/supabaseClient';
+import { API_ROOT } from '../../config';
 
-const API_BASE_URL = 'http://localhost:5000/api/requests';
+const API_BASE_URL = `${API_ROOT}/api/requests`;
 
 export async function fetchTransactionRegistry(): Promise<Transaction[]> {
     let token = sessionStorage.getItem('adept_token');
