@@ -397,6 +397,10 @@
 }
 
 .sidebar-subitem-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     padding: 8px 12px;
     font-size: 13.5px;
     font-weight: 550;
@@ -404,6 +408,22 @@
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
+}
+
+.sidebar-badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background-color: #ef4444;
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .sidebar-subitem-link:hover {

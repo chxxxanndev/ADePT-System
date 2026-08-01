@@ -652,7 +652,16 @@ releasedBy: resolvedReleasedBy || null,
         if (from) requestsQuery = requestsQuery.gte('request_date', from);
         if (to) requestsQuery = requestsQuery.lte('request_date', to);
 
+    async getDashboardMetrics(from, to) {
+        let requestsQuery = supabase
+            .from('requests')
+            .select('id, status, request_date, created_at, declarant_name, reference_number, property_location, encoded_by, staff:encoded_by(first_name, last_name)')
+            .order('created_at', { ascending: false });
+        if (from) requestsQuery = requestsQuery.gte('request_date', from);
+        if (to) requestsQuery = requestsQuery.lte('request_date', to);
+
         const [{ data: requests }, { data: docLinks }, { data: docTypes }] = await Promise.all([
+            requestsQuery,
             requestsQuery,
             supabase.from('request_documents').select('request_id, document_type_id, document_types(name, prefix)'),
             supabase.from('document_types').select('id, name, prefix'),
@@ -688,6 +697,13 @@ releasedBy: resolvedReleasedBy || null,
                 && date.getMonth() === today.getMonth()
                 && date.getDate() === today.getDate();
         };
+
+        // When a date range is selected, "Request Today" becomes "requests
+        // in the selected range" — the SQL query already filtered to it.
+        // Without a range, fall back to counting only today's requests.
+        const requestedTodayCount = (from && to)
+            ? allReqs.length
+            : allReqs.filter(r => isToday(r.request_date || r.created_at)).length;
 
         // When a date range is selected, "Request Today" becomes "requests
         // in the selected range" — the SQL query already filtered to it.

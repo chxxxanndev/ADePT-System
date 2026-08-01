@@ -56,9 +56,11 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
         searchQuery,
         setSearchQuery,
         dateFilter,
+        applyDateFilter,
 
         // Data states
         accessRequests,
+        pendingRequestCount,
         requestQueue,
         transactions,
         distribution,
@@ -97,6 +99,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                 onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
                 mobileOpen={mobileMenuOpen}
                 setMobileOpen={setMobileMenuOpen}
+                accountRequestCount={pendingRequestCount}
             />
 
             {/* Main Panel */}
@@ -108,6 +111,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                         searchQuery={searchQuery}
                         setSearchQuery={setSearchQuery}
                         dateFilter={dateFilter}
+                        onDateFilterChange={applyDateFilter}
                         onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
                     />
                 )}

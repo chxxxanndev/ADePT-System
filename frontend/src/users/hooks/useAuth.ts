@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import type { User, MockUser } from '../../auth-folder/types/auth';
 import { supabase } from '../../lib/supabaseClient';
 import { addAdminAuditEntry } from '../../admin/services/auditLogService';
@@ -343,11 +343,6 @@ type AuthContextValue = ReturnType<typeof useAuthState>;
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-    const authState = useAuthState();
-    return <AuthContext.Provider value={authState}>{children}</AuthContext.Provider>;
-}
-
 export function useAuth(): AuthContextValue {
     const ctx = useContext(AuthContext);
     if (!ctx) {
@@ -355,3 +350,5 @@ export function useAuth(): AuthContextValue {
     }
     return ctx;
 }
+
+export { useAuthState, AuthContext };

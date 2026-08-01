@@ -16,6 +16,8 @@ import {
 import { getAuditLog, type AuditLogEntry, type AuditActionType } from '../services/auditLogService';
 // 2. Import our smart api instance
 import { api } from '../../users/services/requestService';
+// 3. Realtime client for the live account-request badge
+import { supabase } from '../../lib/supabaseClient';
 
 const REFRESH_DELAY_MS = 700;
 
@@ -58,9 +60,21 @@ interface RequestQueueSummary {
     voidCount: number;
 }
 
-function buildRequestQueueItems(summary: RequestQueueSummary): AdminStatItem[] {
+// Picks the label for the first queue card based on the selected range:
+// a single-day range gets "Request That Day" (or "Request Today" if that
+// day is today); multi-day ranges get "Requests In Range".
+function requestCardLabel(range: { from: string; to: string }): string {
+    if (range.from === range.to) {
+        const now = new Date();
+        const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        return range.from === todayISO ? 'Request Today' : 'Request That Day';
+    }
+    return 'Requests In Range';
+}
+
+function buildRequestQueueItems(summary: RequestQueueSummary, range: { from: string; to: string }): AdminStatItem[] {
     return [
-        { id: 'request-today', label: 'Request Today', value: summary.requestedTodayCount, icon: 'inboxDown', accent: 'teal' },
+        { id: 'request-today', label: requestCardLabel(range), value: summary.requestedTodayCount, icon: 'inboxDown', accent: 'teal' },
         { id: 'processing', label: 'Processing', value: summary.processingCount, icon: 'gears', accent: 'gold' },
         { id: 'approved-documents', label: 'Approved Documents', value: summary.releasedCount, icon: 'check', accent: 'green' },
         { id: 'disapproved-documents', label: 'Disapproved Documents', value: summary.voidCount, icon: 'close', accent: 'red' },
@@ -119,7 +133,21 @@ export function useAdminDashboard() {
     }, [activeView]);
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [dateFilter] = useState('Today');
+    const [dateFilter, setDateFilter] = useState('Today');
+
+    // Number of pending account requests — drives the sidebar badge on
+    // the "Account Request" item so the admin sees new signups at a glance.
+    const [pendingRequestCount, setPendingRequestCount] = useState(0);
+
+    // Inclusive [from, to] YYYY-MM-DD range driving the dashboard queries.
+    // Defaults to today so the initial load already respects the selector.
+    const [dateRange, setDateRange] = useState<{ from: string; to: string }>(() => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return { from: `${y}-${m}-${day}`, to: `${y}-${m}-${day}` };
+    });
 
     const [accessRequests, setAccessRequests] = useState<AdminStatItem[]>([]);
     const [requestQueue, setRequestQueue] = useState<AdminStatItem[]>([]);
@@ -134,11 +162,12 @@ export function useAdminDashboard() {
     const [refreshingAccessRequests, setRefreshingAccessRequests] = useState(false);
     const [refreshingQueue, setRefreshingQueue] = useState(false);
 
-    const loadDashboardData = async () => {
+    const loadDashboardData = async (rangeOverride?: { from: string; to: string }) => {
         try {
+            const range = rangeOverride ?? dateRange;
             const [metrics, recent] = await Promise.all([
-                fetchDashboardMetrics(),
-                fetchRecentTransactions(),
+                fetchDashboardMetrics(range.from, range.to),
+                fetchRecentTransactions(5, range.from, range.to),
             ]);
             if (metrics.summaryCounts) {
                 setRequestQueue(buildRequestQueueItems({
@@ -146,7 +175,7 @@ export function useAdminDashboard() {
                     processingCount: metrics.summaryCounts.processingCount ?? 0,
                     releasedCount: metrics.summaryCounts.releasedCount ?? 0,
                     voidCount: metrics.summaryCounts.voidCount ?? 0,
-                }));
+                }, range));
             }
             if (metrics.distribution) {
                 const normalized = metrics.distribution.map((d: any) => ({
@@ -174,6 +203,7 @@ export function useAdminDashboard() {
             ]);
 
             const requests = (requestResponse.data.requests || []) as AccountRequestSummary[];
+            setPendingRequestCount(requests.filter((request) => request.status === 'pending').length);
             setAccessRequests(buildAccessRequestItems(staffMembers, requests));
         } catch (err) {
             console.error("Dashboard error:", err);
@@ -183,6 +213,39 @@ export function useAdminDashboard() {
     useEffect(() => {
         void loadAccessRequestMetrics();
         void loadDashboardData();
+    }, []);
+
+    // Keep the sidebar badge in sync when the admin approves/declines
+    // requests on the Account Request page (it dispatches this event).
+    useEffect(() => {
+        const onStaffDirectoryUpdated = () => {
+            void loadAccessRequestMetrics();
+        };
+        window.addEventListener('staff-directory:updated', onStaffDirectoryUpdated);
+        return () => {
+            window.removeEventListener('staff-directory:updated', onStaffDirectoryUpdated);
+        };
+    }, []);
+
+    // Real-time badge: subscribes to INSERT/UPDATE changes on the staff
+    // table so a new sign-up (or a decision made elsewhere) bumps the badge
+    // instantly. A 30s poll acts as a fallback for projects that haven't
+    // added the table to the supabase_realtime publication.
+    useEffect(() => {
+        let isMounted = true;
+        const refresh = () => {
+            if (isMounted) void loadAccessRequestMetrics();
+        };
+        const channel = supabase
+            .channel('account-request-badge')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'staff' }, refresh)
+            .subscribe();
+        const pollInterval = window.setInterval(refresh, 30000);
+        return () => {
+            isMounted = false;
+            window.clearInterval(pollInterval);
+            void supabase.removeChannel(channel);
+        };
     }, []);
 
     useEffect(() => {
@@ -219,6 +282,16 @@ export function useAdminDashboard() {
     const refreshAccessRequests = () => withSpinner(setRefreshingAccessRequests, () => loadAccessRequestMetrics());
     const refreshQueue = () => withSpinner(setRefreshingQueue, () => loadDashboardData());
 
+    // Applies a new dashboard period AND refetches the period-sensitive
+    // widgets (queue summary, document distribution, recent transactions)
+    // with the selected range. Access-request metrics are account-driven
+    // (not request-date-driven), so they intentionally stay untouched.
+    const applyDateFilter = (label: string, range: { from: string; to: string }) => {
+        setDateFilter(label);
+        setDateRange(range);
+        void loadDashboardData(range);
+    };
+
     useEffect(() => {
         fetchStaffPerformance()
             .then(setStaffPerformance)
@@ -235,7 +308,11 @@ export function useAdminDashboard() {
         searchQuery,
         setSearchQuery,
         dateFilter,
+        setDateFilter,
+        dateRange,
+        applyDateFilter,
         accessRequests,
+        pendingRequestCount,
         requestQueue,
         transactions,
         distribution,
