@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import '../styles/AdminAccountSettings.css';
-import { useAuth } from '../../users/hooks/useAuth';
+import { useAuth } from "../../users/hooks/useAuth";
 import { PasswordInput } from '../../auth-folder/components/PasswordInput';
 import * as accountService from '../services/adminAccountService';
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import type { View } from './auth-folder/types/auth';
-import { useAuth } from './users/hooks/useAuth';
+import { useAuth } from "./users/hooks/useAuth";
 import { AuthBanner } from './auth-folder/components/AuthBanner';
 import { LoginForm } from './auth-folder/LoginForm';
 import { SignupForm } from './auth-folder/SignupForm';

@@ -741,7 +741,20 @@
     margin: 0 0 14px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    position: relative;
+    padding-left: 16px;
+}
+
+.td-section-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 1px;
+    bottom: 1px;
+    width: 3px;
+    border-radius: 2px;
+    background: currentColor;
 }
 
 .td-grid {
