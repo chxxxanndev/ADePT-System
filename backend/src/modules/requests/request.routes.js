@@ -12,6 +12,7 @@ import {
     checkOrUniqueness,
     releaseRequest,
     markAsReleased,
+    voidRequest,
     getDashboardMetrics,
     getReportsData,
 } from './request.controller.js';
@@ -38,5 +39,6 @@ router.delete('/:id', requireAuth, deleteRequest);
 router.post('/:id/release', requireAuth, releaseRequest);
 router.post('/:id/forward', requireAuth, forwardRequest);
 router.patch('/:id/mark-released', requireAuth, markAsReleased);
+router.post('/:id/void', requireAuth, voidRequest); 
 
 export default router;

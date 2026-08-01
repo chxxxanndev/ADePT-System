@@ -131,6 +131,17 @@ export const markAsReleased = async (req, res) => {
     }
 };
 
+export const voidRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+        const result = await RequestService.voidRequest(id, reason);
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export const getDashboardMetrics = async (req, res) => {
     try {
         const metrics = await RequestService.getDashboardMetrics();

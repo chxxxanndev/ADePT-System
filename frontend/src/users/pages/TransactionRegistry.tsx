@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { RegistrySummarySkeleton, RegistryToolbarSkeleton, RegistryTableSkeleton } from '../components/common/Skeleton';
 import type { Transaction, TransactionFilters, DeclarantGroup } from '../types/transaction';
 import { computeSummary } from '../data/mockTransactions';
-import { fetchTransactionRegistry } from '../services/transactionService';
+import { fetchTransactionRegistry, voidTransaction } from '../services/transactionService';
 import { recordReprint, mergeReprintCounts } from '../services/reprintStore';
 import { SummaryCards } from '../components/SummaryCards';
 import { SearchBar } from '../components/SearchBar';
@@ -13,6 +13,14 @@ import { VoidDocumentSelectModal } from '../components/DocumentSelectModal';
 import type { User } from '../../auth-folder/types/auth';
 import type { VoidAmendRecord } from './VoidAndAmend';
 import '../styles/TransactionRegistry.css';
+
+// Legend icons — same shapes/colors as the reference-number pills in
+// TransactionRow.tsx, so the key at the top of the page matches what's
+// actually rendered in the table below.
+const RefreshIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>;
+const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11 12 3l9 8" /><path d="M5 10v10h14V10" /></svg>;
+const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><line x1="6" y1="18" x2="18" y2="6" /></svg>;
+const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2h9l3 3v17H6z" /><line x1="9" y1="13" x2="15" y2="13" /><line x1="9" y1="17" x2="15" y2="17" /></svg>;
 
 const DEFAULT_FILTERS: TransactionFilters = {
     status: 'Released',
@@ -36,6 +44,7 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState(initialSearchQuery ?? '');
     const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_FILTERS);
@@ -48,8 +57,9 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
         }
     }, [initialSearchQuery]);
 
-    const loadTransactions = async () => {
-        setIsLoading(true);
+    const loadTransactions = async (isManualRefresh = false) => {
+        if (isManualRefresh) setIsRefreshing(true);
+        else setIsLoading(true);
         setLoadError(null);
         try {
             const data = await fetchTransactionRegistry();
@@ -61,6 +71,7 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
             setTransactions([]);
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
     };
 
@@ -137,10 +148,27 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
 
     const handleVoidGroup = (group: DeclarantGroup) => setVoidGroupTarget(group);
 
-    // ─── modified: navigate with state instead of callback ──
-    const confirmVoidGroup = (transactionIds: string[], reason: string) => {
+    // ─── modified: persist to backend first, then navigate with state ──
+    const confirmVoidGroup = async (transactionIds: string[], reason: string) => {
         const idSet = new Set(transactionIds);
         const voidedTransactions = transactions.filter(t => idSet.has(t.id));
+
+        try {
+            // Persist the void to the backend for every selected transaction
+            // BEFORE navigating away — otherwise VoidAndAmend's refetch won't
+            // find these as Void status.
+            await Promise.all(transactionIds.map((id) => voidTransaction(id, reason)));
+        } catch (err) {
+            console.error('Failed to void transaction(s):', err);
+            alert('Failed to void the selected transaction(s). Please try again.');
+            // Re-throw so VoidDocumentSelectModal's isSubmitting state can
+            // recover (its handleConfirm awaits this function and only
+            // clears the spinner in a catch block) — without this, the
+            // confirm button would be stuck showing "Voiding…" forever
+            // after a failed request, since success is the only path that
+            // normally closes/unmounts the modal.
+            throw err;
+        }
 
         // Update local status (UI feedback)
         setTransactions((prev) =>
@@ -172,46 +200,65 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
 
     return (
         <div className="tr-page">
-            <div className="tr-header">
-                <div>
-                    <h2>Transaction Registry</h2>
-                    <p>Manage and monitor all released document requests.</p>
+            <div className="tr-header-card">
+                <div className="tr-header-top">
+                    <div className="tr-header-titles">
+                        <h2>Transaction Registry</h2>
+                        <p>Manage and monitor all released document requests.</p>
+                    </div>
+                    <button
+                        className={`tr-refresh-btn${isRefreshing ? ' is-spinning' : ''}`}
+                        onClick={() => loadTransactions(true)}
+                        title="Refresh registry"
+                        aria-label="Refresh registry"
+                    >
+                        <RefreshIcon />
+                    </button>
                 </div>
+
+                {isLoading ? (
+                    <RegistrySummarySkeleton />
+                ) : (
+                    <>
+                        <SummaryCards summary={summary} />
+                        <div className="tr-legend-row">
+                            <div className="tr-legend-item tr-legend-item--lh"><LandholdingIcon />Land Holding</div>
+                            <div className="tr-legend-item tr-legend-item--nlh"><NoLandholdingIcon />No Landholding</div>
+                            <div className="tr-legend-item tr-legend-item--td"><TaxDeclarationIcon />Tax Declaration</div>
+                        </div>
+                    </>
+                )}
             </div>
 
             {isLoading ? (
                 <div className="tr-lazy-load">
-                    <RegistrySummarySkeleton />
                     <RegistryToolbarSkeleton />
                     <RegistryTableSkeleton />
                 </div>
             ) : loadError ? (
                 <div className="tr-card" style={{ padding: '32px', textAlign: 'center', color: '#B0281C' }}>
                     <p style={{ margin: '0 0 12px', fontWeight: 600 }}>{loadError}</p>
-                    <button className="tr-filter-reset" onClick={loadTransactions}>Retry</button>
+                    <button className="tr-filter-reset" onClick={() => loadTransactions()}>Retry</button>
                 </div>
             ) : (
-                <>
-                    <SummaryCards summary={summary} />
-
-                    <div className="tr-toolbar">
-                        <div className="tr-search-wrapper">
-                            <SearchBar value={searchQuery} onChange={setSearchQuery} />
-                        </div>
-                        <FilterBar
-                            filters={filters}
-                            onChange={setFilters}
-                            onReset={() => setFilters(DEFAULT_FILTERS)}
-                        />
-                    </div>
-
-                    <TransactionTable
-                        groups={declarantGroups}
-                        onViewDetails={setSelectedGroup}
-                        onReprint={handleReprint}
-                        onVoidGroup={handleVoidGroup}
-                    />
-                </>
+                <TransactionTable
+                    groups={declarantGroups}
+                    onViewDetails={setSelectedGroup}
+                    onReprint={handleReprint}
+                    onVoidGroup={handleVoidGroup}
+                    toolbar={
+                        <>
+                            <div className="tr-search-wrapper">
+                                <SearchBar value={searchQuery} onChange={setSearchQuery} />
+                            </div>
+                            <FilterBar
+                                filters={filters}
+                                onChange={setFilters}
+                                onReset={() => setFilters(DEFAULT_FILTERS)}
+                            />
+                        </>
+                    }
+                />
             )}
 
             {selectedGroup && (

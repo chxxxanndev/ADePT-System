@@ -416,13 +416,14 @@ async createRequest(formData, authUserId) {
                 assignedStaff: r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : 'Unassigned',
                 status: STATUS_MAP[r.status] || 'Released',
                 payment: {
-                    orNumber: r.or_number || null,
-                    amountDue,
-                    amountPaid,
-                    paymentDate: r.payment_date || null,
-                    paymentMethod: r.or_number ? 'Cash' : 'Unpaid',
-                    verifiedBy: resolvedVerifiedBy || null,
-                },
+    orNumber: r.or_number || null,
+    amountDue,
+    amountPaid,
+    paymentDate: r.payment_date || null,
+    paymentMethod: r.or_number ? 'Cash' : 'Unpaid',
+    verifiedBy: resolvedVerifiedBy || null,
+    orJustification: r.or_override_justification || null,
+},
                 generatedDocuments: documentEntries.map((d) => ({
                     id: d.id,
                     documentName: d.name,
@@ -432,9 +433,9 @@ async createRequest(formData, authUserId) {
                     fileRef: d.documentTypeId || d.id,
                 })),
                 activityTimeline: [],
-                isVoid: r.status === 'VOID' || r.status === 'VOIDED',
-                voidReason: (r.status === 'VOID' || r.status === 'VOIDED') ? (r.or_override_justification || '') : undefined,
-            };
+isVoid: r.status === 'VOID' || r.status === 'VOIDED',
+voidReason: (r.status === 'VOID' || r.status === 'VOIDED') ? (r.void_reason || '') : undefined,
+voidedAt: (r.status === 'VOID' || r.status === 'VOIDED') ? (r.updated_at || null) : undefined, };
         });
     }
 
@@ -585,7 +586,7 @@ async createRequest(formData, authUserId) {
             .from('requests')
             .update({
                 status: 'VOID',
-                or_override_justification: reason || 'Voided by staff',
+                void_reason: reason || 'Voided by staff',
                 updated_at: new Date().toISOString()
             })
             .eq('id', id)

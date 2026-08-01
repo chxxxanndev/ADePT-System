@@ -1,4 +1,4 @@
-import type { DeclarantGroup, Transaction } from '../types/transaction';
+import type { DeclarantGroup, PropertyInfo, Transaction } from '../types/transaction';
 
 /* ── icons ─────────────────────────────────────────────────────────────── */
 
@@ -56,15 +56,6 @@ export interface TransactionDetailsProps {
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
-/** Pick the first non-empty value across all transactions. */
-function firstOf<T>(txns: Transaction[], getter: (t: Transaction) => T | undefined | null): T | null {
-    for (const t of txns) {
-        const v = getter(t);
-        if (v !== undefined && v !== null && v !== '') return v as T;
-    }
-    return null;
-}
-
 /** Format an ISO or date string for human-readable display. */
 function fmt(dateStr: string | null | undefined): string {
     if (!dateStr) return '—';
@@ -73,7 +64,7 @@ function fmt(dateStr: string | null | undefined): string {
     return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: '2-digit' });
 }
 
-/** Render a dash for anything empty/missing, per the "landholding / no landholding → dash" rule. */
+/** Render a dash for anything empty/missing. */
 function dash(val: string | number | null | undefined): string {
     if (val === null || val === undefined || val === '') return '—';
     return String(val);
@@ -91,32 +82,262 @@ const PROPERTY_SOURCE_LABEL: Record<string, string> = {
     UNKNOWN: '',
 };
 
+/* ── Property Information card — field set depends entirely on `source`,
+   since the backend (getTransactionRegistry) only ever populates the
+   fields relevant to that source and leaves the rest blank. ── */
+function PropertyCard({ property }: { property: PropertyInfo }) {
+    const sourceNote = property.source && PROPERTY_SOURCE_LABEL[property.source];
+
+    return (
+        <div className="td-section">
+            <h3 className="td-section-title">
+                <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                    <HomeIcon /> Property Information
+                </span>
+            </h3>
+
+            {sourceNote && (
+                <div className="td-empty-note" style={{ marginBottom: '10px' }}>
+                    {sourceNote}
+                </div>
+            )}
+
+            {property.source === 'NO_LANDHOLDING' ? (
+                // No property record exists for this request — nothing meaningful to show.
+                <div className="td-empty-note">No property record is associated with this request.</div>
+
+            ) : property.source === 'LAND_HOLDING' ? (
+                // Only the fields encoded_landholding_property_rows actually has.
+                <div className="td-grid">
+                    <div>
+                        <div className="td-field-label">ARP / TD No.</div>
+                        <div className="td-field-value">{dash(property.taxDeclarationNo)}</div>
+                    </div>
+                    <div>
+                        <div className="td-field-label">Lot No.</div>
+                        <div className="td-field-value">{dash(property.lotNo)}</div>
+                    </div>
+                    <div>
+                        <div className="td-field-label">Title No.</div>
+                        <div className="td-field-value">{dash(property.titleNumber)}</div>
+                    </div>
+                    <div>
+                        <div className="td-field-label">Owner on Record</div>
+                        <div className="td-field-value">{dash(property.ownerOnRecord)}</div>
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                        <div className="td-field-label">Property Location</div>
+                        <div className="td-field-value">{dash(property.location)}</div>
+                    </div>
+                    <div>
+                        <div className="td-field-label">Area</div>
+                        <div className="td-field-value">{dash(property.area)}</div>
+                    </div>
+                    <div>
+                        <div className="td-field-label">Assessed Value</div>
+                        <div className="td-field-value">{fmtCurrency(property.assessedValue)}</div>
+                    </div>
+                </div>
+
+            ) : property.source === 'TAX_DECLARATION' ? (
+                // Full field set — everything encoded_tax_declarations exposes.
+                <>
+                    <div className="td-grid">
+                        <div>
+                            <div className="td-field-label">Tax Declaration No. (ARP)</div>
+                            <div className="td-field-value">{dash(property.taxDeclarationNo)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Property Index No. (PIN)</div>
+                            <div className="td-field-value">{dash(property.pin)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">OCT / TCT / CLOA No.</div>
+                            <div className="td-field-value">{dash(property.octTctNumber)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Title No.</div>
+                            <div className="td-field-value">{dash(property.titleNumber)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Survey No.</div>
+                            <div className="td-field-value">{dash(property.surveyNumber)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Lot No.</div>
+                            <div className="td-field-value">{dash(property.lotNo)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Block No.</div>
+                            <div className="td-field-value">{dash(property.blockNumber)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Owner on Record</div>
+                            <div className="td-field-value">{dash(property.ownerOnRecord)}</div>
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                            <div className="td-field-label">Owner Address</div>
+                            <div className="td-field-value">{dash(property.ownerAddress)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Owner TIN</div>
+                            <div className="td-field-value">{dash(property.ownerTin)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Owner Telephone</div>
+                            <div className="td-field-value">{dash(property.ownerTelephone)}</div>
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                            <div className="td-field-label">Property Location</div>
+                            <div className="td-field-value">{dash(property.location)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Classification</div>
+                            <div className="td-field-value">{dash(property.classification)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Area</div>
+                            <div className="td-field-value">{dash(property.area)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Market Value</div>
+                            <div className="td-field-value">{fmtCurrency(property.marketValue)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Assessed Value</div>
+                            <div className="td-field-value">{fmtCurrency(property.assessedValue)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Taxability</div>
+                            <div className="td-field-value">{dash(property.taxability)}</div>
+                        </div>
+                    </div>
+
+                    {property.administratorName && (
+                        <>
+                            <div style={{
+                                fontSize: '0.7rem', fontWeight: 600, color: '#7A76A8',
+                                textTransform: 'uppercase', letterSpacing: '0.03em',
+                                marginTop: '18px', marginBottom: '8px', paddingTop: '14px',
+                                borderTop: '1px solid #EDEBFB',
+                            }}>
+                                Administrator on Record
+                            </div>
+                            <div className="td-grid">
+                                <div>
+                                    <div className="td-field-label">Administrator Name</div>
+                                    <div className="td-field-value">{dash(property.administratorName)}</div>
+                                </div>
+                                <div style={{ gridColumn: '1 / -1' }}>
+                                    <div className="td-field-label">Administrator Address</div>
+                                    <div className="td-field-value">{dash(property.administratorAddress)}</div>
+                                </div>
+                                <div>
+                                    <div className="td-field-label">Administrator TIN</div>
+                                    <div className="td-field-value">{dash(property.administratorTin)}</div>
+                                </div>
+                                <div>
+                                    <div className="td-field-label">Administrator Telephone</div>
+                                    <div className="td-field-value">{dash(property.administratorTelephone)}</div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {(property.boundaryNorth || property.boundarySouth || property.boundaryEast || property.boundaryWest) && (
+                        <>
+                            <div style={{
+                                fontSize: '0.7rem', fontWeight: 600, color: '#7A76A8',
+                                textTransform: 'uppercase', letterSpacing: '0.03em',
+                                marginTop: '18px', marginBottom: '8px', paddingTop: '14px',
+                                borderTop: '1px solid #EDEBFB',
+                            }}>
+                                Property Boundaries
+                            </div>
+                            <div className="td-grid">
+                                <div>
+                                    <div className="td-field-label">North</div>
+                                    <div className="td-field-value">{dash(property.boundaryNorth)}</div>
+                                </div>
+                                <div>
+                                    <div className="td-field-label">South</div>
+                                    <div className="td-field-value">{dash(property.boundarySouth)}</div>
+                                </div>
+                                <div>
+                                    <div className="td-field-label">East</div>
+                                    <div className="td-field-value">{dash(property.boundaryEast)}</div>
+                                </div>
+                                <div>
+                                    <div className="td-field-label">West</div>
+                                    <div className="td-field-value">{dash(property.boundaryWest)}</div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    <div style={{
+                        fontSize: '0.7rem', fontWeight: 600, color: '#7A76A8',
+                        textTransform: 'uppercase', letterSpacing: '0.03em',
+                        marginTop: '18px', marginBottom: '8px', paddingTop: '14px',
+                        borderTop: '1px solid #EDEBFB',
+                    }}>
+                        Additional Assessment Details
+                    </div>
+                    <div className="td-grid">
+                        <div>
+                            <div className="td-field-label">Effectivity Year</div>
+                            <div className="td-field-value">{dash(property.effectivityYear)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Cancelled TD Number</div>
+                            <div className="td-field-value">{dash(property.cancelledTdNumber)}</div>
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                            <div className="td-field-label">Amount in Words</div>
+                            <div className="td-field-value">{dash(property.amountInWords)}</div>
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                            <div className="td-field-label">Memoranda</div>
+                            <div className="td-field-value">{dash(property.memoranda)}</div>
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                            <div className="td-field-label">Notes</div>
+                            <div className="td-field-value">{dash(property.notes)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Assessor Name</div>
+                            <div className="td-field-value">{dash(property.assessorName)}</div>
+                        </div>
+                        <div>
+                            <div className="td-field-label">Assessor Title</div>
+                            <div className="td-field-value">{dash(property.assessorTitle)}</div>
+                        </div>
+                    </div>
+                </>
+
+            ) : (
+                // UNKNOWN source — no TD/landholding/no-landholding record matched at
+                // all. Only property_location and declarant name may be populated.
+                <div className="td-grid">
+                    <div>
+                        <div className="td-field-label">Owner on Record</div>
+                        <div className="td-field-value">{dash(property.ownerOnRecord)}</div>
+                    </div>
+                    <div>
+                        <div className="td-field-label">Property Location</div>
+                        <div className="td-field-value">{dash(property.location)}</div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 /* ── component ──────────────────────────────────────────────────────────── */
 
 export function TransactionDetails({ group, onClose, onReprint, onVoid }: TransactionDetailsProps) {
     const { transactions } = group;
     if (!transactions.length) return null;
-
-    // Representative transaction for shared fields (client, property)
-    const rep = transactions[0];
-    const { client, property } = rep;
-
-    // All requested documents across every transaction in the group, each tagged with its reference number
-    const allDocs = transactions.flatMap((t) =>
-        t.requestedDocuments.map((doc) => ({
-            ...doc,
-            refNumber: t.referenceNumber,
-            txnId: t.id,
-        }))
-    );
-
-    // Payment: aggregate OR numbers (unique); use first available values for the rest
-    const orNumbers = [...new Set(
-        transactions.map((t) => t.payment.orNumber).filter(Boolean)
-    )] as string[];
-    const paymentDate = firstOf(transactions, (t) => t.payment.paymentDate);
-    const paymentMethod = firstOf(transactions, (t) => t.payment.paymentMethod);
-    const verifiedBy = firstOf(transactions, (t) => t.payment.verifiedBy);
 
     return (
         <div className="td-overlay" onClick={onClose}>
@@ -130,311 +351,106 @@ export function TransactionDetails({ group, onClose, onReprint, onVoid }: Transa
                         </div>
                         <div className="td-header-sub">
                             {transactions.length} released {transactions.length === 1 ? 'transaction' : 'transactions'}
-                            &nbsp;·&nbsp;Assigned to {rep.assignedStaff}
                         </div>
                     </div>
                     <button className="td-close-btn" onClick={onClose} aria-label="Close details">✕</button>
                 </div>
 
                 <div className="td-body">
+                    {transactions.map((t) => (
+                        <div key={t.id} className="td-transaction-block">
 
-                    {/* ── Card 1: Client Information ── */}
-                    <div className="td-section">
-                        <h3 className="td-section-title">
-    <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-        <UserIcon /> Client Information
-    </span>
-</h3>
-                        <div className="td-grid">
-                            <div>
-                                <div className="td-field-label">Declarant Name</div>
-                                <div className="td-field-value">{client.declarantName || '—'}</div>
-                            </div>
-                            <div>
-                                <div className="td-field-label">Requested By</div>
-                                <div className="td-field-value">{client.requestedBy || '—'}</div>
-                            </div>
-                            <div>
-                                <div className="td-field-label">Authorization on File</div>
-                                <div className="td-field-value">
-                                    {client.authorizationOnFile ? 'Yes' : 'Not Required'}
-                                </div>
-                            </div>
-                            <div>
-                                <div className="td-field-label">Reason / Purpose</div>
-                                <div className="td-field-value">
-                                    {firstOf(transactions, (t) => t.reasonPurpose) || '—'}
-                                </div>
-                            </div>
-                            {client.address && (
-                                <div style={{ gridColumn: '1 / -1' }}>
-                                    <div className="td-field-label">Address</div>
-                                    <div className="td-field-value">{client.address}</div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* ── Card 2: Property Information ── */}
-<div className="td-section">
-    <h3 className="td-section-title">
-        <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-            <HomeIcon /> Property Information
-        </span>
-    </h3>
-
-    {property.source && PROPERTY_SOURCE_LABEL[property.source] && (
-        <div className="td-empty-note" style={{ marginBottom: '10px' }}>
-            {PROPERTY_SOURCE_LABEL[property.source]}
-        </div>
-    )}
-
-    <div className="td-grid">
-        <div>
-            <div className="td-field-label">
-                {property.source === 'LAND_HOLDING' ? 'ARP / TD No.' : 'Tax Declaration No. (ARP)'}
-            </div>
-            <div className="td-field-value">{dash(property.taxDeclarationNo)}</div>
-        </div>
-        <div>
-            <div className="td-field-label">Property Index No. (PIN)</div>
-            <div className="td-field-value">{dash(property.pin)}</div>
-        </div>
-        <div>
-            <div className="td-field-label">OCT / TCT / CLOA No.</div>
-            <div className="td-field-value">{dash(property.octTctNumber)}</div>
-        </div>
-        <div>
-            <div className="td-field-label">Title No.</div>
-            <div className="td-field-value">{dash(property.titleNumber)}</div>
-        </div>
-        <div>
-            <div className="td-field-label">Survey No.</div>
-            <div className="td-field-value">{dash(property.surveyNumber)}</div>
-        </div>
-        <div>
-            <div className="td-field-label">Lot No.</div>
-            <div className="td-field-value">{dash(property.lotNo)}</div>
-        </div>
-        <div>
-            <div className="td-field-label">Block No.</div>
-            <div className="td-field-value">{dash(property.blockNumber)}</div>
-        </div>
-        <div>
-            <div className="td-field-label">Owner on Record</div>
-            <div className="td-field-value">{dash(property.ownerOnRecord)}</div>
-        </div>
-
-        {/* NEW: Owner Address — directly below Owner on Record, full width */}
-        <div style={{ gridColumn: '1 / -1' }}>
-            <div className="td-field-label">Owner Address</div>
-            <div className="td-field-value">{dash(property.ownerAddress)}</div>
-        </div>
-
-        <div>
-            <div className="td-field-label">Owner TIN</div>
-            <div className="td-field-value">{dash(property.ownerTin)}</div>
-        </div>
-        <div>
-            <div className="td-field-label">Owner Telephone</div>
-            <div className="td-field-value">{dash(property.ownerTelephone)}</div>
-        </div>
-
-        <div style={{ gridColumn: '1 / -1' }}>
-            <div className="td-field-label">Property Location</div>
-            <div className="td-field-value">{dash(property.location)}</div>
-        </div>
-        <div>
-            <div className="td-field-label">Classification</div>
-            <div className="td-field-value">{dash(property.classification)}</div>
-        </div>
-        <div>
-            <div className="td-field-label">Area</div>
-            <div className="td-field-value">{dash(property.area)}</div>
-        </div>
-        <div>
-            <div className="td-field-label">Market Value</div>
-            <div className="td-field-value">{fmtCurrency(property.marketValue)}</div>
-        </div>
-        <div>
-            <div className="td-field-label">Assessed Value</div>
-            <div className="td-field-value">{fmtCurrency(property.assessedValue)}</div>
-        </div>
-        <div>
-            <div className="td-field-label">Taxability</div>
-            <div className="td-field-value">{dash(property.taxability)}</div>
-        </div>
-    </div>
-
-    {/* Administrator on Record — only shown when the tax declaration names one */}
-    {property.administratorName && (
-        <>
-            <div style={{
-                fontSize: '0.7rem', fontWeight: 600, color: '#7A76A8',
-                textTransform: 'uppercase', letterSpacing: '0.03em',
-                marginTop: '18px', marginBottom: '8px', paddingTop: '14px',
-                borderTop: '1px solid #EDEBFB',
-            }}>
-                Administrator on Record
-            </div>
-            <div className="td-grid">
-                <div>
-                    <div className="td-field-label">Administrator Name</div>
-                    <div className="td-field-value">{dash(property.administratorName)}</div>
-                </div>
-                <div style={{ gridColumn: '1 / -1' }}>
-                    <div className="td-field-label">Administrator Address</div>
-                    <div className="td-field-value">{dash(property.administratorAddress)}</div>
-                </div>
-                <div>
-                    <div className="td-field-label">Administrator TIN</div>
-                    <div className="td-field-value">{dash(property.administratorTin)}</div>
-                </div>
-                <div>
-                    <div className="td-field-label">Administrator Telephone</div>
-                    <div className="td-field-value">{dash(property.administratorTelephone)}</div>
-                </div>
-            </div>
-        </>
-    )}
-
-    {/* Property Boundaries — only shown when at least one direction is on file */}
-    {(property.boundaryNorth || property.boundarySouth || property.boundaryEast || property.boundaryWest) && (
-        <>
-            <div style={{
-                fontSize: '0.7rem', fontWeight: 600, color: '#7A76A8',
-                textTransform: 'uppercase', letterSpacing: '0.03em',
-                marginTop: '18px', marginBottom: '8px', paddingTop: '14px',
-                borderTop: '1px solid #EDEBFB',
-            }}>
-                Property Boundaries
-            </div>
-            <div className="td-grid">
-                <div>
-                    <div className="td-field-label">North</div>
-                    <div className="td-field-value">{dash(property.boundaryNorth)}</div>
-                </div>
-                <div>
-                    <div className="td-field-label">South</div>
-                    <div className="td-field-value">{dash(property.boundarySouth)}</div>
-                </div>
-                <div>
-                    <div className="td-field-label">East</div>
-                    <div className="td-field-value">{dash(property.boundaryEast)}</div>
-                </div>
-                <div>
-                    <div className="td-field-label">West</div>
-                    <div className="td-field-value">{dash(property.boundaryWest)}</div>
-                </div>
-            </div>
-        </>
-    )}
-
-    {/* Additional Assessment Details — only shown when a tax declaration backs this record */}
-    {property.source === 'TAX_DECLARATION' && (
-        <>
-            <div style={{
-                fontSize: '0.7rem', fontWeight: 600, color: '#7A76A8',
-                textTransform: 'uppercase', letterSpacing: '0.03em',
-                marginTop: '18px', marginBottom: '8px', paddingTop: '14px',
-                borderTop: '1px solid #EDEBFB',
-            }}>
-                Additional Assessment Details
-            </div>
-            <div className="td-grid">
-                <div>
-                    <div className="td-field-label">Effectivity Year</div>
-                    <div className="td-field-value">{dash(property.effectivityYear)}</div>
-                </div>
-                <div>
-                    <div className="td-field-label">Cancelled TD Number</div>
-                    <div className="td-field-value">{dash(property.cancelledTdNumber)}</div>
-                </div>
-                <div style={{ gridColumn: '1 / -1' }}>
-                    <div className="td-field-label">Amount in Words</div>
-                    <div className="td-field-value">{dash(property.amountInWords)}</div>
-                </div>
-                <div style={{ gridColumn: '1 / -1' }}>
-                    <div className="td-field-label">Memoranda</div>
-                    <div className="td-field-value">{dash(property.memoranda)}</div>
-                </div>
-                <div style={{ gridColumn: '1 / -1' }}>
-                    <div className="td-field-label">Notes</div>
-                    <div className="td-field-value">{dash(property.notes)}</div>
-                </div>
-                <div>
-                    <div className="td-field-label">Assessor Name</div>
-                    <div className="td-field-value">{dash(property.assessorName)}</div>
-                </div>
-                <div>
-                    <div className="td-field-label">Assessor Title</div>
-                    <div className="td-field-value">{dash(property.assessorTitle)}</div>
-                </div>
-            </div>
-        </>
-    )}
-</div>
-
-                    {/* ── Card 3: Requested Documents ── */}
-                    <div className="td-section">
-                        <h3 className="td-section-title">
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                                <DocIcon /> Requested Documents
-                            </span>
-                            <span style={{
-                                fontSize: '0.7rem', fontWeight: 600,
-                                color: '#7A76A8', textTransform: 'none', letterSpacing: 0,
-                            }}>
-                                {allDocs.length} {allDocs.length === 1 ? 'document' : 'documents'}
-                            </span>
-                        </h3>
-                        <div className="td-doclist">
-                            {allDocs.length === 0 && (
-                                <div className="td-empty-note">No documents recorded.</div>
-                            )}
-                            {allDocs.map((doc, idx) => (
-                                <div key={`${doc.txnId}-${doc.id}-${idx}`} className="td-docitem">
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                        <span className="td-docitem-name">{doc.documentType}</span>
-                                        {/* Small reference number tag beside each document */}
-                                        <span style={{
-                                            fontSize: '0.68rem',
-                                            fontWeight: 700,
-                                            fontFamily: "'Courier New', monospace",
-                                            color: '#534AB7',
-                                            background: '#F0EEFF',
-                                            border: '1px solid #D7D2F2',
-                                            borderRadius: '5px',
-                                            padding: '1px 6px',
-                                            letterSpacing: '0.02em',
-                                            display: 'inline-block',
-                                            width: 'fit-content',
-                                        }}>
-                                            {doc.refNumber}
-                                        </span>
+                            {/* Per-transaction header: reference number + staff/date */}
+                            <div className="td-transaction-block-header">
+                                <div>
+                                    <div className="td-header-ref" style={{ color: 'var(--db-primary, #29237A)', fontSize: '1rem' }}>
+                                        {t.referenceNumber}
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                                        <span className="td-docitem-meta">
-                                            {doc.reprintCount > 0
-                                                ? `Reprinted ${doc.reprintCount}×`
-                                                : 'Not reprinted'}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            className="td-link-btn"
-                                            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                                            onClick={() => onReprint(doc.txnId, doc.id)}
-                                        >
-                                            <PrinterIcon /> Reprint
-                                        </button>
+                                    <div className="td-header-sub" style={{ color: '#7A76A8' }}>
+                                        Assigned to {t.assignedStaff} &nbsp;·&nbsp; Requested {fmt(t.dateRequested)}
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                            </div>
 
+                            {/* ── Card 1: Client Information ── */}
+                            <div className="td-section">
+                                <h3 className="td-section-title">
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                                        <UserIcon /> Client Information
+                                    </span>
+                                </h3>
+                                <div className="td-grid">
+                                    <div>
+                                        <div className="td-field-label">Declarant Name</div>
+                                        <div className="td-field-value">{t.client.declarantName || '—'}</div>
+                                    </div>
+                                    <div>
+                                        <div className="td-field-label">Requested By</div>
+                                        <div className="td-field-value">{t.client.requestedBy || '—'}</div>
+                                    </div>
+                                    <div>
+                                        <div className="td-field-label">Authorization on File</div>
+                                        <div className="td-field-value">
+                                            {t.client.authorizationOnFile ? 'Yes' : 'Not Required'}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="td-field-label">Reason / Purpose</div>
+                                        <div className="td-field-value">{t.reasonPurpose || '—'}</div>
+                                    </div>
+                                    {t.client.address && (
+                                        <div style={{ gridColumn: '1 / -1' }}>
+                                            <div className="td-field-label">Address</div>
+                                            <div className="td-field-value">{t.client.address}</div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
 
-                        {/* ── Card 4: Payment Information ── */}
+                            {/* ── Card 2: Property Information ── */}
+                            <PropertyCard property={t.property} />
+
+                            {/* ── Card 3: Requested Documents ── */}
+                            <div className="td-section">
+                                <h3 className="td-section-title">
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                                        <DocIcon /> Requested Documents
+                                    </span>
+                                    <span style={{
+                                        fontSize: '0.7rem', fontWeight: 600,
+                                        color: '#7A76A8', textTransform: 'none', letterSpacing: 0,
+                                    }}>
+                                        {t.requestedDocuments.length} {t.requestedDocuments.length === 1 ? 'document' : 'documents'}
+                                    </span>
+                                </h3>
+                                <div className="td-doclist">
+                                    {t.requestedDocuments.length === 0 && (
+                                        <div className="td-empty-note">No documents recorded.</div>
+                                    )}
+                                    {t.requestedDocuments.map((doc) => (
+                                        <div key={doc.id} className="td-docitem">
+                                            <span className="td-docitem-name">{doc.documentType}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                                                <span className="td-docitem-meta">
+                                                    {doc.reprintCount > 0
+                                                        ? `Reprinted ${doc.reprintCount}×`
+                                                        : 'Not reprinted'}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    className="td-link-btn"
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                    onClick={() => onReprint(t.id, doc.id)}
+                                                >
+                                                    <PrinterIcon /> Reprint
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* ── Card 4: Payment Information ── */}
 <div className="td-section">
     <h3 className="td-section-title">
         <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
@@ -445,71 +461,67 @@ export function TransactionDetails({ group, onClose, onReprint, onVoid }: Transa
         <div>
             <div style={{ marginBottom: '12px' }}>
                 <div className="td-field-label">Official Receipt (OR) Number</div>
-                <div className="td-field-value">
-                    {orNumbers.length > 0 ? orNumbers.join(', ') : 'Not yet issued'}
-                </div>
+                <div className="td-field-value">{t.payment.orNumber || 'Not yet issued'}</div>
             </div>
             <div>
                 <div className="td-field-label">Verified / Released By</div>
-                <div className="td-field-value">{verifiedBy || '—'}</div>
+                <div className="td-field-value">{t.payment.verifiedBy || '—'}</div>
             </div>
         </div>
-
         <div>
             <div style={{ marginBottom: '12px' }}>
                 <div className="td-field-label">Payment Method</div>
-                <div className="td-field-value">{paymentMethod || '—'}</div>
+                <div className="td-field-value">{t.payment.paymentMethod || '—'}</div>
             </div>
             <div>
                 <div className="td-field-label">Payment Date</div>
-                <div className="td-field-value">{fmt(paymentDate)}</div>
+                <div className="td-field-value">{fmt(t.payment.paymentDate)}</div>
             </div>
+        </div>
+        <div style={{ gridColumn: '1 / -1' }}>
+            <div className="td-field-label">OR Justification</div>
+            <div className="td-field-value">{t.payment.orJustification || 'None'}</div>
         </div>
     </div>
 </div>
 
-                    {/* ── Actions: void per transaction ── */}
-                    {transactions.length > 0 && (
-                        <div className="td-section" style={{ background: '#fff8f8', borderColor: '#FECDCA' }}>
-                           <h3 className="td-section-title" style={{ color: '#B0281C', marginBottom: '10px' }}>
-    Actions
-</h3>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                {transactions.map((t) => (
-                                    <div
-                                        key={t.id}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            padding: '8px 12px',
-                                            background: '#FFF1F0',
-                                            border: '1px solid #FECDCA',
-                                            borderRadius: '9px',
-                                        }}
+                            {/* ── Card 5: Actions ── */}
+                            <div className="td-section" style={{ background: '#fff8f8', borderColor: '#FECDCA' }}>
+                                <h3 className="td-section-title" style={{ color: '#B0281C', marginBottom: '10px' }}>
+                                    Actions
+                                </h3>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '8px 12px',
+                                        background: '#FFF1F0',
+                                        border: '1px solid #FECDCA',
+                                        borderRadius: '9px',
+                                    }}
+                                >
+                                    <span style={{
+                                        fontFamily: "'Courier New', monospace",
+                                        fontWeight: 700,
+                                        fontSize: '0.82rem',
+                                        color: '#1e293b',
+                                        letterSpacing: '0.02em',
+                                    }}>
+                                        {t.referenceNumber}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="td-void-btn"
+                                        onClick={() => onVoid(t)}
                                     >
-                                        <span style={{
-                                            fontFamily: "'Courier New', monospace",
-                                            fontWeight: 700,
-                                            fontSize: '0.82rem',
-                                            color: '#1e293b',
-                                            letterSpacing: '0.02em',
-                                        }}>
-                                            {t.referenceNumber}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            className="td-void-btn"
-                                            onClick={() => onVoid(t)}
-                                        >
-                                            Void this transaction
-                                        </button>
-                                    </div>
-                                ))}
+                                        Void this transaction
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    )}
 
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>

@@ -7,21 +7,33 @@ interface TransactionTableProps {
     onViewDetails: (group: DeclarantGroup) => void;
     onReprint: (transactionId: string, docId: string) => void;
     onVoidGroup: (group: DeclarantGroup) => void;
+    /** Rendered inside the table card, above the column headers — used for
+     * the search/filter toolbar so it lives in the same card as the table
+     * and pagination, matching PendingPayment's pp-table-card layout. */
+    toolbar?: React.ReactNode;
 }
 
-const COLUMNS = [
-    'Reference Number',
-    'Declarant',
-    'Requested By',
-    'Date Requested',
-    'Assigned Staff',
-    'Current Status',
-    'Actions',
+interface ColumnDef {
+    label: string;
+    width: string;
+    align?: 'left' | 'center' | 'right';
+}
+
+const COLUMNS: ColumnDef[] = [
+    { label: 'Reference Number', width: '14%' },
+    { label: 'Declarant', width: '12%' },
+    { label: 'Requested By', width: '11%' },
+    { label: 'Date Requested', width: '10%' },
+    { label: 'Assigned Staff', width: '11%' },
+    { label: 'OR Number', width: '10%' },
+    { label: 'OR Justification', width: '14%' },
+    { label: 'Current Status', width: '10%' },
+    { label: 'Actions', width: '8%', align: 'center' },
 ];
 
 const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
-export function TransactionTable({ groups, onViewDetails, onReprint, onVoidGroup }: TransactionTableProps) {
+export function TransactionTable({ groups, onViewDetails, toolbar }: TransactionTableProps) {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [page, setPage] = useState(1);
 
@@ -39,14 +51,19 @@ export function TransactionTable({ groups, onViewDetails, onReprint, onVoidGroup
     };
 
     return (
-        <>
-            <div className="tr-card">
+        <div className="tr-card">
+            {toolbar && <div className="tr-table-toolbar">{toolbar}</div>}
+
+            <div className="tr-table-scroll">
                 <table className="tr-table">
                     <thead>
                         <tr>
                             {COLUMNS.map((col) => (
-                                <th key={col} style={col === 'Actions' ? { textAlign: 'center' } : undefined}>
-                                    {col}
+                                <th
+                                    key={col.label}
+                                    style={{ width: col.width, textAlign: col.align ?? 'left' }}
+                                >
+                                    {col.label}
                                 </th>
                             ))}
                         </tr>
@@ -65,8 +82,6 @@ export function TransactionTable({ groups, onViewDetails, onReprint, onVoidGroup
                                     key={g.declarantName}
                                     group={g}
                                     onViewDetails={onViewDetails}
-                                    onReprint={onReprint}
-                                    onVoidGroup={onVoidGroup}
                                 />
                             ))
                         )}
@@ -74,10 +89,11 @@ export function TransactionTable({ groups, onViewDetails, onReprint, onVoidGroup
                 </table>
             </div>
 
-            <div className="tr-pagination">
-                <div className="tr-pagination-rows">
-                    <span>Rows per page:</span>
+            <div className="tr-pagination-footer">
+                <div className="tr-pagination-left">
+                    <span className="tr-pagination-label">Rows per page:</span>
                     <select
+                        className="tr-items-per-page"
                         value={rowsPerPage}
                         onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
                     >
@@ -87,25 +103,25 @@ export function TransactionTable({ groups, onViewDetails, onReprint, onVoidGroup
                     </select>
                 </div>
 
-                <span className="tr-pagination-label">
+                <div className="tr-pagination-center">
                     {groups.length === 0
                         ? '0 of 0'
                         : `${(currentPage - 1) * rowsPerPage + 1}–${Math.min(currentPage * rowsPerPage, groups.length)} of ${groups.length}`}
-                </span>
+                </div>
 
-                <div className="tr-pagination-controls">
+                <div className="tr-pagination-right">
                     <button
                         type="button"
-                        className="tr-pagination-btn"
+                        className="tr-page-btn-text"
                         disabled={currentPage <= 1}
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                     >
                         Previous
                     </button>
-                    <span className="tr-pagination-label">Page {currentPage} of {totalPages}</span>
+                    <span className="tr-page-current">Page {currentPage} of {totalPages}</span>
                     <button
                         type="button"
-                        className="tr-pagination-btn"
+                        className="tr-page-btn-text"
                         disabled={currentPage >= totalPages}
                         onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     >
@@ -113,6 +129,6 @@ export function TransactionTable({ groups, onViewDetails, onReprint, onVoidGroup
                     </button>
                 </div>
             </div>
-        </>
+        </div>
     );
 }

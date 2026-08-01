@@ -61,6 +61,14 @@ export interface PaymentInfo {
     paymentDate: string | null;
     paymentMethod: 'Cash' | 'GCash' | 'Bank Transfer' | 'Unpaid';
     verifiedBy: string | null;
+    /**
+     * Free-text reason recorded when an OR Number is waived/exempted/not
+     * yet issued (e.g. "Senior citizen exemption", "Indigency waiver").
+     * No backing DB column existed for this before — added here so the
+     * Transaction Registry table can show it, defaulting to "None" in the
+     * UI whenever it's null/empty.
+     */
+    orJustification?: string | null;
 }
 
 export interface PropertyInfo {
@@ -112,7 +120,7 @@ export interface Transaction {
     referenceNumber: string;
     client: ClientInfo;
     property: PropertyInfo;
-    requestedDocuments: RequestedDocumentItem[]; // was DocumentType[]
+    requestedDocuments: RequestedDocumentItem[];
     dateRequested: string;
     assignedStaff: string;
     status: TransactionStatus;
@@ -122,6 +130,7 @@ export interface Transaction {
     reasonPurpose?: string;
     isVoid?: boolean;
     voidReason?: string;
+    voidedAt?: string;
 }
 
 /**
