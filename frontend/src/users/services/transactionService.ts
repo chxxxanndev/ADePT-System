@@ -22,6 +22,11 @@ export async function fetchTransactionRegistry(): Promise<Transaction[]> {
 
     return raw.map((t): Transaction => ({
         ...t,
+        // Backend may send this as dateReleased (already camelCase, like
+        // dateRequested) or as release_date/releaseDate depending on which
+        // endpoint version served the request — normalize to dateReleased
+        // so the registry table/sort always has one field to read.
+        dateReleased: t.dateReleased ?? t.releaseDate ?? t.release_date ?? null,
         requestedDocuments: (t.requestedDocuments ?? []).map(
             (doc: any, idx: number): RequestedDocumentItem => {
                 // Backward compatible: older backend responses (or any other

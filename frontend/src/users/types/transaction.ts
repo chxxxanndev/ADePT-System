@@ -64,11 +64,28 @@ export interface PaymentInfo {
     /**
      * Free-text reason recorded when an OR Number is waived/exempted/not
      * yet issued (e.g. "Senior citizen exemption", "Indigency waiver").
-     * No backing DB column existed for this before — added here so the
-     * Transaction Registry table can show it, defaulting to "None" in the
-     * UI whenever it's null/empty.
+     * Backed by requests.or_override_justification.
      */
     orJustification?: string | null;
+}
+
+/**
+ * One row from encoded_assessment_rows — a tax declaration can have
+ * multiple assessment rows (e.g. part residential + part agricultural on
+ * the same property), distinguished by row_order.
+ */
+export interface AssessmentRow {
+    id: string;
+    rowOrder: number;
+    classification?: string;
+    actualUse?: string;
+    actualUseOtherText?: string;
+    area?: string;
+    areaUnit?: string;
+    marketValue?: number | null;
+    assessmentLevel?: number | null;
+    assessedValue?: number | null;
+    kindOfProperty?: string;
 }
 
 export interface PropertyInfo {
@@ -94,7 +111,9 @@ export interface PropertyInfo {
     boundarySouth?: string;
     boundaryEast?: string;
     boundaryWest?: string;
+    /** Classification of the first assessment row — kept for quick display; see assessmentRows for the full set. */
     classification?: string;
+    /** Area of the first assessment row — kept for quick display; see assessmentRows for the full set. */
     area?: string;
     marketValue?: number | null;
     assessedValue?: number | null;
@@ -106,6 +125,8 @@ export interface PropertyInfo {
     notes?: string;
     assessorName?: string;
     assessorTitle?: string;
+    /** Every encoded_assessment_rows entry tied to this tax declaration, in row_order. */
+    assessmentRows?: AssessmentRow[];
 }
 
 export interface ClientInfo {
@@ -122,6 +143,19 @@ export interface Transaction {
     property: PropertyInfo;
     requestedDocuments: RequestedDocumentItem[];
     dateRequested: string;
+    /**
+     * When this request's documents were actually released (mm/dd/yyyy, same
+     * format as dateRequested). Only meaningfully populated once status is
+     * 'Released' — null/undefined beforehand. Backed by requests.release_date
+     * (see transactionService.ts for the raw-field fallback mapping).
+     */
+    dateReleased?: string | null;
+    /**
+     * Display name of the staff member who released the documents (resolved
+     * server-side from requests.released_by, a staff uuid). Null until the
+     * request is actually released.
+     */
+    releasedBy?: string | null;
     assignedStaff: string;
     status: TransactionStatus;
     payment: PaymentInfo;
@@ -141,7 +175,7 @@ export interface Transaction {
  */
 export interface DeclarantGroup {
     declarantName: string;
-    transactions: Transaction[]; // most recent first
+    transactions: Transaction[]; // most recently released first
 }
 
 export interface TransactionFilters {

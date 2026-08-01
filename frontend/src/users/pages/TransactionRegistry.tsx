@@ -34,6 +34,14 @@ function toComparableDate(mmddyyyy: string): string {
     return `${y}-${m}-${d}`;
 }
 
+// The registry only ever shows Released transactions, so dateReleased should
+// always be populated by the time a row lands here — but fall back to
+// dateRequested for any older/incompletely-migrated backend rows rather than
+// crashing on a missing date or silently sorting them as "oldest".
+function getReleaseSortDate(t: Transaction): string {
+    return t.dateReleased || t.dateRequested;
+}
+
 interface TransactionRegistryProps {
     user: User; // still needed to populate actionedBy
     onNavigateToVoidAmend: (newVoidedItems: VoidAmendRecord[]) => void;
@@ -117,14 +125,18 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
         return Array.from(map.entries())
             .map(([declarantName, txns]) => ({
                 declarantName,
+                // Latest-released first within each declarant's own group.
                 transactions: [...txns].sort(
-                    (a, b) => new Date(toComparableDate(b.dateRequested)).getTime() -
-                              new Date(toComparableDate(a.dateRequested)).getTime()
+                    (a, b) => new Date(toComparableDate(getReleaseSortDate(b))).getTime() -
+                              new Date(toComparableDate(getReleaseSortDate(a))).getTime()
                 ),
             }))
+            // And groups themselves ordered by whichever declarant had the
+            // most recently released document, so the whole table reads
+            // latest-release-on-top, oldest-release-on-bottom.
             .sort(
-                (a, b) => new Date(toComparableDate(b.transactions[0].dateRequested)).getTime() -
-                          new Date(toComparableDate(a.transactions[0].dateRequested)).getTime()
+                (a, b) => new Date(toComparableDate(getReleaseSortDate(b.transactions[0]))).getTime() -
+                          new Date(toComparableDate(getReleaseSortDate(a.transactions[0]))).getTime()
             );
     }, [filteredTransactions]);
 
@@ -267,6 +279,7 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
                     onClose={() => setSelectedGroup(null)}
                     onReprint={handleReprint}
                     onVoid={(t) => setVoidGroupTarget({ declarantName: selectedGroup.declarantName, transactions: [t] })}
+                    onVoidAll={() => setVoidGroupTarget(selectedGroup)}
                 />
             )}
 

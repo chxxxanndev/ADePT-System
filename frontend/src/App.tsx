@@ -45,6 +45,25 @@ function App() {
   const handleSignupSuccess = (username: string) => {
     setPrefilledUsername(username);
   };
+  
+  // A session *restore* (currentUser rehydrated from a saved token on
+  // refresh, see sessionReady above) never calls `login()` — only an actual
+  // form submission does — so clearing these keys here only fires on a real
+  // login, and refreshes are left untouched.
+  const handleLogin = (...args: Parameters<typeof login>) => {
+    sessionStorage.removeItem('adept-active-view');
+    sessionStorage.removeItem('adept-completed-entry');
+    return login(...args);
+  };
+
+  // Reactivating a disabled account also sets currentUser directly (see
+  // useAuth.ts) and mounts Dashboard on success — same entry point as a
+  // normal login, so it needs the same reset.
+  const handleReactivate = (...args: Parameters<typeof reactivateAccount>) => {
+    sessionStorage.removeItem('adept-active-view');
+    sessionStorage.removeItem('adept-completed-entry');
+    return reactivateAccount(...args);
+  };
 
   const navigateTo = (newView: View) => setView(newView);
 
@@ -94,8 +113,8 @@ function App() {
               <LoginForm
                 active={view === 'login'}
                 loading={loading}
-                onLogin={login}
-                onReactivate={reactivateAccount}
+                onLogin={handleLogin}
+                onReactivate={handleReactivate}
                 navigateTo={navigateTo}
                 initialUsername={prefilledUsername}
               />

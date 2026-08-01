@@ -66,6 +66,9 @@ interface TransactionRowProps {
 // reference number. Void now lives entirely inside TransactionDetails
 // (per-transaction, in its Actions card) — the row itself only opens details.
 export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
+    // group.transactions is sorted latest-released-first (see
+    // TransactionRegistry.tsx), so `latest` here means "most recently
+    // released" rather than "most recently requested".
     const latest = group.transactions[0];
     const docLines = buildDocLines(group.transactions);
 
@@ -95,7 +98,9 @@ export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
             </td>
             <td>{latest.client.requestedBy}</td>
             <td>{latest.dateRequested}</td>
+            <td>{latest.dateReleased || '—'}</td>
             <td>{latest.assignedStaff}</td>
+            <td>{latest.releasedBy || '—'}</td>
 
             <td>
                 <div className="tr-stack-count-label tr-stack-count-label--spacer">&nbsp;</div>
@@ -114,7 +119,7 @@ export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
                     {docLines.map(({ key, orJustification }) => (
                         <div className="tr-stack-line" key={key}>
                             <span className={`tr-or-justification${orJustification ? '' : ' tr-or-justification--none'}`}>
-                                {orJustification || 'None'}
+                                {orJustification || 'OR Unique'}
                             </span>
                         </div>
                     ))}

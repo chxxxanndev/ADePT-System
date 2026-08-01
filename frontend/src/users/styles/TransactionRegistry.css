@@ -861,6 +861,25 @@
     background: rgba(255, 255, 255, 0.28);
 }
 
+.td-header-void-btn {
+    background: rgba(255, 255, 255, 0.16);
+    border: none;
+    color: #FCA5A5;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.td-header-void-btn:hover {
+    background: rgba(239, 68, 68, 0.35);
+    color: #FEE2E2;
+}
+
 .td-body {
     padding: 20px 28px 40px;
 }
