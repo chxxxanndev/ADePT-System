@@ -93,9 +93,9 @@ async createRequest(formData, authUserId) {
         : await this._generateReferenceNumber(validDocTypeIds);
 
     const { data: request, error: reqError } = await supabase
-        .from('requests')
-        .insert([{
-            declarant_name: formData.declarantName,
+    .from('requests')
+    .insert([{
+        declarant_name: formData.declarantName,
             request_date: formData.requestDate,
             requested_by_name: formData.requestedByName,
             reference_number: uniqueRef,
@@ -103,6 +103,7 @@ async createRequest(formData, authUserId) {
             action_taken: formData.actionTaken || 'PENDING',
             property_location: formData.propertyLocation || null,
             encoded_by: staffId,
+            request_type: 'ORIGINAL',
             status: formData.status || 'DRAFT'
         }])
         .select().single();
@@ -228,6 +229,15 @@ async createRequest(formData, authUserId) {
         docsByRequestId.set(d.request_id, list);
     });
 
+    const reprintCountByParentDocType = new Map();
+(requests || []).forEach((r) => {
+    if (!r.parent_id) return;
+    (docsByRequestId.get(r.id) || []).forEach((link) => {
+        const key = `${r.parent_id}::${link.document_type_id}`;
+        reprintCountByParentDocType.set(key, (reprintCountByParentDocType.get(key) || 0) + 1);
+    });
+});
+
     const taxDecById = new Map((taxDeclarations || []).map((td) => [td.id, td]));
     const taxDecByRequestId = new Map();
     (taxDeclarations || []).forEach((td) => {
@@ -266,6 +276,7 @@ async createRequest(formData, authUserId) {
 
     const STATUS_MAP = {
         DRAFT: 'Pending',
+        PENDING_PAYMENT: 'Pending', 
         IN_PROGRESS: 'Processing',
         PAID: 'Released',
         RELEASED: 'Released',
@@ -282,12 +293,12 @@ async createRequest(formData, authUserId) {
         // Live document types (id + name + whether it needs a tax dec),
         // instead of hardcoded strings.
         const documentEntries = reqDocs.map((d) => ({
-            id: d.id,
-            documentTypeId: d.document_type_id,
-            name: d.document_types?.name || 'Document',
-            requiresTaxDeclaration: !!d.document_types?.requires_tax_declaration,
-        }));
-
+    id: d.id,
+    documentTypeId: d.document_type_id,
+    name: d.document_types?.name || 'Document',
+    requiresTaxDeclaration: !!d.document_types?.requires_tax_declaration,
+    reprintCount: reprintCountByParentDocType.get(`${r.id}::${d.document_type_id}`) || 0,   // NEW
+}));
         // ── Resolve Property Information ──
         let property = {
             source: 'UNKNOWN',
@@ -396,30 +407,48 @@ async createRequest(formData, authUserId) {
                 assessmentRows: assessmentRowEntries,
             };
         } else {
-            const lhCert = landholdingCertByRequestId.get(r.id);
-            if (lhCert) {
-                const rows = landholdingRowsByCertId.get(lhCert.id) || [];
-                const first = rows[0];
-                property = {
-                    ...property,
-                    source: 'LAND_HOLDING',
-                    taxDeclarationNo: first?.td_arp_number || '',
-                    lotNo: first?.lot_number || '',
-                    titleNumber: first?.title_number || '',
-                    location: first?.location_of_property || property.location,
-                    area: first?.area || '',
-                    assessedValue: toNum(first?.assessed_value),
-                    ownerOnRecord: r.declarant_name,
-                };
-            } else if (noLandholdingRequestIds.has(r.id)) {
-                property = {
-                    ...property,
-                    source: 'NO_LANDHOLDING',
-                    location: '',
-                    ownerOnRecord: '',
-                };
-            }
-        }
+    const lhCert = landholdingCertByRequestId.get(r.id);
+    if (lhCert) {
+        const rows = landholdingRowsByCertId.get(lhCert.id) || [];
+        const first = rows[0];
+
+        const landholdingRowEntries = rows.map((row, idx) => ({
+            id: row.id,
+            rowOrder: row.row_order ?? idx + 1,
+            tdArpNumber: row.td_arp_number || '',
+            location: row.location_of_property || '',
+            lotNumber: row.lot_number || '',
+            titleNumber: row.title_number || '',
+            area: row.area || '',
+            assessedValue: toNum(row.assessed_value),
+        }));
+
+        const totalAssessedValue = rows.reduce(
+            (sum, row) => sum + (toNum(row.assessed_value) || 0),
+            0
+        );
+
+        property = {
+            ...property,
+            source: 'LAND_HOLDING',
+            taxDeclarationNo: first?.td_arp_number || '',
+            lotNo: first?.lot_number || '',
+            titleNumber: first?.title_number || '',
+            location: first?.location_of_property || property.location,
+            area: first?.area || '',
+            assessedValue: rows.length ? totalAssessedValue : null,   // ← use the sum
+            ownerOnRecord: r.declarant_name,
+            landholdingRows: landholdingRowEntries,                   // ← ADD THIS LINE
+        };
+    } else if (noLandholdingRequestIds.has(r.id)) {
+        property = {
+            ...property,
+            source: 'NO_LANDHOLDING',
+            location: '',
+            ownerOnRecord: '',
+        };
+    }
+}
 
         const amountDue = reqDocs.length * 40;
         const amountPaid = r.or_number ? amountDue : 0;
@@ -435,6 +464,7 @@ async createRequest(formData, authUserId) {
         return {
             id: r.id,
             referenceNumber: r.reference_number,
+             requestType: r.request_type,
             client: {
                 declarantName: r.declarant_name,
                 requestedBy: r.requested_by_name,
@@ -619,6 +649,182 @@ releasedBy: resolvedReleasedBy || null,
         return data;
     }
 
+    // Inside RequestService.js
+
+async createReprint(originalRequestId, docId) {
+    // 1. Get the document link
+    const { data: link, error: linkErr } = await supabase
+        .from('request_documents')
+        .select('document_type_id, document_types(name, prefix)')
+        .eq('id', docId)
+        .single();
+    
+    if (linkErr) throw new Error(`Document Link not found: ${linkErr.message}`);
+
+    // 2. Get the original request
+    const { data: original, error: origErr } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('id', originalRequestId)
+        .single();
+    
+    if (origErr) throw new Error(`Original Request not found: ${origErr.message}`);
+
+    const rootId = original.parent_id || original.id;
+    
+    // 3. Count siblings for the -R1, -R2 suffix
+    const { data: siblings } = await supabase
+        .from('requests')
+        .select('id')
+        .or(`id.eq.${rootId},parent_id.eq.${rootId}`);
+
+    const reprintNumber = (siblings?.length || 0);
+    const baseRef = (original.reference_number || '').replace(/-R\d+$/, '');
+    const newRef = `${baseRef}-R${reprintNumber}`;
+
+    // 4. Create the new request record
+    const { data: reprint, error: insErr } = await supabase
+        .from('requests')
+        .insert([{
+            declarant_name: original.declarant_name,
+            requested_by_name: original.requested_by_name,
+            reference_number: newRef,
+            authorization_required: original.authorization_required,
+            property_location: original.property_location,
+            encoded_by: original.encoded_by,
+            request_date: new Date().toISOString().split('T')[0],
+            status: 'PENDING_PAYMENT',
+            request_type: 'REPRINT',
+            parent_id: rootId,
+        }])
+        .select()
+        .single();
+
+    if (insErr) throw insErr;
+
+    // 5. Link the specific document being reprinted
+    await this._syncRequestDocuments(reprint.id, [link.document_type_id]);
+
+    // 6. Copy underlying data based on prefix
+    const docPrefix = link.document_types?.prefix;
+    if (docPrefix === 'LH') {
+        await this._copyLandholdingCertificate(originalRequestId, reprint.id);
+    } else if (docPrefix === 'TD') {
+        await this._copyTaxDeclaration(originalRequestId, reprint.id);
+    } else if (docPrefix === 'NLH') {
+        // Use the updated fix for NLH from previous step
+        await this._copyNoLandholdingCertificate(originalRequestId, reprint.id);
+    }
+
+    return reprint;
+}
+
+async _copyNoLandholdingCertificate(originalRequestId, newRequestId) {
+    // We use .maybeSingle() instead of .single() to prevent crashing if record is missing
+    const { data: origCert, error: fetchErr } = await supabase
+        .from('encoded_no_landholding_certificates')
+        .select('*')
+        .eq('request_id', originalRequestId)
+        .maybeSingle(); 
+
+    if (fetchErr) throw fetchErr;
+    
+    // If the original certificate doesn't exist yet, we can't copy it. 
+    // We just create a fresh link for the new request.
+    if (!origCert) {
+        await supabase.from('encoded_no_landholding_certificates').insert([{ request_id: newRequestId }]);
+        return;
+    }
+
+    const { id: _i, created_at: _c, updated_at: _u, request_id: _r, ...fields } = origCert;
+    const { error: insErr } = await supabase
+        .from('encoded_no_landholding_certificates')
+        .insert([{ ...fields, request_id: newRequestId }]);
+
+    if (insErr) throw insErr;
+}
+
+// Deep-copies an encoded_landholding_certificates row (+ its property rows)
+// from the original request onto the new reprint request, so PaymentDetails
+// can regenerate an identical PDF without depending on the original record.
+async _copyLandholdingCertificate(originalRequestId, newRequestId) {
+    const { data: origCert, error: certErr } = await supabase
+        .from('encoded_landholding_certificates')
+        .select('*')
+        .eq('request_id', originalRequestId)
+        .single();
+    if (certErr || !origCert) {
+        console.error('No landholding certificate found to copy for reprint:', certErr?.message);
+        return;
+    }
+
+    const { id: _omit, request_id: _omit2, created_at: _omit3, updated_at: _omit4, ...certFields } = origCert;
+
+    const { data: newCert, error: insCertErr } = await supabase
+        .from('encoded_landholding_certificates')
+        .insert([{ ...certFields, request_id: newRequestId }])
+        .select()
+        .single();
+    if (insCertErr) throw insCertErr;
+
+    const { data: origRows, error: rowsErr } = await supabase
+        .from('encoded_landholding_property_rows')
+        .select('*')
+        .eq('encoded_landholding_certificate_id', origCert.id);
+    if (rowsErr) throw rowsErr;
+
+    if (origRows && origRows.length) {
+        const newRows = origRows.map(({ id, encoded_landholding_certificate_id, ...rowFields }) => ({
+            ...rowFields,
+            encoded_landholding_certificate_id: newCert.id,
+        }));
+        const { error: insRowsErr } = await supabase
+            .from('encoded_landholding_property_rows')
+            .insert(newRows);
+        if (insRowsErr) throw insRowsErr;
+    }
+}
+
+// Same idea for Tax Declarations — copies the encoded_tax_declarations row
+// AND its encoded_assessment_rows.
+async _copyTaxDeclaration(originalRequestId, newRequestId) {
+    const { data: origTd, error: tdErr } = await supabase
+        .from('encoded_tax_declarations')
+        .select('*')
+        .eq('request_id', originalRequestId)
+        .single();
+    if (tdErr || !origTd) {
+        console.error('No tax declaration found to copy for reprint:', tdErr?.message);
+        return;
+    }
+
+    const { id: _omit, request_id: _omit2, created_at: _omit3, updated_at: _omit4, ...tdFields } = origTd;
+
+    const { data: newTd, error: insTdErr } = await supabase
+        .from('encoded_tax_declarations')
+        .insert([{ ...tdFields, request_id: newRequestId }])
+        .select()
+        .single();
+    if (insTdErr) throw insTdErr;
+
+    const { data: origRows, error: rowsErr } = await supabase
+        .from('encoded_assessment_rows')
+        .select('*')
+        .eq('encoded_tax_declaration_id', origTd.id);
+    if (rowsErr) throw rowsErr;
+
+    if (origRows && origRows.length) {
+        const newRows = origRows.map(({ id, encoded_tax_declaration_id, ...rowFields }) => ({
+            ...rowFields,
+            encoded_tax_declaration_id: newTd.id,
+        }));
+        const { error: insRowsErr } = await supabase
+            .from('encoded_assessment_rows')
+            .insert(newRows);
+        if (insRowsErr) throw insRowsErr;
+    }
+}
+
     async voidRequest(id, reason) {
         const { data, error } = await supabase
             .from('requests')
@@ -728,6 +934,7 @@ releasedBy: resolvedReleasedBy || null,
         // widget should be built from `summaryCounts` below instead.
         const STATUS_MAP = {
             DRAFT: 'Pending',
+            PENDING_PAYMENT: 'Pending', 
             PENDING: 'Pending',
             IN_PROGRESS: 'Processing',
             PAID: 'Payment Verified',
@@ -787,6 +994,7 @@ releasedBy: resolvedReleasedBy || null,
         const STATUS_LABEL_MAP = {
             DRAFT: 'Pending',
             PENDING: 'Pending',
+            PENDING_PAYMENT: 'Pending',
             IN_PROGRESS: 'Processing',
             PAID: 'Payment Verified',
             RELEASED: 'Released',

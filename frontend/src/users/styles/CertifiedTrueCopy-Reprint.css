@@ -264,3 +264,104 @@
   background-color: var(--color-archived-bg);
   color: var(--color-archived);
 }
+
+.ctc-cell-justification {
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.85rem;
+}
+
+/* ---------- Skeleton loading ---------- */
+
+.ctc-skeleton-item {
+  background: linear-gradient(
+    90deg,
+    var(--table-header-bg) 25%,
+    rgba(41, 35, 122, 0.1) 37%,
+    var(--table-header-bg) 63%
+  );
+  background-size: 400% 100%;
+  animation: ctc-shimmer 1.4s ease infinite;
+}
+
+@keyframes ctc-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ---------- Error state ---------- */
+
+.ctc-error-state {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--color-error);
+}
+
+.ctc-error-state button {
+  margin-top: 12px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--color-error);
+  background: #fff;
+  color: var(--color-error);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.ctc-error-state button:hover {
+  background: var(--color-error-bg);
+}
+
+/* ---------- Pagination ---------- */
+
+.ctc-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 4px 4px 0;
+}
+
+.ctc-pagination-info {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.ctc-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ctc-pagination-page {
+  font-size: 13px;
+  color: var(--color-text);
+  min-width: 90px;
+  text-align: center;
+}
+
+.ctc-pagination-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: #fff;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.ctc-pagination-btn:hover:not(:disabled) {
+  border-color: var(--color-secondary);
+  color: var(--color-secondary);
+}
+
+.ctc-pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

@@ -22,6 +22,7 @@ export interface MockUser {
     username: string;
     password: string;
     suffix?: string;
+    lastLogin?: string;
 }
 
-export type View = 'login' | 'signup' | 'forgotPassword' | 'resetPassword';
+export type View = 'login' | 'signup' | 'forgotPassword' | 'resetPassword' | 'verifyEmail';

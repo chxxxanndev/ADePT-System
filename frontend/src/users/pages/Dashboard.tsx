@@ -12,7 +12,7 @@ import { PendingPayment } from './PendingPayment';
 import { PaymentDetails } from './PaymentDetails';
 import { DocumentRequestDashboard } from './DocumentRequestDashboard';
 import Reports from './Reports';
-import CertifiedTrueCopy from './CertifiedTrueCopy';
+import CertifiedTrueCopy from './CeritifiedTrueCopy-Reprint';
 import ArchiveManagement from './ArchiveManagement';
 import { NotificationPage } from './NotificationPage';
 import { PendingForRelease } from './PendingForRelease';
@@ -747,6 +747,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             payment={selectedPayment}
                             onBack={() => setActiveView('pending-payment')}
                             onReleased={() => setActiveView('transaction-registry')}
+                             onReleasedReprint={() => setActiveView('certified-true-copy')} 
                             onSavedForLater={() => setActiveView('pending-for-release')}
                             onEditDocument={(_controlNumber) => {
                                 if (selectedPayment?.documentType.toLowerCase().includes('landholding')) {
@@ -765,8 +766,12 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onSwitchView={(view: string) => setActiveView(view)} /* ADD THIS */
                         />
                     ) : activeView === 'transaction-registry' ? (
-                        <TransactionRegistry user={user} onNavigateToVoidAmend={handleNavigateToVoidAmend} />
-                    ) : activeView === 'void-amend' ? (
+    <TransactionRegistry
+        user={user}
+        onNavigateToVoidAmend={handleNavigateToVoidAmend}
+        onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
+    />
+) : activeView === 'void-amend' ? (
                         <VoidAndAmend
                             pendingItems={pendingVoidItems}
                             onPendingItemsConsumed={() => setPendingVoidItems([])}

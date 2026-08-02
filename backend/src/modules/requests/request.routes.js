@@ -12,6 +12,7 @@ import {
     checkOrUniqueness,
     releaseRequest,
     markAsReleased,
+    createReprint,   
     voidRequest,
     getDashboardMetrics,
     getReportsData,
@@ -35,10 +36,12 @@ router.get('/:id', requireAuth, getRequestById);
 router.put('/:id', requireAuth, updateRequest);
 router.delete('/:id', requireAuth, deleteRequest);
 
+router.post('/:id/documents/:docId/reprint', requireAuth, createReprint);  
+
 // Specialized Status updates
 router.post('/:id/release', requireAuth, releaseRequest);
 router.post('/:id/forward', requireAuth, forwardRequest);
 router.patch('/:id/mark-released', requireAuth, markAsReleased);
-router.post('/:id/void', requireAuth, voidRequest); 
+router.post('/:id/void', requireAuth, voidRequest);  
 
 export default router;

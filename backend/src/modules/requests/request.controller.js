@@ -95,13 +95,6 @@ export const releaseRequest = async (req, res) => {
     }
 };
 
-/**
- * RESTORED (best-effort reconstruction) — required by request.routes.js
- * (POST /:id/forward) but missing from the version pasted into this
- * conversation. See the detailed comment on
- * RequestService.forwardRequest() — please verify this matches the
- * original intended behavior.
- */
 export const forwardRequest = async (req, res) => {
     try {
         const { id } = req.params;
@@ -126,6 +119,16 @@ export const markAsReleased = async (req, res) => {
             return res.status(400).json({ error: 'releasedBy is required.' });
         }
         const result = await RequestService.markAsReleased(id, releasedBy);
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const createReprint = async (req, res) => {
+    try {
+        const { id, docId } = req.params; // Ensure these names match the route :id and :docId
+        const result = await RequestService.createReprint(id, docId);
         res.status(200).json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
