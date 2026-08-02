@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { SearchIcon, CalendarIcon, ChevronDownIcon, MenuIcon } from '../../users/components/icons';
+import { CalendarIcon, ChevronDownIcon, MenuIcon } from '../../users/components/icons';
 import type { User } from '../../auth-folder/types/auth';
 import { CalendarPicker } from './Calendarpicker';
 
 interface AdminHeaderProps {
     user: User;
-    searchQuery: string;
-    setSearchQuery: (query: string) => void;
     dateFilter: string;
     onToggleMobileMenu: () => void;
     onDateFilterChange?: (period: string, range: { from: string; to: string }) => void;
@@ -134,8 +132,6 @@ function formatLastLogin(dateString?: string) {
 
 export function AdminHeader({
     user,
-    searchQuery,
-    setSearchQuery,
     dateFilter,
     onToggleMobileMenu,
     onDateFilterChange
@@ -228,7 +224,7 @@ export function AdminHeader({
                     </div>
                     <div className="header-profile-meta">
                         <span className="header-profile-role">{roleLabel(user)}</span>
-                        <span className="header-profile-lastlogin">Last Login : {formatLastLogin(user.lastLogin)}</span>
+                        <span className="header-profile-last-login">Last Login : {formatLastLogin(user.lastLogin)}</span>
                     </div>
                 </div>
             </div>

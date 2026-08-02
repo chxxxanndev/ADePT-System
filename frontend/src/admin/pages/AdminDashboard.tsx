@@ -53,8 +53,6 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
         setSidebarCollapsed,
         mobileMenuOpen,
         setMobileMenuOpen,
-        searchQuery,
-        setSearchQuery,
         dateFilter,
         applyDateFilter,
 
@@ -109,8 +107,6 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                 {activeView !== 'account-request' && activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && activeView !== 'audit-log' && activeView !== 'settings' && (
                     <AdminHeader
                         user={user}
-                        searchQuery={searchQuery}
-                        setSearchQuery={setSearchQuery}
                         dateFilter={dateFilter}
                         onDateFilterChange={applyDateFilter}
                         onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}

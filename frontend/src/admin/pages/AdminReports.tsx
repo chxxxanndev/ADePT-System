@@ -16,9 +16,10 @@ import {
 } from 'recharts';
 import '../styles/AdminReports.css';
 import type { User } from '../../auth-folder/types/auth';
-import { hasAdminLevel } from '../../utils/permissions';
 import { RefreshIcon } from '../../users/components/icons';
 import { AdminDocumentDistribution } from '../components/AdminDocumentDistribution';
+
+const PENDING_STATUSES = ['Pending', 'Processing', 'Payment Verified'];
 
 interface MonthlyRequest {
     month: string;
@@ -262,7 +263,6 @@ export function AdminReports({ user }: AdminReportsProps) {
         }));
     }, [rows]);
 
-    const pendingStatuses = ['Pending', 'Processing', 'Payment Verified'];
     const [staffStatusFilter, setStaffStatusFilter] = useState<string>('all');
     interface StaffPendingRow {
         staff: string;
@@ -272,7 +272,7 @@ export function AdminReports({ user }: AdminReportsProps) {
     const staffPendingRows = useMemo<StaffPendingRow[]>(() => {
         const grouped: Record<string, Record<string, number>> = {};
         rows.forEach((r) => {
-            if (!pendingStatuses.includes(r.status)) return;
+            if (!PENDING_STATUSES.includes(r.status)) return;
             if (staffStatusFilter !== 'all' && r.status !== staffStatusFilter) return;
             const staff = r.assignedStaff || r.processedBy || 'Unassigned';
             if (!grouped[staff]) grouped[staff] = {};
@@ -331,12 +331,6 @@ export function AdminReports({ user }: AdminReportsProps) {
         },
         [rows]
     );
-
-    const canExport = hasAdminLevel(user, 'MEDIUM');
-
-    const handleExportPdf = () => {
-        window.print();
-    };
 
     return (
         <div className="admin-reports-page" id="admin-reports-print-root">
@@ -633,7 +627,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                             }}
                         >
                             <option value="all">All Statuses</option>
-                            {pendingStatuses.map((s) => (
+                            {PENDING_STATUSES.map((s) => (
                                 <option key={s} value={s}>{s}</option>
                             ))}
                         </select>

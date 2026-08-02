@@ -617,7 +617,7 @@
 }
 
 .header-profile-role,
-.header-profile-lastlogin {
+.header-profile-last-login {
     font-size: 13px;
     font-weight: 500;
     color: var(--admin-text-muted, #5A6A75);
