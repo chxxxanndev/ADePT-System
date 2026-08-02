@@ -77,7 +77,7 @@ function buildRequestQueueItems(summary: RequestQueueSummary, range: { from: str
         { id: 'request-today', label: requestCardLabel(range), value: summary.requestedTodayCount, icon: 'inboxDown', accent: 'teal' },
         { id: 'processing', label: 'Processing', value: summary.processingCount, icon: 'gears', accent: 'gold' },
         { id: 'approved-documents', label: 'Approved Documents', value: summary.releasedCount, icon: 'check', accent: 'green' },
-        { id: 'disapproved-documents', label: 'Disapproved Documents', value: summary.voidCount, icon: 'close', accent: 'red' },
+        { id: 'void-documents', label: 'Void Documents', value: summary.voidCount, icon: 'close', accent: 'red' },
     ];
 }
 
@@ -154,6 +154,7 @@ export function useAdminDashboard() {
     const [transactions, setTransactions] = useState<AdminTransactionRow[]>([]);
     const [distribution, setDistribution] = useState<any[]>([]);
     const [staffPerformance, setStaffPerformance] = useState<StaffPerformanceItem[]>([]);
+    const [allTimeStaffPerformance, setAllTimeStaffPerformance] = useState<StaffPerformanceItem[]>([]);
     const [activities, setActivities] = useState<AdminActivityItem[]>([]);
 
     const [refreshingTransactions, setRefreshingTransactions] = useState(false);
@@ -165,9 +166,10 @@ export function useAdminDashboard() {
     const loadDashboardData = async (rangeOverride?: { from: string; to: string }) => {
         try {
             const range = rangeOverride ?? dateRange;
-            const [metrics, recent] = await Promise.all([
-                fetchDashboardMetrics(range.from, range.to),
-                fetchRecentTransactions(5, range.from, range.to),
+            const [metrics, recent, performance] = await Promise.all([
+                fetchDashboardMetrics(range.from, range.to).catch(() => ({})),
+                fetchRecentTransactions(5, range.from, range.to).catch(() => []),
+                fetchStaffPerformance(range.from, range.to).catch(() => []),
             ]);
             if (metrics.summaryCounts) {
                 setRequestQueue(buildRequestQueueItems({
@@ -186,27 +188,27 @@ export function useAdminDashboard() {
                 setDistribution(normalized);
             }
             if (recent.length > 0) setTransactions(recent);
+            if ((performance as StaffPerformanceItem[]).length > 0) setStaffPerformance(performance as StaffPerformanceItem[]);
         } catch {
             /* silently keep current state */
         }
     };
 
     /**
-     * UPDATED: Now uses our 'api' instance. 
-     * No more manual authHeaders, no more 401 glitches.
+     * UPDATED: Uses 'api' instance with graceful fallback for session state / auth 401 errors.
      */
     const loadAccessRequestMetrics = async () => {
         try {
             const [staffMembers, requestResponse] = await Promise.all([
-                fetchAllStaff(),
-                api.get('/users/account-requests') // Standardized call
+                fetchAllStaff().catch(() => []),
+                api.get('/users/account-requests').catch(() => ({ data: { requests: [] } }))
             ]);
 
-            const requests = (requestResponse.data.requests || []) as AccountRequestSummary[];
+            const requests = (requestResponse.data?.requests || []) as AccountRequestSummary[];
             setPendingRequestCount(requests.filter((request) => request.status === 'pending').length);
             setAccessRequests(buildAccessRequestItems(staffMembers, requests));
-        } catch (err) {
-            console.error("Dashboard error:", err);
+        } catch {
+            /* silently keep current state */
         }
     };
 
@@ -275,7 +277,7 @@ export function useAdminDashboard() {
 
     const refreshTransactions = () => withSpinner(setRefreshingTransactions, () => loadDashboardData());
     const refreshPerformance = () => withSpinner(setRefreshingPerformance, async () => {
-        const data = await fetchStaffPerformance();
+        const data = await fetchStaffPerformance(dateRange.from, dateRange.to);
         setStaffPerformance(data);
     });
     const refreshDistribution = () => withSpinner(setRefreshingDistribution, () => loadDashboardData());
@@ -292,9 +294,14 @@ export function useAdminDashboard() {
         void loadDashboardData(range);
     };
 
+    // Initial staff performance load — scoped to today (matches the default dateRange)
     useEffect(() => {
-        fetchStaffPerformance()
+        fetchStaffPerformance(dateRange.from, dateRange.to)
             .then(setStaffPerformance)
+            .catch(() => {});
+        // Also fetch all-time performance once for the "All Requests" toggle
+        fetchStaffPerformance()
+            .then(setAllTimeStaffPerformance)
             .catch(() => {});
     }, []);
 
@@ -317,6 +324,7 @@ export function useAdminDashboard() {
         transactions,
         distribution,
         staffPerformance,
+        allTimeStaffPerformance,
         activities,
         refreshingTransactions,
         refreshingPerformance,

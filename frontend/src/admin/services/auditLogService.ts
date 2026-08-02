@@ -67,12 +67,13 @@ function toAuditLogEntry(row: any): AuditLogEntry {
  * Fetches audit log entries from the backend.
  */
 export async function getAuditLog(): Promise<AuditLogEntry[]> {
-  // Uses our smart 'api' instance
-  const res = await api.get('/audit-log');
-  
-  // Axios returns the body in .data
-  const data = res.data;
-  return (data.entries as any[]).map(toAuditLogEntry);
+  try {
+    const res = await api.get('/audit-log');
+    const data = res.data;
+    return (data?.entries as any[] || []).map(toAuditLogEntry);
+  } catch {
+    return [];
+  }
 }
 
 /**

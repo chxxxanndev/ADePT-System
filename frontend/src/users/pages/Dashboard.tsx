@@ -33,6 +33,7 @@ import { TransactionSummary } from './request-processing/TransactionSummary';
 import { ROLES } from '../constants/roles';
 import { useNotifications } from '../hooks/useNotifications';
 import { useCart } from '../hooks/TransactionCartContext';
+import { useOnlinePresence } from '../../admin/services/useOnlinePresence';
 
 // Single shared source of truth for registry-derived analytics — also used
 // by Reports.tsx, so the Analytics Overview / Document Distribution here and
@@ -164,6 +165,8 @@ const formatLastLogin = (dateString?: string) => {
 };
 
 export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
+    useOnlinePresence(user);
+
     const [activeView, setActiveView] = useState<string>(
         () => sessionStorage.getItem('adept-active-view') || 'dashboard'
     );

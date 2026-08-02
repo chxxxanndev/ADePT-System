@@ -53,8 +53,6 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
         setSidebarCollapsed,
         mobileMenuOpen,
         setMobileMenuOpen,
-        searchQuery,
-        setSearchQuery,
         dateFilter,
         applyDateFilter,
 
@@ -65,6 +63,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
         transactions,
         distribution,
         staffPerformance,
+        allTimeStaffPerformance,
         activities,
 
         // Refresh indicators
@@ -108,8 +107,6 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                 {activeView !== 'account-request' && activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && activeView !== 'audit-log' && activeView !== 'settings' && (
                     <AdminHeader
                         user={user}
-                        searchQuery={searchQuery}
-                        setSearchQuery={setSearchQuery}
                         dateFilter={dateFilter}
                         onDateFilterChange={applyDateFilter}
                         onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -151,6 +148,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                     />
                                     <AdminStaffPerformance
                                         items={staffPerformance}
+                                        allTimeItems={allTimeStaffPerformance}
                                         onRefresh={refreshPerformance}
                                         isRefreshing={refreshingPerformance}
                                         onViewFull={() => setActiveView('audit-log')}

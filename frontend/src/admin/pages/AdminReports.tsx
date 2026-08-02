@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { fetchReportsAnalytics } from '../services/userManagementService';
+import { fetchReportsAnalytics, fetchDashboardMetrics } from '../services/userManagementService';
 import {
     BarChart,
     Bar,
@@ -16,9 +16,10 @@ import {
 } from 'recharts';
 import '../styles/AdminReports.css';
 import type { User } from '../../auth-folder/types/auth';
-import { hasAdminLevel } from '../../utils/permissions';
 import { RefreshIcon } from '../../users/components/icons';
 import { AdminDocumentDistribution } from '../components/AdminDocumentDistribution';
+
+const PENDING_STATUSES = ['Pending', 'Processing', 'Payment Verified'];
 
 interface MonthlyRequest {
     month: string;
@@ -108,7 +109,14 @@ export function AdminReports({ user }: AdminReportsProps) {
         else setLoading(true);
         setError(null);
         try {
-            const data = await fetchReportsAnalytics();
+            // Fetch both sources in parallel:
+            // - reportsData  → row-level table data (aging, staff pending, etc.)
+            // - metrics      → document distribution counted from request_documents
+            //                  (same source as the Admin Dashboard donut chart)
+            const [data, metrics] = await Promise.all([
+                fetchReportsAnalytics(),
+                fetchDashboardMetrics().catch(() => null),
+            ]);
 
             if (data.totalDocuments !== undefined) {
                 setTotalDocuments(data.totalDocuments);
@@ -129,29 +137,18 @@ export function AdminReports({ user }: AdminReportsProps) {
                 })));
             }
 
-            const canonicalLabels: { key: string; label: string; color: string }[] = [
-                { key: 'tax declaration', label: 'Tax Declaration', color: '#252175' },
-                { key: 'certificate of landholding', label: 'Cert. Landholding', color: '#00BCD4' },
-                { key: 'certificate of no landholding', label: 'No Landholding', color: '#F2994A' },
-            ];
-            if (data.rows && data.rows.length > 0) {
-                const grouped: Record<string, number> = {};
-                canonicalLabels.forEach((c) => { grouped[c.key] = 0; });
-                data.rows.forEach((r: any) => {
-                    const raw = (r.documentType || '').toLowerCase().trim();
-                    const match = canonicalLabels.find((c) => raw.includes(c.key));
-                    if (match) grouped[match.key] = (grouped[match.key] || 0) + 1;
-                });
-                const slices: DistributionSlice[] = canonicalLabels
-                    .filter((c) => (grouped[c.key] || 0) > 0)
-                    .map((c) => ({ label: c.label, count: grouped[c.key], color: c.color }));
+            // Use the same distribution the Dashboard uses:
+            // metrics.distribution is built by counting request_documents rows
+            // directly, so it matches the Dashboard donut chart exactly.
+            if (metrics?.distribution && metrics.distribution.length > 0) {
+                const slices: DistributionSlice[] = metrics.distribution.map((d: any) => ({
+                    label: d.label,
+                    count: d.value ?? d.count ?? 0,
+                    color: d.color,
+                }));
                 setDistribution(slices);
             } else {
-                setDistribution([
-                    { label: 'Tax Declaration', count: 52, color: '#252175' },
-                    { label: 'Cert. Landholding', count: 26, color: '#00BCD4' },
-                    { label: 'No Landholding', count: 22, color: '#F2994A' },
-                ]);
+                setDistribution([]);
             }
         } catch (err: any) {
             setError(err.message || 'Failed to load reports data.');
@@ -266,7 +263,6 @@ export function AdminReports({ user }: AdminReportsProps) {
         }));
     }, [rows]);
 
-    const pendingStatuses = ['Pending', 'Processing', 'Payment Verified'];
     const [staffStatusFilter, setStaffStatusFilter] = useState<string>('all');
     interface StaffPendingRow {
         staff: string;
@@ -276,7 +272,7 @@ export function AdminReports({ user }: AdminReportsProps) {
     const staffPendingRows = useMemo<StaffPendingRow[]>(() => {
         const grouped: Record<string, Record<string, number>> = {};
         rows.forEach((r) => {
-            if (!pendingStatuses.includes(r.status)) return;
+            if (!PENDING_STATUSES.includes(r.status)) return;
             if (staffStatusFilter !== 'all' && r.status !== staffStatusFilter) return;
             const staff = r.assignedStaff || r.processedBy || 'Unassigned';
             if (!grouped[staff]) grouped[staff] = {};
@@ -335,12 +331,6 @@ export function AdminReports({ user }: AdminReportsProps) {
         },
         [rows]
     );
-
-    const canExport = hasAdminLevel(user, 'MEDIUM');
-
-    const handleExportPdf = () => {
-        window.print();
-    };
 
     return (
         <div className="admin-reports-page" id="admin-reports-print-root">
@@ -408,11 +398,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                 <div className="admin-card ar-bar-card">
                     <div className="ar-bar-card-header">
                         <h2 className="admin-card-title">Requests by month</h2>
-                        {canExport && (
-                            <button type="button" className="ar-export-btn no-print" onClick={handleExportPdf}>
-                                Export PDF
-                            </button>
-                        )}
                     </div>
                     <p className="ar-chart-description">
                         Document requests submitted per month (last 6 months)
@@ -642,7 +627,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                             }}
                         >
                             <option value="all">All Statuses</option>
-                            {pendingStatuses.map((s) => (
+                            {PENDING_STATUSES.map((s) => (
                                 <option key={s} value={s}>{s}</option>
                             ))}
                         </select>

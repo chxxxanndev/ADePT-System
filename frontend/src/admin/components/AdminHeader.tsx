@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { SearchIcon, CalendarIcon, ChevronDownIcon, MenuIcon } from '../../users/components/icons';
+import { CalendarIcon, ChevronDownIcon, MenuIcon } from '../../users/components/icons';
 import type { User } from '../../auth-folder/types/auth';
 import { CalendarPicker } from './Calendarpicker';
 
 interface AdminHeaderProps {
     user: User;
-    searchQuery: string;
-    setSearchQuery: (query: string) => void;
     dateFilter: string;
     onToggleMobileMenu: () => void;
     onDateFilterChange?: (period: string, range: { from: string; to: string }) => void;
@@ -113,10 +111,27 @@ function roleLabel(user: User): string {
     return user.role || 'Super Admin';
 }
 
+function formatLastLogin(dateString?: string) {
+    if (!dateString) return 'Just now';
+    try {
+        const date = new Date(dateString);
+        if (Number.isNaN(date.getTime())) return dateString;
+        const now = new Date();
+        const isToday =
+            date.getFullYear() === now.getFullYear() &&
+            date.getMonth() === now.getMonth() &&
+            date.getDate() === now.getDate();
+        const timePart = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        if (isToday) return `Today • ${timePart}`;
+        const dayPart = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return `${dayPart} • ${timePart}`;
+    } catch {
+        return dateString;
+    }
+}
+
 export function AdminHeader({
     user,
-    searchQuery,
-    setSearchQuery,
     dateFilter,
     onToggleMobileMenu,
     onDateFilterChange
@@ -183,44 +198,38 @@ export function AdminHeader({
                     </div>
                 </div>
 
-                <div className="admin-profile-widget">
-                    <div className="profile-widget-avatar-container">
-                        {user.avatarUrl ? (
-                            <img
-                                src={user.avatarUrl}
-                                alt={fullName}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-                            />
-                        ) : (
-                            initials
-                        )}
-                    </div>
-                    <div className="profile-widget-info">
-                        <span className="profile-widget-name">{fullName}</span>
-                        <span className="profile-widget-email">{user.email || 'provincialassessor@gmail.com'}</span>
-                        <div className="profile-widget-meta">
-                            <span className="profile-widget-role">
-                                {roleLabel(user)}
-                            </span>
-                            <span>Last Login : Today • 8:12 AM</span>
+                <div className="header-profile">
+                    <div className="header-profile-card">
+                        <div className="header-profile-avatar">
+                            {user.avatarUrl ? (
+                                <img
+                                    src={user.avatarUrl}
+                                    alt={fullName}
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        borderRadius: '50%',
+                                        objectFit: 'cover',
+                                        display: 'block'
+                                    }}
+                                />
+                            ) : (
+                                initials
+                            )}
                         </div>
+                        <div className="header-profile-namebox">
+                            <span className="header-profile-name">{fullName}</span>
+                            <span className="header-profile-email">{user.email || 'provincialassessor@gmail.com'}</span>
+                        </div>
+                    </div>
+                    <div className="header-profile-meta">
+                        <span className="header-profile-role">{roleLabel(user)}</span>
+                        <span className="header-profile-last-login">Last Login : {formatLastLogin(user.lastLogin)}</span>
                     </div>
                 </div>
             </div>
 
-            <div className="header-actions-row">
-                <div className="admin-search-wrapper">
-                    <span className="admin-search-icon">
-                        <SearchIcon size={18} />
-                    </span>
-                    <input
-                        type="text"
-                        placeholder="Search by Account, Staff, Control No. or Document..."
-                        className="admin-search-input"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
+            <div className="header-actions-row" style={{ justifyContent: 'flex-end' }}>
 
                 <div className="date-selector-wrapper" ref={dateDropdownRef}>
                     <button

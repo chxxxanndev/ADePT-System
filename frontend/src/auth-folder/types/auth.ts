@@ -12,6 +12,7 @@ export interface User {
     avatarUrl?: string;
     position?: string;
     suffix?: string;
+    lastLogin?: string;
 }
 
 export interface MockUser {
