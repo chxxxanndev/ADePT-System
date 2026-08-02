@@ -62,6 +62,7 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
                     console.error(metaErr);
                 }
 
+                
                 const typeStr = documentItem.documentType?.toLowerCase() || '';
                 let determinedType: 'NO_LANDHOLDING' | 'LANDHOLDING' | 'TAX_DEC' = 'TAX_DEC';
                 let data = null;
@@ -89,16 +90,19 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
                     data = await fetchOrNull(() => taxDeclarationService.getTaxDeclaration(documentItem.id));
                 }
 
-                setDocType(determinedType);
-                setFullData(data);
-                // Default editData to an empty shape matching the doc type, so "Edit Full Document"
-                // still works even when nothing has been encoded yet.
-                setEditData(data || (determinedType === 'LANDHOLDING'
-                    ? { properties: [] }
-                    : determinedType === 'TAX_DEC'
-                        ? { assessments: [] }
-                        : {}));
+setDocType(determinedType);
+setFullData(data);
 
+// Ensure we initialize the correct array based on docType
+if (data) {
+    setEditData(data);
+} else {
+    setEditData(
+        determinedType === 'LANDHOLDING' ? { properties: [] } :
+        determinedType === 'TAX_DEC' ? { assessments: [] } : 
+        {}
+    );
+}
                 if (data) {
                     const reqByName = data.request?.requested_by_name || data.requestedByName || data.requested_by_name || documentItem.requestedByName || '';
                     const rawPropLoc = data.request?.property_location || data.propertyLocation || data.property_location || documentItem.propertyLocation || '';
