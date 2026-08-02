@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { RefreshIcon } from '../../users/components/icons';
 import type { StaffPerformanceItem } from '../services/userManagementService';
 
 interface AdminStaffPerformanceProps {
     items: StaffPerformanceItem[];
+    allTimeItems: StaffPerformanceItem[];
     onRefresh: () => void;
     isRefreshing: boolean;
     onViewFull: () => void;
@@ -10,11 +12,15 @@ interface AdminStaffPerformanceProps {
 
 export function AdminStaffPerformance({
     items,
+    allTimeItems,
     onRefresh,
     isRefreshing,
     onViewFull,
 }: AdminStaffPerformanceProps) {
-    const visibleItems = items.slice(0, 10);
+    const [showAll, setShowAll] = useState(false);
+
+    const activeItems = showAll ? allTimeItems : items;
+    const visibleItems = activeItems.slice(0, 10);
     const maxRequests = visibleItems[0]?.requests ?? 1;
 
     return (
@@ -23,6 +29,22 @@ export function AdminStaffPerformance({
             <div className="admin-card-header">
                 <span className="admin-card-title" style={{ fontSize: '18px', fontWeight: '750' }}>Staff Performance</span>
                 <div className="admin-card-actions">
+                    {/* All Requests toggle */}
+                    <button
+                        type="button"
+                        className="staff-perf-view-full-btn"
+                        onClick={() => setShowAll((prev) => !prev)}
+                        style={{
+                            background: showAll ? 'var(--admin-primary, #3D2E7C)' : undefined,
+                            color: showAll ? '#fff' : undefined,
+                            borderColor: showAll ? 'var(--admin-primary, #3D2E7C)' : undefined,
+                            transition: 'background 0.18s, color 0.18s',
+                        }}
+                        title={showAll ? 'Switch back to date-filtered view' : 'Show all-time totals'}
+                    >
+                        {showAll ? 'Date Filtered' : 'All Requests'}
+                    </button>
+
                     <button
                         type="button"
                         className="staff-perf-view-full-btn"
@@ -30,6 +52,7 @@ export function AdminStaffPerformance({
                     >
                         View Full Performance
                     </button>
+
                     <button
                         className={`admin-refresh-btn ${isRefreshing ? 'spinning' : ''}`}
                         onClick={onRefresh}
@@ -41,13 +64,18 @@ export function AdminStaffPerformance({
                 </div>
             </div>
 
-            <span className="staff-performance-pill">Top Performing Staff</span>
+            {/* Mode badge */}
+            <span className="staff-performance-pill">
+                {showAll ? 'All-Time Rankings' : 'Top Performing Staff'}
+            </span>
 
             {/* List of Staff Performance Rows */}
             <div className="staff-list-container">
                 {visibleItems.length === 0 && (
                     <p style={{ color: '#9aa0af', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>
-                        No performance data yet.
+                        {showAll
+                            ? 'No performance data available.'
+                            : 'No data for the selected period.'}
                     </p>
                 )}
                 {visibleItems.map((staff, index) => (

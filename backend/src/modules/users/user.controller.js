@@ -279,7 +279,8 @@ export const unassignSignatory = async (req, res) => {
  */
 export const getStaffPerformance = async (req, res) => {
     try {
-        const performance = await UserService.getStaffPerformance();
+        const { from, to } = req.query;
+        const performance = await UserService.getStaffPerformance(from, to);
         res.status(200).json({ performance });
     } catch (error) {
         res.status(500).json({ error: error.message });

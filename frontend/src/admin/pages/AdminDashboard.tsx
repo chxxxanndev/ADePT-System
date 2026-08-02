@@ -65,6 +65,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
         transactions,
         distribution,
         staffPerformance,
+        allTimeStaffPerformance,
         activities,
 
         // Refresh indicators
@@ -151,6 +152,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                     />
                                     <AdminStaffPerformance
                                         items={staffPerformance}
+                                        allTimeItems={allTimeStaffPerformance}
                                         onRefresh={refreshPerformance}
                                         isRefreshing={refreshingPerformance}
                                         onViewFull={() => setActiveView('audit-log')}
