@@ -10,7 +10,10 @@ export type TransactionStatus =
     | 'Void'
     | 'Cancelled'
     | 'Archived'
-    | 'Payment Verified'; 
+    | 'Payment Verified'
+    | 'For Payment'          // ← add
+    | 'Ready for Release'; 
+
 
 export type CTCStatus = "Pending" | "Released" | "Voided" | "Archived";
 

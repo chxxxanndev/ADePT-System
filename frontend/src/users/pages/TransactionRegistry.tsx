@@ -7,6 +7,7 @@ import { SummaryCards } from '../components/SummaryCards';
 import { SearchBar } from '../components/SearchBar';
 import { FilterBar } from '../components/FilterBar';
 import { TransactionTable } from '../components/TransactionTable';
+import { TransactionTabs } from '../components/TransactionTabs';
 import { TransactionDetails } from './TransactionDetails';
 import { VoidDocumentSelectModal } from '../components/DocumentSelectModal';
 import type { User } from '../../auth-folder/types/auth';
@@ -241,18 +242,18 @@ export function TransactionRegistry({
                     </button>
                 </div>
 
-                <div className="tr-tabs" role="tablist" aria-label="Transaction sections">
-                    <button type="button" className="tr-tab tr-tab--active" aria-current="page">
-                        Transaction Registry
-                    </button>
-                    <button type="button" className="tr-tab" onClick={onNavigateToReprint}>
-                        Reprint/CTC
-                    </button>
-                    <button type="button" className="tr-tab" onClick={() => onNavigateToVoidAmend([])}>
-                        Void &amp; Amend
-                    </button>
-                    {/* Archive Management pill intentionally left out per Peter's instruction */}
-                </div>
+                {/* TransactionTabs renders its own "tr-tabs" / role="tablist"
+                    wrapper internally, so it's dropped in directly — no extra
+                    div needed around it. "registry" is hardcoded as the active
+                    tab since this IS the registry page; onNavigateToRegistry
+                    is a no-op for the same reason (see TransactionTabs — it
+                    won't even fire onClick for the active tab). */}
+                <TransactionTabs
+                    active="registry"
+                    onNavigateToRegistry={() => {}}
+                    onNavigateToReprint={onNavigateToReprint ?? (() => {})}
+                    onNavigateToVoidAmend={() => onNavigateToVoidAmend([])}
+                />
 
                 {isLoading ? (
                     <RegistrySummarySkeleton />

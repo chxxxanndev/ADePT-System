@@ -637,7 +637,10 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                     ) : activeView === 'reports' ? (
                         <Reports />
                     ) : activeView === 'certified-true-copy' ? (
-                        <CertifiedTrueCopy />
+                        <CertifiedTrueCopy
+                            onNavigateToRegistry={() => setActiveView('transaction-registry')}
+                            onNavigateToVoidAmend={() => setActiveView('void-amend')}
+                        />
                     ) : activeView === 'archive-management' ? (
                         <ArchiveManagement />
                     ) : activeView === 'notifications' ? (
@@ -768,20 +771,24 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onNavigateBack={() => setActiveView('document-request')} /* ADD THIS */
                             onSwitchView={(view: string) => setActiveView(view)} /* ADD THIS */
                         />
-                    ) : activeView === 'transaction-registry' ? (
-    <TransactionRegistry
-        user={user}
-        onNavigateToVoidAmend={handleNavigateToVoidAmend}
-        onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
-    />
+                   ) : activeView === 'transaction-registry' ? (
+                        <TransactionRegistry
+                            user={user}
+                            onNavigateToVoidAmend={handleNavigateToVoidAmend}
+                            onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
+                            onNavigateToReprint={() => setActiveView('certified-true-copy')}
+                            onNavigateToPendingRequests={() => setActiveView('document-request')}
+                        />
 ) : activeView === 'void-amend' ? (
                         <VoidAndAmend
                             pendingItems={pendingVoidItems}
                             onPendingItemsConsumed={() => setPendingVoidItems([])}
                             onAmend={(payload) => {
-            setPrefilledRequestData(payload);
-            setActiveView('new-request');
-        }}
+                                setPrefilledRequestData(payload);
+                                setActiveView('new-request');
+                            }}
+                            onNavigateToRegistry={() => setActiveView('transaction-registry')}
+                            onNavigateToReprint={() => setActiveView('certified-true-copy')}
                         />
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>

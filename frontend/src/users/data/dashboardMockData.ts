@@ -83,8 +83,6 @@ export const navSections: NavSection[] = [
                 icon: 'transactionManagement',
                 subItems: [
                     { label: 'Transaction Registry', dotColor: 'green', view: 'transaction-registry' },
-                    { label: 'Reprint/CTC', dotColor: 'blue', view: 'certified-true-copy' },
-                    { label: 'Void & Amend', dotColor: 'red', view: 'void-amend' },
                     { label: 'Archive Management', dotColor: 'purple', view: 'archive-management' },
                 ],
             },

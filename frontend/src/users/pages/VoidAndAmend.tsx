@@ -3,6 +3,7 @@ import { Search, ChevronDown, Ban, PencilLine, Loader2 } from "lucide-react";
 import { fetchTransactionRegistry } from "../services/transactionService";
 import { requestService } from "../services/requestService";
 import type { Transaction } from "../types/transaction";
+import { TransactionTabs } from '../components/TransactionTabs';
 import "../styles/VoidAndAmend.css";
 
 export type ActionType = "void";
@@ -17,10 +18,6 @@ export interface VoidAmendRecord {
   detail: string;
   actionedBy: string;
   actionedAt: string;
-  // True once some other request's amended_from_id points back at this
-  // one (i.e. someone already clicked Amend on it) — comes straight from
-  // getTransactionRegistry() so it's consistent across sessions/devices,
-  // not just locally-tracked state.
   hasBeenAmended?: boolean;
 }
 
@@ -42,6 +39,8 @@ interface VoidAndAmendProps {
   onAmend?: (payload: AmendNavigationPayload) => void;
   pendingItems?: VoidAmendRecord[];
   onPendingItemsConsumed?: () => void;
+  onNavigateToRegistry?: () => void;   // ← new
+  onNavigateToReprint?: () => void;   
 }
 
 type TimeRange = "Today" | "Yesterday" | "This Week" | "This Month" | "All Time";
@@ -175,7 +174,7 @@ function toDisplayRecord(t: Transaction, metadata: VoidMetadataEntry | undefined
 
 // ─── Component ─────────────────────────────────────────────
 
-export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItemsConsumed }: VoidAndAmendProps) {
+export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItemsConsumed, onNavigateToRegistry, onNavigateToReprint, }: VoidAndAmendProps) {
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("All Time");
   const [currentPage, setCurrentPage] = useState(1);
@@ -335,6 +334,13 @@ export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItem
             </p>
           </div>
         </div>
+
+        <TransactionTabs
+          active="voidAmend"
+          onNavigateToRegistry={onNavigateToRegistry ?? (() => {})}
+          onNavigateToReprint={onNavigateToReprint ?? (() => {})}
+          onNavigateToVoidAmend={() => {}}
+        />
 
         <div className="va-filters">
           <div className="va-search-field">

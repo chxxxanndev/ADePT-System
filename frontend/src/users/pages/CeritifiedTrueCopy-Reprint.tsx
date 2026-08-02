@@ -3,6 +3,7 @@ import { Search, ChevronDown, FileStack, ChevronLeft, ChevronRight } from "lucid
 import "../styles/CertifiedTrueCopy-Reprint.css";
 import type { CertifiedCopyRecord, CTCStatus } from "../types/transaction";
 import { fetchCertifiedTrueCopies } from "../services/transactionService";
+import { TransactionTabs } from "../components/TransactionTabs";
 
 const PAGE_SIZE = 10;
 
@@ -58,7 +59,15 @@ function CTCTableSkeleton({ rows = 8 }: { rows?: number }) {
   );
 }
 
-export default function CertifiedTrueCopy() {
+interface CertifiedTrueCopyProps {
+  onNavigateToRegistry?: () => void;
+  onNavigateToVoidAmend?: () => void;
+}
+
+export default function CertifiedTrueCopy({
+  onNavigateToRegistry,
+  onNavigateToVoidAmend,
+}: CertifiedTrueCopyProps) {
   const [records, setRecords] = useState<CertifiedCopyRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -137,6 +146,13 @@ export default function CertifiedTrueCopy() {
             <p className="ctc-subtitle">Connected to Backend • Searchable Reprint Registry</p>
           </div>
         </div>
+
+        <TransactionTabs
+          active="reprint"
+          onNavigateToRegistry={onNavigateToRegistry ?? (() => {})}
+          onNavigateToReprint={() => {}}
+          onNavigateToVoidAmend={onNavigateToVoidAmend ?? (() => {})}
+        />
 
         {/* Search and Filters */}
         <div className="ctc-filters">
