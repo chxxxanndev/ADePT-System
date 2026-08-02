@@ -62,6 +62,31 @@ export function NoLandholdingCertificateForm({ user, entryData, onDiscard, onAdd
         try { localStorage.setItem(LS_KEY, JSON.stringify(form)); } catch { }
     }, [form, LS_KEY]);
 
+     useEffect(() => {
+        let isMounted = true;
+        const hydrateFromBackend = async () => {
+            if (localStorage.getItem(LS_KEY)) return;
+            try {
+                const data = await noLandholdingService.getByRequestId(entryData.requestId);
+                if (!isMounted || !data) return;
+                setForm((prev) => ({
+                    ...prev,
+                    declarantName: data.declarant_name || prev.declarantName,
+                    pronoun: (data.pronoun as PronounType) || prev.pronoun,
+                    propertyCount: (data.property_count as PropertyCountType) || prev.propertyCount,
+                    dateGiven: data.date_given || prev.dateGiven,
+                    givenAt: data.given_at || prev.givenAt,
+                    purpose: data.purpose || prev.purpose,
+                }));
+            } catch {
+                // No existing certificate yet — fine.
+            }
+        };
+        hydrateFromBackend();
+        return () => { isMounted = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [entryData.requestId]);
+
     const set = <K extends keyof NoLandholdingFormData>(field: K, value: NoLandholdingFormData[K]) => setForm((prev) => ({ ...prev, [field]: value }));
 
     // Support review action

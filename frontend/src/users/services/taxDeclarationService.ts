@@ -169,4 +169,13 @@ export const taxDeclarationService = {
         const res = await api.put(`/tax-declarations/${id}/edit-draft`, updateData);
         return res.data;
     },
+
+    getRawForEdit: async (requestId: string) => {
+        try {
+            const res = await api.get(`/tax-declarations/${requestId}`);
+            return res.data?.data ?? null;
+        } catch {
+            return null;
+        }
+    },
 };

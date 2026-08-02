@@ -238,6 +238,16 @@ async createRequest(formData, authUserId) {
     });
 });
 
+const amendedOriginalIds = new Set(
+    (requests || [])
+        .filter((r) =>
+            r.amended_from_id &&
+            r.status !== 'DRAFT' &&
+            !['CANCELLED'].includes(r.status)
+        )
+        .map((r) => r.amended_from_id)
+);
+
     const taxDecById = new Map((taxDeclarations || []).map((td) => [td.id, td]));
     const taxDecByRequestId = new Map();
     (taxDeclarations || []).forEach((td) => {
@@ -465,6 +475,7 @@ async createRequest(formData, authUserId) {
             id: r.id,
             referenceNumber: r.reference_number,
              requestType: r.request_type,
+             hasBeenAmended: amendedOriginalIds.has(r.id),
             client: {
                 declarantName: r.declarant_name,
                 requestedBy: r.requested_by_name,
@@ -839,6 +850,185 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
 
         if (error) throw error;
         return data;
+    }
+
+    // ── Amend ─────────────────────────────────────────────────────────────
+
+    /**
+     * Clones a voided (or any) request into a brand-new, fully editable
+     * DRAFT request with a new control number, so staff can walk back
+     * through the normal intake + document-fill flow with everything
+     * pre-populated. Reuses the same deep-copy helpers createReprint() uses.
+     */
+
+    async amendRequest(originalRequestId, authUserId) {
+    const [
+        { data: original, error: origErr },
+        { data: docLink, error: docErr },
+        { data: staff },
+    ] = await Promise.all([
+        supabase.from('requests').select('*').eq('id', originalRequestId).single(),
+        supabase.from('request_documents')
+            .select('document_type_id, document_types(id, name, prefix)')
+            .eq('request_id', originalRequestId)
+            .limit(1)
+            .maybeSingle(),
+        authUserId
+            ? supabase.from('staff').select('id').eq('auth_user_id', authUserId).single()
+            : Promise.resolve({ data: null }),
+    ]);
+
+    if (origErr || !original) throw new Error(`Original request not found: ${origErr?.message}`);
+    if (docErr) throw docErr;
+    if (!docLink) throw new Error('Original request has no document type on file — cannot amend.');
+
+    const staffId = staff?.id || null;
+
+    const newRef = await this._generateReferenceNumber([docLink.document_type_id]);
+
+    const { data: amended, error: insErr } = await supabase
+        .from('requests')
+        .insert([{
+            declarant_name: original.declarant_name,
+            requested_by_name: original.requested_by_name,
+            reference_number: newRef,
+            authorization_required: original.authorization_required,
+            action_taken: 'PENDING',
+            property_location: original.property_location,
+            encoded_by: staffId || original.encoded_by,
+            request_date: new Date().toISOString().split('T')[0],
+            status: 'DRAFT',
+            request_type: 'ORIGINAL',
+            amended_from_id: originalRequestId,
+        }])
+        .select()
+        .single();
+    if (insErr) throw insErr;
+
+    // These two don't depend on each other — both only need amended.id —
+    // so they run concurrently instead of one waiting on the other.
+    const prefix = docLink.document_types?.prefix;
+    const copyPromise =
+        prefix === 'LH' ? this._copyLandholdingCertificate(originalRequestId, amended.id)
+        : prefix === 'TD' ? this._copyTaxDeclaration(originalRequestId, amended.id)
+        : prefix === 'NLH' ? this._copyNoLandholdingCertificate(originalRequestId, amended.id)
+        : Promise.resolve();
+
+    await Promise.all([
+        this._syncRequestDocuments(amended.id, [docLink.document_type_id]),
+        copyPromise,
+    ]);
+
+    return {
+        request: amended,
+        documentTypeId: docLink.document_type_id,
+        documentTypeName: docLink.document_types?.name,
+        documentPrefix: prefix,
+    };
+}
+
+    /**
+     * Reads back whatever document-specific data already exists for a
+     * request (used right after amendRequest's deep-copy, so the intake →
+     * document-fill forms can open pre-populated instead of blank).
+     *
+     * ⚠️ Column names for LH/NLH below are inferred from how the frontend
+     * calls saveCertificate() — verify against your actual schema.
+     */
+    async getDocumentDataByRequestId(requestId) {
+        const [{ data: td }, { data: lhCert }, { data: nlhCert }] = await Promise.all([
+            supabase.from('encoded_tax_declarations').select('*').eq('request_id', requestId).maybeSingle(),
+            supabase.from('encoded_landholding_certificates').select('*').eq('request_id', requestId).maybeSingle(),
+            supabase.from('encoded_no_landholding_certificates').select('*').eq('request_id', requestId).maybeSingle(),
+        ]);
+
+        if (td) {
+            const { data: rows } = await supabase
+                .from('encoded_assessment_rows')
+                .select('*')
+                .eq('encoded_tax_declaration_id', td.id)
+                .order('row_order', { ascending: true });
+
+            return {
+                documentPrefix: 'TD',
+                data: {
+                    taxDeclarationNumber: td.tax_declaration_number || '',
+                    propertyIndexNumber: td.property_identification_number || '',
+                    ownerName: td.owner_name || '',
+                    ownerAddress: td.owner_address || '',
+                    administratorName: td.administrator_name || '',
+                    administratorAddress: td.administrator_address || '',
+                    octTctNumber: td.oct_tct_cloa_number || '',
+                    surveyNumber: td.survey_number || '',
+                    lotNumber: td.lot_number || '',
+                    blockNumber: td.block_number || '',
+                    boundaryNorth: td.boundary_north || '',
+                    boundarySouth: td.boundary_south || '',
+                    boundaryEast: td.boundary_east || '',
+                    boundaryWest: td.boundary_west || '',
+                    taxability: td.taxability || 'TAXABLE',
+                    effectivityYear: td.effectivity_year ? String(td.effectivity_year) : '',
+                    arpNumber: td.cancelled_td_number || '',
+                    memoranda: td.memoranda || '',
+                    assessorName: td.assessor_name || '',
+                    assessorTitle: td.assessor_title || '',
+                    assessmentRows: (rows || []).map((r) => ({
+                        id: r.id,
+                        kindOfProperty: r.kind_of_property || '',
+                        classificationId: r.classification_id || '',
+                        classificationLabel: '',
+                        marketValue: r.market_value != null ? String(r.market_value) : '',
+                        assessmentLevel: r.assessment_level != null ? String(r.assessment_level) : '',
+                        assessedValue: r.assessed_value != null ? String(r.assessed_value) : '',
+                        area: r.area || '',
+                    })),
+                },
+            };
+        }
+
+        if (lhCert) {
+            const { data: rows } = await supabase
+                .from('encoded_landholding_property_rows')
+                .select('*')
+                .eq('encoded_landholding_certificate_id', lhCert.id)
+                .order('row_order', { ascending: true });
+
+            return {
+                documentPrefix: 'LH',
+                data: {
+                    declarantName: lhCert.declarant_name || '',
+                    ownershipType: lhCert.ownership_type || 'single',
+                    dateGiven: lhCert.date_given || '',
+                    givenAt: lhCert.given_at || '',
+                    purpose: lhCert.purpose || '',
+                    propertyRows: (rows || []).map((r) => ({
+                        id: r.id,
+                        tdArpNumber: r.td_arp_number || '',
+                        locationOfProperty: r.location_of_property || '',
+                        lotNumber: r.lot_number || '',
+                        titleNumber: r.title_number || '',
+                        area: r.area || '',
+                        assessedValue: r.assessed_value != null ? String(r.assessed_value) : '',
+                    })),
+                },
+            };
+        }
+
+        if (nlhCert) {
+            return {
+                documentPrefix: 'NLH',
+                data: {
+                    declarantName: nlhCert.declarant_name || '',
+                    pronoun: nlhCert.pronoun || 'His',
+                    propertyCount: nlhCert.property_count || 'singular',
+                    dateGiven: nlhCert.date_given || '',
+                    givenAt: nlhCert.given_at || '',
+                    purpose: nlhCert.purpose || '',
+                },
+            };
+        }
+
+        return null;
     }
 
     async deleteRequest(id) {

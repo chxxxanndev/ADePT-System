@@ -102,6 +102,15 @@ export const requestService = {
         return response.data;
     },
 
+    amendRequest: async (id: string) => {
+        const response = await api.post(`/requests/${id}/amend`);
+        return response.data; // { request, documentTypeId, documentTypeName, documentPrefix }
+    },
+    getDocumentData: async (id: string) => {
+        const response = await api.get(`/requests/${id}/document-data`);
+        return response.data; // { documentPrefix, data } | null
+    },
+
     deleteRequest: async (id: string) => {
         const response = await api.delete(`/requests/${id}`);
         return response.data;

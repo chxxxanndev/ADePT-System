@@ -778,6 +778,10 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                         <VoidAndAmend
                             pendingItems={pendingVoidItems}
                             onPendingItemsConsumed={() => setPendingVoidItems([])}
+                            onAmend={(payload) => {
+            setPrefilledRequestData(payload);
+            setActiveView('new-request');
+        }}
                         />
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>

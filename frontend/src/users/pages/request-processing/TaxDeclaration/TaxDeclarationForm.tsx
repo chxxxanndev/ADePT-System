@@ -98,6 +98,17 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onAddAnother, o
         return { ...EMPTY_TAX_DECLARATION(), ownerName: entryData.declarantName || '' };
     });
 
+    // Captured ONCE, at first render, before the "auto-persist to
+    // localStorage" effect below has a chance to run and write the (still
+    // empty) `form` back into LS_KEY. If we instead re-read
+    // localStorage.getItem(LS_KEY) live inside the hydrate-from-backend
+    // effect, it would always find a draft — the one the persist effect
+    // just wrote a moment earlier on mount — and would skip fetching the
+    // real backend data every time. That's exactly why Amend (which relies
+    // on this fetch to pull in the deep-copied tax declaration) was
+    // showing up blank.
+    const [hadLocalDraftOnMount] = useState(() => (entryData ? !!localStorage.getItem(LS_KEY) : true));
+
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
@@ -155,6 +166,64 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onAddAnother, o
         const al = parseFloat(r.assessmentLevel) || 0;
         return sum + calcAssessedValue(mv, al);
     }, 0);
+
+    useEffect(() => {
+        if (!entryData) return;
+        let isMounted = true;
+        const hydrateFromBackend = async () => {
+            // Use the value captured on mount, NOT a fresh localStorage
+            // read — see the comment where hadLocalDraftOnMount is declared.
+            if (hadLocalDraftOnMount) return;
+            const dbData = await taxDeclarationService.getRawForEdit(entryData.requestId);
+            if (!isMounted || !dbData) return;
+
+            setForm((prev) => ({
+                ...prev,
+                taxDeclarationNumber: dbData.tax_declaration_number || prev.taxDeclarationNumber,
+                propertyIndexNumber: dbData.property_identification_number || prev.propertyIndexNumber,
+                ownerName: dbData.owner_name || prev.ownerName,
+                ownerAddress: dbData.owner_address || prev.ownerAddress,
+                administratorName: dbData.administrator_name || prev.administratorName,
+                administratorAddress: dbData.administrator_address || prev.administratorAddress,
+                octTctNumber: dbData.oct_tct_cloa_number || prev.octTctNumber,
+                surveyNumber: dbData.survey_number || prev.surveyNumber,
+                lotNumber: dbData.lot_number || prev.lotNumber,
+                blockNumber: dbData.block_number || prev.blockNumber,
+                boundaryNorth: dbData.boundary_north || prev.boundaryNorth,
+                boundarySouth: dbData.boundary_south || prev.boundarySouth,
+                boundaryEast: dbData.boundary_east || prev.boundaryEast,
+                boundaryWest: dbData.boundary_west || prev.boundaryWest,
+                taxability: (dbData.taxability as any) || prev.taxability,
+                effectivityYear: dbData.effectivity_year ? String(dbData.effectivity_year) : prev.effectivityYear,
+                arpNumber: dbData.cancelled_td_number || prev.arpNumber,
+                memoranda: dbData.memoranda || prev.memoranda,
+                assessorName: dbData.assessor_name || prev.assessorName,
+                assessorTitle: dbData.assessor_title || prev.assessorTitle,
+                assessmentRows: dbData.encoded_assessment_rows?.length
+                    ? dbData.encoded_assessment_rows
+                          .slice()
+                          .sort((a: any, b: any) => (a.row_order || 0) - (b.row_order || 0))
+                          .map((r: any) => ({
+                              id: r.id,
+                              kindOfProperty: r.kind_of_property || '',
+                              classificationId: r.classification_id || '',
+                              classificationLabel: '',
+                              actualUseId: r.actual_use_id || '',
+                              actualUseOtherText: r.actual_use_other_text || '',
+                              area: r.area || '',
+                              areaUnit: r.area_unit || 'HECTARE',
+                              marketValue: r.market_value != null ? String(r.market_value) : '',
+                              assessmentLevel: r.assessment_level != null ? String(r.assessment_level) : '',
+                              assessedValue: r.assessed_value != null ? String(r.assessed_value) : '',
+                          }))
+                    : prev.assessmentRows,
+            }));
+        };
+        hydrateFromBackend();
+        return () => { isMounted = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [entryData?.requestId, hadLocalDraftOnMount]);
+
     const amountInWords = numberToWords(totalAssessedValue);
 
     useEffect(() => { setForm((prev) => ({ ...prev, totalMarketValue, totalAssessedValue, amountInWords })); }, [totalMarketValue, totalAssessedValue, amountInWords]);

@@ -77,6 +77,17 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onAddAn
         return { ...EMPTY_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '' };
     });
 
+    // Captured ONCE, at first render, before the "auto-persist to
+    // localStorage" effect below has a chance to run and write the (still
+    // empty) `form` back into LS_KEY. If we instead re-read
+    // localStorage.getItem(LS_KEY) live inside the hydrate-from-backend
+    // effect, it would always find a draft — the one the persist effect
+    // just wrote a moment earlier on mount — and would skip fetching the
+    // real backend data every time. That's exactly why Amend (which relies
+    // on this fetch to pull in the deep-copied certificate) was showing up
+    // blank.
+    const [hadLocalDraftOnMount] = useState(() => !!localStorage.getItem(LS_KEY));
+
     const { addItem } = useCart();
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState('');
@@ -119,6 +130,36 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onAddAn
         fetchAndApplyLocation();
         return () => { isMounted = false; };
     }, [entryData?.propertyLocation]);
+
+    // If this request already has saved document data on the backend (e.g.
+    // it was cloned from a voided original during an Amend) and the staff
+    // hasn't started a local draft yet, hydrate the form instead of leaving
+    // it blank.
+    useEffect(() => {
+        let isMounted = true;
+        const hydrateFromBackend = async () => {
+            // Use the value captured on mount, NOT a fresh localStorage
+            // read — see the comment where hadLocalDraftOnMount is declared.
+            if (hadLocalDraftOnMount) return;
+            try {
+                const result = await requestService.getDocumentData(entryData.requestId);
+                if (isMounted && result?.documentPrefix === 'LH' && result.data) {
+                    setForm((prev) => ({
+                        ...prev,
+                        ...result.data,
+                        propertyRows: result.data.propertyRows?.length
+                            ? result.data.propertyRows
+                            : prev.propertyRows,
+                    }));
+                }
+            } catch {
+                // No existing data to prefill — fine, form just stays as-is.
+            }
+        };
+        hydrateFromBackend();
+        return () => { isMounted = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [entryData.requestId, hadLocalDraftOnMount]);
 
     const set = (field: keyof LandholdingFormData, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
     const updateRow = useCallback((id: string, field: keyof LandholdingPropertyRow, value: string) => { setForm((prev) => ({ ...prev, propertyRows: prev.propertyRows.map((r) => r.id === id ? { ...r, [field]: value } : r) })); }, []);

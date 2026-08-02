@@ -153,6 +153,7 @@ export interface Transaction {
     isVoid?: boolean;
     voidReason?: string;
     voidedAt?: string;
+    hasBeenAmended?: boolean;
 }
 
 /**

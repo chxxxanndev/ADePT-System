@@ -146,6 +146,26 @@ export const voidRequest = async (req, res) => {
     }
 };
 
+export const amendRequest = async (req, res) => {
+    try {
+        const result = await RequestService.amendRequest(req.params.id, req.user?.id);
+        res.status(200).json(result);
+    } catch (err) {
+        console.error('Amend request failed:', err.message);
+        res.status(400).json({ error: err.message });
+    }
+};
+
+export const getDocumentDataByRequestId = async (req, res) => {
+    try {
+        const result = await RequestService.getDocumentDataByRequestId(req.params.id);
+        res.status(200).json(result);
+    } catch (err) {
+        console.error('Fetch document data failed:', err.message);
+        res.status(400).json({ error: err.message });
+    }
+};
+
 export const getDashboardMetrics = async (req, res) => {
     try {
         const { from, to } = req.query;
@@ -164,3 +184,4 @@ export const getReportsData = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+

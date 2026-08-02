@@ -1,11 +1,13 @@
 import { useMemo, useState, useEffect } from "react";
 import { Search, ChevronDown, Ban, PencilLine, Loader2 } from "lucide-react";
 import { fetchTransactionRegistry } from "../services/transactionService";
+import { requestService } from "../services/requestService";
 import type { Transaction } from "../types/transaction";
 import "../styles/VoidAndAmend.css";
 
 export type ActionType = "void";
 
+/** A single row in the Void & Amend table — derived from a voided Transaction. */
 export interface VoidAmendRecord {
   id: string;
   reference: string;
@@ -15,15 +17,34 @@ export interface VoidAmendRecord {
   detail: string;
   actionedBy: string;
   actionedAt: string;
+  // True once some other request's amended_from_id points back at this
+  // one (i.e. someone already clicked Amend on it) — comes straight from
+  // getTransactionRegistry() so it's consistent across sessions/devices,
+  // not just locally-tracked state.
+  hasBeenAmended?: boolean;
 }
 
-type TimeRange = "Today" | "Yesterday" | "This Week" | "This Month" | "All Time";
+export interface AmendNavigationPayload {
+  id: string;
+  reference_number: string;
+  declarant_name: string;
+  requested_by_name: string;
+  request_date: string;
+  property_location: string | null;
+  authorization_required: boolean;
+  action_taken: string;
+  documentTypeIds: string[];
+  lockedDocType: true;
+  amendedFromReference: string;
+}
 
 interface VoidAndAmendProps {
-  onAmend?: (record: VoidAmendRecord) => void;
+  onAmend?: (payload: AmendNavigationPayload) => void;
   pendingItems?: VoidAmendRecord[];
   onPendingItemsConsumed?: () => void;
 }
+
+type TimeRange = "Today" | "Yesterday" | "This Week" | "This Month" | "All Time";
 
 // ─── Constants ──────────────────────────────────────────────
 // This no longer stores the void records themselves — the registry (via
@@ -148,6 +169,7 @@ function toDisplayRecord(t: Transaction, metadata: VoidMetadataEntry | undefined
     detail: metadata?.detail || t.voidReason || "Voided from registry",
     actionedBy: metadata?.actionedBy || t.assignedStaff || "—",
     actionedAt: t.voidedAt || metadata?.actionedAt || "",
+    hasBeenAmended: !!t.hasBeenAmended,
   };
 }
 
@@ -163,6 +185,10 @@ export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItem
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [metadataStore, setMetadataStore] = useState<VoidMetadataStore>(() => loadMetadataStore());
+
+  // ─── Amend action state ──────────────────────────────────
+  const [amendingId, setAmendingId] = useState<string | null>(null);
+  const [amendError, setAmendError] = useState<string | null>(null);
 
   const loadVoidedTransactions = async () => {
     setLoading(true);
@@ -261,13 +287,38 @@ export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItem
   };
 
   // ─── Amend callback ──────────────────────────────────────
-  const handleAmendClick = (record: VoidAmendRecord) => {
-    if (onAmend) {
-      onAmend(record);
-    } else {
-      alert(
-        `Amend "${record.reference}" isn't wired to the backend yet — cloning needs the full original request (property, purpose, document type), not just what's shown in this table.`
+  const handleAmendClick = async (record: VoidAmendRecord) => {
+    if (record.hasBeenAmended || amendingId) return;
+
+    setAmendError(null);
+    setAmendingId(record.id);
+    try {
+      const result = await requestService.amendRequest(record.id);
+      const req = result.request;
+
+      if (onAmend) {
+        onAmend({
+          id: req.id,
+          reference_number: req.reference_number,
+          declarant_name: req.declarant_name,
+          requested_by_name: req.requested_by_name,
+          request_date: req.request_date,
+          property_location: req.property_location,
+          authorization_required: req.authorization_required,
+          action_taken: req.action_taken,
+          documentTypeIds: [result.documentTypeId],
+          lockedDocType: true,
+          amendedFromReference: record.reference,
+        });
+      } else {
+        console.warn("VoidAndAmend: onAmend prop not provided — cannot navigate after amend.");
+      }
+    } catch (err) {
+      setAmendError(
+        err instanceof Error ? err.message : `Failed to start amendment for ${record.reference}.`
       );
+    } finally {
+      setAmendingId(null);
     }
   };
 
@@ -310,6 +361,23 @@ export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItem
             <ChevronDown size={14} className="va-select-chevron" />
           </div>
         </div>
+
+        {amendError && (
+          <div
+            style={{
+              padding: "10px 16px",
+              background: "#fee2e2",
+              border: "1px solid #fca5a5",
+              borderRadius: 8,
+              color: "#b91c1c",
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              marginBottom: 12,
+            }}
+          >
+            {amendError}
+          </div>
+        )}
 
         <div className="va-card">
           {loading ? (
@@ -356,11 +424,25 @@ export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItem
                             <button
                               type="button"
                               className="va-amend-btn"
-                              title={`Amend ${record.reference}`}
+                              title={
+                                record.hasBeenAmended
+                                  ? `${record.reference} has already been amended`
+                                  : `Amend ${record.reference}`
+                              }
                               aria-label={`Amend ${record.reference}`}
                               onClick={() => handleAmendClick(record)}
+                              disabled={amendingId === record.id || record.hasBeenAmended}
+                              style={
+                                record.hasBeenAmended
+                                  ? { opacity: 0.4, cursor: "not-allowed" }
+                                  : undefined
+                              }
                             >
-                              <PencilLine size={14} />
+                              {amendingId === record.id ? (
+                                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                              ) : (
+                                <PencilLine size={14} />
+                              )}
                             </button>
                           </div>
                         </td>
@@ -380,10 +462,7 @@ export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItem
                 <div className="va-pagination">
                   <div className="va-pagination-rows">
                     <span>Rows per page:</span>
-                    <select
-                      value={pageSize}
-                      onChange={handlePageSizeChange}
-                    >
+                    <select value={pageSize} onChange={handlePageSizeChange}>
                       {PAGE_SIZE_OPTIONS.map((size) => (
                         <option key={size} value={size}>
                           {size}
@@ -393,9 +472,7 @@ export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItem
                   </div>
 
                   <span className="va-pagination-label">
-                    {totalRecords === 0
-                      ? "0 of 0"
-                      : `${start + 1}–${end} of ${totalRecords}`}
+                    {totalRecords === 0 ? "0 of 0" : `${start + 1}–${end} of ${totalRecords}`}
                   </span>
 
                   <div className="va-pagination-controls">
@@ -408,7 +485,9 @@ export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItem
                     >
                       Previous
                     </button>
-                    <span className="va-pagination-label">Page {currentPage} of {totalPages}</span>
+                    <span className="va-pagination-label">
+                      Page {currentPage} of {totalPages}
+                    </span>
                     <button
                       type="button"
                       className="va-pagination-btn"
