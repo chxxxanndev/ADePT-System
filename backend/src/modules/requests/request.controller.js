@@ -148,7 +148,7 @@ export const voidRequest = async (req, res) => {
 
 export const amendRequest = async (req, res) => {
     try {
-        const result = await RequestService.amendRequest(req.params.id, req.user?.id);
+        const result = await RequestService.amendRequest(req.params.id, req.staffId);
         res.status(200).json(result);
     } catch (err) {
         console.error('Amend request failed:', err.message);

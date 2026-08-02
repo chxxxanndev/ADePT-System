@@ -861,11 +861,14 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
      * pre-populated. Reuses the same deep-copy helpers createReprint() uses.
      */
 
-    async amendRequest(originalRequestId, authUserId) {
+    async amendRequest(originalRequestId, staffId) {
+    if (!staffId) {
+        throw new Error('Could not identify the current staff member — cannot amend.');
+    }
+
     const [
         { data: original, error: origErr },
         { data: docLink, error: docErr },
-        { data: staff },
     ] = await Promise.all([
         supabase.from('requests').select('*').eq('id', originalRequestId).single(),
         supabase.from('request_documents')
@@ -873,19 +876,13 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
             .eq('request_id', originalRequestId)
             .limit(1)
             .maybeSingle(),
-        authUserId
-            ? supabase.from('staff').select('id').eq('auth_user_id', authUserId).single()
-            : Promise.resolve({ data: null }),
     ]);
 
     if (origErr || !original) throw new Error(`Original request not found: ${origErr?.message}`);
     if (docErr) throw docErr;
     if (!docLink) throw new Error('Original request has no document type on file — cannot amend.');
 
-    const staffId = staff?.id || null;
-
     const newRef = await this._generateReferenceNumber([docLink.document_type_id]);
-
     const { data: amended, error: insErr } = await supabase
         .from('requests')
         .insert([{
@@ -895,7 +892,7 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
             authorization_required: original.authorization_required,
             action_taken: 'PENDING',
             property_location: original.property_location,
-            encoded_by: staffId || original.encoded_by,
+            encoded_by: staffId,
             request_date: new Date().toISOString().split('T')[0],
             status: 'DRAFT',
             request_type: 'ORIGINAL',
@@ -905,8 +902,6 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
         .single();
     if (insErr) throw insErr;
 
-    // These two don't depend on each other — both only need amended.id —
-    // so they run concurrently instead of one waiting on the other.
     const prefix = docLink.document_types?.prefix;
     const copyPromise =
         prefix === 'LH' ? this._copyLandholdingCertificate(originalRequestId, amended.id)
@@ -918,6 +913,14 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
         this._syncRequestDocuments(amended.id, [docLink.document_type_id]),
         copyPromise,
     ]);
+
+    if (prefix === 'LH') {
+        await supabase.from('encoded_landholding_certificates').update({ encoded_by: staffId }).eq('request_id', amended.id);
+    } else if (prefix === 'TD') {
+        await supabase.from('encoded_tax_declarations').update({ encoded_by: staffId }).eq('request_id', amended.id);
+    } else if (prefix === 'NLH') {
+        await supabase.from('encoded_no_landholding_certificates').update({ encoded_by: staffId }).eq('request_id', amended.id);
+    }
 
     return {
         request: amended,
