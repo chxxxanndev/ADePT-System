@@ -1,5 +1,6 @@
 import type { TaxDeclarationFormData } from '../types/taxDeclaration';
-import { requestService, api } from './requestService'; // Import the smart 'api'
+import { requestService, api } from './requestService';
+import axios from 'axios';
 
 export const taxDeclarationService = {
     /**
@@ -13,7 +14,6 @@ export const taxDeclarationService = {
         const payload = {
             staffAuthId,
             requestId,
-            // ... (rest of your payload logic is unchanged)
             taxDeclarationNumber: formData.taxDeclarationNumber,
             propertyIndexNumber: formData.propertyIndexNumber,
             arpNumber: formData.arpNumber,
@@ -61,11 +61,9 @@ export const taxDeclarationService = {
         };
 
         try {
-            // Use the smart api instance
             const res = await api.post('/tax-declarations', payload);
             return res.data;
         } catch (err: any) {
-            // This preserves your fallback logic
             if (!err.response) {
                 console.warn('[taxDeclarationService] Server unreachable — using local mock.');
                 return {
@@ -78,20 +76,30 @@ export const taxDeclarationService = {
     },
 
     /**
-     * FETCH AND TRANSLATE DATA FOR PDF
+     * FETCH AND TRANSLATE DATA FOR PDF / VIEWING
      */
     getTaxDeclaration: async (requestId: string) => {
         try {
-            // Both of these now use the same smart 'api' logic
-            const [res, meta] = await Promise.all([
-                api.get(`/tax-declarations/${requestId}`),
-                requestService.getMetadata(),
-            ]);
+            // We fetch metadata separately so that if the declaration call 404s, 
+            // we don't lose the metadata context.
+            const meta = await requestService.getMetadata();
             
-            const dbData = res.data.data;
+            let dbData;
+            try {
+                const res = await api.get(`/tax-declarations/${requestId}`);
+                dbData = res.data.data;
+            } catch (error) {
+                // If it's a 404, it means no declaration has been encoded yet.
+                // We return null so the UI knows it's a fresh/empty request.
+                if (axios.isAxiosError(error) && error.response?.status === 404) {
+                    return null;
+                }
+                // If it's any other error (500, network, etc), re-throw it.
+                throw error;
+            }
+
             if (!dbData) return null;
 
-            // ... (Your mapping logic below remains exactly the same)
             const classificationMap: Record<string, string> = {};
             (meta?.classifications || []).forEach((c: any) => {
                 classificationMap[c.id] = c.label;
@@ -164,8 +172,8 @@ export const taxDeclarationService = {
             throw error;
         }
     },
+
     updateDraft: async (id: string, updateData: any) => {
-        // Use the smart api
         const res = await api.put(`/tax-declarations/${id}/edit-draft`, updateData);
         return res.data;
     },
@@ -174,8 +182,11 @@ export const taxDeclarationService = {
         try {
             const res = await api.get(`/tax-declarations/${requestId}`);
             return res.data?.data ?? null;
-        } catch {
-            return null;
+        } catch (error) {
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
+                return null;
+            }
+            throw error;
         }
     },
 };

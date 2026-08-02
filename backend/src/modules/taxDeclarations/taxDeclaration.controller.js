@@ -38,6 +38,10 @@ export const createTaxDeclaration = async (req, res) => {
  * GET /api/tax-declarations/:requestId
  * Fetch the Tax Declaration associated with a given request ID.
  */
+/**
+ * GET /api/tax-declarations/:requestId
+ * Fetch the Tax Declaration associated with a given request ID.
+ */
 export const getTaxDeclaration = async (req, res) => {
     try {
         const { requestId } = req.params;
@@ -48,11 +52,11 @@ export const getTaxDeclaration = async (req, res) => {
 
         const result = await TaxDeclarationService.getTaxDeclarationByRequestId(requestId);
 
-        if (!result) {
-            return res.status(404).json({ error: 'Tax declaration not found for this request.' });
-        }
-
-        return res.status(200).json({ data: result });
+        // FIX: Return 200 with data: null instead of 404. 
+        // This prevents the browser from logging a red "Failed to load resource" error
+        // when you are simply starting a new, empty request.
+        return res.status(200).json({ data: result || null });
+        
     } catch (error) {
         console.error('[getTaxDeclaration] Error:', error);
         return res.status(500).json({ error: error.message || 'Failed to fetch tax declaration.' });
