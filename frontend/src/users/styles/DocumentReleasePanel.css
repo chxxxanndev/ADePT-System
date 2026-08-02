@@ -21,8 +21,12 @@
 .pd-split-layout--viewer {
     position: relative;
     display: flex;
+    flex-wrap: wrap;
     align-items: stretch;
     gap: 24px;
+    width: 100%;
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 .pd-pdf-viewer-container {
@@ -78,16 +82,19 @@
 }
 
 .pd-split-layout--viewer .pd-col-left {
-    flex: 1;
+    flex: 1 1 480px;
     min-width: 0;
     display: flex;
     justify-content: center;
 }
 
 .pd-split-layout--viewer .pd-col-right {
-    width: 400px;
-    flex: 0 0 400px;
-    flex-shrink: 0;
+    width: auto;
+    flex: 1 1 360px;
+    max-width: 400px;
+    min-width: 300px;
+    flex-shrink: 1;
+    box-sizing: border-box;
 }
 
 /* --- Sidebar Controls --- */
@@ -97,6 +104,7 @@
     gap: 16px;
     box-sizing: border-box;
     height: 100%;
+    min-width: 0;
 }
 
 .pd-sidebar-card {
@@ -117,15 +125,6 @@
     margin-bottom: 16px;
 }
 
-/* --- Status row (separate element, sits above the Payment Verified card) --- */
-.pd-status-row {
-    display: flex;
-    justify-content: flex-end;
-}
-
-.pd-status-badge--standalone {
-    box-shadow: 0 2px 6px rgba(159, 18, 57, 0.12);
-}
 
 /* --- Card 1: Payment Verified --- */
 .pd-payment-verified-card {
@@ -150,12 +149,14 @@
     color: #9f1239;
     /* Dark red */
     border: 1px solid #fecdd3;
+    white-space: nowrap;
 }
 
 .pd-payment-details {
     display: flex;
     align-items: center;
     gap: 14px;
+    min-width: 0;
 }
 
 .pd-success-icon-minimal {
@@ -176,6 +177,10 @@
     height: 22px;
 }
 
+.pd-payment-text {
+    min-width: 0;
+}
+
 .pd-payment-text h3 {
     margin: 0 0 4px 0;
     color: #166534;
@@ -188,6 +193,8 @@
     color: #15803d;
     font-size: 14px;
     font-weight: 600;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .pd-dot-separator {
@@ -206,12 +213,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
     padding: 14px 16px;
     border: 1px solid #e2e8f0;
     border-radius: 10px;
     background: #ffffff;
     cursor: pointer;
     transition: all 0.2s ease;
+    min-width: 0;
 }
 
 .pd-compact-card:hover {
@@ -234,6 +243,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    min-width: 0;
 }
 
 .pd-doc-badge {
@@ -245,11 +255,13 @@
     font-size: 13px;
     font-weight: 700;
     width: max-content;
+    max-width: 100%;
 }
 
 .pd-badge-icon {
     width: 14px;
     height: 14px;
+    flex-shrink: 0;
 }
 
 .pd-doc-badge--nlh {
@@ -270,16 +282,11 @@
     border: 1px solid #bfdbfe;
 }
 
-.pd-doc-type-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: #64748b;
-    padding-left: 2px;
-}
 
 .pd-compact-action {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .pd-status-text {
@@ -288,6 +295,7 @@
     gap: 6px;
     font-size: 13px;
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .pd-status-text.pd-viewing {
@@ -303,6 +311,7 @@
     height: 8px;
     border-radius: 50%;
     background-color: #cbd5e1;
+    flex-shrink: 0;
 }
 
 .pd-pulse-dot--active {
@@ -327,6 +336,8 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .pd-btn--tiny-view:hover {
@@ -342,12 +353,25 @@
     gap: 16px;
 }
 
+.pd-form-group {
+    min-width: 0;
+}
+
 .pd-field-label {
     display: block;
     font-size: 13px;
     font-weight: 600;
     color: #475569;
     margin-bottom: 8px;
+}
+
+.pd-field-hint {
+    display: block;
+    margin-top: 8px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #94a3b8;
+    line-height: 1.4;
 }
 
 /* Custom styled select box */
@@ -410,41 +434,178 @@
     padding-top: 8px;
 }
 
+/* --- Print / Download row ---
+   Previously these rendered as near-invisible text links. Now styled as
+   clear, matching secondary buttons with visible chrome so they read as
+   actions, not passive labels. */
 .pd-actions-row-compact {
     display: flex;
     gap: 12px;
 }
 
-.pd-btn--secondary-outline {
+/* --- Print / Download row --- */
+.pd-actions-row-compact {
+    display: flex;
+    gap: 12px;
+}
+
+.pd-btn--print-action,
+.pd-btn--download-action {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    color: #334155;
-    padding: 10px;
-    font-size: 14px;
-    font-weight: 600;
+    gap: 8px;
+    padding: 11px 10px;
+    font-size: 13.5px;
+    font-weight: 700;
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     text-decoration: none;
+    white-space: nowrap;
+    min-width: 0;
 }
 
-.pd-btn--secondary-outline:hover:not(:disabled) {
-    background: #f8fafc;
-    border-color: #94a3b8;
-    color: #0f172a;
+.pd-btn--print-action {
+    background: #eff6ff;
+    border: 1.5px solid #bfdbfe;
+    color: #1d4ed8;
+    box-shadow: 0 1px 2px rgba(29, 78, 216, 0.06);
 }
 
-.pd-btn--secondary-outline:disabled {
+.pd-btn--print-action:hover:not(:disabled) {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
+}
+
+.pd-btn--print-action:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    box-shadow: none;
+}
+
+.pd-btn--download-action {
+    background: #ecfdf5;
+    border: 1.5px solid #a7f3d0;
+    color: #047857;
+    box-shadow: 0 1px 2px rgba(4, 120, 87, 0.06);
+}
+
+.pd-btn--download-action:hover:not(:disabled) {
+    background: #059669;
+    border-color: #059669;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(5, 150, 105, 0.25);
+}
+
+.pd-btn--download-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+    pointer-events: none;
+}
+
+.pd-actions-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 2px 0;
+}
+
+.pd-actions-divider::before,
+.pd-actions-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e2e8f0;
+}
+
+.pd-actions-divider span {
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* --- "Save & Release Later" block ---
+   A distinct, lower-commitment secondary action that sits between the
+   Print/Download row and the primary Mark as Released button. Indigo
+   outline (echoes the primary color family) rather than red/gray, so it
+   doesn't read as a warning or a cancel — it's a legitimate deliberate
+   choice, just not the final one. */
+.pd-queue-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pd-btn--queue-outline {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1.5px solid #a5b4fc;
+    color: #4338ca;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px rgba(67, 56, 202, 0.06);
+}
+
+.pd-btn--queue-outline:hover:not(:disabled) {
+    background: #4338ca;
+    border-color: #4338ca;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(67, 56, 202, 0.28);
+}
+
+.pd-btn--queue-outline:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.pd-btn-spinner {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(67, 56, 202, 0.25);
+    border-top-color: #4338ca;
+    animation: pd-spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes pd-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.pd-queue-hint {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #94a3b8;
+    line-height: 1.4;
+    text-align: center;
 }
 
 .pd-btn--download-large {
     width: 100%;
+    box-sizing: border-box;
     background-color: #312e81;
     color: white;
     font-size: 15px;
@@ -469,22 +630,99 @@
     cursor: not-allowed;
 }
 
-/* --- Responsive --- */
-@media (max-width: 1180px) {
-    .pd-split-layout--viewer .pd-col-right {
-        width: 340px;
-        flex: 0 0 340px;
-    }
+/* --- Release guard modal ---
+   Shown when the user tries to leave the page (in-app link click, tab
+   close, or refresh) before resolving the panel via "Save & Release
+   Later" or "Mark as Released". */
+.pd-guard-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+    box-sizing: border-box;
+    animation: fadeIn 0.2s ease-out forwards;
 }
 
-@media (max-width: 980px) {
-    .pd-split-layout--viewer {
-        flex-direction: column;
-    }
+.pd-guard-modal {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 28px;
+    width: 100%;
+    max-width: 380px;
+    box-sizing: border-box;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+}
 
+.pd-guard-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #fef3c7;
+    color: #b45309;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 14px;
+}
+
+.pd-guard-modal h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.pd-guard-modal p {
+    margin: 0 0 20px;
+    font-size: 13.5px;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.pd-guard-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pd-guard-stay {
+    margin-top: 16px;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.pd-guard-stay:hover:not(:disabled) {
+    color: #475569;
+    text-decoration: underline;
+}
+
+.pd-guard-stay:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* --- Responsive ---
+   The flex-wrap + flexible flex-basis values above handle most of the
+   responsive behavior automatically now (the sidebar shrinks fluidly and
+   only wraps below the PDF viewer once there's genuinely no room left,
+   regardless of exactly how much space a given page layout's side nav
+   eats into). This breakpoint just cleans up spacing once wrapped. */
+@media (max-width: 980px) {
     .pd-split-layout--viewer .pd-col-right {
         width: 100%;
-        flex-basis: auto;
+        max-width: 100%;
+        flex-basis: 100%;
+        min-width: 0;
     }
 
     .pd-sidebar-controls {

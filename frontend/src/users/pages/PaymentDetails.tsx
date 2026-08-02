@@ -19,6 +19,7 @@ interface PaymentDetailsProps {
     payment: any | null;
     onBack: () => void; // still used to leave the screen manually (e.g. back arrow on step 1)
     onReleased?: () => void; // called after a successful release — navigate to Transaction Registry
+    onSavedForLater?: () => void;   // NEW — navigate back to Pending For Release
     onEditDocument?: (referenceNumber: string) => void;
 }
 
@@ -37,7 +38,7 @@ const getFormattedDates = () => {
     return { day, monthYear, datePaid };
 };
 
-export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsProps) {
+export function PaymentDetails({ payment, onBack, onReleased, onSavedForLater }: PaymentDetailsProps) {
     // Resuming from the "Pending for Release" queue means this payment already
     // has an O.R. number attached (set by releaseRequest when status flipped
     // to PAID) — in that case skip VERIFICATION and land straight on RELEASE.
@@ -354,6 +355,10 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
         }).catch(() => { });
     };
 
+    const handleQueueForRelease = async () => {
+        (onSavedForLater ?? onBack)();
+    };
+
     return (
         <div className="pd-page page-transition">
             {workflowStep === 'VERIFICATION' && (
@@ -416,6 +421,7 @@ export function PaymentDetails({ payment, onBack, onReleased }: PaymentDetailsPr
                             releaseStaffOptions={releaseStaff}
                             onMarkAsReleased={handleMarkAsReleased}
                             onReleased={onReleased ?? onBack}
+                            onQueueForRelease={handleQueueForRelease}
                         />
                     )}
                 </div>

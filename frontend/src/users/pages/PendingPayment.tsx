@@ -50,7 +50,7 @@ function resolveDocTypeName(req: any): string {
     return 'Certified True Tax Declaration';
 }
 
-export function PendingPayment({ onSelectPayment, onNavigateBack }: any) {
+export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }: any) {
     const [groupedPayments, setGroupedPayments] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
@@ -239,7 +239,18 @@ export function PendingPayment({ onSelectPayment, onNavigateBack }: any) {
                     <div className="pp-header-titles">
                         <h1 className="pp-title">Pending Payments Queue</h1>
                         <p className="pp-subtitle">Verify payments using Official Receipts issued by the Treasurer's Office.</p>
+
+                        {/* TAB SEGMENTED CONTROL (Moved to match Pending For Release) */}
+                        <div className="pp-tabs-wrapper">
+                            <button className="pp-tab-btn active">
+                                Pending Payments
+                            </button>
+                            <button className="pp-tab-btn" onClick={() => onSwitchView && onSwitchView('pending-for-release')}>
+                                Pending For Release
+                            </button>
+                        </div>
                     </div>
+
                     <button
                         className={`pp-refresh-btn${isRefreshing ? ' is-spinning' : ''}`}
                         onClick={() => fetchLivePayments(true)}

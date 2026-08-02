@@ -611,6 +611,9 @@
     font-size: 11px;
     font-weight: 600;
     color: var(--db-text-muted);
+    margin-top: 10px;
+    margin-left: 10px;
+    margin-bottom: -10px;
 }
 
 .pp-legend-item svg {
@@ -946,4 +949,37 @@
 .pp-modal-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+/* --- TABS NAVIGATION (Matches Image Reference) --- */
+.pp-tabs-wrapper {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.pp-tab-btn {
+    padding: 10px 24px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    background-color: #e2e8f0;
+    /* Light gray for inactive */
+    color: #475569;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.pp-tab-btn:hover:not(.active) {
+    background-color: #cbd5e1;
+}
+
+.pp-tab-btn.active {
+    background-color: #29237A;
+    /* Bright blue matching your image */
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(4, 37, 108, 0.3);
 }

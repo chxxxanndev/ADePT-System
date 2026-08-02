@@ -503,6 +503,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         'no-land-holding',
         'account-settings',
         'pending-payment',
+        'pending-for-release',
         'payment-details',
         'document-request',
         'reports',
@@ -739,12 +740,14 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                         <PendingPayment
                             onSelectPayment={handleSelectPayment}
                             onNavigateBack={() => setActiveView('document-request')}
+                            onSwitchView={(view: string) => setActiveView(view)}
                         />
                     ) : activeView === 'payment-details' ? (
                         <PaymentDetails
                             payment={selectedPayment}
                             onBack={() => setActiveView('pending-payment')}
                             onReleased={() => setActiveView('transaction-registry')}
+                            onSavedForLater={() => setActiveView('pending-for-release')}
                             onEditDocument={(_controlNumber) => {
                                 if (selectedPayment?.documentType.toLowerCase().includes('landholding')) {
                                     setActiveView('certificate-land-holding');
@@ -756,7 +759,11 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             }}
                         />
                     ) : activeView === 'pending-for-release' ? (
-                        <PendingForRelease onSelectPayment={handleSelectPayment} />
+                        <PendingForRelease
+                            onSelectPayment={handleSelectPayment}
+                            onNavigateBack={() => setActiveView('document-request')} /* ADD THIS */
+                            onSwitchView={(view: string) => setActiveView(view)} /* ADD THIS */
+                        />
                     ) : activeView === 'transaction-registry' ? (
                         <TransactionRegistry user={user} onNavigateToVoidAmend={handleNavigateToVoidAmend} />
                     ) : activeView === 'void-amend' ? (

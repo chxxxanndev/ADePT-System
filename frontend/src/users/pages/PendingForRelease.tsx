@@ -1,19 +1,41 @@
 import { useState, useEffect } from 'react';
 import { requestService } from '../services/requestService';
-import '../styles/PendingPayment.css'; // reusing pp-* classes — layout is identical
+import '../styles/PendingPayment.css';
 
-// releaseRequest() writes status: 'PAID' when the O.R. is locked in — there's
-// no separate "pending release" status in the schema. PAID *is* the release
-// queue: RELEASED is what markAsReleased() moves it to afterward.
 const RELEASE_QUEUE_STATUS = 'PAID';
 
+// --- ICONS ---
 const SearchIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
 const RefreshIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>;
 const InboxIcon = () => <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>;
 const UserIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
-const StaffIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M8 2v4M16 2v4M3 10h18" /></svg>;
 const ProcessIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>;
 const XIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+
+// Stat icons
+const ClientsIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
+const DocumentsIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
+
+// Doc Icons
+const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="21" x2="21" y2="21"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 3 21 9 3 9"></polygon></svg>;
+const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
+const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>;
+
+function getRefTypeIcon(referenceNumber: string) {
+    const ref = referenceNumber || "";
+    if (ref.startsWith('NLH')) return <NoLandholdingIcon />;
+    if (ref.startsWith('LH')) return <LandholdingIcon />;
+    if (ref.startsWith('TD')) return <TaxDeclarationIcon />;
+    return null;
+}
+
+function getRefChipClass(referenceNumber: string): string {
+    const ref = referenceNumber || "";
+    if (ref.startsWith('NLH')) return 'pp-ref-chip--nlh';
+    if (ref.startsWith('LH')) return 'pp-ref-chip--lh';
+    if (ref.startsWith('TD')) return 'pp-ref-chip--td';
+    return '';
+}
 
 function resolveDocTypeName(req: any): string {
     if (req.request_documents && req.request_documents.length > 0) {
@@ -25,7 +47,7 @@ function resolveDocTypeName(req: any): string {
     return 'Certified True Tax Declaration';
 }
 
-export function PendingForRelease({ onSelectPayment }: any) {
+export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchView }: any) {
     const [groupedReleases, setGroupedReleases] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
@@ -44,21 +66,27 @@ export function PendingForRelease({ onSelectPayment }: any) {
 
                 const grouped = pending.reduce((acc: any, req: any) => {
                     const requester = req.requested_by_name || req.requestedByName || 'Unknown Client';
+                    const orNumber = req.or_number || '';
 
-                    if (!acc[requester]) {
-                        acc[requester] = {
+                    // Group by O.R. Number, since that's what actually ties documents
+                    // together as "one transaction, released together". Falling back to
+                    // requester+date+id when there's no OR number yet keeps unrelated
+                    // requests from being merged just because they share a client name.
+                    const groupKey = orNumber
+                        ? `OR-${orNumber}`
+                        : `${requester}__${req.request_date || 'N/A'}__${req.id}`;
+
+                    if (!acc[groupKey]) {
+                        acc[groupKey] = {
                             groupId: req.id,
                             requesterName: requester,
                             dateRequested: req.request_date || 'N/A',
-                            // Set by releaseRequest() when this request moved out of
-                            // the payment queue — lets PaymentDetails skip straight
-                            // to the RELEASE step instead of re-asking for an O.R.
-                            orNumber: req.or_number || '',
+                            orNumber: orNumber,
                             documents: []
                         };
                     }
 
-                    acc[requester].documents.push({
+                    acc[groupKey].documents.push({
                         id: req.id,
                         referenceNumber: req.reference_number || "REF-PENDING",
                         declarantName: req.declarant_name || 'N/A',
@@ -101,42 +129,73 @@ export function PendingForRelease({ onSelectPayment }: any) {
 
     return (
         <div className="pp-container page-transition">
-            <div className="pp-header-card">
+            {/* BREADCRUMB */}
+            <div className="pp-breadcrumb">
+                <button type="button" className="pp-breadcrumb-link" onClick={() => onNavigateBack && onNavigateBack()}>
+                    Document Request
+                </button>
+                <span className="pp-breadcrumb-sep">›</span>
+                <span className="pp-breadcrumb-current">Pending For Release</span>
+            </div>
+
+            {/* PAGE HEADER */}
+            <div className="pp-page-header">
                 <div className="pp-header-top">
                     <div className="pp-header-titles">
-                        <h1 className="pp-title">Pending for Release</h1>
+                        <h1 className="pp-title">Pending For Release Queue</h1>
                         <p className="pp-subtitle">Payments verified and documents generated — awaiting physical release to the client.</p>
+
+                        {/* TAB SEGMENTED CONTROL */}
+                        <div className="pp-tabs-wrapper">
+                            <button className="pp-tab-btn" onClick={() => onSwitchView && onSwitchView('pending-payment')}>
+                                Pending Payments
+                            </button>
+                            <button className="pp-tab-btn active">
+                                Pending For Release
+                            </button>
+                        </div>
                     </div>
                     <button
                         className={`pp-refresh-btn${isRefreshing ? ' is-spinning' : ''}`}
                         onClick={() => fetchLiveReleases(true)}
                         title="Refresh queue"
-                        aria-label="Refresh queue"
                     >
                         <RefreshIcon />
                     </button>
                 </div>
 
                 <div className="pp-stats-row">
-                    <div className="pp-stat-chip">
-                        <strong>{groupedReleases.length}</strong>
-                        <span>Clients waiting</span>
+                    <div className="pp-stat-chip pp-stat-chip--clients">
+                        <div className="pp-stat-icon-wrap pp-stat-icon-wrap--clients"><ClientsIcon /></div>
+                        <div className="pp-stat-text">
+                            <strong>{groupedReleases.length}</strong>
+                            <span>Clients waiting</span>
+                        </div>
                     </div>
-                    <div className="pp-stat-chip">
-                        <strong>{totalDocs}</strong>
-                        <span>Documents</span>
+                    <div className="pp-stat-chip pp-stat-chip--docs">
+                        <div className="pp-stat-icon-wrap pp-stat-icon-wrap--docs"><DocumentsIcon /></div>
+                        <div className="pp-stat-text">
+                            <strong>{totalDocs}</strong>
+                            <span>Documents</span>
+                        </div>
                     </div>
+                    {/* Empty div for layout alignment with pending payments stats */}
+                    <div className="pp-stat-chip" style={{ opacity: 0, pointerEvents: 'none' }}></div>
+                </div>
+                <div className="pp-legend-row">
+                    <div className="pp-legend-item pp-legend-item--td"><TaxDeclarationIcon />Tax Declaration</div>
+                    <div className="pp-legend-item pp-legend-item--lh"><LandholdingIcon />Landholding</div>
+                    <div className="pp-legend-item pp-legend-item--nlh"><NoLandholdingIcon />No Landholding</div>
                 </div>
             </div>
 
+            {/* TABLE CARD */}
             <div className="pp-table-card">
                 <div className="pp-table-toolbar">
                     <div className="pp-toolbar-left">
                         <div className="pp-toolbar-search">
                             <SearchIcon />
                             <input
-                                id="releaseSearch"
-                                name="releaseSearch"
                                 type="text"
                                 className="pp-toolbar-search-input"
                                 placeholder="Search by Client, Declarant, O.R., or Ref No..."
@@ -144,7 +203,7 @@ export function PendingForRelease({ onSelectPayment }: any) {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                             {searchQuery && (
-                                <button className="pp-search-clear-btn" onClick={() => setSearchQuery('')} title="Clear search">
+                                <button className="pp-search-clear-btn" onClick={() => setSearchQuery('')}>
                                     <XIcon />
                                 </button>
                             )}
@@ -160,7 +219,7 @@ export function PendingForRelease({ onSelectPayment }: any) {
                                 <th style={{ width: '20%' }}>Declarant(s)</th>
                                 <th style={{ width: '15%' }}>Requested By</th>
                                 <th style={{ width: '14%' }}>Encoded By Staff</th>
-                                <th style={{ width: '13%' }}>O.R. Number</th>
+                                <th style={{ width: '13%', textAlign: 'center' }}>O.R. Number</th>
                                 <th style={{ width: '10%', textAlign: 'center' }}>Date</th>
                                 <th style={{ width: '12%', textAlign: 'right', paddingRight: '32px' }}>Actions</th>
                             </tr>
@@ -197,6 +256,7 @@ export function PendingForRelease({ onSelectPayment }: any) {
                             ) : (
                                 paginatedGroups.map((group) => (
                                     <tr key={group.groupId} className="pp-row">
+
                                         <td className="pp-cell" data-label="Reference No.">
                                             <div className="pp-doc-count-label">
                                                 {group.documents.length} document{group.documents.length !== 1 && 's'}
@@ -204,50 +264,71 @@ export function PendingForRelease({ onSelectPayment }: any) {
                                             <div className="pp-ref-list">
                                                 {group.documents.map((d: any, i: number) => (
                                                     <div className="pp-doc-line" key={i}>
-                                                        <span className="pp-ref-chip" title={d.documentType}>{d.referenceNumber}</span>
+                                                        <span className={`pp-ref-chip ${getRefChipClass(d.referenceNumber)}`} title={d.documentType}>
+                                                            {getRefTypeIcon(d.referenceNumber)}
+                                                            {d.referenceNumber}
+                                                        </span>
                                                     </div>
                                                 ))}
                                             </div>
                                         </td>
+
                                         <td className="pp-cell" data-label="Declarant(s)">
                                             <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
                                             <div className="pp-declarant-list">
                                                 {group.documents.map((d: any, i: number) => (
                                                     <div className="pp-doc-line" key={i}>
-                                                        <span className="pp-doc-declarant" title={d.declarantName}><UserIcon />{d.declarantName}</span>
+                                                        <span className="pp-doc-declarant" title={d.declarantName}>
+                                                            <UserIcon />{d.declarantName}
+                                                        </span>
                                                     </div>
                                                 ))}
                                             </div>
                                         </td>
+
                                         <td className="pp-cell" data-label="Requested By">
                                             <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
                                             <div className="pp-client-info">
                                                 <span className="pp-client-name" title={group.requesterName}>{group.requesterName}</span>
                                             </div>
                                         </td>
+
                                         <td className="pp-cell" data-label="Encoded By Staff">
                                             <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
                                             <div className="pp-declarant-list">
                                                 {group.documents.map((d: any, i: number) => (
                                                     <div className="pp-doc-line" key={i}>
                                                         <span className="pp-doc-declarant pp-doc-declarant--staff" title={d.encodedByStaff || 'Not yet recorded'}>
-                                                            <StaffIcon />{d.encodedByStaff || '—'}
+                                                            {d.encodedByStaff || '—'}
                                                         </span>
                                                     </div>
                                                 ))}
                                             </div>
                                         </td>
-                                        <td className="pp-cell" data-label="O.R. Number">
-                                            <span className="pp-amount">{group.orNumber || '—'}</span>
+
+                                        {/* PERFECTLY ALIGNED USING pp-cell-align-row */}
+                                        <td className="pp-cell" data-label="O.R. Number" style={{ textAlign: 'center' }}>
+                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
+                                            <div className="pp-cell-align-row pp-cell-align-row--center">
+                                                <span className="pp-amount" style={{ color: '#0ea5e9' }}>{group.orNumber || '—'}</span>
+                                            </div>
                                         </td>
+
                                         <td className="pp-cell" data-label="Date" style={{ textAlign: 'center' }}>
-                                            <span className="pp-date">{group.dateRequested}</span>
+                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
+                                            <div className="pp-cell-align-row pp-cell-align-row--center">
+                                                <span className="pp-date">{group.dateRequested}</span>
+                                            </div>
                                         </td>
+
                                         <td className="pp-cell" style={{ textAlign: 'right', paddingRight: '24px' }}>
-                                            <div className="pp-actions">
-                                                <button className="pp-btn-process" onClick={() => onSelectPayment(group)}>
-                                                    Release <ProcessIcon />
-                                                </button>
+                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
+                                            <div className="pp-cell-align-row pp-cell-align-row--end">
+                                                <div className="pp-actions">
+                                                    <button className="pp-btn-process" onClick={() => onSelectPayment(group)}>
+                                                        Release <ProcessIcon />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>

@@ -45,10 +45,12 @@ function getReleaseSortDate(t: Transaction): string {
 interface TransactionRegistryProps {
     user: User; // still needed to populate actionedBy
     onNavigateToVoidAmend: (newVoidedItems: VoidAmendRecord[]) => void;
+    onNavigateToReprint?: () => void;          // NEW — wire from parent/router
+    onNavigateToPendingRequests?: () => void;  // NEW — wire from parent/router
     initialSearchQuery?: string;
 }
 
-export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearchQuery }: TransactionRegistryProps) {
+export function TransactionRegistry({ user, onNavigateToVoidAmend, onNavigateToReprint, onNavigateToPendingRequests, initialSearchQuery }: TransactionRegistryProps) {
 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -128,7 +130,7 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
                 // Latest-released first within each declarant's own group.
                 transactions: [...txns].sort(
                     (a, b) => new Date(toComparableDate(getReleaseSortDate(b))).getTime() -
-                              new Date(toComparableDate(getReleaseSortDate(a))).getTime()
+                        new Date(toComparableDate(getReleaseSortDate(a))).getTime()
                 ),
             }))
             // And groups themselves ordered by whichever declarant had the
@@ -136,7 +138,7 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
             // latest-release-on-top, oldest-release-on-bottom.
             .sort(
                 (a, b) => new Date(toComparableDate(getReleaseSortDate(b.transactions[0]))).getTime() -
-                          new Date(toComparableDate(getReleaseSortDate(a.transactions[0]))).getTime()
+                    new Date(toComparableDate(getReleaseSortDate(a.transactions[0]))).getTime()
             );
     }, [filteredTransactions]);
 
@@ -212,7 +214,20 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
 
     return (
         <div className="tr-page">
-            <div className="tr-header-card">
+            <div className="tr-header">
+                <nav className="tr-breadcrumb" aria-label="Breadcrumb">
+                    <span
+                        className={`tr-breadcrumb-item${onNavigateToPendingRequests ? ' tr-breadcrumb-item--link' : ''}`}
+                        onClick={onNavigateToPendingRequests}
+                    >
+                        Pending Requests
+                    </span>
+                    <span className="tr-breadcrumb-sep">›</span>
+                    <span className="tr-breadcrumb-item tr-breadcrumb-item--current">
+                        Transaction Registry
+                    </span>
+                </nav>
+
                 <div className="tr-header-top">
                     <div className="tr-header-titles">
                         <h2>Transaction Registry</h2>
@@ -228,6 +243,19 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
                     </button>
                 </div>
 
+                <div className="tr-tabs" role="tablist" aria-label="Transaction sections">
+                    <button type="button" className="tr-tab tr-tab--active" aria-current="page">
+                        Transaction Registry
+                    </button>
+                    <button type="button" className="tr-tab" onClick={onNavigateToReprint}>
+                        Reprint/CTC
+                    </button>
+                    <button type="button" className="tr-tab" onClick={() => onNavigateToVoidAmend([])}>
+                        Void &amp; Amend
+                    </button>
+                    {/* Archive Management pill intentionally left out per Peter's instruction */}
+                </div>
+
                 {isLoading ? (
                     <RegistrySummarySkeleton />
                 ) : (
@@ -241,6 +269,9 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, initialSearch
                     </>
                 )}
             </div>
+
+            {/* everything below (loading skeleton, error state, TransactionTable,
+            TransactionDetails, VoidDocumentSelectModal) stays exactly as-is */}
 
             {isLoading ? (
                 <div className="tr-lazy-load">

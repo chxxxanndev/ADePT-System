@@ -69,12 +69,9 @@ export const navSections: NavSection[] = [
         label: 'Processing',
         items: [
             {
+                view: 'pending-payment',
                 label: 'Pending Requests',
                 icon: 'documentProcessing',
-                subItems: [
-                    { label: 'Pending Payments', dotColor: 'green', view: 'pending-payment' },
-                    { label: 'Pending For Release', dotColor: 'blue', view: 'pending-for-release' },
-                ],
             },
         ],
     },
