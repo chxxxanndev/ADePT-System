@@ -8,7 +8,7 @@ import '../../styles/LandholdingCertificate.css';
 import '../../styles/TaxDeclaration.css';
 
 interface TransactionSummaryProps {
-    entryData: CompletedEntryData;
+    entryData?: CompletedEntryData | null;
     onBackToForms: () => void;
     onProceedToQueue: () => void;
 }
@@ -50,6 +50,27 @@ function WarningIcon({ size = 22, color = '#e11d48' }: { size?: number; color?: 
     );
 }
 
+// --- New icons for LH / NLH badges (distinct shapes, not just recolored DocumentIcon) ---
+
+function PlainPageIcon({ size = 14, color = '#1e293b' }: { size?: number; color?: string }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ verticalAlign: 'middle', flexShrink: 0 }}>
+            <path d="M6 2.75h8.5L19 7.25V19.5a1.75 1.75 0 0 1-1.75 1.75H6.75A1.75 1.75 0 0 1 5 19.5V4.5A1.75 1.75 0 0 1 6.75 2.75Z" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+            <path d="M14 2.75V7.5h4.75" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+        </svg>
+    );
+}
+
+function FileXIcon({ size = 14, color = '#be123c' }: { size?: number; color?: string }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ verticalAlign: 'middle', flexShrink: 0 }}>
+            <path d="M6 2.75h8.5L19 7.25V19.5a1.75 1.75 0 0 1-1.75 1.75H6.75A1.75 1.75 0 0 1 5 19.5V4.5A1.75 1.75 0 0 1 6.75 2.75Z" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+            <path d="M14 2.75V7.5h4.75" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+            <path d="M9.5 13.5l5 5M14.5 13.5l-5 5" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+    );
+}
+
 // --- Dynamic colored badge component for Reference Numbers ---
 function RefBadge({ refNumber }: { refNumber: string }) {
     let bg, color, icon;
@@ -57,11 +78,11 @@ function RefBadge({ refNumber }: { refNumber: string }) {
     if (refNumber.startsWith('NLH')) {
         bg = '#ffe4e6';
         color = '#be123c';
-        icon = <DocumentIcon size={14} color="#be123c" />;
+        icon = <FileXIcon size={14} color="#be123c" />;
     } else if (refNumber.startsWith('LH')) {
         bg = '#fef08a';
         color = '#854d0e';
-        icon = <DocumentIcon size={14} color="#854d0e" />;
+        icon = <PlainPageIcon size={14} color="#854d0e" />;
     } else if (refNumber.startsWith('TD')) {
         bg = '#dbeafe';
         color = '#1d4ed8';
@@ -91,7 +112,7 @@ export function TransactionSummary({ entryData, onBackToForms, onProceedToQueue 
     const [cancelError, setCancelError] = useState<string | null>(null);
 
     // Safely resolve the primary requester from the cart, falling back to entryData
-    const requesterName = items[0]?.requestedByName || entryData.requestedByName || 'N/A';
+    const requesterName = items[0]?.requestedByName || entryData?.requestedByName || 'N/A';
 
     const cancelTarget = items.find((i) => i.id === cancelTargetId) || null;
 
