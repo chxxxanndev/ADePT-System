@@ -1,9 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { requestService } from '../services/requestService';
 import { taxDeclarationService } from '../services/taxDeclarationService';
 import { landholdingService } from '../services/landholdingService';
 import { noLandholdingService } from '../services/noLandholdingService';
+
+const EditIcon = ({ size = 16 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+);
+const SearchIcon = ({ size = 16 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="7" />
+        <path d="M21 21l-4.3-4.3" />
+    </svg>
+);
 
 interface InitialDocumentPreviewModalProps {
     documentItem: any;
@@ -39,6 +52,22 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
 
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Auto-growing textarea for "Declarant / Owner Name" — mirrors the Request Form's
+    // Name of Declarant field: wraps automatically when long, and Enter still works
+    // to insert a manual line break.
+    const declarantNameEditRef = useRef<HTMLTextAreaElement>(null);
+
+    const resizeDeclarantNameEdit = () => {
+        const el = declarantNameEditRef.current;
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+    };
+
+    useEffect(() => {
+        if (isEditing) resizeDeclarantNameEdit();
+    }, [isEditing, formData.declarantName]);
 
     // Fetch the complete form data based on document type AND Metadata for dropdown
     useEffect(() => {
@@ -262,7 +291,15 @@ if (data) {
             <div>
                 <span style={labelStyle}>Declared Properties ({(fullData?.properties || []).length})</span>
                 <div style={{ overflowX: 'auto', marginTop: '8px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', tableLayout: 'fixed' }}>
+                        <colgroup>
+                            <col style={{ width: '15%' }} />
+                            <col style={{ width: '26%' }} />
+                            <col style={{ width: '13%' }} />
+                            <col style={{ width: '15%' }} />
+                            <col style={{ width: '11%' }} />
+                            <col style={{ width: '20%' }} />
+                        </colgroup>
                         <thead style={{ backgroundColor: '#f3f4f6' }}>
                             <tr>
                                 <th style={thStyle}>TD/ARP No.</th>
@@ -491,8 +528,8 @@ if (data) {
 
                 {/* Header */}
                 <div style={{ backgroundColor: '#4f46e5', color: 'white', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-                    <h3 style={{ margin: 0, fontSize: '18px' }}>
-                        {isEditing ? '✎ Full Document Edit' : '🔍 Initial Document Preview'}
+                    <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {isEditing ? <><EditIcon size={17} /> Full Document Edit</> : <><SearchIcon size={17} /> Initial Document Preview</>}
                     </h3>
                     <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>&times;</button>
                 </div>
@@ -553,7 +590,22 @@ if (data) {
                             <div style={{ display: 'grid', gridTemplateColumns: docType === 'NO_LANDHOLDING' ? '1fr 1fr' : '1fr 1fr 1fr', gap: '16px', backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
                                 <div>
                                     <label style={editLabelStyle}>Declarant / Owner Name *</label>
-                                    <input type="text" value={formData.declarantName} onChange={(e) => setFormData({ ...formData, declarantName: e.target.value })} style={inputStyle} />
+                                    <textarea
+                                        ref={declarantNameEditRef}
+                                        rows={1}
+                                        value={formData.declarantName}
+                                        onChange={(e) => setFormData({ ...formData, declarantName: e.target.value })}
+                                        style={{
+                                            ...inputStyle,
+                                            resize: 'none',
+                                            overflow: 'hidden',
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                            overflowWrap: 'break-word',
+                                            fontFamily: 'inherit',
+                                            lineHeight: 1.4,
+                                        }}
+                                    />
                                 </div>
                                 <div>
                                     <label style={editLabelStyle}>Requested By Name</label>
@@ -604,8 +656,8 @@ if (data) {
                 <div style={{ backgroundColor: '#f9fafb', padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #e5e7eb', flexShrink: 0 }}>
                     {!isEditing ? (
                         <>
-                            <button onClick={() => setIsEditing(true)} style={{ backgroundColor: '#e0e7ff', color: '#4f46e5', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>
-                                ✎ Edit Full Document
+                            <button onClick={() => setIsEditing(true)} style={{ backgroundColor: '#e0e7ff', color: '#4f46e5', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                <EditIcon size={15} /> Edit Full Document
                             </button>
                             <button onClick={onClose} style={{ backgroundColor: '#374151', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>
                                 Close
@@ -632,7 +684,7 @@ if (data) {
 // Inline styling helpers
 const labelStyle: React.CSSProperties = { fontSize: '12px', color: '#6b7280', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: '4px' };
 const valueStyle: React.CSSProperties = { fontSize: '14px', fontWeight: 500, color: '#111827' };
-const thStyle: React.CSSProperties = { padding: '10px', color: '#4b5563', fontWeight: 600, textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' };
-const tdStyle: React.CSSProperties = { padding: '10px', color: '#1f2937' };
+const thStyle: React.CSSProperties = { padding: '10px', color: '#4b5563', fontWeight: 600, textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px', wordBreak: 'break-word' };
+const tdStyle: React.CSSProperties = { padding: '10px', color: '#1f2937', wordBreak: 'break-word', whiteSpace: 'normal', overflowWrap: 'break-word' };
 const inputStyle: React.CSSProperties = { width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '14px' };
 const editLabelStyle: React.CSSProperties = { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '6px' };

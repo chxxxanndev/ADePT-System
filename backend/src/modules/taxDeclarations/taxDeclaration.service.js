@@ -253,6 +253,7 @@ async getTaxDeclarationByRequestId(requestId) {
 
     const { data, error } = await supabase
         .from('encoded_tax_declarations')
+        /* ALIASING: Rename table to assessmentRows and columns to match Frontend */
         .select(`
             *,
             request:requests (
@@ -263,7 +264,6 @@ async getTaxDeclarationByRequestId(requestId) {
             ),
             barangay:barangays ( name ),
             municipality:municipalities ( name ),
-            /* ALIASING: Rename table to assessmentRows and columns to match Frontend */
             assessmentRows:encoded_assessment_rows (
                 id,
                 kindOfProperty:kind_of_property,
