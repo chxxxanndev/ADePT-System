@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { fetchReportsAnalytics, fetchDashboardMetrics } from '../services/userManagementService';
 import {
@@ -14,10 +14,113 @@ import {
     Cell,
     Legend,
 } from 'recharts';
+import { FileStack, FileCheck2, XCircle, FileText, Copy, Edit3, Ban, Clock } from 'lucide-react';
 import '../styles/AdminReports.css';
 import type { User } from '../../auth-folder/types/auth';
-import { RefreshIcon } from '../../users/components/icons';
+import { CalendarIcon, ChevronDownIcon } from '../../users/components/icons';
+import { CalendarPicker } from '../components/Calendarpicker';
 import { AdminDocumentDistribution } from '../components/AdminDocumentDistribution';
+
+const PERIOD_OPTIONS = [
+    'Today',
+    'Yesterday',
+    'This Week',
+    'Last Week',
+    'This Month',
+    'Last Month',
+    'This Quarter',
+    'Last Quarter',
+    'This Year',
+    'Custom Range...',
+];
+
+function toLocalISO(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function parseLocalDate(dateStr: string): Date | null {
+    if (!dateStr) return null;
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) return new Date(y, m, d);
+    }
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? null : d;
+}
+
+function rangeForPeriod(period: string): { from: string; to: string } {
+    const now = new Date();
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+    switch (period) {
+        case 'Today': {
+            const d = startOfDay(now);
+            return { from: toLocalISO(d), to: toLocalISO(d) };
+        }
+        case 'Yesterday': {
+            const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+            return { from: toLocalISO(d), to: toLocalISO(d) };
+        }
+        case 'This Week': {
+            const start = startOfDay(now);
+            const dow = (start.getDay() + 6) % 7;
+            const from = new Date(start.getFullYear(), start.getMonth(), start.getDate() - dow);
+            const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        case 'Last Week': {
+            const start = startOfDay(now);
+            const dow = (start.getDay() + 6) % 7;
+            const mondayThisWeek = new Date(start.getFullYear(), start.getMonth(), start.getDate() - dow);
+            const from = new Date(mondayThisWeek.getFullYear(), mondayThisWeek.getMonth(), mondayThisWeek.getDate() - 7);
+            const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        case 'This Month': {
+            const from = new Date(now.getFullYear(), now.getMonth(), 1);
+            const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        case 'Last Month': {
+            const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const to = new Date(now.getFullYear(), now.getMonth(), 0);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        case 'This Quarter': {
+            const quarter = Math.floor(now.getMonth() / 3);
+            const from = new Date(now.getFullYear(), quarter * 3, 1);
+            const to = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        case 'Last Quarter': {
+            const quarter = Math.floor(now.getMonth() / 3) - 1;
+            const from = new Date(now.getFullYear(), quarter * 3, 1);
+            const to = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        case 'This Year': {
+            const from = new Date(now.getFullYear(), 0, 1);
+            const to = new Date(now.getFullYear(), 11, 31);
+            return { from: toLocalISO(from), to: toLocalISO(to) };
+        }
+        default:
+            return { from: toLocalISO(startOfDay(now)), to: toLocalISO(startOfDay(now)) };
+    }
+}
+
+function reportFormatShort(date: Date) {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function isSameDate(a: Date, b: Date) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
 
 const PENDING_STATUSES = ['Pending', 'Processing', 'Payment Verified'];
 
@@ -38,6 +141,9 @@ interface ReportRow {
     status: string;
     orNumber: string;
     submittedRaw: string;
+    requestType?: string;
+    amendedFromId?: string | null;
+    actionTaken?: string | null;
 }
 
 interface DistributionSlice {
@@ -96,26 +202,72 @@ export function AdminReports({ user }: AdminReportsProps) {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [dateFilterLabel, setDateFilterLabel] = useState('All Time');
+    const [dateRange, setDateRange] = useState<{ from: string; to: string } | null>(null);
+    const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+    const [dateView, setDateView] = useState<'list' | 'calendar'>('list');
+    const dateDropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dateDropdownRef.current && !dateDropdownRef.current.contains(event.target as Node)) {
+                setDateDropdownOpen(false);
+                setDateView('list');
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    function handleSelectPeriod(period: string) {
+        if (period === 'Custom Range...') {
+            setDateView('calendar');
+            return;
+        }
+        setDateFilterLabel(period);
+        const newRange = rangeForPeriod(period);
+        setDateRange(newRange);
+        setDateDropdownOpen(false);
+        setDateView('list');
+        void loadReportData(false, newRange);
+    }
+
+    function handleApplyRange(start: Date, end: Date) {
+        const label = isSameDate(start, end)
+            ? reportFormatShort(start)
+            : `${reportFormatShort(start)} \u2013 ${reportFormatShort(end)}`;
+        setDateFilterLabel(label);
+        const newRange = { from: toLocalISO(start), to: toLocalISO(end) };
+        setDateRange(newRange);
+        setDateDropdownOpen(false);
+        setDateView('list');
+        void loadReportData(false, newRange);
+    }
+
+    function handleClearDateFilter() {
+        setDateFilterLabel('All Time');
+        setDateRange(null);
+        setDateDropdownOpen(false);
+        setDateView('list');
+        void loadReportData(false, null);
+    }
 
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin';
     const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` || 'A';
     const roleLabel =
         user.role === 'SUPER_ADMIN' ? 'Super Admin' :
-        user.role === 'ADMIN' ? 'Admin' :
-        'Office Staff';
+            user.role === 'ADMIN' ? 'Admin' :
+                'Office Staff';
 
-    const loadReportData = async (isRefresh = false) => {
+    const loadReportData = async (isRefresh = false, rangeOverride?: { from: string; to: string } | null) => {
         if (isRefresh) setRefreshing(true);
         else setLoading(true);
         setError(null);
         try {
-            // Fetch both sources in parallel:
-            // - reportsData  → row-level table data (aging, staff pending, etc.)
-            // - metrics      → document distribution counted from request_documents
-            //                  (same source as the Admin Dashboard donut chart)
+            const activeRange = rangeOverride !== undefined ? rangeOverride : dateRange;
             const [data, metrics] = await Promise.all([
                 fetchReportsAnalytics(),
-                fetchDashboardMetrics().catch(() => null),
+                fetchDashboardMetrics(activeRange?.from, activeRange?.to).catch(() => null),
             ]);
 
             if (data.totalDocuments !== undefined) {
@@ -134,12 +286,12 @@ export function AdminReports({ user }: AdminReportsProps) {
                     status: r.status || 'Pending',
                     orNumber: r.orNumber || 'N/A',
                     submittedRaw: r.requestedDate || '',
+                    requestType: r.requestType ?? r.request_type ?? 'ORIGINAL',
+                    amendedFromId: r.amendedFromId ?? r.amended_from_id ?? null,
+                    actionTaken: r.actionTaken ?? r.action_taken ?? 'PENDING',
                 })));
             }
 
-            // Use the same distribution the Dashboard uses:
-            // metrics.distribution is built by counting request_documents rows
-            // directly, so it matches the Dashboard donut chart exactly.
             if (metrics?.distribution && metrics.distribution.length > 0) {
                 const slices: DistributionSlice[] = metrics.distribution.map((d: any) => ({
                     label: d.label,
@@ -162,11 +314,28 @@ export function AdminReports({ user }: AdminReportsProps) {
         void loadReportData();
     }, []);
 
-    const totalApproved = rows.filter((r) => r.status === 'Released' || r.status === 'approved').length;
-    const totalDisapproved = rows.filter((r) => r.status === 'Void' || r.status === 'Cancelled' || r.status === 'disapproved').length;
-    const totalRequestAccounts = totalDocuments || rows.length;
+    const filteredRows = useMemo(() => {
+        if (!dateRange) return rows;
+        const from = new Date(`${dateRange.from}T00:00:00`);
+        const to = new Date(`${dateRange.to}T23:59:59.999`);
+        return rows.filter((r) => {
+            const d = new Date(r.submittedRaw);
+            if (Number.isNaN(d.getTime())) return false;
+            return d >= from && d <= to;
+        });
+    }, [rows, dateRange]);
 
-    const monthlyRequests = useMemo(() => buildMonthlyBuckets(rows), [rows]);
+    const totalApproved = filteredRows.filter((r) => r.status === 'Released' || r.status === 'approved').length;
+    const totalVoided = filteredRows.filter((r) => r.status === 'Void' || r.status === 'disapproved').length;
+    const totalCancelled = filteredRows.filter((r) => r.status === 'Cancelled').length;
+    const totalPending = filteredRows.filter((r) => PENDING_STATUSES.includes(r.status)).length;
+    const totalRequestAccounts = totalDocuments || filteredRows.length;
+
+    const originalCount = filteredRows.filter((r) => r.requestType === 'ORIGINAL').length;
+    const reprintCount = filteredRows.filter((r) => r.requestType === 'REPRINT').length;
+    const amendedCount = filteredRows.filter((r) => !!r.amendedFromId).length;
+
+    const monthlyRequests = useMemo(() => buildMonthlyBuckets(filteredRows), [filteredRows]);
 
     interface AgingRow {
         status: string;
@@ -192,7 +361,7 @@ export function AdminReports({ user }: AdminReportsProps) {
             agingMap[s] = { under3: 0, d3to7: 0, d8to14: 0, over14: 0 };
         });
 
-        rows.forEach((r) => {
+        filteredRows.forEach((r) => {
             const ageDays = (now - new Date(r.submittedRaw).getTime()) / (1000 * 60 * 60 * 24);
             const bucket = buckets.find((b) => ageDays < b.max) || buckets[buckets.length - 1];
             if (agingMap[r.status]) agingMap[r.status][bucket.key]++;
@@ -207,16 +376,51 @@ export function AdminReports({ user }: AdminReportsProps) {
                 const v = agingMap[status];
                 const total = v.under3 + v.d3to7 + v.d8to14 + v.over14;
                 // FIX: Explicitly returning properties to satisfy AgingRow interface
-                return { 
-                  status, 
-                  under3: v.under3, 
-                  d3to7: v.d3to7, 
-                  d8to14: v.d8to14, 
-                  over14: v.over14, 
-                  total 
+                return {
+                    status,
+                    under3: v.under3,
+                    d3to7: v.d3to7,
+                    d8to14: v.d8to14,
+                    over14: v.over14,
+                    total
                 };
             });
-    }, [rows]);
+    }, [filteredRows]);
+
+    const [trendYear, setTrendYear] = useState<number>(() => new Date().getFullYear());
+    const [nowYear, setNowYear] = useState<number>(() => new Date().getFullYear());
+    const userPickedYearRef = useRef(false);
+
+    // Poll for the real-world year changing (e.g. a tab left open across
+    // New Year's) so the dropdown and default selection stay current
+    // without requiring a page refresh.
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const currentYear = new Date().getFullYear();
+            setNowYear((prev) => (prev !== currentYear ? currentYear : prev));
+            if (!userPickedYearRef.current) {
+                setTrendYear((prev) => (prev !== currentYear ? currentYear : prev));
+            }
+        }, 60 * 1000); // check once a minute; cheap and plenty responsive for a year rollover
+        return () => clearInterval(interval);
+    }, []);
+
+    function handleTrendYearChange(yr: number) {
+        userPickedYearRef.current = yr !== nowYear;
+        setTrendYear(yr);
+    }
+
+    const availableYears = useMemo(() => {
+        const setY = new Set<number>();
+        setY.add(nowYear);
+        rows.forEach((r) => {
+            const d = parseLocalDate(r.submittedRaw);
+            if (d) {
+                setY.add(d.getFullYear());
+            }
+        });
+        return Array.from(setY).sort((a, b) => b - a);
+    }, [rows, nowYear]);
 
     interface MonthlyRate {
         month: string;
@@ -228,12 +432,11 @@ export function AdminReports({ user }: AdminReportsProps) {
     }
 
     const monthlyRates = useMemo<MonthlyRate[]>(() => {
-        const now = new Date();
         const buckets: { key: string; month: string; total: number; released: number; voided: number }[] = [];
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        for (let m = 0; m < 12; m++) {
+            const d = new Date(trendYear, m, 1);
             buckets.push({
-                key: `${d.getFullYear()}-${d.getMonth()}`,
+                key: `${trendYear}-${m}`,
                 month: d.toLocaleDateString('en-US', { month: 'short' }),
                 total: 0,
                 released: 0,
@@ -243,8 +446,9 @@ export function AdminReports({ user }: AdminReportsProps) {
         const byKey = new Map(buckets.map((b) => [b.key, b]));
 
         rows.forEach((r) => {
-            const d = new Date(r.submittedRaw);
-            if (Number.isNaN(d.getTime())) return;
+            const d = parseLocalDate(r.submittedRaw);
+            if (!d) return;
+            if (d.getFullYear() !== trendYear) return;
             const key = `${d.getFullYear()}-${d.getMonth()}`;
             const b = byKey.get(key);
             if (!b) return;
@@ -261,7 +465,7 @@ export function AdminReports({ user }: AdminReportsProps) {
             releaseRate: b.total > 0 ? Math.round((b.released / b.total) * 100) : 0,
             voidRate: b.total > 0 ? Math.round((b.voided / b.total) * 100) : 0,
         }));
-    }, [rows]);
+    }, [rows, trendYear]);
 
     const [staffStatusFilter, setStaffStatusFilter] = useState<string>('all');
     interface StaffPendingRow {
@@ -271,7 +475,7 @@ export function AdminReports({ user }: AdminReportsProps) {
     }
     const staffPendingRows = useMemo<StaffPendingRow[]>(() => {
         const grouped: Record<string, Record<string, number>> = {};
-        rows.forEach((r) => {
+        filteredRows.forEach((r) => {
             if (!PENDING_STATUSES.includes(r.status)) return;
             if (staffStatusFilter !== 'all' && r.status !== staffStatusFilter) return;
             const staff = r.assignedStaff || r.processedBy || 'Unassigned';
@@ -292,12 +496,12 @@ export function AdminReports({ user }: AdminReportsProps) {
 
     const getStaffFiltered = useCallback(
         (staff: string, status: string): ReportRow[] => {
-            return rows.filter((r) => {
+            return filteredRows.filter((r) => {
                 const s = r.assignedStaff || r.processedBy || 'Unassigned';
                 return s === staff && r.status === status;
             });
         },
-        [rows]
+        [filteredRows]
     );
 
     const [agingPopup, setAgingPopup] = useState<{ status: string; bucketKey: string } | null>(null);
@@ -323,13 +527,13 @@ export function AdminReports({ user }: AdminReportsProps) {
                 const r = ranges[bucketKey];
                 return age >= r.min && age < r.max;
             };
-            return rows.filter((r) => {
+            return filteredRows.filter((r) => {
                 if (r.status !== status) return false;
                 const age = (now - new Date(r.submittedRaw).getTime()) / (1000 * 60 * 60 * 24);
                 return matchesAge(age);
             });
         },
-        [rows]
+        [filteredRows]
     );
 
     return (
@@ -341,17 +545,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                         <p className="rq-page-subtitle">Trends across staff performance and document processing.</p>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <button
-                            type="button"
-                            className={`admin-refresh-btn${refreshing ? ' spinning' : ''}`}
-                            onClick={() => void loadReportData(true)}
-                            disabled={refreshing || loading}
-                            title="Refresh reports"
-                        >
-                            <RefreshIcon size={16} />
-                        </button>
-
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
                         <div className="admin-profile-widget audit-user-chip">
                             <div className="profile-widget-avatar-container">
                                 {user.avatarUrl
@@ -362,6 +556,47 @@ export function AdminReports({ user }: AdminReportsProps) {
                                 <span className="profile-widget-name audit-user-name">{fullName}</span>
                                 <span className="profile-widget-role">{roleLabel}</span>
                             </div>
+                        </div>
+
+                        <div className="date-selector-wrapper" ref={dateDropdownRef}>
+                            <button
+                                className="date-selector-btn"
+                                onClick={() => setDateDropdownOpen((prev) => !prev)}
+                                type="button"
+                                title="Filter reports by date range"
+                            >
+                                <CalendarIcon size={16} />
+                                <span>Report Period: <strong>{dateFilterLabel}</strong></span>
+                                <ChevronDownIcon size={14} />
+                            </button>
+
+                            {dateDropdownOpen && dateView === 'list' && (
+                                <div className="period-dropdown">
+                                    {PERIOD_OPTIONS.map((period) => (
+                                        <button
+                                            key={period}
+                                            type="button"
+                                            className={`date-selector-option ${period === dateFilterLabel ? 'active' : ''}`}
+                                            onClick={() => handleSelectPeriod(period)}
+                                        >
+                                            {period}
+                                        </button>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        className="date-selector-option"
+                                        onClick={handleClearDateFilter}
+                                    >
+                                        All Time
+                                    </button>
+                                </div>
+                            )}
+
+                            {dateDropdownOpen && dateView === 'calendar' && (
+                                <div className="period-dropdown period-dropdown-calendar">
+                                    <CalendarPicker onApply={handleApplyRange} onCancel={() => setDateView('list')} />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -374,23 +609,118 @@ export function AdminReports({ user }: AdminReportsProps) {
             )}
 
             <div className="ar-stats-row">
-                <div className="ar-stat-card ar-stat-card--gold">
-                    <span className="ar-stat-label">Total Requests</span>
-                    <span className="ar-stat-value">
-                        {loading ? '—' : totalRequestAccounts.toLocaleString()}
-                    </span>
+                <div className="ar-stat-card">
+                    <div className="ar-stat-card-top">
+                        <span className="ar-stat-label">Total Requests</span>
+                        <div className="ar-stat-icon ar-stat-icon--primary">
+                            <FileStack size={18} />
+                        </div>
+                    </div>
+                    <div className="ar-stat-value-row">
+                        <span className="ar-stat-value">
+                            {loading ? '—' : totalRequestAccounts.toLocaleString()}
+                        </span>
+                    </div>
                 </div>
-                <div className="ar-stat-card ar-stat-card--green">
-                    <span className="ar-stat-label">Total Released</span>
-                    <span className="ar-stat-value">
-                        {loading ? '—' : totalApproved.toLocaleString()}
-                    </span>
+
+                <div className="ar-stat-card">
+                    <div className="ar-stat-card-top">
+                        <span className="ar-stat-label">Total Released</span>
+                        <div className="ar-stat-icon ar-stat-icon--success">
+                            <FileCheck2 size={18} />
+                        </div>
+                    </div>
+                    <div className="ar-stat-value-row">
+                        <span className="ar-stat-value">
+                            {loading ? '—' : totalApproved.toLocaleString()}
+                        </span>
+                    </div>
                 </div>
-                <div className="ar-stat-card ar-stat-card--red">
-                    <span className="ar-stat-label">Total Voided / Cancelled</span>
-                    <span className="ar-stat-value">
-                        {loading ? '—' : totalDisapproved.toLocaleString()}
-                    </span>
+
+                <div className="ar-stat-card">
+                    <div className="ar-stat-card-top">
+                        <span className="ar-stat-label">Total Void</span>
+                        <div className="ar-stat-icon ar-stat-icon--error">
+                            <XCircle size={18} />
+                        </div>
+                    </div>
+                    <div className="ar-stat-value-row">
+                        <span className="ar-stat-value">
+                            {loading ? '—' : totalVoided.toLocaleString()}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="ar-stat-card">
+                    <div className="ar-stat-card-top">
+                        <span className="ar-stat-label">Total Cancelled</span>
+                        <div className="ar-stat-icon ar-stat-icon--muted">
+                            <Ban size={18} />
+                        </div>
+                    </div>
+                    <div className="ar-stat-value-row">
+                        <span className="ar-stat-value">
+                            {loading ? '—' : totalCancelled.toLocaleString()}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="ar-stat-card">
+                    <div className="ar-stat-card-top">
+                        <span className="ar-stat-label">Total Pending</span>
+                        <div className="ar-stat-icon ar-stat-icon--amber">
+                            <Clock size={18} />
+                        </div>
+                    </div>
+                    <div className="ar-stat-value-row">
+                        <span className="ar-stat-value">
+                            {loading ? '—' : totalPending.toLocaleString()}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="ar-stats-row">
+                <div className="ar-stat-card">
+                    <div className="ar-stat-card-top">
+                        <span className="ar-stat-label">Original</span>
+                        <div className="ar-stat-icon ar-stat-icon--primary">
+                            <FileText size={18} />
+                        </div>
+                    </div>
+                    <div className="ar-stat-value-row">
+                        <span className="ar-stat-value ar-stat-value--indigo">
+                            {loading ? '—' : originalCount.toLocaleString()}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="ar-stat-card">
+                    <div className="ar-stat-card-top">
+                        <span className="ar-stat-label">Reprint</span>
+                        <div className="ar-stat-icon ar-stat-icon--gold">
+                            <Copy size={18} />
+                        </div>
+                    </div>
+                    <div className="ar-stat-value-row">
+                        <span className="ar-stat-value ar-stat-value--gold">
+                            {loading ? '—' : reprintCount.toLocaleString()}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="ar-stat-card">
+                    <div className="ar-stat-card-top">
+                        <span className="ar-stat-label">Amended</span>
+                        <div className="ar-stat-icon ar-stat-icon--purple">
+                            <Edit3 size={18} />
+                        </div>
+                    </div>
+                    <div className="ar-stat-value-row">
+                        <span className="ar-stat-value ar-stat-value--purple">
+                            {loading ? '—' : amendedCount.toLocaleString()}
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -458,12 +788,12 @@ export function AdminReports({ user }: AdminReportsProps) {
                 />
             </div>
 
-            <div className="ar-charts-row" style={{ marginTop: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '24px' }}>
                 <div className="admin-card ar-bar-card">
                     <h2 className="admin-card-title" style={{ margin: 0 }}>
                         Aging Report
                         <span style={{ marginLeft: '10px', fontSize: '13px', fontWeight: 500, color: '#6b6f80' }}>
-                            ({rows.length} requests)
+                            ({filteredRows.length} requests)
                         </span>
                     </h2>
                     <p className="ar-chart-description" style={{ marginTop: 2, marginBottom: 16 }}>
@@ -526,12 +856,39 @@ export function AdminReports({ user }: AdminReportsProps) {
                 </div>
 
                 <div className="admin-card ar-bar-card">
-                    <h2 className="admin-card-title" style={{ margin: 0 }}>
-                        Approval Rate Trends
-                    </h2>
-                    <p className="ar-chart-description" style={{ marginTop: 2, marginBottom: 16 }}>
-                        Monthly release rate compared to voided / cancelled rate
-                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+                        <div>
+                            <h2 className="admin-card-title" style={{ margin: 0 }}>
+                                Approval Rate Trends
+                            </h2>
+                            <p className="ar-chart-description" style={{ marginTop: 2, marginBottom: 0 }}>
+                                Monthly release rate compared to voided / cancelled rate ({trendYear})
+                            </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#6b6f80', marginRight: '2px' }}>Year:</span>
+                            <select
+                                value={trendYear}
+                                onChange={(e) => handleTrendYearChange(Number(e.target.value))}
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #E2E4EC',
+                                    background: '#FFFFFF',
+                                    color: '#3D2E7C',
+                                    fontWeight: 600,
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {availableYears.map((yr) => (
+                                    <option key={yr} value={yr}>
+                                        {yr}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
                     <div className="ar-chart-canvas" style={{ height: '220px' }}>
                         {loading ? (
                             <div className="ar-chart-loading">Loading…</div>
