@@ -117,7 +117,34 @@ function SearchableSelectDropdown({ options, value, onChange, placeholder, hasEr
 }
 
 const PersonIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" /></svg>);
-const ClipboardIconLarge = () => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1M9 10h6M9 14h6M9 18h3" /></svg>);
+const ClipboardIconLarge = ({ size = 28 }: { size?: number }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1M9 10h6M9 14h6M9 18h3" /></svg>);
+const TrashIcon = ({ size = 18 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 6h18" />
+        <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+        <path d="M10 11v6M14 11v6" />
+    </svg>
+);
+const WarningIcon = ({ size = 13 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+        <path d="M12 9v4" />
+        <path d="M12 17h.01" />
+    </svg>
+);
+const SendIcon = ({ size = 14 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 2L11 13" />
+        <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+    </svg>
+);
+const ArrowRightIcon = ({ size = 14 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 12h14" />
+        <path d="M13 5l7 7-7 7" />
+    </svg>
+);
 
 // --- CONSTANTS ---
 const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
@@ -175,6 +202,21 @@ export function RequestFormEntry({
         }
         return { declarantName: '', requestedByName: '', requestDate: new Date().toISOString().split('T')[0], purposeId: '', documentTypeIds: [], authRequired: false, actionTaken: 'PENDING', propertyLocation: '', purposeOtherText: '', referenceNumber: `REF-${new Date().getFullYear()}-0000` };
     });
+
+    // Auto-growing textarea for "Name of Declarant" — lets long names wrap onto
+    // additional lines instead of scrolling out of view inside a single-line input.
+    const declarantNameRef = useRef<HTMLTextAreaElement>(null);
+
+    const resizeDeclarantName = () => {
+        const el = declarantNameRef.current;
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+    };
+
+    useEffect(() => {
+        resizeDeclarantName();
+    }, [formData.declarantName]);
 
     const displayReferenceNumber = (() => {
         const year = new Date().getFullYear();
@@ -245,6 +287,11 @@ export function RequestFormEntry({
             // Lock/unlock document type based on prefilled data
             setDocTypeLocked(!!prefilledRequestData.lockedDocType);
         }
+    }, [prefilledRequestData]);
+
+    // Resize once more after prefilled data lands (e.g. a long declarant name from a draft)
+    useEffect(() => {
+        resizeDeclarantName();
     }, [prefilledRequestData]);
 
     const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -509,7 +556,7 @@ export function RequestFormEntry({
             {showDiscardModal && (
                 <div className="rfe-modal-overlay" onClick={() => !isDiscarding && setShowDiscardModal(false)}>
                     <div className="rfe-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="rfe-modal-icon">🗑</div>
+                        <div className="rfe-modal-icon"><TrashIcon size={32} /></div>
                         <h3 className="rfe-modal-title">Discard This Request?</h3>
                         <p className="rfe-modal-body">
                             This request will be <strong>cancelled</strong> and all unsaved entries will be permanently lost.
@@ -544,7 +591,7 @@ export function RequestFormEntry({
             {showNextStepChoice && (
                 <div className="rfe-modal-overlay" onClick={() => setShowNextStepChoice(false)}>
                     <div className="rfe-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="rfe-modal-icon">📋</div>
+                        <div className="rfe-modal-icon"><ClipboardIconLarge size={32} /></div>
                         <h3 className="rfe-modal-title">What would you like to do next?</h3>
                         <p className="rfe-modal-body">
                             You still have <strong>{cartItemCount} document{cartItemCount === 1 ? '' : 's'}</strong> saved
@@ -635,11 +682,21 @@ export function RequestFormEntry({
                             <div className="rfe-field">
                                 <label className="rfe-label" htmlFor="declarantName">Name of Declarant</label>
                                 <div className="input-with-clear">
-                                    <input
+                                    <textarea
                                         id="declarantName"
                                         name="declarantName"
+                                        ref={declarantNameRef}
+                                        rows={1}
                                         className={`rfe-input ${fieldErrors.declarantName ? 'rfe-input-error' : ''}`}
-                                        type="text"
+                                        style={{
+                                            resize: 'none',
+                                            overflow: 'hidden',
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                            overflowWrap: 'break-word',
+                                            fontFamily: 'inherit',
+                                            lineHeight: 1.4,
+                                        }}
                                         placeholder="e.g. Juan D. Cruz"
                                         value={formData.declarantName}
                                         onChange={(e) => {
@@ -649,7 +706,7 @@ export function RequestFormEntry({
                                     />
                                     {formData.declarantName && (<button type="button" className="input-clear-btn" onClick={() => setFormData({ ...formData, declarantName: '' })} title="Clear Name">×</button>)}
                                 </div>
-                                {fieldErrors.declarantName && <span className="rfe-field-error">⚠️ {fieldErrors.declarantName}</span>}
+                                {fieldErrors.declarantName && <span className="rfe-field-error" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><WarningIcon /> {fieldErrors.declarantName}</span>}
 
                                 <div className="rfe-field" style={{ marginTop: 14 }}>
                                     <label className="rfe-label">May I/We request for:</label>
@@ -673,7 +730,7 @@ export function RequestFormEntry({
                                             hasError={!!fieldErrors.documentTypeIds}
                                         />
                                     )}
-                                    {fieldErrors.documentTypeIds && <span className="rfe-field-error">⚠️ {fieldErrors.documentTypeIds}</span>}
+                                    {fieldErrors.documentTypeIds && <span className="rfe-field-error" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><WarningIcon /> {fieldErrors.documentTypeIds}</span>}
                                 </div>
                             </div>
 
@@ -690,7 +747,7 @@ export function RequestFormEntry({
                                         placeholder="Brgy., Municipality, Province"
                                         hasError={!!fieldErrors.propertyLocation}
                                     />
-                                    {fieldErrors.propertyLocation && <span className="rfe-field-error">⚠️ {fieldErrors.propertyLocation}</span>}
+                                    {fieldErrors.propertyLocation && <span className="rfe-field-error" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><WarningIcon /> {fieldErrors.propertyLocation}</span>}
                                 </div>
                             )}
 
@@ -705,7 +762,7 @@ export function RequestFormEntry({
                                         if (fieldErrors.requestDate) setFieldErrors((prev) => ({ ...prev, requestDate: '' }));
                                     }}
                                 />
-                                {fieldErrors.requestDate && <span className="rfe-field-error">⚠️ {fieldErrors.requestDate}</span>}
+                                {fieldErrors.requestDate && <span className="rfe-field-error" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><WarningIcon /> {fieldErrors.requestDate}</span>}
                             </div>
                             <div className="rfe-field" style={{ marginTop: 14 }}>
                                 <label className="rfe-label">Requested By</label>
@@ -719,7 +776,7 @@ export function RequestFormEntry({
                                         if (fieldErrors.requestedByName) setFieldErrors((prev) => ({ ...prev, requestedByName: '' }));
                                     }}
                                 />
-                                {fieldErrors.requestedByName && <span className="rfe-field-error">⚠️ {fieldErrors.requestedByName}</span>}
+                                {fieldErrors.requestedByName && <span className="rfe-field-error" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><WarningIcon /> {fieldErrors.requestedByName}</span>}
                             </div>
                             <div className="rfe-field" style={{ marginTop: 14 }}>
                                 <label className="rfe-label">Authorization</label>
@@ -770,12 +827,12 @@ export function RequestFormEntry({
                                 disabled={isSavingDraft || isProceeding}
                                 title="Cancel and discard this request"
                             >
-                                🗑 Discard Request
+                                <TrashIcon size={14} /> Discard Request
                             </button>
                         </div>
                         <div style={{ display: 'flex', gap: 12 }}>
                             <button className="btn-forward" type="button" onClick={handleOpenForwardModal} disabled={isSavingDraft || isProceeding}>
-                                📨 Forward to Staff
+                                <SendIcon size={14} /> Forward to Staff
                             </button>
                             <button
                                 type="button"
@@ -783,7 +840,7 @@ export function RequestFormEntry({
                                 onClick={handleProceedToDocument}
                                 disabled={isSavingDraft || isProceeding}
                             >
-                                {isProceeding ? 'Processing…' : 'Proceed to Document →'}
+                                {isProceeding ? 'Processing…' : <>Proceed to Document <ArrowRightIcon size={14} /></>}
                             </button>
                         </div>
                     </div>

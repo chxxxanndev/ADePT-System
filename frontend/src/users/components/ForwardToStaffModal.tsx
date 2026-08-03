@@ -103,7 +103,7 @@ export function ForwardToStaffModal({
                 <div className="ftsm-footer">
                     <button className="ftsm-btn-cancel" onClick={onClose} disabled={submitting}>Cancel</button>
                     <button className="ftsm-btn-confirm" onClick={handleConfirm} disabled={submitting || !selectedId}>
-                        {submitting ? 'Forwarding…' : '📨 Forward Request'}
+                        {submitting ? 'Forwarding…' : ' Forward Request'}
                     </button>
                 </div>
             </div>
