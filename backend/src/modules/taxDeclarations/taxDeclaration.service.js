@@ -243,33 +243,54 @@ class TaxDeclarationService {
      * single(), so this can't crash even if old duplicate rows exist from
      * before the upsert fix — it just returns the latest one.
      */
-    async getTaxDeclarationByRequestId(requestId) {
-        if (useMock) {
-            const record = [...mockStore.values()].find((r) => r.request_id === requestId);
-            return record ?? null;
-        }
+    // backend/src/modules/taxDeclarations/taxDeclaration.service.js
 
-        const { data, error } = await supabase
-            .from('encoded_tax_declarations')
-            .select(`
-                *,
-                request:requests (
-                    requested_by_name,
-                    property_location
-                ),
-                barangay:barangays ( name ),
-                municipality:municipalities ( name ),
-                encoded_assessment_rows ( * ),
-                encoded_property_types ( * )
-            `)
-            .eq('request_id', requestId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-        if (error) throw error;
-        return data;
+async getTaxDeclarationByRequestId(requestId) {
+    if (useMock) {
+        const record = [...mockStore.values()].find((r) => r.request_id === requestId);
+        return record ?? null;
     }
+
+    const { data, error } = await supabase
+        .from('encoded_tax_declarations')
+        .select(`
+            *,
+            request:requests (
+                requested_by_name,
+                or_number,
+                payment_date,
+                authorized_signatory
+            ),
+            barangay:barangays ( name ),
+            municipality:municipalities ( name ),
+            /* ALIASING: Rename table to assessmentRows and columns to match Frontend */
+            assessmentRows:encoded_assessment_rows (
+                id,
+                kindOfProperty:kind_of_property,
+                classificationId:classification_id,
+                actualUseId:actual_use_id,
+                area,
+                areaUnit:area_unit,
+                marketValue:market_value,
+                assessmentLevel:assessment_level,
+                assessedValue:assessed_value,
+                rowOrder:row_order
+            )
+        `)
+        .eq('request_id', requestId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) throw error;
+    
+    // Sort rows by order if they exist
+    if (data?.assessmentRows) {
+        data.assessmentRows.sort((a, b) => a.rowOrder - b.rowOrder);
+    }
+    
+    return data;
+}
 
     _mockSave(data, staffAuthId) {
         const id = randomUUID();
