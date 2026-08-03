@@ -191,9 +191,15 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                 archivedIds.forEach(id => next.delete(id));
                 return next;
             });
+            const archivedDeclarants = [...new Set(allDocs.map((d: any) => d.declarantName || 'N/A'))].join(', ');
+            const archivedDocTypes = [...new Set(allDocs.map((d: any) => d.documentType || 'N/A'))].join(', ');
             addAdminAuditEntry({
                 type: 'document_archived',
                 description: `Archived ${groups.length} document group(s)`,
+                details: {
+                    Declarant: archivedDeclarants,
+                    'Document Type': archivedDocTypes,
+                },
             }).catch(() => { });
         } catch (error) {
             alert("Archive failed. Please check your connection and try again.");

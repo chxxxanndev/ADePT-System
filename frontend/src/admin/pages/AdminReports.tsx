@@ -258,7 +258,7 @@ export function AdminReports({ user }: AdminReportsProps) {
             user.role === 'ADMIN' ? 'Admin' :
                 'Office Staff';
 
-    const loadReportData = async (isRefresh = false, rangeOverride?: { from: string; to: string } | null) => {
+    const loadReportData = useCallback(async (isRefresh = false, rangeOverride?: { from: string; to: string } | null) => {
         if (!isRefresh) setLoading(true);
         setError(null);
         try {
@@ -276,7 +276,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                 setRows(data.rows.map((r: any) => ({
                     id: r.id,
                     referenceNo: r.referenceNo || 'N/A',
-                    clientName: r.clientName || 'Anonymous Client',
+                    clientName: r.clientName || 'Anonymous Declarant',
                     documentType: r.documentType || 'N/A',
                     requestedDate: r.requestedDate || '',
                     processedBy: r.processedBy || 'Office Staff',
@@ -305,11 +305,11 @@ export function AdminReports({ user }: AdminReportsProps) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [dateRange]);
 
     useEffect(() => {
         void loadReportData();
-    }, []);
+    }, [loadReportData]);
 
     const filteredRows = useMemo(() => {
         if (!dateRange) return rows;
@@ -1086,7 +1086,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                                 <thead>
                                     <tr>
                                         <th>Reference No.</th>
-                                        <th>Client</th>
+                                        <th>Declarant</th>
                                         <th>Document Type</th>
                                         <th>Date</th>
                                         <th>Status</th>
@@ -1172,7 +1172,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                                 <thead>
                                     <tr>
                                         <th>Reference No.</th>
-                                        <th>Client</th>
+                                        <th>Declarant</th>
                                         <th>Document Type</th>
                                         <th>Date</th>
                                         <th>Processed By</th>

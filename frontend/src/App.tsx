@@ -26,7 +26,9 @@ function App() {
     reactivateAccount,
     signUp,
     forgotPassword,
-    logout
+    logout,
+    roleNotice,
+    dismissRoleNotice
   } = useAuth();
 
   // Only show the "Restoring session..." UI if the restore is taking a
@@ -100,6 +102,27 @@ function App() {
               onLogout={logout}
               onUserUpdate={updateCurrentUser}
             />
+          )}
+          {roleNotice && (
+            <div className="role-notice-overlay" role="presentation" onClick={dismissRoleNotice}>
+              <div className="role-notice-modal" role="alertdialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className={`role-notice-badge${roleNotice.variant === 'demoted' ? ' role-notice-badge--staff' : ''}`}
+                  aria-hidden="true"
+                >
+                  {roleNotice.variant === 'demoted' ? 'STAFF' : 'ADMIN'}
+                </div>
+                <h3 className="role-notice-title">{roleNotice.title}</h3>
+                <p className="role-notice-message">{roleNotice.message}</p>
+                <button
+                  type="button"
+                  className="role-notice-button"
+                  onClick={() => { void logout(); }}
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
           )}
         </CartProvider>
       </BrowserRouter>

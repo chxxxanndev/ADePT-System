@@ -7,6 +7,7 @@ export interface User {
     middleInitial?: string;
     lastName: string;
     role?: string;
+    roleName?: string;
     adminLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | null;
     status?: string;
     avatarUrl?: string;

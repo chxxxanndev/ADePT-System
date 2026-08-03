@@ -731,3 +731,84 @@ body {
 
 
 }
+/* Role change notification popup (promotion / demotion / level change) */
+.role-notice-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: role-notice-fade 0.2s ease;
+}
+
+.role-notice-modal {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(37, 33, 117, 0.3);
+    padding: 28px 32px 24px;
+    max-width: 420px;
+    width: calc(100% - 40px);
+    text-align: center;
+    animation: role-notice-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.role-notice-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-color);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    padding: 7px 16px;
+    border-radius: 999px;
+    margin-bottom: 16px;
+}
+
+.role-notice-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+}
+
+.role-notice-message {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    margin-bottom: 22px;
+}
+
+.role-notice-button {
+    background: var(--primary-color);
+    color: #ffffff;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 34px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.role-notice-button:hover {
+    background: var(--primary-hover);
+}
+
+@keyframes role-notice-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes role-notice-pop {
+    from { opacity: 0; transform: translateY(14px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.role-notice-badge--staff {
+    background: var(--text-muted);
+}

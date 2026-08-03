@@ -137,7 +137,9 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const [showAddModal, setShowAddModal] = useState(false);
     const [form, setForm] = useState({
         firstName: '',
+        middleInitial: '',
         lastName: '',
+        suffix: '',
         email: '',
         username: '',
         password: '',
@@ -191,6 +193,29 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const canManageSignatory = hasAdminLevel(user, 'HIGH');
     const superAdmin = isSuperAdmin(user);
 
+    // Admin Access column: visible to Super Admin and to any Admin account.
+    const canUseAdminAccess = superAdmin || user.role === 'ADMIN';
+
+    // Only Super Admin and High-level Admins may choose "Admin" as the role
+    // when creating an account (backend enforces the same rule).
+    const canChooseAdminRole = superAdmin || (user.role === 'ADMIN' && user.adminLevel === 'HIGH');
+
+    /**
+     * Can the current user manage this member's admin access (promote,
+     * demote, change level)? LOW → never; MEDIUM → only staff they
+     * created; HIGH → everyone except Super Admins.
+     */
+    const canManageAdminAccess = (member: StaffRow): boolean => {
+        if (member.roleCode === 'SUPER_ADMIN') return false;
+        if (superAdmin) return true;
+        if (user.role === 'ADMIN') {
+            if (user.adminLevel === 'LOW') return false;
+            if (user.adminLevel === 'MEDIUM') return member.createdBy === user.staffId;
+            return true; // HIGH
+        }
+        return false;
+    };
+
     // ── Filtered + paginated derived lists ─────────────────────────────────────
     const positionOptions = [...new Set(staff.map((s) => s.position).filter((p): p is string => !!p))].sort();
     const filteredStaffList = staff.filter((member) => {
@@ -227,7 +252,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         if (superAdmin) return true;
         if (user.role === 'ADMIN') {
             if (user.adminLevel === 'LOW') return false;
-            if (user.adminLevel === 'MEDIUM') return member.createdBy === user.id;
+            if (user.adminLevel === 'MEDIUM') return member.createdBy === user.staffId;
             return true; // HIGH
         }
         return false;
@@ -243,7 +268,9 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         try {
             await createStaffAccount({
                 firstName: form.firstName,
+                middleInitial: form.middleInitial.trim() || undefined,
                 lastName: form.lastName,
+                suffix: form.suffix.trim() || undefined,
                 email: form.email,
                 username: form.username,
                 password: form.password,
@@ -259,7 +286,9 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
             setFormSuccess('Account created successfully.');
             setForm({
                 firstName: '',
+                middleInitial: '',
                 lastName: '',
+                suffix: '',
                 email: '',
                 username: '',
                 password: '',
@@ -548,14 +577,14 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 <th>Status</th>
                                 <th>Date Added</th>
                                 <th>Action</th>
-                                {superAdmin && <th>Admin Access</th>}
+                                {canUseAdminAccess && <th>Admin Access</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 Array.from({ length: 4 }).map((_, i) => (
                                     <tr key={i}>
-                                        {Array.from({ length: superAdmin ? 8 : 7 }).map((__, j) => (
+                                        {Array.from({ length: canUseAdminAccess ? 8 : 7 }).map((__, j) => (
                                             <td key={j}>
                                                 <div style={{
                                                     height: '14px',
@@ -570,7 +599,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 ))
                             ) : totalRows === 0 ? (
                                 <tr>
-                                    <td colSpan={superAdmin ? 8 : 7} style={{ textAlign: 'center', opacity: 0.5, padding: '24px' }}>
+                                    <td colSpan={canUseAdminAccess ? 8 : 7} style={{ textAlign: 'center', opacity: 0.5, padding: '24px' }}>
                                         No staff members found.
                                     </td>
                                 </tr>
@@ -642,10 +671,11 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                     </span>
                                                 )}
                                             </td>
-                                            {superAdmin && (
+                                            {canUseAdminAccess && (
                                                 <td>
-                                                    <div className="staff-icon-actions" style={{ display: 'flex', gap: '6px', justifyContent: 'center', position: 'relative' }}>
-                                                        {member.roleCode !== 'SUPER_ADMIN' && (
+                                                    {canManageAdminAccess(member) || (canManageSignatory && member.roleCode !== 'SUPER_ADMIN') ? (
+                                                        <div className="staff-icon-actions" style={{ display: 'flex', gap: '6px', justifyContent: 'center', position: 'relative' }}>
+                                                        {canManageAdminAccess(member) && (
                                                             <IconTooltipButton
                                                                 disabled={isInactive}
                                                                 onClick={(e) => {
@@ -743,7 +773,12 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                                 <BadgeIcon size={15} />
                                                             </IconTooltipButton>
                                                         )}
-                                                    </div>
+                                                        </div>
+                                                    ) : (
+                                                        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                                                            No access
+                                                        </span>
+                                                    )}
                                                 </td>
                                             )}
                                         </tr>
@@ -843,8 +878,25 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                     <input required value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
                                 </label>
                                 <label>
+                                    Middle Initial
+                                    <input
+                                        value={form.middleInitial}
+                                        maxLength={3}
+                                        placeholder="M."
+                                        onChange={(e) => setForm({ ...form, middleInitial: e.target.value })}
+                                    />
+                                </label>
+                                <label>
                                     Last name
                                     <input required value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+                                </label>
+                                <label>
+                                    Title / Suffix
+                                    <input
+                                        value={form.suffix}
+                                        placeholder="e.g. REA, Enp, RN (optional)"
+                                        onChange={(e) => setForm({ ...form, suffix: e.target.value })}
+                                    />
                                 </label>
                                 <label>
                                     Email
@@ -860,7 +912,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 </label>
                                 <label>
                                     Role
-                                    {superAdmin ? (
+                                    {canChooseAdminRole ? (
                                         <select
                                             value={form.roleCode}
                                             onChange={(e) => setForm({ ...form, roleCode: e.target.value as 'OFFICE_STAFF' | 'ADMIN' })}
@@ -872,7 +924,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                         <input value="Office Staff" readOnly />
                                     )}
                                 </label>
-                                {superAdmin && form.roleCode === 'ADMIN' && (
+                                {canChooseAdminRole && form.roleCode === 'ADMIN' && (
                                     <label>
                                         Admin level
                                         <select

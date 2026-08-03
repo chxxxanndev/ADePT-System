@@ -652,9 +652,23 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
         await Promise.all(documents.map((doc: any) =>
             requestService.markAsReleased(doc.id, releasedBy)
         ));
+        const releasedDocTypes = [...new Set(documents.map((doc: any) =>
+            doc.documentType
+            || (doc.referenceNumber?.startsWith('TD')
+                ? 'Tax Declaration'
+                : doc.referenceNumber?.startsWith('NLH')
+                    ? 'Certificate of No Landholding'
+                    : 'Certificate of Landholding')
+        ))].join(', ') || 'N/A';
+        const releasedDeclarants = [...new Set(documents.map((doc: any) => doc.declarantName || doc.declarant_name || 'N/A'))].join(', ');
         addAdminAuditEntry({
             type: 'document_released',
             description: `Released ${documents.length} document(s) to ${requesterName}`,
+            details: {
+                Declarant: releasedDeclarants,
+                'Document Type': releasedDocTypes,
+                'Released To': requesterName || 'N/A',
+            },
         }).catch(() => { });
     };
 

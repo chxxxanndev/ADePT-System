@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { User, MockUser } from '../../auth-folder/types/auth';
 import { supabase } from '../../lib/supabaseClient';
 import { addAdminAuditEntry } from '../../admin/services/auditLogService';
@@ -120,6 +120,131 @@ function useAuthState() {
         return () => subscription.unsubscribe();
     }, []);
 
+    // Realtime role/admin-level sync: when an admin promotes/demotes this
+    // account (or changes its admin level), the backend broadcasts on the
+    // shared "staff-role-updates" channel. On a hit we re-fetch the profile
+    // so the role change takes effect in THIS open session instantly —
+    // App.tsx routes on currentUser.role, so a promoted staff member lands
+    // on the admin pages without logging out first. The staff id is kept in
+    // a ref so the subscription can stay mounted for the whole session
+    // without re-reading (potentially stale) state in its closure.
+    const currentUserRef = useRef(currentUser);
+    useEffect(() => {
+        currentUserRef.current = currentUser;
+    }, [currentUser]);
+
+    const [roleNotice, setRoleNotice] = useState<{
+        title: string;
+        message: string;
+        variant: 'promoted' | 'demoted' | 'level' | 'role';
+    } | null>(null);
+
+    const dismissRoleNotice = () => setRoleNotice(null);
+
+    // Re-fetches the account profile and applies it to the session when the
+    // role or admin level actually changed (compared to what the session
+    // currently believes). Used by the realtime broadcast AND as a focus
+    // fallback so a missed broadcast still self-corrects. When `notify` is
+    // true and a change is detected, a popup tells the staff member what
+    // happened — e.g. "You have been promoted to Admin (High access)".
+    const applyFreshProfile = useCallback(async ({ notify = false }: { notify?: boolean } = {}) => {
+        const prev = currentUserRef.current;
+        if (!prev?.staffId) return;
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) return;
+            const res = await fetch(`${BASE_URL}/api/account/profile`, {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            if (!res.ok) return;
+            const { data: profile } = await res.json();
+            if (!profile?.role) return;
+
+            const nextUser: User = {
+                ...prev,
+                firstName: profile.firstName ?? prev.firstName,
+                middleInitial: profile.middleInitial ?? prev.middleInitial,
+                lastName: profile.lastName ?? prev.lastName,
+                email: profile.email ?? prev.email,
+                username: profile.username ?? prev.username,
+                role: profile.role,
+                roleName: profile.roleName,
+                adminLevel: profile.adminLevel ?? null,
+                avatarUrl: profile.avatarUrl ?? prev.avatarUrl,
+                position: profile.position ?? prev.position,
+                suffix: profile.suffix ?? prev.suffix,
+            };
+
+            const roleChanged = nextUser.role !== prev.role;
+            const levelChanged = nextUser.role === 'ADMIN' && nextUser.adminLevel !== prev.adminLevel;
+            if (!roleChanged && !levelChanged) return;
+
+            const levelLabel = nextUser.adminLevel === 'HIGH'
+                ? 'High'
+                : nextUser.adminLevel === 'MEDIUM'
+                    ? 'Medium'
+                    : 'Low';
+
+            if (notify) {
+                if (nextUser.role === 'ADMIN' && roleChanged) {
+                    setRoleNotice({
+                        variant: 'promoted',
+                        title: 'You have been promoted to Admin',
+                        message: `Your account now has ${levelLabel} admin access. Sign in again to continue as an admin.`,
+                    });
+                } else if (nextUser.role === 'OFFICE_STAFF' && roleChanged) {
+                    setRoleNotice({
+                        variant: 'demoted',
+                        title: 'Admin access removed',
+                        message: 'Your account has been demoted to Office Staff. Sign in again to continue on the staff dashboard.',
+                    });
+                } else if (roleChanged) {
+                    setRoleNotice({
+                        variant: 'role',
+                        title: 'Role updated',
+                        message: `Your account role is now ${profile.roleName || nextUser.role}. Sign in again to continue.`,
+                    });
+                } else {
+                    setRoleNotice({
+                        variant: 'level',
+                        title: 'Admin access level updated',
+                        message: `Your admin access level is now ${levelLabel}. Sign in again to continue.`,
+                    });
+                }
+            }
+
+            sessionStorage.setItem('adept_user', JSON.stringify(nextUser));
+            currentUserRef.current = nextUser;
+            setCurrentUser(nextUser);
+        } catch {
+            // Profile refresh failed — keep the current session as-is.
+        }
+    }, []);
+
+    // 1) Realtime trigger: the promoting admin's backend broadcasts on this
+    //    channel right after the role change is committed.
+    useEffect(() => {
+        const channel = supabase
+            .channel('staff-role-updates')
+            .on('broadcast', { event: 'role-updated' }, (payload: { payload?: { staffId?: string } }) => {
+                if (payload?.payload?.staffId !== currentUserRef.current?.staffId) return;
+                void applyFreshProfile({ notify: true });
+            })
+            .subscribe();
+
+        return () => {
+            void supabase.removeChannel(channel);
+        };
+    }, [applyFreshProfile]);
+
+    // 2) Focus fallback: if the realtime broadcast was missed (tab hidden,
+    //    connection hiccup), coming back to the tab re-checks the profile.
+    useEffect(() => {
+        const onFocus = () => void applyFreshProfile({ notify: true });
+        window.addEventListener('focus', onFocus);
+        return () => window.removeEventListener('focus', onFocus);
+    }, [applyFreshProfile]);
+
     const login = async (
         username: string,
         password: string
@@ -158,6 +283,7 @@ function useAuthState() {
 
                     setCurrentUser(data.user); // only now does Dashboard get permission to mount
                     setSessionReady(true);
+                    setRoleNotice(null); // stale notice must not resurface after a fresh sign-in
 
                     addAdminAuditEntry({ type: 'login', description: 'logged in' }).catch(() => { });
                     return { success: true, message: 'Successfully signed in.' };
@@ -315,13 +441,26 @@ function useAuthState() {
         }
     };
 
-    const logout = () => {
-        addAdminAuditEntry({ type: 'logout', description: 'logged out' }).catch(() => { });
+    const logout = async () => {
+        // Await the audit entry BEFORE signing out: signOut() clears the
+        // Supabase session synchronously, so a fire-and-forget POST racing
+        // it could go out token-less and land a 401 from the backend.
+        // Bounded with a timeout so a slow/unreachable backend can never
+        // stall the logout.
+        try {
+            await Promise.race([
+                addAdminAuditEntry({ type: 'logout', description: 'logged out' }),
+                new Promise((resolve) => setTimeout(resolve, 2500)),
+            ]);
+        } catch {
+            // backend unreachable — proceed with local sign-out anyway
+        }
 
         sessionStorage.removeItem('adept_user');
         sessionStorage.removeItem('adept_token');
         sessionStorage.removeItem('adept_refresh_token');
-        supabase.auth.signOut();
+        setRoleNotice(null); // the notice belongs to the previous session only
+        await supabase.auth.signOut();
         setCurrentUser(null);
     };
 
@@ -336,6 +475,8 @@ function useAuthState() {
         signUp,
         forgotPassword,
         logout,
+        roleNotice,
+        dismissRoleNotice,
     };
 }
 

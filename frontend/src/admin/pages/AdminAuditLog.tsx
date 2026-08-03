@@ -55,8 +55,6 @@ type TimeRange = "Today" | "This Week" | "This Month" | "All Time";
 
 type StaffActivityFilter =
   | "All Staff Activity"
-  | "Logins"
-  | "Logouts"
   | "Document Uploads"
   | "Reports Printed"
   | "Pending Documents"
@@ -94,8 +92,6 @@ const DEFAULT_USER: CurrentUser = {
 /*  Activity taxonomy                                                  */
 /* ------------------------------------------------------------------ */
 const STAFF_ACTIVITY_TYPES: AuditActionType[] = [
-  'login',
-  'logout',
   'document_upload',
   'report_print',
   'document_pending',
@@ -115,8 +111,6 @@ const ADMIN_ACTIVITY_TYPES: AuditActionType[] = [
 
 const STAFF_FILTER_TO_TYPE: Record<StaffActivityFilter, AuditActionType | null> = {
   "All Staff Activity": null,
-  Logins: 'login',
-  Logouts: 'logout',
   "Document Uploads": 'document_upload',
   "Reports Printed": 'report_print',
   "Pending Documents": 'document_pending',
@@ -201,6 +195,22 @@ const ICON_CLASS_MAP: Record<AuditActionType, string> = {
  * same-minute entries may tie — for exact ordering, stamp
  * `timestamp: Date.now()` when entries are created in auditLogService.
  */
+function getRangeStart(timeRange: TimeRange): number {
+  const now = new Date();
+  const start = new Date(now);
+  if (timeRange === "Today") {
+    start.setHours(0, 0, 0, 0);
+  } else if (timeRange === "This Week") {
+    const day = now.getDay(); // 0 = Sunday
+    start.setDate(now.getDate() - day);
+    start.setHours(0, 0, 0, 0);
+  } else if (timeRange === "This Month") {
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+  }
+  return start.getTime();
+}
+
 function getEntrySortValue(entry: AuditLogEntry): number {
   if (typeof entry.timestamp === "number" && !Number.isNaN(entry.timestamp)) {
     return entry.timestamp;
@@ -416,7 +426,7 @@ function StaffPerformanceCard() {
 /* ------------------------------------------------------------------ */
 export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
   const [search, setSearch] = useState("");
-  const [timeRange, setTimeRange] = useState<TimeRange>("Today");
+  const [timeRange, setTimeRange] = useState<TimeRange>("All Time");
   const [staffFilter, setStaffFilter] = useState<StaffActivityFilter>("All Staff Activity");
   const [adminFilter, setAdminFilter] = useState<AdminActivityFilter>("All Admin Activity");
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
@@ -485,9 +495,11 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
             .toUpperCase() || 'ST';
           const role = member.roles?.code === 'SUPER_ADMIN'
             ? 'Super Admin'
-            : member.roles?.code === 'OFFICE_STAFF'
-              ? 'Office Staff'
-              : 'Staff';
+            : member.roles?.code === 'ADMIN'
+              ? 'Admin'
+              : member.roles?.code === 'OFFICE_STAFF'
+                ? 'Office Staff'
+                : 'Staff';
 
           return {
             id: member.id,
@@ -561,7 +573,14 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
         search.trim() === "" ||
         entry.actor.toLowerCase().includes(search.toLowerCase()) ||
         entry.description.toLowerCase().includes(search.toLowerCase());
-      const matchesTimeRange = timeRange === "All Time" || entry.date === timeRange || (timeRange === "Today" && entry.date === "Today");
+      // Timestamp-based range matching: "Today" starts at midnight, "This
+      // Week" at the most recent Sunday (or Monday for locales where the
+      // week starts then), "This Month" at the 1st. Falls back to the
+      // display-date string for entries lacking a timestamp.
+      const matchesTimeRange =
+        timeRange === "All Time" ||
+        (entry.timestamp !== undefined && entry.timestamp >= getRangeStart(timeRange)) ||
+        entry.date === timeRange;
       return matchesSearch && matchesTimeRange;
     });
   }, [entries, search, timeRange]);
@@ -596,7 +615,7 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
           <div>
             <h1 className="audit-page-title">Audit log</h1>
             <p className="audit-page-subtitle">
-              A record of every staff and admin action — logins, assessments, uploads, and account changes.
+              A record of every staff and admin action — document uploads, reports, and account changes.
             </p>
           </div>
           <div className="audit-user-chip">
@@ -665,8 +684,6 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
                   className="audit-select"
                 >
                   <option>All Staff Activity</option>
-                  <option>Logins</option>
-                  <option>Logouts</option>
                   <option>Document Uploads</option>
                   <option>Reports Printed</option>
                   <option>Pending Documents</option>

@@ -79,7 +79,7 @@ export function RequestQueue({ user }: RequestQueueProps) {
             const queue: DocumentRequest[] = (data.requestQueue || []).map((r: any) => ({
                 id: r.id,
                 referenceNo: r.referenceNo || r.reference_number || `REF-${r.id?.slice(0, 6).toUpperCase()}`,
-                clientName: r.clientName || r.declarant_name || 'Anonymous Client',
+                clientName: r.clientName || r.declarant_name || 'Anonymous Declarant',
                 documentType: r.documentType || 'N/A',
                 assignedStaff: r.assignedStaff || 'Unassigned',
                 status: (r.status || 'Pending') as RequestStatus,
@@ -163,7 +163,7 @@ export function RequestQueue({ user }: RequestQueueProps) {
                         <input
                             type="text"
                             className="rq-search-input"
-                            placeholder="Search by reference, client, document or staff…"
+                            placeholder="Search by reference, declarant, document or staff…"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -224,7 +224,7 @@ export function RequestQueue({ user }: RequestQueueProps) {
                             <thead>
                                 <tr>
                                     <th>Reference No.</th>
-                                    <th>Client</th>
+                                    <th>Declarant</th>
                                     <th>Document Type</th>
                                     <th>Assigned Staff</th>
                                     <th>Status</th>
