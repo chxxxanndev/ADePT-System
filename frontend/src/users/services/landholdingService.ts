@@ -19,6 +19,11 @@ export interface SaveLandholdingCertificatePayload {
     dateGiven: string;
     givenAt: string;
     purpose: string;
+    signatoryTopSpacing?: number;
+    signatoryGapSpacing?: number;
+    receiptBottomPosition?: number;
+    receiptLeftPosition?: number;
+    receiptRowSpacing?: number;
     action: 'draft' | 'send_to_payment' | 'add_another';
 }
 
@@ -32,6 +37,11 @@ export interface LandholdingCertificateResponse {
     given_at: string;
     purpose: string;
     status: string;
+    signatory_top_spacing?: number;
+    signatory_gap_spacing?: number;
+    receipt_bottom_position?: number;
+    receipt_left_position?: number;
+    receipt_row_spacing?: number;
     request?: {
         or_number: string;
         payment_date: string;

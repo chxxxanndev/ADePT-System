@@ -45,6 +45,8 @@ export interface LandholdingFormData {
     certificationFee: string;    // e.g. "40.00"
     orNumber: string;            // e.g. "1234567"
     dated: string;               // ISO date e.g. "2026-06-29"
+    signatoryTopSpacing: number;
+    signatoryGapSpacing: number;
 }
 
 /** Default empty property row */
@@ -73,4 +75,6 @@ export const EMPTY_LANDHOLDING_FORM = (): LandholdingFormData => ({
     certificationFee: '40.00',
     orNumber: '',
     dated: new Date().toISOString().split('T')[0],
+    signatoryTopSpacing: 60,
+    signatoryGapSpacing: 65,
 });

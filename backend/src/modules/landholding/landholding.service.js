@@ -159,7 +159,7 @@ class LandholdingService {
             signatoryDetails = sig;
         }
 
-        const sortedProperties = cert.properties 
+        const sortedProperties = cert.properties
             ? cert.properties.sort((a, b) => a.row_order - b.row_order).map(this._normalizePropertyRow)
             : [];
 
@@ -295,8 +295,8 @@ class LandholdingService {
 
         const normalizedProps = refreshedProps.map(this._normalizePropertyRow);
 
-        return { 
-            ...cert, 
+        return {
+            ...cert,
             properties: normalizedProps,
             propertyRows: normalizedProps
         };
@@ -313,6 +313,11 @@ class LandholdingService {
             date_given: data.dateGiven || new Date().toISOString(),
             given_at: data.givenAt ?? 'Dipolog City',
             purpose: data.purpose ?? null,
+            signatory_top_spacing: data.signatoryTopSpacing ?? 60,
+            signatory_gap_spacing: data.signatoryGapSpacing ?? 65,
+            receipt_bottom_position: data.receiptBottomPosition ?? 100,
+            receipt_left_position: data.receiptLeftPosition ?? 80,
+            receipt_row_spacing: data.receiptRowSpacing ?? 2,
             status,
             encoded_by: staffAuthId,
             created_at: new Date().toISOString(),

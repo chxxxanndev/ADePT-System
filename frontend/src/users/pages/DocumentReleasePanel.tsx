@@ -15,6 +15,67 @@ interface ActivePreview {
     label: string;
 }
 
+// marginLeft / marginRight participate in the SAME 100%-sum pool as the six
+// real columns (dragged from the same width bar below). They don't render
+// as bordered cells — they're blank space that the real columns are fit
+// into, which is what lets the table box shrink/shift instead of always
+// touching the page's left/right content edge.
+interface TableColWidths {
+    marginLeft: number;
+    td: number;
+    location: number;
+    lot: number;
+    title: number;
+    area: number;
+    assessed: number;
+    marginRight: number;
+}
+
+interface TableSpacing {
+    rowHeight: number;
+    fontSize: number;
+    headerFontSize: number;
+    colWidths: TableColWidths;
+}
+
+interface SignatoryStyle {
+    nameFontSize: number;
+    titleFontSize: number;
+    blockWidth: number;
+    // Per-signatory horizontal nudge (pt) — moves that signatory's whole
+    // block (name + title together) left/right of its default position.
+    offsetX1: number;
+    offsetX2: number;
+}
+
+const DEFAULT_TABLE_SPACING: TableSpacing = {
+    rowHeight: 22,
+    fontSize: 9,
+    headerFontSize: 10,
+    colWidths: { marginLeft: 0, td: 18, location: 26, lot: 12, title: 12, area: 14, assessed: 18, marginRight: 0 },
+};
+
+const DEFAULT_SIGNATORY_STYLE: SignatoryStyle = {
+    nameFontSize: 11,
+    titleFontSize: 11,
+    blockWidth: 250,
+    offsetX1: 0,
+    offsetX2: 0,
+};
+
+// The two margin entries sit at either end of this array so they render as
+// the first/last segments of the bar — i.e. the two outer handles.
+const TABLE_COLUMNS: { key: keyof TableColWidths; label: string; isMargin?: boolean }[] = [
+    { key: 'marginLeft', label: 'Left Margin', isMargin: true },
+    { key: 'td', label: 'TD/ARP No.' },
+    { key: 'location', label: 'Location' },
+    { key: 'lot', label: 'Lot No.' },
+    { key: 'title', label: 'Title No.' },
+    { key: 'area', label: 'Area' },
+    { key: 'assessed', label: 'Assd. Value' },
+    { key: 'marginRight', label: 'Right Margin', isMargin: true },
+];
+
 interface DocumentReleasePanelProps {
     documents: any[];
     orNumber: string;
@@ -25,6 +86,26 @@ interface DocumentReleasePanelProps {
     activeSignatories: Signatory[];
     docSignatories: Record<string, any>;
     onSignatoryChange: (docId: string, roleType: 'primary' | 'secondary', sigId: string) => void;
+
+    docSpacing: Record<string, { top: number; gap: number }>;
+    onSpacingChange: (docId: string, field: 'top' | 'gap', value: number) => void;
+    onResetSpacing: (docId: string) => void;
+
+    docReceiptSpacing: Record<string, { bottom: number; left: number; rowGap: number }>;
+    onReceiptSpacingChange: (docId: string, field: 'bottom' | 'left' | 'rowGap', value: number) => void;
+    onResetReceiptSpacing: (docId: string) => void;
+
+    // Property table layout — Landholding certs only (rows/columns/text size).
+    docTableSpacing: Record<string, TableSpacing>;
+    onTableSpacingChange: (docId: string, field: 'rowHeight' | 'fontSize' | 'headerFontSize', value: number) => void;
+    onColWidthsChange: (docId: string, updates: Partial<TableColWidths>) => void;
+    onResetTableSpacing: (docId: string) => void;
+
+    // Signatory text sizing / block width — lets staff fix a long name or
+    // title that doesn't fit at the default size. Landholding certs only.
+    docSignatoryStyle: Record<string, SignatoryStyle>;
+    onSignatoryStyleChange: (docId: string, field: keyof SignatoryStyle, value: number) => void;
+    onResetSignatoryStyle: (docId: string) => void;
 
     releaseStaffOptions: { id: string; name: string }[];
     onMarkAsReleased: (releasedBy: string) => Promise<void> | void;
@@ -75,6 +156,261 @@ const getDocBadgeConfig = (doc: any) => {
     };
 };
 
+// --- AccordionSection --------------------------------------------------
+// Collapsible wrapper for each layout-control group (Signature, Receipt
+// Block, Property Table). Closed by default so staff who never touch these
+// controls aren't shown 14 fields every time they open a Landholding cert;
+// staff who do need them expand just the section they want. An optional
+// "Reset" link appears in the header (only while open) so a bad value in
+// one section can be backed out without disturbing the others.
+const AccordionSection: React.FC<{
+    title: string;
+    defaultOpen?: boolean;
+    onReset?: () => void;
+    children: React.ReactNode;
+}> = ({ title, defaultOpen = false, onReset, children }) => {
+    const [open, setOpen] = useState(defaultOpen);
+    return (
+        <div style={{ borderTop: '1px solid #e4e7ec', marginTop: 14, paddingTop: 10 }}>
+            <button
+                type="button"
+                onClick={() => setOpen(o => !o)}
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    width: '100%',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                }}
+            >
+                <span
+                    style={{
+                        display: 'inline-flex',
+                        transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.15s ease',
+                        marginRight: 6,
+                        color: '#667085',
+                    }}
+                >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" />
+                    </svg>
+                </span>
+                <span className="pd-field-label" style={{ flex: 1, margin: 0 }}>{title}</span>
+                {onReset && open && (
+                    <span
+                        onClick={(e) => { e.stopPropagation(); onReset(); }}
+                        role="button"
+                        tabIndex={0}
+                        style={{ fontSize: 11, color: '#175cd3', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                        Reset
+                    </span>
+                )}
+            </button>
+            {open && <div style={{ marginTop: 12 }}>{children}</div>}
+        </div>
+    );
+};
+
+// --- Stepper -------------------------------------------------------------
+// Small shared +/- number input, used throughout the accordions below so
+// each control doesn't repeat the same button/input markup.
+const Stepper: React.FC<{
+    label: string;
+    value: number;
+    step: number;
+    min?: number;
+    onChange: (value: number) => void;
+}> = ({ label, value, step, min = 0, onChange }) => (
+    <div className="pd-form-group">
+        <label className="pd-field-label">{label}</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+                type="button"
+                className="pd-btn pd-btn--queue-outline"
+                style={{ padding: '6px 12px' }}
+                onClick={() => onChange(Math.max(min, value - step))}
+            >−</button>
+            <input
+                type="number"
+                className="pd-field-textarea"
+                style={{ textAlign: 'center', width: 70, padding: '6px 8px' }}
+                value={value}
+                onChange={(e) => onChange(Number(e.target.value) || 0)}
+            />
+            <button
+                type="button"
+                className="pd-btn pd-btn--queue-outline"
+                style={{ padding: '6px 12px' }}
+                onClick={() => onChange(value + step)}
+            >+</button>
+        </div>
+    </div>
+);
+
+// --- ColumnWidthBar --------------------------------------------------------
+// Replaces six separate "TD/ARP: 18 [-][+]" steppers with a single
+// spreadsheet-style resize bar. Dragging the handle between two segments
+// grows one and shrinks its neighbor by the same amount, so the row always
+// keeps summing to the same total — no mental arithmetic required.
+//
+// marginLeft/marginRight are folded into the SAME segment array as the six
+// real columns (see TABLE_COLUMNS), which is what gives you two extra
+// handles right at the outer edges of the bar — the "ends" — for free,
+// using the exact same drag math as the inside handles. Margins are allowed
+// to collapse to 0 (unlike real columns, which keep a 5% floor so a column
+// never disappears entirely).
+const ColumnWidthBar: React.FC<{
+    colWidths: TableColWidths;
+    onChange: (updates: Partial<TableColWidths>) => void;
+}> = ({ colWidths, onChange }) => {
+    const barRef = useRef<HTMLDivElement>(null);
+    const dragState = useRef<{
+        leftKey: keyof TableColWidths;
+        rightKey: keyof TableColWidths;
+        startX: number;
+        startLeft: number;
+        startRight: number;
+    } | null>(null);
+
+    const keys = TABLE_COLUMNS.map(c => c.key);
+    const total = keys.reduce((sum, k) => sum + (colWidths[k] || 0), 0) || 100;
+
+    const isMarginKey = (key: keyof TableColWidths) => key === 'marginLeft' || key === 'marginRight';
+    const minWidthFor = (key: keyof TableColWidths) => (isMarginKey(key) ? 0 : 5);
+
+    const handlePointerDown = (index: number) => (e: React.PointerEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        const leftKey = keys[index];
+        const rightKey = keys[index + 1];
+        dragState.current = {
+            leftKey,
+            rightKey,
+            startX: e.clientX,
+            startLeft: colWidths[leftKey] || 0,
+            startRight: colWidths[rightKey] || 0,
+        };
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    };
+
+    const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        const drag = dragState.current;
+        if (!drag || !barRef.current) return;
+        const barWidth = barRef.current.getBoundingClientRect().width || 1;
+        const deltaPercent = ((e.clientX - drag.startX) / barWidth) * total;
+        const pairTotal = drag.startLeft + drag.startRight;
+        const leftMin = minWidthFor(drag.leftKey);
+        const rightMin = minWidthFor(drag.rightKey);
+        let newLeft = drag.startLeft + deltaPercent;
+        newLeft = Math.max(leftMin, Math.min(pairTotal - rightMin, newLeft));
+        const newRight = pairTotal - newLeft;
+        onChange({
+            [drag.leftKey]: Math.round(newLeft),
+            [drag.rightKey]: Math.round(newRight),
+        } as Partial<TableColWidths>);
+    };
+
+    const handlePointerUp = () => {
+        dragState.current = null;
+    };
+
+    let cumulative = 0;
+
+    return (
+        <div>
+            <div
+                ref={barRef}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerLeave={handlePointerUp}
+                style={{
+                    display: 'flex',
+                    width: '100%',
+                    height: 46,
+                    borderRadius: 6,
+                    overflow: 'hidden',
+                    border: '1px solid #d0d5dd',
+                    userSelect: 'none',
+                    position: 'relative',
+                }}
+            >
+                {keys.map((key, i) => {
+                    const width = colWidths[key] || 0;
+                    const widthPct = (width / total) * 100;
+                    const isMargin = !!TABLE_COLUMNS[i].isMargin;
+                    return (
+                        <div
+                            key={key}
+                            style={{
+                                width: `${widthPct}%`,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 10,
+                                fontWeight: 600,
+                                background: isMargin
+                                    ? 'repeating-linear-gradient(45deg, #f2f4f7, #f2f4f7 4px, #e4e7ec 4px, #e4e7ec 8px)'
+                                    : (i % 2 === 0 ? '#eef2f7' : '#e3e8ef'),
+                                borderRight: i < keys.length - 1 ? '1px solid #b7c0cc' : 'none',
+                                color: isMargin ? '#98a2b3' : '#344054',
+                                padding: '2px 3px',
+                                textAlign: 'center',
+                                lineHeight: 1.25,
+                                overflow: 'hidden',
+                            }}
+                        >
+                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                                {TABLE_COLUMNS[i].label}
+                            </span>
+                            <span style={{ fontWeight: 400, opacity: 0.75 }}>{Math.round(width)}%</span>
+                        </div>
+                    );
+                })}
+
+                {keys.slice(0, -1).map((key, i) => {
+                    cumulative += (colWidths[key] || 0);
+                    const leftPct = (cumulative / total) * 100;
+                    return (
+                        <div
+                            key={`handle-${key}`}
+                            onPointerDown={handlePointerDown(i)}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                bottom: 0,
+                                left: `calc(${leftPct}% - 5px)`,
+                                width: 10,
+                                cursor: 'col-resize',
+                                zIndex: 2,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            <div style={{
+                                width: 3,
+                                height: 22,
+                                borderRadius: 2,
+                                background: '#667085',
+                            }} />
+                        </div>
+                    );
+                })}
+            </div>
+            <span className="pd-queue-hint" style={{ color: Math.round(total) !== 100 ? '#b42318' : undefined }}>
+                Total: {Math.round(total)}%{Math.round(total) !== 100
+                    ? ' — drag the handles until columns sum to ~100%.'
+                    : ' — drag any handle to resize; the two outer handles control the left/right table margins.'}
+            </span>
+        </div>
+    );
+};
+
 export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
     documents,
     orNumber,
@@ -84,6 +420,18 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
     activeSignatories,
     docSignatories,
     onSignatoryChange,
+    docSpacing,
+    onSpacingChange,
+    onResetSpacing,
+    docReceiptSpacing,
+    onReceiptSpacingChange,
+    onResetReceiptSpacing,
+    docTableSpacing,
+    onTableSpacingChange,
+    onColWidthsChange,
+    onResetTableSpacing,
+    docSignatoryStyle,
+    onSignatoryStyleChange,
     releaseStaffOptions,
     onMarkAsReleased,
     onReleased,
@@ -95,6 +443,12 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
     const [isQueuing, setIsQueuing] = useState(false);
     const [queueError, setQueueError] = useState('');
     const iframeRef = useRef<HTMLIFrameElement>(null);
+    // Tracks whether the embedded PDF viewer has actually finished loading.
+    // Printing before this fires is why the Print button used to appear to
+    // do nothing — contentWindow.print() was firing before the PDF plugin
+    // had anything loaded to print. Resets whenever the preview changes.
+    const [isPreviewLoaded, setIsPreviewLoaded] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(false);
 
     // --- Release guard state -------------------------------------------------
     // Tracks whether the user has resolved this panel via one of the two
@@ -117,9 +471,63 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
 
     const staffOptions = releaseStaffOptions.map(s => ({ id: s.id, label: s.name }));
 
+    // Only Landholding certificates render the two-signature layout with
+    // adjustable spacing — Tax Declarations use a single certifying signatory
+    // and No-Landholding certs currently don't expose this control either.
+    const isLandholdingDoc = !!activeDoc?.referenceNumber?.startsWith('LH');
+    const activeSpacing = activeDoc ? (docSpacing[activeDoc.id] || { top: 60, gap: 65 }) : { top: 60, gap: 65 };
+    const activeReceiptSpacing = activeDoc
+        ? (docReceiptSpacing[activeDoc.id] || { bottom: 500, left: 80, rowGap: 2 })
+        : { bottom: 100, left: 80, rowGap: 2 };
+    const activeTableSpacing = activeDoc
+        ? (docTableSpacing[activeDoc.id] || DEFAULT_TABLE_SPACING)
+        : DEFAULT_TABLE_SPACING;
+    const activeSignatoryStyle = activeDoc
+        ? (docSignatoryStyle[activeDoc.id] || DEFAULT_SIGNATORY_STYLE)
+        : DEFAULT_SIGNATORY_STYLE;
+
+    // Reset the "loaded" flag every time a new preview URL comes in — the
+    // iframe remounts (key={activePreview.url}) so its onLoad will fire
+    // again once the new PDF is actually rendered.
+    useEffect(() => {
+        setIsPreviewLoaded(false);
+    }, [activePreview?.url]);
+
+    const handleIframeLoad = () => setIsPreviewLoaded(true);
+
     const handlePrint = () => {
-        iframeRef.current?.contentWindow?.focus();
-        iframeRef.current?.contentWindow?.print();
+        if (!activePreview) return;
+        setIsPrinting(true);
+
+        const win = iframeRef.current?.contentWindow;
+        try {
+            if (win) {
+                win.focus();
+                win.print();
+                setIsPrinting(false);
+                return;
+            }
+        } catch (err) {
+            // Some browsers block scripted print() on an embedded PDF
+            // viewer (cross-context/plugin restrictions). Fall through to
+            // the new-tab fallback below instead of failing silently.
+            console.error('In-frame print failed, falling back to a new tab:', err);
+        }
+
+        // Fallback: open the PDF in its own tab and print from there once
+        // it has loaded — this works even when the in-frame print call is
+        // blocked.
+        const printWindow = window.open(activePreview.url, '_blank');
+        if (printWindow) {
+            printWindow.addEventListener('load', () => {
+                printWindow.focus();
+                printWindow.print();
+            });
+            setIsPrinting(false);
+        } else {
+            setIsPrinting(false);
+            alert('Your browser blocked the print tab. Please allow pop-ups for this site, or use Download and print from your PDF viewer.');
+        }
     };
 
     const handleRelease = async () => {
@@ -188,7 +596,10 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
     // than the browser's native beforeunload prompt — can walk the user
     // toward "Save & Release Later" or "Mark as Released". Middle-clicks,
     // modifier-clicks, and target="_blank" links are left alone since those
-    // open in a new tab/window and don't abandon this panel.
+    // open in a new tab/window and don't abandon this panel. Links carrying
+    // a `download` attribute (like the Download button below) are also left
+    // alone — clicking them downloads a file in place, it doesn't navigate
+    // away from this panel, so there's nothing here to guard against.
     //
     // Note: if this app navigates via a client-side router (e.g. React
     // Router) rather than plain <a> tags, wire this same actionTaken check
@@ -201,6 +612,7 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
 
             const anchor = (e.target as HTMLElement)?.closest('a[href]') as HTMLAnchorElement | null;
             if (!anchor || anchor.target === '_blank') return;
+            if (anchor.hasAttribute('download')) return;
 
             const href = anchor.getAttribute('href') || '';
             if (!href || href.startsWith('#')) return;
@@ -229,6 +641,7 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                             src={`${activePreview.url}#toolbar=0&navpanes=0&scrollbar=0`}
                             className="pd-pdf-iframe"
                             title={`Preview — ${activePreview.label}`}
+                            onLoad={handleIframeLoad}
                         />
                     ) : isGeneratingPdf ? (
                         <div className="pd-pdf-placeholder">
@@ -337,6 +750,162 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                                 </div>
                             )}
                         </div>
+
+                        {/* --- Layout accordions — Landholding certs only, since
+                            these props are only wired into that template. Each
+                            section is collapsed by default; staff expand only
+                            the one they need. --- */}
+                        {isLandholdingDoc && (
+                            <AccordionSection title="Signature Layout" onReset={() => onResetSpacing(activeDoc.id)}>
+                                <div className="pd-sig-selectors">
+                                    <Stepper
+                                        label="Space Above Signatures (pt)"
+                                        value={activeSpacing.top}
+                                        step={5}
+                                        onChange={(v) => onSpacingChange(activeDoc.id, 'top', v)}
+                                    />
+                                    <Stepper
+                                        label="Space Between Signatories (pt)"
+                                        value={activeSpacing.gap}
+                                        step={5}
+                                        onChange={(v) => onSpacingChange(activeDoc.id, 'gap', v)}
+                                    />
+                                </div>
+
+                                {/* Signatory text size / block width — added so a
+                                    very long name or title has somewhere to go
+                                    besides clipping or wrapping awkwardly. */}
+                                <div className="pd-sig-selectors" style={{ marginTop: 10 }}>
+                                    <Stepper
+                                        label="Signatory Name Text Size (pt)"
+                                        value={activeSignatoryStyle.nameFontSize}
+                                        step={1}
+                                        min={6}
+                                        onChange={(v) => onSignatoryStyleChange(activeDoc.id, 'nameFontSize', v)}
+                                    />
+                                    <Stepper
+                                        label="Signatory Title Text Size (pt)"
+                                        value={activeSignatoryStyle.titleFontSize}
+                                        step={1}
+                                        min={6}
+                                        onChange={(v) => onSignatoryStyleChange(activeDoc.id, 'titleFontSize', v)}
+                                    />
+                                </div>
+                                <div className="pd-form-group" style={{ marginTop: 10 }}>
+                                    <Stepper
+                                        label="Signatory Block Width (pt)"
+                                        value={activeSignatoryStyle.blockWidth}
+                                        step={10}
+                                        min={100}
+                                        onChange={(v) => onSignatoryStyleChange(activeDoc.id, 'blockWidth', v)}
+                                    />
+                                </div>
+
+                                {/* Horizontal position — moves each signatory's
+                                    whole block (name + title together, since
+                                    they're one unit) left or right of its
+                                    default right-aligned position. Independent
+                                    per signatory, negative = left, positive =
+                                    right. */}
+                                <div className="pd-sig-selectors" style={{ marginTop: 10 }}>
+                                    <Stepper
+                                        label="Signatory 1 — Left/Right Position (pt)"
+                                        value={activeSignatoryStyle.offsetX1}
+                                        step={5}
+                                        min={-400}
+                                        onChange={(v) => onSignatoryStyleChange(activeDoc.id, 'offsetX1', v)}
+                                    />
+                                    <Stepper
+                                        label="Signatory 2 — Left/Right Position (pt)"
+                                        value={activeSignatoryStyle.offsetX2}
+                                        step={5}
+                                        min={-400}
+                                        onChange={(v) => onSignatoryStyleChange(activeDoc.id, 'offsetX2', v)}
+                                    />
+                                </div>
+                                <span className="pd-queue-hint">
+                                    If a long name or title wraps or clips, widen the block or shrink the text size.
+                                    Negative values move a signatory left, positive values move it right — the name
+                                    and title move together.
+                                </span>
+                            </AccordionSection>
+                        )}
+
+                        {/* Receipt block (Cert. Fee / O.R. No. / Dated) position & spacing —
+                            same live-nudge pattern as the signature layout controls above. */}
+                        {isLandholdingDoc && (
+                            <AccordionSection title="Receipt Block" onReset={() => onResetReceiptSpacing(activeDoc.id)}>
+                                <div className="pd-sig-selectors">
+                                    <Stepper
+                                        label="From Bottom (pt)"
+                                        value={activeReceiptSpacing.bottom}
+                                        step={5}
+                                        onChange={(v) => onReceiptSpacingChange(activeDoc.id, 'bottom', v)}
+                                    />
+                                    <Stepper
+                                        label="From Left (pt)"
+                                        value={activeReceiptSpacing.left}
+                                        step={5}
+                                        onChange={(v) => onReceiptSpacingChange(activeDoc.id, 'left', v)}
+                                    />
+                                    <Stepper
+                                        label="Line Spacing (pt)"
+                                        value={activeReceiptSpacing.rowGap}
+                                        step={1}
+                                        onChange={(v) => onReceiptSpacingChange(activeDoc.id, 'rowGap', v)}
+                                    />
+                                </div>
+                            </AccordionSection>
+                        )}
+
+                        {/* Property table layout — row height, text sizes, and
+                            per-column widths + margins (a single drag-resize
+                            bar instead of separate steppers). Landholding only
+                            (this is the only template with a property table). */}
+                        {isLandholdingDoc && (
+                            <AccordionSection title="Property Table Layout" onReset={() => onResetTableSpacing(activeDoc.id)}>
+                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                                    <div style={{ flex: 1, minWidth: 120 }}>
+                                        <Stepper
+                                            label="Row Height (pt)"
+                                            value={activeTableSpacing.rowHeight}
+                                            step={2}
+                                            min={10}
+                                            onChange={(v) => onTableSpacingChange(activeDoc.id, 'rowHeight', v)}
+                                        />
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 120 }}>
+                                        <Stepper
+                                            label="Row Text Size (pt)"
+                                            value={activeTableSpacing.fontSize}
+                                            step={1}
+                                            min={6}
+                                            onChange={(v) => onTableSpacingChange(activeDoc.id, 'fontSize', v)}
+                                        />
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 120 }}>
+                                        <Stepper
+                                            label="Header Text Size (pt)"
+                                            value={activeTableSpacing.headerFontSize}
+                                            step={1}
+                                            min={6}
+                                            onChange={(v) => onTableSpacingChange(activeDoc.id, 'headerFontSize', v)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="pd-field-label" style={{ marginTop: 12, marginBottom: 6 }}>Column Widths &amp; Margins</div>
+                                <ColumnWidthBar
+                                    colWidths={activeTableSpacing.colWidths}
+                                    onChange={(updates) => onColWidthsChange(activeDoc.id, updates)}
+                                />
+                                <span className="pd-queue-hint" style={{ display: 'block', marginTop: 6 }}>
+                                    Drag the two outer handles to add left/right margin around the table — everything
+                                    in between stays proportioned to the six columns. The table auto-flows onto a new
+                                    page (repeating the header) after 15 rows.
+                                </span>
+                            </AccordionSection>
+                        )}
                     </div>
                 )}
 
@@ -362,12 +931,12 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                             type="button"
                             onClick={handlePrint}
                             className="pd-btn pd-btn--print-action"
-                            disabled={!activePreview}
+                            disabled={!activePreview || !isPreviewLoaded || isPrinting}
                         >
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                             </svg>
-                            Print
+                            {activePreview && !isPreviewLoaded ? 'Preparing…' : 'Print'}
                         </button>
 
                         {activePreview ? (

@@ -33,6 +33,26 @@ const formatCurrency = (value: string | number) => {
   return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+// --- Pagination ------------------------------------------------------------
+// A page holds at most this many property rows. Once the table exceeds this,
+// the remaining rows flow onto a new page, which repeats the header image,
+// the background art, and the column headers. Only the LAST page carries the
+// "Given this day..." paragraph, the signatories, and the receipt block.
+const ROWS_PER_PAGE = 15;
+
+// Default column widths (must add up to ~100). Adjustable per-document via
+// the `colWidths` prop (wired to the sidebar steppers in the release panel).
+const DEFAULT_COL_WIDTHS = {
+  td: 18,
+  location: 26,
+  lot: 12,
+  title: 12,
+  area: 14,
+  assessed: 18,
+};
+
+type ColWidths = typeof DEFAULT_COL_WIDTHS;
+
 const styles = StyleSheet.create({
   page: {
     padding: 0,
@@ -83,6 +103,7 @@ const styles = StyleSheet.create({
   underlineText: {
     fontWeight: 'bold',
     textDecoration: 'underline',
+    letterSpacing: 0.1,
   },
   table: {
     width: '100%',
@@ -116,12 +137,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   signatoryContainer: {
-    marginTop: 60,
     width: '100%',
     alignItems: 'flex-end',
   },
   signatoryBlock: {
-    marginBottom: 65,
     textAlign: 'center',
     width: 250,
   },
@@ -131,13 +150,10 @@ const styles = StyleSheet.create({
   },
   receiptContainer: {
     position: 'absolute',
-    bottom: 100,
-    left: 80,
     width: 150,
   },
   receiptRow: {
     flexDirection: 'row',
-    marginBottom: 2,
     alignItems: 'flex-end',
   },
   receiptLabel: { width: 55, fontSize: 10 },
@@ -148,6 +164,15 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     paddingLeft: 5,
+  },
+  pageNumber: {
+    position: 'absolute',
+    bottom: 70,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 9,
+    color: '#444',
   },
 });
 
@@ -165,6 +190,28 @@ interface CertOfLandholdingPDFProps {
   signatory1Title?: string;
   signatory2Name?: string;
   signatory2Title?: string;
+  signatoryTopSpacing?: number;
+  signatoryGapSpacing?: number;
+  // --- Signatory text sizing / block width — lets staff shrink the font or
+  // widen the block when a name/title is too long to fit on one line at the
+  // default size. Applies uniformly to both signatory blocks, same pattern
+  // as signatoryTopSpacing/signatoryGapSpacing above. ---
+  signatoryNameFontSize?: number;
+  signatoryTitleFontSize?: number;
+  signatoryBlockWidth?: number;
+  // Per-signatory horizontal nudge (pt). Moves the whole block — name AND
+  // title together — left (negative) or right (positive) of its default
+  // right-aligned position. Independent per signatory.
+  signatory1HorizontalOffset?: number;
+  signatory2HorizontalOffset?: number;
+  receiptBottomPosition?: number;
+  receiptLeftPosition?: number;
+  receiptRowSpacing?: number;
+  // --- Table layout (rows / columns / text size) — all live-adjustable ---
+  tableRowHeight?: number;
+  tableFontSize?: number;
+  tableHeaderFontSize?: number;
+  colWidths?: Partial<ColWidths>;
   paperSizeOverride?: string;
   request?: {
     or_number?: string;
@@ -192,9 +239,25 @@ export const CertOfLandholdingPDF = (props: CertOfLandholdingPDFProps) => {
     signatory1Title,
     signatory2Name = 'CHINA CHAN-OLARIO, RN, REA, REB, Enp',
     signatory2Title = 'Assistant Provincial Assessor',
+    signatoryTopSpacing = 60,
+    signatoryGapSpacing = 65,
+    signatoryNameFontSize = 11,
+    signatoryTitleFontSize = 11,
+    signatoryBlockWidth = 250,
+    signatory1HorizontalOffset = 0,
+    signatory2HorizontalOffset = 0,
+    receiptBottomPosition = 100,
+    receiptLeftPosition = 80,
+    receiptRowSpacing = 2,
+    tableRowHeight = 22,
+    tableFontSize = 9,
+    tableHeaderFontSize = 10,
+    colWidths,
     paperSizeOverride,
     request
   } = props;
+
+  const widths: ColWidths = { ...DEFAULT_COL_WIDTHS, ...(colWidths || {}) };
 
   const displayName = declarant_name || ownerName || request?.requested_by_name || '';
   const finalOrNumber = orNumber || request?.or_number || '';
@@ -214,127 +277,204 @@ export const CertOfLandholdingPDF = (props: CertOfLandholdingPDFProps) => {
     }
   }
 
+  // Page size is still picked off the *total* property count, so a
+  // multi-page certificate stays consistent across all of its pages rather
+  // than switching paper size mid-document.
   const selectedPageSize = paperSizeOverride || (properties.length > 4 ? 'LEGAL' : 'LETTER');
   const INDENT = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0';
 
   const dayParts = displayDay ? getOrdinalSuffixParts(displayDay) : null;
 
+  // --- Split properties into pages of ROWS_PER_PAGE ------------------------
+  const pages: any[][] = [];
+  for (let i = 0; i < properties.length; i += ROWS_PER_PAGE) {
+    pages.push(properties.slice(i, i + ROWS_PER_PAGE));
+  }
+  if (pages.length === 0) pages.push([]); // always render at least one page
+  const totalPages = pages.length;
+
+  const renderTableHeader = () => (
+    <View style={styles.tableRow}>
+      <View style={[styles.cell, { width: `${widths.td}%` }]}>
+        <Text style={[styles.thText, { fontSize: tableHeaderFontSize }]}>TD/ARP No.</Text>
+      </View>
+      <View style={[styles.cell, { width: `${widths.location}%` }]}>
+        <Text style={[styles.thText, { fontSize: tableHeaderFontSize }]}>Location of Prop.</Text>
+      </View>
+      <View style={[styles.cell, { width: `${widths.lot}%` }]}>
+        <Text style={[styles.thText, { fontSize: tableHeaderFontSize }]}>Lot No.</Text>
+      </View>
+      <View style={[styles.cell, { width: `${widths.title}%` }]}>
+        <Text style={[styles.thText, { fontSize: tableHeaderFontSize }]}>Title No.</Text>
+      </View>
+      <View style={[styles.cell, { width: `${widths.area}%` }]}>
+        <Text style={[styles.thText, { fontSize: tableHeaderFontSize }]}>Area</Text>
+      </View>
+      <View style={[styles.cell, { width: `${widths.assessed}%` }]}>
+        <Text style={[styles.thText, { fontSize: tableHeaderFontSize }]}>Assd. Value</Text>
+      </View>
+    </View>
+  );
+
   return (
     <Document>
-      <Page size={selectedPageSize as any} style={styles.page}>
-        <Image src={`${getBaseUrl()}/images/landholding_header.png`} style={styles.headerImage} />
-        <Image fixed src={`${getBaseUrl()}/images/landholding_bg.png`} style={styles.bottomBackground} />
+      {pages.map((pageProperties, pageIndex) => {
+        const isFirstPage = pageIndex === 0;
+        const isLastPage = pageIndex === pages.length - 1;
+        const rowOffset = pageIndex * ROWS_PER_PAGE;
 
-        <View style={styles.content}>
-          <Text style={styles.title}>CERTIFICATE OF LANDHOLDING</Text>
-          <Text style={styles.salutation}>TO WHOM IT MAY CONCERN:</Text>
+        return (
+          <Page key={pageIndex} size={selectedPageSize as any} style={styles.page}>
+            {/* Header/logo image only on the first page — continuation
+                pages skip it per request. Background art still repeats
+                on every page. */}
+            {isFirstPage && (
+                <Image src={`${getBaseUrl()}/images/landholding_header.png`} style={styles.headerImage} />
+            )}
+            <Image fixed src={`${getBaseUrl()}/images/landholding_bg.png`} style={styles.bottomBackground} />
 
-          <Text style={styles.officialParagraph}>
-            <Text>{INDENT}</Text>
-            <Text style={{ fontWeight: 'bold' }}>THIS IS TO CERTIFY</Text>
-            <Text> that </Text>
-            <Text style={styles.underlineText}>{String(displayName).toUpperCase()}</Text>
-            <Text>, is/are the declared owner/s of real property/properties described hereunder within the taxing jurisdiction of this province.</Text>
-          </Text>
+            <View style={[styles.content, !isFirstPage ? { paddingTop: 70 } : {}]}>
+              {isFirstPage && (
+                <>
+                  <Text style={styles.title}>CERTIFICATE OF LANDHOLDING</Text>
+                  <Text style={styles.salutation}>TO WHOM IT MAY CONCERN:</Text>
 
-          <View style={styles.table}>
-            {/* Header Row */}
-            <View style={styles.tableRow}>
-              <View style={[styles.cell, { width: '18%' }]}><Text style={styles.thText}>TD/ARP No.</Text></View>
-              <View style={[styles.cell, { width: '26%' }]}><Text style={styles.thText}>Location of Prop.</Text></View>
-              <View style={[styles.cell, { width: '12%' }]}><Text style={styles.thText}>Lot No.</Text></View>
-              <View style={[styles.cell, { width: '12%' }]}><Text style={styles.thText}>Title No.</Text></View>
-              <View style={[styles.cell, { width: '14%' }]}><Text style={styles.thText}>Area</Text></View>
-              <View style={[styles.cell, { width: '18%' }]}><Text style={styles.thText}>Assd. Value</Text></View>
-            </View>
+                  <Text style={styles.officialParagraph}>
+  <Text>{INDENT}</Text>
+  <Text style={{ fontWeight: 'bold' }}>THIS IS TO CERTIFY</Text>
+  <Text> that </Text>
+  {/* Added \u00A0 (non-breaking space) before and after the name */}
+  <Text style={styles.underlineText}>
+    {`\u00A0${String(displayName)}\u00A0`}
+  </Text>
+  <Text>, is/are the declared owner/s of real property/properties described hereunder within the taxing jurisdiction of this province.</Text>
+</Text>
+                </>
+              )}
 
-            {/* Property Rows */}
-            {properties.map((prop: any, index: number) => {
-              const td = prop.tdArpNumber || prop.td_arp_number || prop.tdNo || prop.td_number || '';
-              const loc = prop.locationOfProperty || prop.location_of_property || prop.location || prop.property_location || prop.propertyLocation || '';
-              const lot = prop.lotNumber || prop.lot_number || prop.lotNo || '';
-              const title = prop.titleNumber || prop.title_number || prop.titleNo || '';
-              const areaVal = prop.area || prop.areaSqM || '';
-              const assd = prop.assessedValue || prop.assessed_value || prop.assdValue || '';
+              <View style={styles.table}>
+                {renderTableHeader()}
 
-              return (
-                <View key={index} style={styles.tableRow} wrap={false}>
-                  <View style={[styles.cell, { width: '18%', alignItems: 'center' }]}>
-                    <Text style={styles.tdText}>{td}</Text>
-                  </View>
-                  <View style={[styles.cell, { width: '26%', alignItems: 'center', paddingHorizontal: 2 }]}>
-                    <Text style={styles.tdText}>{loc}</Text>
-                  </View>
-                  <View style={[styles.cell, { width: '12%', alignItems: 'center' }]}>
-                    <Text style={styles.tdText}>{lot}</Text>
-                  </View>
-                  <View style={[styles.cell, { width: '12%', alignItems: 'center' }]}>
-                    <Text style={styles.tdText}>{title}</Text>
-                  </View>
-                  <View style={[styles.cell, { width: '14%', alignItems: 'center' }]}>
-                    <Text style={styles.tdText}>{areaVal}</Text>
-                  </View>
-                  <View style={[styles.cell, { width: '18%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6 }]}>
-                    {assd !== '' && (
-                      <>
-                        <Text style={styles.tdText}>PHP</Text>
-                        <Text style={styles.tdText}>{formatCurrency(assd)}</Text>
-                      </>
+                {pageProperties.map((prop: any, index: number) => {
+                  const td = prop.tdArpNumber || prop.td_arp_number || prop.tdNo || prop.td_number || '';
+                  const loc = prop.locationOfProperty || prop.location_of_property || prop.location || prop.property_location || prop.propertyLocation || '';
+                  const lot = prop.lotNumber || prop.lot_number || prop.lotNo || '';
+                  const title = prop.titleNumber || prop.title_number || prop.titleNo || '';
+                  const areaVal = prop.area || prop.areaSqM || '';
+                  const assd = prop.assessedValue || prop.assessed_value || prop.assdValue || '';
+
+                  return (
+                    <View key={rowOffset + index} style={[styles.tableRow, { minHeight: tableRowHeight }]} wrap={false}>
+                      <View style={[styles.cell, { width: `${widths.td}%`, alignItems: 'center' }]}>
+                        <Text style={[styles.tdText, { fontSize: tableFontSize }]}>{td}</Text>
+                      </View>
+                      <View style={[styles.cell, { width: `${widths.location}%`, alignItems: 'center', paddingHorizontal: 2 }]}>
+                        <Text style={[styles.tdText, { fontSize: tableFontSize }]}>{loc}</Text>
+                      </View>
+                      <View style={[styles.cell, { width: `${widths.lot}%`, alignItems: 'center' }]}>
+                        <Text style={[styles.tdText, { fontSize: tableFontSize }]}>{lot}</Text>
+                      </View>
+                      <View style={[styles.cell, { width: `${widths.title}%`, alignItems: 'center' }]}>
+                        <Text style={[styles.tdText, { fontSize: tableFontSize }]}>{title}</Text>
+                      </View>
+                      <View style={[styles.cell, { width: `${widths.area}%`, alignItems: 'center' }]}>
+                        <Text style={[styles.tdText, { fontSize: tableFontSize }]}>{areaVal}</Text>
+                      </View>
+                      <View style={[styles.cell, { width: `${widths.assessed}%`, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6 }]}>
+                        {assd !== '' && (
+                          <>
+                            <Text style={[styles.tdText, { fontSize: tableFontSize }]}>PHP</Text>
+                            <Text style={[styles.tdText, { fontSize: tableFontSize }]}>{formatCurrency(assd)}</Text>
+                          </>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {isLastPage && (
+                <>
+                  <Text style={styles.officialParagraph}>
+                    <Text>{INDENT}</Text>
+                    <Text>Given this </Text>
+                    {dayParts ? (
+                      <Text style={styles.underlineText}>
+                        {dayParts.number}
+                        <Text style={{ fontSize: 7 }}>{dayParts.suffix}</Text>
+                      </Text>
+                    ) : (
+                      <Text style={styles.underlineText}>____</Text>
+                    )}
+                    <Text> day of </Text>
+                    <Text style={styles.underlineText}>{displayMonthYear || '________________'}</Text>
+                    <Text>, at Dipolog City for whatever legal purpose/intent it may serve best.</Text>
+                  </Text>
+
+                  <View style={[styles.signatoryContainer, { marginTop: signatoryTopSpacing }]}>
+                    <View style={[
+                      styles.signatoryBlock,
+                      {
+                        marginBottom: signatoryGapSpacing,
+                        width: signatoryBlockWidth,
+                        transform: `translateX(${signatory1HorizontalOffset}px)`,
+                      },
+                    ]}>
+                      <Text style={[styles.signatoryName, { fontSize: signatoryNameFontSize }]}>{activeSignatory1Name}</Text>
+                      <Text style={{ fontSize: signatoryTitleFontSize }}>{activeSignatory1Title}</Text>
+                    </View>
+                    {signatory2Name && (
+                      <View style={[
+                        styles.signatoryBlock,
+                        {
+                          width: signatoryBlockWidth,
+                          transform: `translateX(${signatory2HorizontalOffset}px)`,
+                        },
+                      ]}>
+                        <Text style={[styles.signatoryName, { fontSize: signatoryNameFontSize }]}>{signatory2Name}</Text>
+                        <Text style={{ fontSize: signatoryTitleFontSize }}>{signatory2Title}</Text>
+                      </View>
                     )}
                   </View>
-                </View>
-              );
-            })}
-          </View>
-
-          <Text style={styles.officialParagraph}>
-            <Text>{INDENT}</Text>
-            <Text>Given this </Text>
-            {dayParts ? (
-              <Text style={styles.underlineText}>
-                {dayParts.number}
-                <Text style={{ fontSize: 7 }}>{dayParts.suffix}</Text>
-              </Text>
-            ) : (
-              <Text style={styles.underlineText}>____</Text>
-            )}
-            <Text> day of </Text>
-            <Text style={styles.underlineText}>{displayMonthYear || '________________'}</Text>
-            <Text>, at Dipolog City for whatever legal purpose/intent it may serve best.</Text>
-          </Text>
-
-          <View style={styles.signatoryContainer}>
-            <View style={styles.signatoryBlock}>
-              <Text style={styles.signatoryName}>{activeSignatory1Name}</Text>
-              <Text style={{ fontSize: 11 }}>{activeSignatory1Title}</Text>
+                </>
+              )}
             </View>
-            {signatory2Name && (
-              <View style={styles.signatoryBlock}>
-                <Text style={styles.signatoryName}>{signatory2Name}</Text>
-                <Text style={{ fontSize: 11 }}>{signatory2Title}</Text>
+
+            {isLastPage && (
+              <View style={[styles.receiptContainer, { bottom: receiptBottomPosition, left: receiptLeftPosition }]}>
+                <View style={[styles.receiptRow, { marginBottom: receiptRowSpacing }]}>
+                  <Text style={styles.receiptLabel}>Cert. Fee</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 'bold' }}>: </Text>
+                  <Text style={styles.receiptValue}>Php. {certFee}</Text>
+                </View>
+                <View style={[styles.receiptRow, { marginBottom: receiptRowSpacing }]}>
+                  <Text style={styles.receiptLabel}>O.R. No.</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 'bold' }}>: </Text>
+                  <Text style={styles.receiptValue}>{finalOrNumber}</Text>
+                </View>
+                <View style={[styles.receiptRow, { marginBottom: receiptRowSpacing }]}>
+                  <Text style={styles.receiptLabel}>Dated</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 'bold' }}>: </Text>
+                  <Text style={styles.receiptValue}>{finalDatePaid}</Text>
+                </View>
               </View>
             )}
-          </View>
-        </View>
 
-        <View style={styles.receiptContainer}>
-          <View style={styles.receiptRow}>
-            <Text style={styles.receiptLabel}>Cert. Fee</Text>
-            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>: </Text>
-            <Text style={styles.receiptValue}>Php. {certFee}</Text>
-          </View>
-          <View style={styles.receiptRow}>
-            <Text style={styles.receiptLabel}>O.R. No.</Text>
-            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>: </Text>
-            <Text style={styles.receiptValue}>{finalOrNumber}</Text>
-          </View>
-          <View style={styles.receiptRow}>
-            <Text style={styles.receiptLabel}>Dated</Text>
-            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>: </Text>
-            <Text style={styles.receiptValue}>{finalDatePaid}</Text>
-          </View>
-        </View>
-      </Page>
+            {/* Page number — sits in the same footer band between the
+                receipt block and the signature block, repeated on every
+                page so multi-page certs are easy to keep in order. We
+                already know pageIndex/totalPages ourselves (we built the
+                `pages` array), so this is a plain computed string rather
+                than react-pdf's render+fixed API — that API is for content
+                that overflows a *single* <Page> into multiple physical
+                pages automatically; here we're building explicit <Page>
+                elements ourselves, so render+fixed never fires. */}
+            {totalPages > 1 && (
+  <Text style={styles.pageNumber}>{`Page ${pageIndex + 1} of ${totalPages}`}</Text>
+)}
+          </Page>
+        );
+      })}
     </Document>
   );
 };
