@@ -147,8 +147,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [formSuccess, setFormSuccess] = useState<string | null>(null);
-    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-    const [roleFilter, setRoleFilter] = useState<'all' | 'staff' | 'admin'>('all');
+    const [filter, setFilter] = useState('all');
 
     // ── Promote / Demote / Change-level flow state ────────────────────────────
     const [confirmPromote, setConfirmPromote] = useState<StaffRow | null>(null);
@@ -193,13 +192,17 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const superAdmin = isSuperAdmin(user);
 
     // ── Filtered + paginated derived lists ─────────────────────────────────────
+    const positionOptions = [...new Set(staff.map((s) => s.position).filter((p): p is string => !!p))].sort();
     const filteredStaffList = staff.filter((member) => {
-        const statusMatch = statusFilter === 'all' || member.status === statusFilter;
-        const roleMatch =
-            roleFilter === 'all' ||
-            (roleFilter === 'staff' && member.roleCode === 'OFFICE_STAFF') ||
-            (roleFilter === 'admin' && (member.roleCode === 'ADMIN' || member.roleCode === 'SUPER_ADMIN'));
-        return statusMatch && roleMatch;
+        if (filter === 'all') return true;
+        if (filter === 'active-staff') return member.status === 'active' && member.roleCode === 'OFFICE_STAFF';
+        if (filter === 'inactive-staff') return member.status === 'inactive' && member.roleCode === 'OFFICE_STAFF';
+        if (filter === 'active-admin') return member.status === 'active' && (member.roleCode === 'ADMIN' || member.roleCode === 'SUPER_ADMIN');
+        if (filter === 'inactive-admin') return member.status === 'inactive' && (member.roleCode === 'ADMIN' || member.roleCode === 'SUPER_ADMIN');
+        if (filter === 'signatory') return member.isSignatory;
+        if (filter === 'non-signatory') return !member.isSignatory;
+        if (filter.startsWith('position:')) return member.position === filter.slice('position:'.length);
+        return true;
     });
     const totalRows = filteredStaffList.length;
     const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
@@ -211,13 +214,14 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     // so you don't get stuck on an empty page after narrowing the results.
     useEffect(() => {
         setCurrentPage(1);
-    }, [statusFilter, roleFilter, rowsPerPage, searchQuery]);
+    }, [filter, rowsPerPage, searchQuery]);
 
     /**
      * Can the current user toggle active/inactive on this staff member?
      */
     const canManageStaffMember = (member: StaffRow): boolean => {
-        if (member.roleCode === 'ADMIN' || member.roleCode === 'SUPER_ADMIN') {
+        if (member.roleCode === 'SUPER_ADMIN') return false;
+        if (member.roleCode === 'ADMIN') {
             return superAdmin;
         }
         if (superAdmin) return true;
@@ -454,27 +458,30 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
 
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: '#cbd5e1' }}>
-                            <span>Status</span>
+                            <span>Filter</span>
                             <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
-                                style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', background: '#ffffff', color: '#0f172a', padding: '6px 10px' }}
+                                value={filter}
+                                onChange={(e) => setFilter(e.target.value)}
+                                style={{ borderRadius: '8px', border: '1px solid rgb(24 23 23 / 41%)', background: '#ffffff', color: '#0f172a', padding: '6px 10px' }}
                             >
-                                <option value="all">All</option>
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                            </select>
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: '#cbd5e1' }}>
-                            <span>Role</span>
-                            <select
-                                value={roleFilter}
-                                onChange={(e) => setRoleFilter(e.target.value as 'all' | 'staff' | 'admin')}
-                                style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', background: '#ffffff', color: '#0f172a', padding: '6px 10px' }}
-                            >
-                                <option value="all">All</option>
-                                <option value="staff">Staff</option>
-                                <option value="admin">Admin</option>
+                                <option value="all">All Accounts</option>
+                                <optgroup label="Status · Role">
+                                    <option value="active-staff">Active · Staff</option>
+                                    <option value="inactive-staff">Inactive · Staff</option>
+                                    <option value="active-admin">Active · Admin</option>
+                                    <option value="inactive-admin">Inactive · Admin</option>
+                                </optgroup>
+                                <optgroup label="Signatory">
+                                    <option value="signatory">Signatory</option>
+                                    <option value="non-signatory">Non-Signatory</option>
+                                </optgroup>
+                                {positionOptions.length > 0 && (
+                                    <optgroup label="Position">
+                                        {positionOptions.map((p) => (
+                                            <option key={p} value={`position:${p}`}>{p}</option>
+                                        ))}
+                                    </optgroup>
+                                )}
                             </select>
                         </label>
                         <button
@@ -626,8 +633,8 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                         {updatingId === member.id
                                                             ? 'Saving…'
                                                             : member.status === 'active'
-                                                            ? 'Deactivate'
-                                                            : 'Activate'}
+                                                                ? 'Deactivate'
+                                                                : 'Activate'}
                                                     </button>
                                                 ) : (
                                                     <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
@@ -658,8 +665,8 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                                     isInactive
                                                                         ? 'Reactivate this staff member to manage admin access'
                                                                         : member.roleCode === 'ADMIN'
-                                                                        ? 'Manage Admin Access'
-                                                                        : 'Promote to Admin'
+                                                                            ? 'Manage Admin Access'
+                                                                            : 'Promote to Admin'
                                                                 }
                                                                 background={isInactive ? '#FDE2E2' : '#DDF3E4'}
                                                                 color={isInactive ? '#DC2626' : '#14532D'}
@@ -711,8 +718,8 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                                     isInactive
                                                                         ? 'Reactivate this staff member to assign as signatory'
                                                                         : member.isSignatory
-                                                                        ? 'Remove as Signatory'
-                                                                        : 'Assign as Signatory'
+                                                                            ? 'Remove as Signatory'
+                                                                            : 'Assign as Signatory'
                                                                 }
                                                                 background={member.isSignatory ? '#FEF9C3' : (isInactive ? '#F1F5F9' : '#DDF3E4')}
                                                                 color={member.isSignatory ? '#854D0E' : (isInactive ? '#94A3B8' : '#14532D')}
@@ -1085,6 +1092,10 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 'Local Assessment Operations Officer IV',
                                 'Local Assessment Operations Officer III',
                                 'Local Assessment Operations Officer II',
+                                'Tax Mapper IV',
+                                'Tax Mapper III',
+                                'Tax Mapper II',
+                                'Tax Mapper I',
                                 'Provincial Assessor',
                                 'Assistant Provincial Assessor',
                             ] as const).map((t) => {

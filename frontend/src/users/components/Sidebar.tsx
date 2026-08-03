@@ -13,6 +13,8 @@ import {
     LogoutIcon,
     MenuIcon,
     BellIcon,
+    InfoIcon,
+    ArchiveIcon,
 } from './icons';
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -22,8 +24,10 @@ const ICONS: Record<string, React.ComponentType<{ size?: number; className?: str
     requestProcessing: ClipboardListIcon,
     documentProcessing: FilesIcon,
     transactionManagement: SwapIcon,
+    archiveManagement: ArchiveIcon, // NEW
     reports: BarChartIcon,
     settings: SettingsIcon,
+    about: InfoIcon,
 };
 
 interface SidebarProps {

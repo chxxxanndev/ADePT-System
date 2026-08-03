@@ -81,10 +81,12 @@ export const navSections: NavSection[] = [
             {
                 label: 'Transaction Management',
                 icon: 'transactionManagement',
-                subItems: [
-                    { label: 'Transaction Registry', dotColor: 'green', view: 'transaction-registry' },
-                    { label: 'Archive Management', dotColor: 'purple', view: 'archive-management' },
-                ],
+                view: 'transaction-registry',
+            },
+            {
+                label: 'Archive Management',
+                icon: 'archiveManagement',
+                view: 'archive-management',
             },
         ],
     },
@@ -96,6 +98,7 @@ export const navSections: NavSection[] = [
         label: 'Others',
         items: [
             { label: 'Settings', icon: 'settings', view: 'account-settings' },
+            { label: 'About Us', icon: 'about', view: 'about-adept' },
         ],
     },
 ];

@@ -6,6 +6,7 @@ import { ForwardToStaffModal } from '../components/ForwardToStaffModal';
 import '../styles/RequestFormEntry.css';
 import { CheckIcon, SaveIcon, LightbulbIcon } from '../components/icons';
 import { addAdminAuditEntry } from '../../admin/services/auditLogService';
+import { TransactionProgressBar } from '../components/TransactionProgressPanel';
 
 interface ExtendedRequestFormData extends RequestFormData {
     id?: string;
@@ -20,6 +21,16 @@ interface RequestFormEntryProps {
     onEntryComplete: (data: CompletedEntryData) => void;
     onNavigateToProcessing: (view: string) => void;
     prefilledRequestData?: any | null;
+    cartItemCount?: number;
+    onGoToTransactionSummary?: () => void;
+    onAddAnotherAfterDiscard?: (base: {
+        declarantName?: string;
+        requestedByName?: string;
+        propertyLocation?: string;
+        purposeId?: string;
+        authRequired?: boolean | null;
+        actionTaken?: string;
+    }) => void;
 }
 
 // --- UI HELPERS ---
@@ -106,7 +117,34 @@ function SearchableSelectDropdown({ options, value, onChange, placeholder, hasEr
 }
 
 const PersonIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" /></svg>);
-const ClipboardIconLarge = () => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1M9 10h6M9 14h6M9 18h3" /></svg>);
+const ClipboardIconLarge = ({ size = 28 }: { size?: number }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1M9 10h6M9 14h6M9 18h3" /></svg>);
+const TrashIcon = ({ size = 18 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 6h18" />
+        <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+        <path d="M10 11v6M14 11v6" />
+    </svg>
+);
+const WarningIcon = ({ size = 13 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+        <path d="M12 9v4" />
+        <path d="M12 17h.01" />
+    </svg>
+);
+const SendIcon = ({ size = 14 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 2L11 13" />
+        <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+    </svg>
+);
+const ArrowRightIcon = ({ size = 14 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 12h14" />
+        <path d="M13 5l7 7-7 7" />
+    </svg>
+);
 
 // --- CONSTANTS ---
 const DOCUMENT_TYPE_ID_VIEW_MAP: Record<string, string> = {
@@ -131,7 +169,17 @@ const PURPOSE_OPTIONS = [
 
 // ----------------------------------------------
 
-export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateToProcessing, prefilledRequestData }: RequestFormEntryProps) {
+export function RequestFormEntry({
+    user,
+    onCancel,
+    onEntryComplete,
+    onNavigateToProcessing,
+    prefilledRequestData,
+    cartItemCount = 0,
+    onGoToTransactionSummary,
+    onAddAnotherAfterDiscard,
+}: RequestFormEntryProps) {
+
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [isProceeding, setIsProceeding] = useState(false);
     const [metadata, setMetadata] = useState<{ docTypes: any[]; purposes: any[]; staff: any[]; propertyLocations: { id: string; name: string }[]; }>({ docTypes: [], purposes: PURPOSE_OPTIONS, staff: [], propertyLocations: [], });
@@ -154,6 +202,21 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
         }
         return { declarantName: '', requestedByName: '', requestDate: new Date().toISOString().split('T')[0], purposeId: '', documentTypeIds: [], authRequired: false, actionTaken: 'PENDING', propertyLocation: '', purposeOtherText: '', referenceNumber: `REF-${new Date().getFullYear()}-0000` };
     });
+
+    // Auto-growing textarea for "Name of Declarant" — lets long names wrap onto
+    // additional lines instead of scrolling out of view inside a single-line input.
+    const declarantNameRef = useRef<HTMLTextAreaElement>(null);
+
+    const resizeDeclarantName = () => {
+        const el = declarantNameRef.current;
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+    };
+
+    useEffect(() => {
+        resizeDeclarantName();
+    }, [formData.declarantName]);
 
     const displayReferenceNumber = (() => {
         const year = new Date().getFullYear();
@@ -224,6 +287,11 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
             // Lock/unlock document type based on prefilled data
             setDocTypeLocked(!!prefilledRequestData.lockedDocType);
         }
+    }, [prefilledRequestData]);
+
+    // Resize once more after prefilled data lands (e.g. a long declarant name from a draft)
+    useEffect(() => {
+        resizeDeclarantName();
     }, [prefilledRequestData]);
 
     const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -454,15 +522,31 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     };
 
     const [showDiscardModal, setShowDiscardModal] = useState(false);
+    const [isDiscarding, setIsDiscarding] = useState(false);
+    const [showNextStepChoice, setShowNextStepChoice] = useState(false);
 
     const handleDiscardRequest = () => {
         setShowDiscardModal(true);
     };
 
-    const handleConfirmDiscard = () => {
-        setShowDiscardModal(false);
+    const handleConfirmDiscard = async () => {
+        setIsDiscarding(true);
+        if (formData.id) {
+            try {
+                await requestService.updateRequest(formData.id, { status: 'CANCELLED' });
+            } catch (err) {
+                console.error('Failed to cancel this request on discard', err);
+            }
+        }
         try { localStorage.removeItem(RFE_LS_KEY); } catch { }
-        onCancel();
+        setIsDiscarding(false);
+        setShowDiscardModal(false);
+
+        if (cartItemCount > 0) {
+            setShowNextStepChoice(true);
+        } else {
+            onCancel();
+        }
     };
 
     return (
@@ -470,19 +554,24 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
 
             {/* ── Discard Confirmation Modal ── */}
             {showDiscardModal && (
-                <div className="rfe-modal-overlay" onClick={() => setShowDiscardModal(false)}>
+                <div className="rfe-modal-overlay" onClick={() => !isDiscarding && setShowDiscardModal(false)}>
                     <div className="rfe-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="rfe-modal-icon">🗑</div>
+                        <div className="rfe-modal-icon"><TrashIcon size={32} /></div>
                         <h3 className="rfe-modal-title">Discard This Request?</h3>
                         <p className="rfe-modal-body">
-                            The client's request will be <strong>cancelled</strong> and all unsaved entries will be permanently lost.
-                            This action cannot be undone.
+                            This request will be <strong>cancelled</strong> and all unsaved entries will be permanently lost.
+                            {cartItemCount > 0 && (
+                                <> The <strong>{cartItemCount} document{cartItemCount === 1 ? '' : 's'}</strong> already saved
+                                    in this transaction will <strong>not</strong> be affected.</>
+                            )}
+                            {' '}This action cannot be undone.
                         </p>
                         <div className="rfe-modal-actions">
                             <button
                                 type="button"
                                 className="rfe-modal-btn-cancel"
                                 onClick={() => setShowDiscardModal(false)}
+                                disabled={isDiscarding}
                             >
                                 Keep Editing
                             </button>
@@ -490,8 +579,53 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                 type="button"
                                 className="rfe-modal-btn-confirm"
                                 onClick={handleConfirmDiscard}
+                                disabled={isDiscarding}
                             >
-                                Yes, Discard Request
+                                {isDiscarding ? 'Discarding…' : 'Yes, Discard Request'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showNextStepChoice && (
+                <div className="rfe-modal-overlay" onClick={() => setShowNextStepChoice(false)}>
+                    <div className="rfe-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="rfe-modal-icon"><ClipboardIconLarge size={32} /></div>
+                        <h3 className="rfe-modal-title">What would you like to do next?</h3>
+                        <p className="rfe-modal-body">
+                            You still have <strong>{cartItemCount} document{cartItemCount === 1 ? '' : 's'}</strong> saved
+                            in this transaction. You can add another document to it, or go review and submit
+                            what's already saved.
+                        </p>
+                        <div className="rfe-modal-actions">
+                            <button
+                                type="button"
+                                className="rfe-modal-btn-cancel"
+                                onClick={() => {
+                                    setShowNextStepChoice(false);
+                                    if (onAddAnotherAfterDiscard) {
+                                        onAddAnotherAfterDiscard({
+                                            declarantName: formData.declarantName,
+                                            requestedByName: formData.requestedByName,
+                                            propertyLocation: formData.propertyLocation,
+                                            purposeId: formData.purposeId,
+                                            authRequired: formData.authRequired,
+                                            actionTaken: formData.actionTaken,
+                                        });
+                                    } else {
+                                        onCancel();
+                                    }
+                                }}
+                            >
+                                Add Another Document
+                            </button>
+                            <button
+                                type="button"
+                                className="rfe-modal-btn-confirm"
+                                onClick={() => { setShowNextStepChoice(false); onGoToTransactionSummary?.(); }}
+                            >
+                                Proceed to Transaction Summary
                             </button>
                         </div>
                     </div>
@@ -506,6 +640,13 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                     </svg>
                 </span>
                 <span className="rfe-breadcrumb-current">Request Form</span>
+            </div>
+
+            <div className="txp-form-wrapper">
+                <TransactionProgressBar
+                    referenceNumber={formData.id ? formData.referenceNumber : undefined}
+                    emptyHint="No documents saved yet — fill out the form below to add your first one."
+                />
             </div>
 
             <div className="rfe-page-inner">
@@ -541,11 +682,21 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                             <div className="rfe-field">
                                 <label className="rfe-label" htmlFor="declarantName">Name of Declarant</label>
                                 <div className="input-with-clear">
-                                    <input
+                                    <textarea
                                         id="declarantName"
                                         name="declarantName"
+                                        ref={declarantNameRef}
+                                        rows={1}
                                         className={`rfe-input ${fieldErrors.declarantName ? 'rfe-input-error' : ''}`}
-                                        type="text"
+                                        style={{
+                                            resize: 'none',
+                                            overflow: 'hidden',
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                            overflowWrap: 'break-word',
+                                            fontFamily: 'inherit',
+                                            lineHeight: 1.4,
+                                        }}
                                         placeholder="e.g. Juan D. Cruz"
                                         value={formData.declarantName}
                                         onChange={(e) => {
@@ -555,7 +706,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                     />
                                     {formData.declarantName && (<button type="button" className="input-clear-btn" onClick={() => setFormData({ ...formData, declarantName: '' })} title="Clear Name">×</button>)}
                                 </div>
-                                {fieldErrors.declarantName && <span className="rfe-field-error">⚠️ {fieldErrors.declarantName}</span>}
+                                {fieldErrors.declarantName && <span className="rfe-field-error" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><WarningIcon /> {fieldErrors.declarantName}</span>}
 
                                 <div className="rfe-field" style={{ marginTop: 14 }}>
                                     <label className="rfe-label">May I/We request for:</label>
@@ -579,11 +730,10 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                             hasError={!!fieldErrors.documentTypeIds}
                                         />
                                     )}
-                                    {fieldErrors.documentTypeIds && <span className="rfe-field-error">⚠️ {fieldErrors.documentTypeIds}</span>}
+                                    {fieldErrors.documentTypeIds && <span className="rfe-field-error" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><WarningIcon /> {fieldErrors.documentTypeIds}</span>}
                                 </div>
                             </div>
 
-                            {/* Hide "Location of the Property" if Certificate of No Landholding (NLH) is chosen */}
                             {!isNoLandholdingSelected && (
                                 <div className="rfe-field" style={{ marginTop: 14 }}>
                                     <label className="rfe-label">Location of the Property</label>
@@ -597,7 +747,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                         placeholder="Brgy., Municipality, Province"
                                         hasError={!!fieldErrors.propertyLocation}
                                     />
-                                    {fieldErrors.propertyLocation && <span className="rfe-field-error">⚠️ {fieldErrors.propertyLocation}</span>}
+                                    {fieldErrors.propertyLocation && <span className="rfe-field-error" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><WarningIcon /> {fieldErrors.propertyLocation}</span>}
                                 </div>
                             )}
 
@@ -612,7 +762,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                         if (fieldErrors.requestDate) setFieldErrors((prev) => ({ ...prev, requestDate: '' }));
                                     }}
                                 />
-                                {fieldErrors.requestDate && <span className="rfe-field-error">⚠️ {fieldErrors.requestDate}</span>}
+                                {fieldErrors.requestDate && <span className="rfe-field-error" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><WarningIcon /> {fieldErrors.requestDate}</span>}
                             </div>
                             <div className="rfe-field" style={{ marginTop: 14 }}>
                                 <label className="rfe-label">Requested By</label>
@@ -626,7 +776,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                         if (fieldErrors.requestedByName) setFieldErrors((prev) => ({ ...prev, requestedByName: '' }));
                                     }}
                                 />
-                                {fieldErrors.requestedByName && <span className="rfe-field-error">⚠️ {fieldErrors.requestedByName}</span>}
+                                {fieldErrors.requestedByName && <span className="rfe-field-error" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><WarningIcon /> {fieldErrors.requestedByName}</span>}
                             </div>
                             <div className="rfe-field" style={{ marginTop: 14 }}>
                                 <label className="rfe-label">Authorization</label>
@@ -638,7 +788,6 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                         <div className="rfe-section">
                             <div className="rfe-return-archive-box">
                                 <label className="rfe-label" htmlFor="releasing-staff-select">Encoded By: </label>
-                                {/* Automatically displays the logged-in user's name in a read-only format */}
                                 <input
                                     id="releasing-staff-select"
                                     className="rfe-input"
@@ -649,9 +798,8 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                 />
                             </div>
                         </div>
-                    </div> {/* <--- THIS IS THE DIV THAT WAS MISSING! */}
+                    </div>
 
-                    {/* SESSION BANNER */}
                     <div className="form-reuse-notice">
                         <div className="form-reuse-notice-icon"><LightbulbIcon size={20} /></div>
                         <div className="form-reuse-notice-text">
@@ -679,12 +827,12 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                 disabled={isSavingDraft || isProceeding}
                                 title="Cancel and discard this request"
                             >
-                                🗑 Discard Request
+                                <TrashIcon size={14} /> Discard Request
                             </button>
                         </div>
                         <div style={{ display: 'flex', gap: 12 }}>
                             <button className="btn-forward" type="button" onClick={handleOpenForwardModal} disabled={isSavingDraft || isProceeding}>
-                                📨 Forward to Staff
+                                <SendIcon size={14} /> Forward to Staff
                             </button>
                             <button
                                 type="button"
@@ -692,7 +840,7 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                 onClick={handleProceedToDocument}
                                 disabled={isSavingDraft || isProceeding}
                             >
-                                {isProceeding ? 'Processing…' : 'Proceed to Document →'}
+                                {isProceeding ? 'Processing…' : <>Proceed to Document <ArrowRightIcon size={14} /></>}
                             </button>
                         </div>
                     </div>

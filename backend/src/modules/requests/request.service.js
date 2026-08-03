@@ -1097,8 +1097,12 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
         const processingCount = allReqs.filter(r => ['IN_PROGRESS'].includes(r.status)).length;
 
         // Document Distribution
+        const validReqIds = new Set(allReqs.map(r => r.id));
         const docCounts = {};
         for (const link of docLinks || []) {
+            if ((from || to) && !validReqIds.has(link.request_id)) {
+                continue;
+            }
             const name = link.document_types?.name || 'General Certificate';
             docCounts[name] = (docCounts[name] || 0) + 1;
         }
@@ -1181,8 +1185,12 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
 
         const totalDocuments = allReqs.length;
         const totalReleased = allReqs.filter(r => r.status === 'RELEASED').length;
-        const totalPending = allReqs.filter(r => ['DRAFT', 'PENDING'].includes(r.status)).length;
+        const totalPending = allReqs.filter(r => !['RELEASED', 'VOID', 'CANCELLED'].includes(r.status)).length;
         const totalPaid = allReqs.filter(r => r.status === 'PAID').length;
+
+        const originalCount = allReqs.filter(r => r.request_type === 'ORIGINAL').length;
+        const reprintCount = allReqs.filter(r => r.request_type === 'REPRINT').length;
+        const amendedCount = allReqs.filter(r => !!r.amended_from_id).length;
 
         const STATUS_LABEL_MAP = {
             DRAFT: 'Pending',
@@ -1207,7 +1215,10 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
                 requestedDate: r.request_date || r.created_at ? new Date(r.request_date || r.created_at).toISOString().split('T')[0] : '',
                 processedBy: staffName,
                 status: STATUS_LABEL_MAP[r.status] || 'Pending',
+                actionTaken: r.action_taken || 'PENDING',
                 orNumber: r.or_number || 'N/A',
+                requestType: r.request_type || 'ORIGINAL',
+                amendedFromId: r.amended_from_id || null,
             };
         });
 
@@ -1216,6 +1227,9 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
             totalReleased,
             totalPending,
             totalPaid,
+            originalCount,
+            reprintCount,
+            amendedCount,
             rows,
         };
     }
