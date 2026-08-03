@@ -12,7 +12,7 @@ export interface AssessmentRow {
     actualUseId: string;
     actualUseOtherText: string;
     area: string;
-    areaUnit: 'HECTARE' | 'SQM';
+    areaUnit: 'has.' | 'sqm.';
     marketValue: string;
     assessmentLevel: string;         // percentage, e.g. "12"
     assessedValue: string;           // auto-calculated
@@ -110,7 +110,7 @@ export const EMPTY_ASSESSMENT_ROW = (): AssessmentRow => ({
     actualUseId: '',
     actualUseOtherText: '',
     area: '',
-    areaUnit: 'HECTARE',
+    areaUnit: 'has.',
     marketValue: '',
     assessmentLevel: '',
     assessedValue: '',

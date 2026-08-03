@@ -14,6 +14,7 @@ import { DocumentRequestDashboard } from './DocumentRequestDashboard';
 import Reports from './Reports';
 import CertifiedTrueCopy from './CeritifiedTrueCopy-Reprint';
 import ArchiveManagement from './ArchiveManagement';
+import { AboutADePT } from './AboutADePT';
 import { NotificationPage } from './NotificationPage';
 import { PendingForRelease } from './PendingForRelease';
 import { requestService } from '../services/requestService';
@@ -41,6 +42,7 @@ import { useOnlinePresence } from '../../admin/services/useOnlinePresence';
 import { useReportsAnalytics } from '../hooks/useReportsAnalytics';
 import type { Transaction } from '../types/transaction';
 import type { TransactionRow } from '../types/dashboard';
+
 
 import {
     navSections,
@@ -344,21 +346,19 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         setActiveView('document-request');
     };
 
-    const handleDiscardDocumentForm = async () => {
-        if (completedEntryData?.requestId) {
-            try {
-                await requestService.updateRequest(completedEntryData.requestId, { status: 'CANCELLED' });
-            } catch (err) {
-                console.error('Failed to cancel request on discard', err);
-            }
-            try {
-                localStorage.removeItem(`adept-td-${completedEntryData.requestId}`);
-                localStorage.removeItem(`adept-lh-${completedEntryData.requestId}`);
-                localStorage.removeItem(`adept-nlh-${completedEntryData.requestId}`);
-            } catch { }
-        }
+    const handleDiscardDocumentForm = () => {
         setCompletedEntryData(null);
+        setPrefilledRequestData(null);
         setActiveView('document-request');
+    };
+
+    // Used when the user discards their current (unsaved/in-progress) document
+    // but chooses to proceed to Transaction Summary for whatever they've
+    // already saved, rather than starting a new one.
+    const handleDiscardToTransactionSummary = () => {
+        setCompletedEntryData(null);
+        setPrefilledRequestData(null);
+        setActiveView('transaction-summary');
     };
 
     const handleDiscardRequestFormEntry = () => {
@@ -452,6 +452,52 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         guardedSetActiveView('payment-details');
     };
 
+
+    const buildAddAnotherPrefill = (base: {
+        declarantName?: string;
+        requestedByName?: string;
+        propertyLocation?: string;
+        purposeId?: string;
+        authRequired?: boolean | null;
+        actionTaken?: string;
+    }) => ({
+        declarantName: base.declarantName || '',
+        requestedByName: base.requestedByName || '',
+        requestDate: new Date().toISOString().split('T')[0],
+        purposeId: base.purposeId || '',
+        authRequired: base.authRequired ?? false,
+        actionTaken: base.actionTaken || 'PENDING',
+        propertyLocation: base.propertyLocation || '',
+        id: undefined,
+        requestId: undefined,
+        documentTypeIds: [],
+        lockedDocType: false,
+        referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
+    });
+
+    // const handleAddAnother = () => {
+    //     if (completedEntryData) {
+    //         setPrefilledRequestData({
+    //             declarantName: completedEntryData.declarantName,
+    //             requestedByName: completedEntryData.requestedByName,
+    //             requestDate: new Date().toISOString().split('T')[0],
+    //             purposeId: completedEntryData.purposeId,
+    //             authRequired: completedEntryData.authRequired,
+    //             actionTaken: completedEntryData.actionTaken || 'PENDING',
+    //             propertyLocation: completedEntryData.propertyLocation,
+    //             id: undefined,
+    //             requestId: undefined,
+    //             documentTypeIds: [],
+    //             lockedDocType: false,
+    //             referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
+    //         });
+    //         const base = completedEntryData || cartItems[0];
+    //         setPrefilledRequestData(buildAddAnotherPrefill(base || {}));
+    //         setCompletedEntryData(null);
+    //         setActiveView('new-request');
+    //     }
+    // };
+
     const handleAddAnother = () => {
         if (completedEntryData) {
             setPrefilledRequestData({
@@ -468,12 +514,27 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 lockedDocType: false,
                 referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
             });
+            const base = completedEntryData || cartItems[0];
+            setPrefilledRequestData(buildAddAnotherPrefill(base || {}));
             setCompletedEntryData(null);
             setActiveView('new-request');
         }
     };
 
     if (!user) return <div className="white-screen-fix">Loading Session...</div>;
+
+    const handleAddAnotherFromDiscard = (base: {
+        declarantName?: string;
+        requestedByName?: string;
+        propertyLocation?: string;
+        purposeId?: string;
+        authRequired?: boolean | null;
+        actionTaken?: string;
+    }) => {
+        setPrefilledRequestData(buildAddAnotherPrefill(base));
+        setCompletedEntryData(null);
+        setActiveView('new-request');
+    };
 
     const handleNavigate = (view: string) => {
         guardedSetActiveView(view);
@@ -516,6 +577,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         'archive-management',
         'transaction-summary',
         'notifications',
+        'about-adept',
     ].includes(activeView);
 
     const isRequestFormView = activeView === 'new-request' || activeView === 'request-form';
@@ -643,6 +705,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                         />
                     ) : activeView === 'archive-management' ? (
                         <ArchiveManagement />
+                    ) : activeView === 'about-adept' ? (
+                        <AboutADePT />
                     ) : activeView === 'notifications' ? (
                         <NotificationPage
                             notifications={notifications}
@@ -660,6 +724,9 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onEntryComplete={handleEntryComplete}
                             onNavigateToProcessing={handleNavigateToProcessing}
                             prefilledRequestData={prefilledRequestData}
+                            cartItemCount={cartItems.length}
+                            onGoToTransactionSummary={handleDiscardToTransactionSummary}
+                            onAddAnotherAfterDiscard={handleAddAnotherFromDiscard}
                         />
                     ) : activeView === 'tax-declaration' || activeView === 'tax-dec' ? (
                         completedEntryData ? (
@@ -667,6 +734,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                                 user={user}
                                 entryData={completedEntryData}
                                 onDiscard={handleDiscardDocumentForm}
+                                onDiscardToSummary={handleDiscardToTransactionSummary}
+                                onAddAnotherAfterDiscard={handleAddAnotherFromDiscard}
                                 onGoToSummary={() => setActiveView('transaction-summary')}
                                 onAddAnother={handleAddAnother}
                             />
@@ -683,6 +752,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                                 user={user}
                                 entryData={completedEntryData}
                                 onDiscard={handleDiscardDocumentForm}
+                                onDiscardToSummary={handleDiscardToTransactionSummary}
+                                onAddAnotherAfterDiscard={handleAddAnotherFromDiscard}
                                 onGoToSummary={() => setActiveView('transaction-summary')}
                                 onAddAnother={handleAddAnother}
                             />
@@ -699,6 +770,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                                 user={user}
                                 entryData={completedEntryData}
                                 onDiscard={handleDiscardDocumentForm}
+                                onDiscardToSummary={handleDiscardToTransactionSummary}
+                                onAddAnotherAfterDiscard={handleAddAnotherFromDiscard}
                                 onGoToSummary={() => setActiveView('transaction-summary')}
                                 onAddAnother={handleAddAnother}
                             />
@@ -717,7 +790,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onSelectDocumentView={(view) => setActiveView(view)}
                         />
                     ) : activeView === 'transaction-summary' ? (
-                        completedEntryData ? (
+                        (completedEntryData || cartItems.length > 0) ? (
                             <TransactionSummary
                                 entryData={completedEntryData}
                                 onBackToForms={handleAddAnother}
@@ -753,7 +826,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             payment={selectedPayment}
                             onBack={() => setActiveView('pending-payment')}
                             onReleased={() => setActiveView('transaction-registry')}
-                             onReleasedReprint={() => setActiveView('certified-true-copy')} 
+                            onReleasedReprint={() => setActiveView('certified-true-copy')}
                             onSavedForLater={() => setActiveView('pending-for-release')}
                             onEditDocument={(_controlNumber) => {
                                 if (selectedPayment?.documentType.toLowerCase().includes('landholding')) {
@@ -771,7 +844,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onNavigateBack={() => setActiveView('document-request')} /* ADD THIS */
                             onSwitchView={(view: string) => setActiveView(view)} /* ADD THIS */
                         />
-                   ) : activeView === 'transaction-registry' ? (
+                    ) : activeView === 'transaction-registry' ? (
                         <TransactionRegistry
                             user={user}
                             onNavigateToVoidAmend={handleNavigateToVoidAmend}
@@ -779,7 +852,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onNavigateToReprint={() => setActiveView('certified-true-copy')}
                             onNavigateToPendingRequests={() => setActiveView('document-request')}
                         />
-) : activeView === 'void-amend' ? (
+                    ) : activeView === 'void-amend' ? (
                         <VoidAndAmend
                             pendingItems={pendingVoidItems}
                             onPendingItemsConsumed={() => setPendingVoidItems([])}

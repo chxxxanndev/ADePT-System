@@ -27,6 +27,7 @@
     font-size: 0.82rem;
     color: #e0e7ff;
     text-align: left;
+    flex-wrap: wrap;
 }
 
 .txp-bar-strip:hover,
@@ -36,22 +37,45 @@
 }
 
 .txp-bar-icon {
-    font-size: 1rem;
+    display: inline-flex;
+    color: #a5b4fc;
     flex-shrink: 0;
 }
 
 .txp-bar-text {
-    flex: 1;
     line-height: 1.4;
+    flex-shrink: 0;
 }
 
 .txp-bar-text strong {
     color: #c7d2fe;
 }
 
-.txp-bar-summary {
+.txp-bar-ref {
     color: #a5b4fc;
-    font-style: italic;
+    font-weight: 400;
+}
+
+/* ── Pills (replace the old comma-joined summary string) ───────── */
+
+.txp-bar-pills {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.txp-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 10px;
+    border-radius: 99px;
+    font-size: 0.71rem;
+    font-weight: 600;
+    border: 1px solid;
+    white-space: nowrap;
 }
 
 .txp-bar-chevron {
@@ -59,6 +83,7 @@
     color: #818cf8;
     transition: transform 0.2s ease;
     flex-shrink: 0;
+    margin-left: auto;
 }
 
 .txp-bar-chevron.is-up {
@@ -66,8 +91,20 @@
 }
 
 .txp-bar-expanded {
-    /* No border-radius — flows directly under the strip */
     border-top: 1px solid #312e81;
+}
+
+/* ── Empty state (first visit, nothing saved yet) ──────────────── */
+
+.txp-bar-empty {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: #1e1b4b;
+    color: #a5b4fc;
+    font-size: 0.8rem;
+    font-style: italic;
 }
 
 /* ── FULL CARD (certificate forms) ────────────────────────────── */
@@ -106,7 +143,8 @@
 }
 
 .txp-card-icon {
-    font-size: 1.3rem;
+    display: inline-flex;
+    color: #fff;
     flex-shrink: 0;
 }
 
@@ -151,11 +189,27 @@
 }
 
 .txp-card-ref {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 14px;
     padding: 6px 20px;
     background: #eef2ff;
     font-size: 0.76rem;
     color: #6366f1;
     border-bottom: 1px solid #e0e7ff;
+}
+
+.txp-card-processing {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #4f46e5;
+    font-weight: 500;
+}
+
+.txp-card-processing strong {
+    color: #312e81;
 }
 
 /* ── Groups ──────────────────────────────────────────────────── */
@@ -173,6 +227,12 @@
     overflow: hidden;
 }
 
+.txp-group-inprogress-only {
+    border-style: dashed;
+    border-color: #cbd5e1;
+    background: #f8fafc;
+}
+
 .txp-group-header {
     display: flex;
     align-items: center;
@@ -181,10 +241,13 @@
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-.txp-group-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
+.txp-group-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
     flex-shrink: 0;
 }
 
@@ -233,19 +296,48 @@
     font-weight: 500;
 }
 
+.txp-declarant-time {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
 .txp-declarant-check {
-    color: #22c55e;
-    font-size: 0.82rem;
+    color: #16a34a;
+    font-size: 0.72rem;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+
+/* ── In-progress (not yet saved) row ────────────────────────── */
+
+.txp-declarant-row-inprogress {
+    opacity: 0.85;
+}
+
+.txp-declarant-name-inprogress {
+    color: #6366f1;
+}
+
+.txp-declarant-name-inprogress em {
+    font-style: italic;
+    color: #94a3b8;
+    font-weight: 400;
+    margin-left: 4px;
+}
+
+.txp-declarant-editing {
+    display: inline-flex;
+    color: #6366f1;
     flex-shrink: 0;
 }
 
 /* ── Card footer ─────────────────────────────────────────────── */
 
 .txp-card-footer {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
     padding: 9px 20px 12px;
     font-size: 0.73rem;
     color: #64748b;
@@ -271,9 +363,15 @@
         flex-wrap: wrap;
         padding: 9px 14px;
     }
+
+    .txp-bar-chevron {
+        margin-left: 0;
+    }
+
     .txp-card-header {
         flex-wrap: wrap;
     }
+
     .txp-form-wrapper {
         padding: 0 12px 4px;
     }
