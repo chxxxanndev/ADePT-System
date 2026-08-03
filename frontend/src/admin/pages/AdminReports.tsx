@@ -41,6 +41,19 @@ function toLocalISO(d: Date): string {
     return `${y}-${m}-${day}`;
 }
 
+function parseLocalDate(dateStr: string): Date | null {
+    if (!dateStr) return null;
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) return new Date(y, m, d);
+    }
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? null : d;
+}
+
 function rangeForPeriod(period: string): { from: string; to: string } {
     const now = new Date();
     const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -130,6 +143,7 @@ interface ReportRow {
     submittedRaw: string;
     requestType?: string;
     amendedFromId?: string | null;
+    actionTaken?: string | null;
 }
 
 interface DistributionSlice {
@@ -211,9 +225,11 @@ export function AdminReports({ user }: AdminReportsProps) {
             return;
         }
         setDateFilterLabel(period);
-        setDateRange(rangeForPeriod(period));
+        const newRange = rangeForPeriod(period);
+        setDateRange(newRange);
         setDateDropdownOpen(false);
         setDateView('list');
+        void loadReportData(false, newRange);
     }
 
     function handleApplyRange(start: Date, end: Date) {
@@ -221,9 +237,11 @@ export function AdminReports({ user }: AdminReportsProps) {
             ? reportFormatShort(start)
             : `${reportFormatShort(start)} \u2013 ${reportFormatShort(end)}`;
         setDateFilterLabel(label);
-        setDateRange({ from: toLocalISO(start), to: toLocalISO(end) });
+        const newRange = { from: toLocalISO(start), to: toLocalISO(end) };
+        setDateRange(newRange);
         setDateDropdownOpen(false);
         setDateView('list');
+        void loadReportData(false, newRange);
     }
 
     function handleClearDateFilter() {
@@ -231,27 +249,25 @@ export function AdminReports({ user }: AdminReportsProps) {
         setDateRange(null);
         setDateDropdownOpen(false);
         setDateView('list');
+        void loadReportData(false, null);
     }
 
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin';
     const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` || 'A';
     const roleLabel =
         user.role === 'SUPER_ADMIN' ? 'Super Admin' :
-        user.role === 'ADMIN' ? 'Admin' :
-        'Office Staff';
+            user.role === 'ADMIN' ? 'Admin' :
+                'Office Staff';
 
-    const loadReportData = async (isRefresh = false) => {
+    const loadReportData = async (isRefresh = false, rangeOverride?: { from: string; to: string } | null) => {
         if (isRefresh) setRefreshing(true);
         else setLoading(true);
         setError(null);
         try {
-            // Fetch both sources in parallel:
-            // - reportsData  → row-level table data (aging, staff pending, etc.)
-            // - metrics      → document distribution counted from request_documents
-            //                  (same source as the Admin Dashboard donut chart)
+            const activeRange = rangeOverride !== undefined ? rangeOverride : dateRange;
             const [data, metrics] = await Promise.all([
                 fetchReportsAnalytics(),
-                fetchDashboardMetrics().catch(() => null),
+                fetchDashboardMetrics(activeRange?.from, activeRange?.to).catch(() => null),
             ]);
 
             if (data.totalDocuments !== undefined) {
@@ -272,12 +288,10 @@ export function AdminReports({ user }: AdminReportsProps) {
                     submittedRaw: r.requestedDate || '',
                     requestType: r.requestType ?? r.request_type ?? 'ORIGINAL',
                     amendedFromId: r.amendedFromId ?? r.amended_from_id ?? null,
+                    actionTaken: r.actionTaken ?? r.action_taken ?? 'PENDING',
                 })));
             }
 
-            // Use the same distribution the Dashboard uses:
-            // metrics.distribution is built by counting request_documents rows
-            // directly, so it matches the Dashboard donut chart exactly.
             if (metrics?.distribution && metrics.distribution.length > 0) {
                 const slices: DistributionSlice[] = metrics.distribution.map((d: any) => ({
                     label: d.label,
@@ -317,7 +331,7 @@ export function AdminReports({ user }: AdminReportsProps) {
     const totalPending = filteredRows.filter((r) => PENDING_STATUSES.includes(r.status)).length;
     const totalRequestAccounts = totalDocuments || filteredRows.length;
 
-    const originalCount = filteredRows.filter((r) => r.requestType === 'ORIGINAL' && !r.amendedFromId).length;
+    const originalCount = filteredRows.filter((r) => r.requestType === 'ORIGINAL').length;
     const reprintCount = filteredRows.filter((r) => r.requestType === 'REPRINT').length;
     const amendedCount = filteredRows.filter((r) => !!r.amendedFromId).length;
 
@@ -362,16 +376,51 @@ export function AdminReports({ user }: AdminReportsProps) {
                 const v = agingMap[status];
                 const total = v.under3 + v.d3to7 + v.d8to14 + v.over14;
                 // FIX: Explicitly returning properties to satisfy AgingRow interface
-                return { 
-                  status, 
-                  under3: v.under3, 
-                  d3to7: v.d3to7, 
-                  d8to14: v.d8to14, 
-                  over14: v.over14, 
-                  total 
+                return {
+                    status,
+                    under3: v.under3,
+                    d3to7: v.d3to7,
+                    d8to14: v.d8to14,
+                    over14: v.over14,
+                    total
                 };
             });
     }, [filteredRows]);
+
+    const [trendYear, setTrendYear] = useState<number>(() => new Date().getFullYear());
+    const [nowYear, setNowYear] = useState<number>(() => new Date().getFullYear());
+    const userPickedYearRef = useRef(false);
+
+    // Poll for the real-world year changing (e.g. a tab left open across
+    // New Year's) so the dropdown and default selection stay current
+    // without requiring a page refresh.
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const currentYear = new Date().getFullYear();
+            setNowYear((prev) => (prev !== currentYear ? currentYear : prev));
+            if (!userPickedYearRef.current) {
+                setTrendYear((prev) => (prev !== currentYear ? currentYear : prev));
+            }
+        }, 60 * 1000); // check once a minute; cheap and plenty responsive for a year rollover
+        return () => clearInterval(interval);
+    }, []);
+
+    function handleTrendYearChange(yr: number) {
+        userPickedYearRef.current = yr !== nowYear;
+        setTrendYear(yr);
+    }
+
+    const availableYears = useMemo(() => {
+        const setY = new Set<number>();
+        setY.add(nowYear);
+        rows.forEach((r) => {
+            const d = parseLocalDate(r.submittedRaw);
+            if (d) {
+                setY.add(d.getFullYear());
+            }
+        });
+        return Array.from(setY).sort((a, b) => b - a);
+    }, [rows, nowYear]);
 
     interface MonthlyRate {
         month: string;
@@ -383,12 +432,11 @@ export function AdminReports({ user }: AdminReportsProps) {
     }
 
     const monthlyRates = useMemo<MonthlyRate[]>(() => {
-        const now = new Date();
         const buckets: { key: string; month: string; total: number; released: number; voided: number }[] = [];
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        for (let m = 0; m < 12; m++) {
+            const d = new Date(trendYear, m, 1);
             buckets.push({
-                key: `${d.getFullYear()}-${d.getMonth()}`,
+                key: `${trendYear}-${m}`,
                 month: d.toLocaleDateString('en-US', { month: 'short' }),
                 total: 0,
                 released: 0,
@@ -397,9 +445,10 @@ export function AdminReports({ user }: AdminReportsProps) {
         }
         const byKey = new Map(buckets.map((b) => [b.key, b]));
 
-        filteredRows.forEach((r) => {
-            const d = new Date(r.submittedRaw);
-            if (Number.isNaN(d.getTime())) return;
+        rows.forEach((r) => {
+            const d = parseLocalDate(r.submittedRaw);
+            if (!d) return;
+            if (d.getFullYear() !== trendYear) return;
             const key = `${d.getFullYear()}-${d.getMonth()}`;
             const b = byKey.get(key);
             if (!b) return;
@@ -416,7 +465,7 @@ export function AdminReports({ user }: AdminReportsProps) {
             releaseRate: b.total > 0 ? Math.round((b.released / b.total) * 100) : 0,
             voidRate: b.total > 0 ? Math.round((b.voided / b.total) * 100) : 0,
         }));
-    }, [filteredRows]);
+    }, [rows, trendYear]);
 
     const [staffStatusFilter, setStaffStatusFilter] = useState<string>('all');
     interface StaffPendingRow {
@@ -807,12 +856,39 @@ export function AdminReports({ user }: AdminReportsProps) {
                 </div>
 
                 <div className="admin-card ar-bar-card">
-                    <h2 className="admin-card-title" style={{ margin: 0 }}>
-                        Approval Rate Trends
-                    </h2>
-                    <p className="ar-chart-description" style={{ marginTop: 2, marginBottom: 16 }}>
-                        Monthly release rate compared to voided / cancelled rate
-                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+                        <div>
+                            <h2 className="admin-card-title" style={{ margin: 0 }}>
+                                Approval Rate Trends
+                            </h2>
+                            <p className="ar-chart-description" style={{ marginTop: 2, marginBottom: 0 }}>
+                                Monthly release rate compared to voided / cancelled rate ({trendYear})
+                            </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#6b6f80', marginRight: '2px' }}>Year:</span>
+                            <select
+                                value={trendYear}
+                                onChange={(e) => handleTrendYearChange(Number(e.target.value))}
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #E2E4EC',
+                                    background: '#FFFFFF',
+                                    color: '#3D2E7C',
+                                    fontWeight: 600,
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {availableYears.map((yr) => (
+                                    <option key={yr} value={yr}>
+                                        {yr}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
                     <div className="ar-chart-canvas" style={{ height: '220px' }}>
                         {loading ? (
                             <div className="ar-chart-loading">Loading…</div>

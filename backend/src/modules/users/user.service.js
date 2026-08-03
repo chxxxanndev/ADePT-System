@@ -589,6 +589,10 @@ class UserService {
             'Local Assessment Operations Officer IV',
             'Local Assessment Operations Officer III',
             'Local Assessment Operations Officer II',
+            'Tax Mapper IV',
+            'Tax Mapper III',
+            'Tax Mapper II',
+            'Tax Mapper I',
             'Provincial Assessor',
             'Assistant Provincial Assessor',
         ];

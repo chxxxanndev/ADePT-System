@@ -213,8 +213,24 @@ export function useAdminDashboard() {
     };
 
     useEffect(() => {
-        void loadAccessRequestMetrics();
-        void loadDashboardData();
+        // Wait for the Supabase session to be available before firing API
+        // calls so the auth interceptor always has a token to attach.
+        supabase.auth.getSession().then(({ data }) => {
+            if (data.session?.access_token) {
+                void loadAccessRequestMetrics();
+                void loadDashboardData();
+            } else {
+                // Session not ready yet — subscribe to the next auth state
+                // change (SIGNED_IN / TOKEN_REFRESHED) and load once it fires.
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+                    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                        void loadAccessRequestMetrics();
+                        void loadDashboardData();
+                        subscription.unsubscribe();
+                    }
+                });
+            }
+        });
     }, []);
 
     // Keep the sidebar badge in sync when the admin approves/declines

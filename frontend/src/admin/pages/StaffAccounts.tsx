@@ -462,7 +462,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                             <select
                                 value={filter}
                                 onChange={(e) => setFilter(e.target.value)}
-                                style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', background: '#ffffff', color: '#0f172a', padding: '6px 10px' }}
+                                style={{ borderRadius: '8px', border: '1px solid rgb(24 23 23 / 41%)', background: '#ffffff', color: '#0f172a', padding: '6px 10px' }}
                             >
                                 <option value="all">All Accounts</option>
                                 <optgroup label="Status · Role">
@@ -633,8 +633,8 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                         {updatingId === member.id
                                                             ? 'Saving…'
                                                             : member.status === 'active'
-                                                            ? 'Deactivate'
-                                                            : 'Activate'}
+                                                                ? 'Deactivate'
+                                                                : 'Activate'}
                                                     </button>
                                                 ) : (
                                                     <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
@@ -665,8 +665,8 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                                     isInactive
                                                                         ? 'Reactivate this staff member to manage admin access'
                                                                         : member.roleCode === 'ADMIN'
-                                                                        ? 'Manage Admin Access'
-                                                                        : 'Promote to Admin'
+                                                                            ? 'Manage Admin Access'
+                                                                            : 'Promote to Admin'
                                                                 }
                                                                 background={isInactive ? '#FDE2E2' : '#DDF3E4'}
                                                                 color={isInactive ? '#DC2626' : '#14532D'}
@@ -718,8 +718,8 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                                                     isInactive
                                                                         ? 'Reactivate this staff member to assign as signatory'
                                                                         : member.isSignatory
-                                                                        ? 'Remove as Signatory'
-                                                                        : 'Assign as Signatory'
+                                                                            ? 'Remove as Signatory'
+                                                                            : 'Assign as Signatory'
                                                                 }
                                                                 background={member.isSignatory ? '#FEF9C3' : (isInactive ? '#F1F5F9' : '#DDF3E4')}
                                                                 color={member.isSignatory ? '#854D0E' : (isInactive ? '#94A3B8' : '#14532D')}
@@ -1092,6 +1092,10 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                                 'Local Assessment Operations Officer IV',
                                 'Local Assessment Operations Officer III',
                                 'Local Assessment Operations Officer II',
+                                'Tax Mapper IV',
+                                'Tax Mapper III',
+                                'Tax Mapper II',
+                                'Tax Mapper I',
                                 'Provincial Assessor',
                                 'Assistant Provincial Assessor',
                             ] as const).map((t) => {
