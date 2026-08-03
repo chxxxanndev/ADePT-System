@@ -490,7 +490,7 @@ export function AdminReports({ user }: AdminReportsProps) {
         });
         result.sort((a, b) => b.count - a.count);
         return result;
-    }, [rows, staffStatusFilter]);
+    }, [filteredRows, staffStatusFilter]);
 
     const [staffPopup, setStaffPopup] = useState<{ staff: string; status: string } | null>(null);
 
