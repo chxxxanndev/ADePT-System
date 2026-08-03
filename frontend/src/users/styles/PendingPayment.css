@@ -420,12 +420,37 @@
     width: 44px;
 }
 
+/* Group label row — one real row per client group, sitting directly above its
+   first document row. Replaces the old absolutely-unlinked "N documents" label
+   that used to float above the Reference No. flex-column only. */
+.pp-group-header-row td {
+    border-bottom: none;
+}
+
+.pp-group-header-cell {
+    padding: 12px 20px 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #9CA3AF;
+    background-color: rgba(41, 35, 122, 0.02);
+}
+
 .pp-row {
     border-bottom: 1px solid var(--db-glass-border-alt);
     transition: background-color 0.15s ease;
 }
 
 .pp-row:last-child {
+    border-bottom: none;
+}
+
+/* Document rows that belong to the same client group (i.e. every row except
+   the last one for that group) sit flush against each other with no divider —
+   the divider only appears after the group's final document row, so the
+   group reads as one visual unit even though it's several real <tr>s. */
+.pp-row-group-mid {
     border-bottom: none;
 }
 
@@ -444,8 +469,18 @@
 }
 
 .pp-cell {
-    padding: 18px 20px;
+    padding: 10px 20px;
+    vertical-align: middle;
+}
+
+/* Total Fee, Date, and Actions are rowSpan'd across every document row in a
+   client group. Top-aligning them (instead of centering in the merged cell)
+   keeps the Process button anchored next to the group's FIRST row — visible
+   immediately when the group appears, so staff never have to scroll down
+   through a long document list just to find it. */
+.pp-cell-top {
     vertical-align: top;
+    padding-top: 18px;
 }
 
 .pp-checkbox {
@@ -464,8 +499,7 @@
     min-height: 24px;
 }
 
-/* Was clipped with nowrap + ellipsis, same issue as the Declarant column.
-   Now wraps onto a second line so the full name is always visible. */
+/* Full name always visible — wraps instead of clipping with ellipsis */
 .pp-client-name {
     font-weight: 600;
     color: var(--db-slate);
@@ -478,55 +512,10 @@
     min-width: 0;
 }
 
-/* Reference No., Declarant(s) and Encoded By Staff columns — split apart (rather
-   than crammed into one chip) so a client with several documents reads as a
-   clean, roomy list, with each reference lined up against its own declarant
-   and encoding staff member on the same row. */
-.pp-doc-count-label {
-    font-size: 10.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: #9CA3AF;
-    margin-bottom: 10px;
-}
-
-.pp-doc-count-label--spacer {
-    visibility: hidden;
-}
-
-.pp-ref-list,
-.pp-declarant-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-}
-
-.pp-doc-line {
-    display: flex;
-    align-items: flex-start;
-    min-height: 24px;
-}
-
-/* Used by Total Fee, Date, and Actions cells — a fixed 24px band, vertically
-   centered, that lines up exactly with the reference chip / declarant row
-   above (rather than just top-aligning, which left tall elements like the
-   Process button looking off). */
-.pp-cell-align-row {
-    display: flex;
-    align-items: center;
-    height: 24px;
-}
-
-.pp-cell-align-row--end {
-    justify-content: flex-end;
-}
-
-.pp-cell-align-row--center {
-    justify-content: center;
-}
-
+/* Reference No. and Declarant(s) chips — each document is now its own real
+   table row shared between the two columns, so a chip and its declarant
+   name are guaranteed to sit at the same height, no matter how much either
+   one wraps. */
 .pp-ref-chip {
     display: inline-flex;
     align-items: center;
@@ -546,8 +535,8 @@
     flex-shrink: 0;
 }
 
-/* Declarant name — was clipped with a fixed-height single line + ellipsis.
-   Now allowed to wrap onto a second line so the full name is always visible. */
+/* Declarant name — full name always visible, wraps onto a second line rather
+   than clipping */
 .pp-doc-declarant {
     display: inline-flex;
     align-items: flex-start;
@@ -569,7 +558,7 @@
     margin-top: 3px;
 }
 
-/* Encoded By Staff — now matches the Declarant / Requested By text color and weight */
+/* Encoded By Staff — matches the Declarant / Requested By text color and weight */
 .pp-doc-declarant--staff {
     color: var(--db-slate);
     font-weight: 600;

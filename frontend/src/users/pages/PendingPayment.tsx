@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { requestService } from '../services/requestService';
 import { addAdminAuditEntry } from '../../admin/services/auditLogService';
 import '../styles/PendingPayment.css';
@@ -406,32 +406,41 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedGroups.map((group) => (
-                                    <tr
-                                        key={group.groupId}
-                                        className={`pp-row${selectionMode ? ' is-selectable' : ''}${selectedIds.has(group.groupId) ? ' is-selected' : ''}`}
-                                        onClick={selectionMode ? () => toggleSelect(group.groupId) : undefined}
-                                    >
-                                        {selectionMode && (
-                                            <td className="pp-cell pp-cell-checkbox">
-                                                <input
-                                                    type="checkbox"
-                                                    className="pp-checkbox"
-                                                    checked={selectedIds.has(group.groupId)}
-                                                    onChange={() => toggleSelect(group.groupId)}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    aria-label={`Select ${group.requesterName}`}
-                                                />
-                                            </td>
-                                        )}
+                                paginatedGroups.map((group) => {
+                                    const docCount = group.documents.length;
+                                    return (
+                                        <Fragment key={group.groupId}>
+                                            {/* Group label row — replaces the old floating "N documents" label
+                                                that used to sit disconnected above the Reference No. column */}
+                                            <tr className="pp-group-header-row">
+                                                <td colSpan={columnCount} className="pp-group-header-cell">
+                                                    {docCount} document{docCount !== 1 && 's'}
+                                                </td>
+                                            </tr>
 
-                                        <td className="pp-cell" data-label="Reference No.">
-                                            <div className="pp-doc-count-label">
-                                                {group.documents.length} document{group.documents.length !== 1 && 's'}
-                                            </div>
-                                            <div className="pp-ref-list">
-                                                {group.documents.map((d: any, i: number) => (
-                                                    <div className="pp-doc-line" key={i}>
+                                            {group.documents.map((d: any, docIndex: number) => (
+                                                <tr
+                                                    key={d.id}
+                                                    className={`pp-row${selectionMode ? ' is-selectable' : ''}${selectedIds.has(group.groupId) ? ' is-selected' : ''}${docIndex === docCount - 1 ? '' : ' pp-row-group-mid'}`}
+                                                    onClick={selectionMode ? () => toggleSelect(group.groupId) : undefined}
+                                                >
+                                                    {selectionMode && docIndex === 0 && (
+                                                        <td className="pp-cell pp-cell-checkbox" rowSpan={docCount}>
+                                                            <input
+                                                                type="checkbox"
+                                                                className="pp-checkbox"
+                                                                checked={selectedIds.has(group.groupId)}
+                                                                onChange={() => toggleSelect(group.groupId)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                aria-label={`Select ${group.requesterName}`}
+                                                            />
+                                                        </td>
+                                                    )}
+
+                                                    {/* Reference No. and Declarant now live in the SAME <tr> as each
+                                                        other, per document — the browser guarantees they line up,
+                                                        even if a declarant name wraps onto 2-3 lines. */}
+                                                    <td className="pp-cell" data-label="Reference No.">
                                                         <span
                                                             className={`pp-ref-chip ${getRefChipClass(d.referenceNumber)}`}
                                                             title={d.documentType}
@@ -439,85 +448,71 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                                                             {getRefTypeIcon(d.referenceNumber)}
                                                             {d.referenceNumber}
                                                         </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </td>
+                                                    </td>
 
-                                        <td className="pp-cell" data-label="Declarant(s)">
-                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
-                                            <div className="pp-declarant-list">
-                                                {group.documents.map((d: any, i: number) => (
-                                                    <div className="pp-doc-line" key={i}>
+                                                    <td className="pp-cell" data-label="Declarant(s)">
                                                         <span className="pp-doc-declarant" title={d.declarantName}>
                                                             <UserIcon />
                                                             {d.declarantName}
                                                         </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </td>
+                                                    </td>
 
-                                        <td className="pp-cell" data-label="Requested By">
-                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
-                                            <div className="pp-client-info">
-                                                <span className="pp-client-name" title={group.requesterName}>{group.requesterName}</span>
-                                            </div>
-                                        </td>
+                                                    {/* Requested By now repeats per document row, same as Encoded By
+                                                        Staff — each row reads as a complete, self-contained line
+                                                        (Reference No. → Declarant → Requested By → Staff) without
+                                                        needing to look up/down to a merged cell. */}
+                                                    <td className="pp-cell" data-label="Requested By">
+                                                        <div className="pp-client-info">
+                                                            <span className="pp-client-name" title={group.requesterName}>{group.requesterName}</span>
+                                                        </div>
+                                                    </td>
 
-                                        <td className="pp-cell" data-label="Encoded By Staff">
-                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
-                                            <div className="pp-declarant-list">
-                                                {group.documents.map((d: any, i: number) => (
-                                                    <div className="pp-doc-line" key={i}>
+                                                    <td className="pp-cell" data-label="Encoded By Staff">
                                                         <span className="pp-doc-declarant pp-doc-declarant--staff" title={d.encodedByStaff || 'Not yet recorded'}>
                                                             {d.encodedByStaff || '—'}
                                                         </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </td>
+                                                    </td>
 
-                                        <td className="pp-cell" data-label="Total Fee" style={{ textAlign: 'right' }}>
-                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
-                                            <div className="pp-cell-align-row pp-cell-align-row--end">
-                                                <span className="pp-amount">{currency(group.totalAmountDue)}</span>
-                                            </div>
-                                        </td>
+                                                    {docIndex === 0 && (
+                                                        <td className="pp-cell pp-cell-top" data-label="Total Fee" style={{ textAlign: 'right' }} rowSpan={docCount}>
+                                                            <span className="pp-amount">{currency(group.totalAmountDue)}</span>
+                                                        </td>
+                                                    )}
 
-                                        <td className="pp-cell" data-label="Date" style={{ textAlign: 'center' }}>
-                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
-                                            <div className="pp-cell-align-row pp-cell-align-row--center">
-                                                <span className="pp-date">{group.dateRequested}</span>
-                                            </div>
-                                        </td>
+                                                    {docIndex === 0 && (
+                                                        <td className="pp-cell pp-cell-top" data-label="Date" style={{ textAlign: 'center' }} rowSpan={docCount}>
+                                                            <span className="pp-date">{group.dateRequested}</span>
+                                                        </td>
+                                                    )}
 
-                                        <td className="pp-cell" style={{ textAlign: 'right', paddingRight: '24px' }}>
-                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
-                                            <div className="pp-cell-align-row pp-cell-align-row--end">
-                                                <div className="pp-actions">
-                                                    <button
-                                                        className="pp-btn-archive"
-                                                        onClick={(e) => requestArchiveOne(e, group)}
-                                                        title="Archive group"
-                                                        aria-label="Archive group"
-                                                    >
-                                                        <ArchiveIcon />
-                                                    </button>
-                                                    <button
-                                                        className="pp-btn-process"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onSelectPayment(group);
-                                                        }}
-                                                    >
-                                                        Process <ProcessIcon />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                                    {docIndex === 0 && (
+                                                        <td className="pp-cell pp-cell-top" style={{ textAlign: 'right', paddingRight: '24px' }} rowSpan={docCount}>
+                                                            <div className="pp-actions">
+                                                                <button
+                                                                    className="pp-btn-archive"
+                                                                    onClick={(e) => requestArchiveOne(e, group)}
+                                                                    title="Archive group"
+                                                                    aria-label="Archive group"
+                                                                >
+                                                                    <ArchiveIcon />
+                                                                </button>
+                                                                <button
+                                                                    className="pp-btn-process"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        onSelectPayment(group);
+                                                                    }}
+                                                                >
+                                                                    Process <ProcessIcon />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            ))}
+                                        </Fragment>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>

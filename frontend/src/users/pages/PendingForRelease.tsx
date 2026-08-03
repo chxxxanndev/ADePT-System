@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { requestService } from '../services/requestService';
 import '../styles/PendingPayment.css';
 
@@ -127,6 +127,8 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
 
     const totalDocs = groupedReleases.reduce((sum, g) => sum + g.documents.length, 0);
 
+    const columnCount = 7;
+
     return (
         <div className="pp-container page-transition">
             {/* BREADCRUMB */}
@@ -228,7 +230,7 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                             {loading ? (
                                 Array.from({ length: Math.min(itemsPerPage, 4) }).map((_, i) => (
                                     <tr key={i}>
-                                        <td colSpan={7} style={{ padding: 0 }}>
+                                        <td colSpan={columnCount} style={{ padding: 0 }}>
                                             <div className="pp-skeleton-row">
                                                 <div className="pp-skeleton-block" style={{ width: '18%' }} />
                                                 <div className="pp-skeleton-block" style={{ width: '28%' }} />
@@ -239,7 +241,7 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                 ))
                             ) : paginatedGroups.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7}>
+                                    <td colSpan={columnCount}>
                                         <div className="pp-empty-state">
                                             <InboxIcon />
                                             <span className="pp-empty-title">
@@ -254,85 +256,81 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedGroups.map((group) => (
-                                    <tr key={group.groupId} className="pp-row">
+                                paginatedGroups.map((group) => {
+                                    const docCount = group.documents.length;
+                                    return (
+                                        <Fragment key={group.groupId}>
+                                            {/* Group label row — real full-width row directly above the group's
+                                                first document row, matching Pending Payments */}
+                                            <tr className="pp-group-header-row">
+                                                <td colSpan={columnCount} className="pp-group-header-cell">
+                                                    {docCount} document{docCount !== 1 && 's'}
+                                                </td>
+                                            </tr>
 
-                                        <td className="pp-cell" data-label="Reference No.">
-                                            <div className="pp-doc-count-label">
-                                                {group.documents.length} document{group.documents.length !== 1 && 's'}
-                                            </div>
-                                            <div className="pp-ref-list">
-                                                {group.documents.map((d: any, i: number) => (
-                                                    <div className="pp-doc-line" key={i}>
+                                            {group.documents.map((d: any, docIndex: number) => (
+                                                <tr
+                                                    key={d.id}
+                                                    className={`pp-row${docIndex === docCount - 1 ? '' : ' pp-row-group-mid'}`}
+                                                >
+                                                    {/* Reference No. and Declarant share the same <tr> per document,
+                                                        so they're always aligned to the same row height */}
+                                                    <td className="pp-cell" data-label="Reference No.">
                                                         <span className={`pp-ref-chip ${getRefChipClass(d.referenceNumber)}`} title={d.documentType}>
                                                             {getRefTypeIcon(d.referenceNumber)}
                                                             {d.referenceNumber}
                                                         </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </td>
+                                                    </td>
 
-                                        <td className="pp-cell" data-label="Declarant(s)">
-                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
-                                            <div className="pp-declarant-list">
-                                                {group.documents.map((d: any, i: number) => (
-                                                    <div className="pp-doc-line" key={i}>
+                                                    <td className="pp-cell" data-label="Declarant(s)">
                                                         <span className="pp-doc-declarant" title={d.declarantName}>
                                                             <UserIcon />{d.declarantName}
                                                         </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </td>
+                                                    </td>
 
-                                        <td className="pp-cell" data-label="Requested By">
-                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
-                                            <div className="pp-client-info">
-                                                <span className="pp-client-name" title={group.requesterName}>{group.requesterName}</span>
-                                            </div>
-                                        </td>
+                                                    {/* Requested By repeats per row, same as Encoded By Staff, so
+                                                        each row reads as a complete, self-contained line */}
+                                                    <td className="pp-cell" data-label="Requested By">
+                                                        <div className="pp-client-info">
+                                                            <span className="pp-client-name" title={group.requesterName}>{group.requesterName}</span>
+                                                        </div>
+                                                    </td>
 
-                                        <td className="pp-cell" data-label="Encoded By Staff">
-                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
-                                            <div className="pp-declarant-list">
-                                                {group.documents.map((d: any, i: number) => (
-                                                    <div className="pp-doc-line" key={i}>
+                                                    <td className="pp-cell" data-label="Encoded By Staff">
                                                         <span className="pp-doc-declarant pp-doc-declarant--staff" title={d.encodedByStaff || 'Not yet recorded'}>
                                                             {d.encodedByStaff || '—'}
                                                         </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </td>
+                                                    </td>
 
-                                        {/* PERFECTLY ALIGNED USING pp-cell-align-row */}
-                                        <td className="pp-cell" data-label="O.R. Number" style={{ textAlign: 'center' }}>
-                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
-                                            <div className="pp-cell-align-row pp-cell-align-row--center">
-                                                <span className="pp-amount" style={{ color: '#0ea5e9' }}>{group.orNumber || '—'}</span>
-                                            </div>
-                                        </td>
+                                                    {/* O.R. Number, Date, and Actions are one value per group, so they
+                                                        rowSpan across the group and top-align next to the first
+                                                        document row — no scrolling needed to find the Release button */}
+                                                    {docIndex === 0 && (
+                                                        <td className="pp-cell pp-cell-top" data-label="O.R. Number" style={{ textAlign: 'center' }} rowSpan={docCount}>
+                                                            <span className="pp-amount" style={{ color: '#0ea5e9' }}>{group.orNumber || '—'}</span>
+                                                        </td>
+                                                    )}
 
-                                        <td className="pp-cell" data-label="Date" style={{ textAlign: 'center' }}>
-                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
-                                            <div className="pp-cell-align-row pp-cell-align-row--center">
-                                                <span className="pp-date">{group.dateRequested}</span>
-                                            </div>
-                                        </td>
+                                                    {docIndex === 0 && (
+                                                        <td className="pp-cell pp-cell-top" data-label="Date" style={{ textAlign: 'center' }} rowSpan={docCount}>
+                                                            <span className="pp-date">{group.dateRequested}</span>
+                                                        </td>
+                                                    )}
 
-                                        <td className="pp-cell" style={{ textAlign: 'right', paddingRight: '24px' }}>
-                                            <div className="pp-doc-count-label pp-doc-count-label--spacer">&nbsp;</div>
-                                            <div className="pp-cell-align-row pp-cell-align-row--end">
-                                                <div className="pp-actions">
-                                                    <button className="pp-btn-process" onClick={() => onSelectPayment(group)}>
-                                                        Release <ProcessIcon />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                                    {docIndex === 0 && (
+                                                        <td className="pp-cell pp-cell-top" style={{ textAlign: 'right', paddingRight: '24px' }} rowSpan={docCount}>
+                                                            <div className="pp-actions">
+                                                                <button className="pp-btn-process" onClick={() => onSelectPayment(group)}>
+                                                                    Release <ProcessIcon />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            ))}
+                                        </Fragment>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
