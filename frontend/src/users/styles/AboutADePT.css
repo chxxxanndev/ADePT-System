@@ -1,0 +1,673 @@
+/* ==========================================================================
+   About ADePT — Architecture & Engineering Command (AboutADePT.css)
+   Built on the existing ADePT design tokens (see Dashboard.css :root) —
+   no new brand colors are introduced; role accents reuse the existing
+   badge palette so this page reads as part of the same system.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+
+.aa-page {
+    width: 100%;
+    max-width: min(1400px, 96vw);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    padding-bottom: 8px;
+    font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* --- Hero --- */
+.aa-hero {
+    background: linear-gradient(135deg, var(--db-primary) 0%, #3b3498 100%);
+    border-radius: var(--db-radius-lg);
+    padding: 48px 40px;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.aa-hero-eyebrow {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.aa-hero-title {
+    margin: 0;
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.aa-hero-subtitle {
+    margin: 0;
+    max-width: 100%;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.5;
+}
+
+/* --- Shared section header --- */
+.aa-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.aa-section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.aa-section-label {
+    font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--db-text-muted);
+}
+
+.aa-section-title {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--db-primary);
+    letter-spacing: -0.01em;
+}
+
+/* ==========================================================================
+   SECTION A — SYSTEM OVERVIEW
+   ========================================================================== */
+.aa-overview {
+    position: relative;
+    isolation: isolate;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 1) 65%, rgba(41, 35, 122, 0.045) 100%);
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: var(--db-radius-lg);
+    box-shadow: var(--db-shadow-card);
+    padding: 44px 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+    overflow: hidden;
+}
+
+.aa-overview-mark {
+    position: absolute;
+    top: -34px;
+    left: 18px;
+    z-index: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 9rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--db-primary);
+    opacity: 0.06;
+    pointer-events: none;
+}
+
+.aa-overview-lead {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    max-width: 100%;
+    font-size: 1.02rem;
+    font-weight: 600;
+    line-height: 1.75;
+    color: var(--db-text);
+    padding-left: 20px;
+    border-left: 3px solid var(--db-primary);
+}
+
+.aa-overview-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.aa-overview-grid p {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.75;
+    color: var(--db-text-muted);
+}
+
+.aa-overview-doctypes {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 22px;
+    border-top: 1px dashed var(--db-glass-border-alt);
+}
+
+.aa-overview-doctypes-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--db-text-muted);
+}
+
+.aa-doctype-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.aa-doctype-chip {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--db-primary);
+    background-color: rgba(41, 35, 122, 0.06);
+    border: 1px solid rgba(41, 35, 122, 0.16);
+    border-radius: 999px;
+    padding: 7px 16px;
+}
+
+/* ==========================================================================
+   SECTION B — THE ARCHITECTS (full-bleed photo, no card frame, dev vibe)
+   ========================================================================== */
+.aa-team-list {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+/* --- Card wrapper: holds the abstract circle decor behind the card itself,
+   so the circles can bleed past the card's own edges (clipped inside the
+   card via its overflow:hidden) instead of being boxed in with the photo. --- */
+.aa-team-item {
+    position: relative;
+    isolation: isolate;
+}
+
+.aa-team-decor {
+    position: absolute;
+    z-index: 0;
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.aa-team-decor--ring {
+    width: 220px;
+    height: 220px;
+    top: -70px;
+    right: 60px;
+    border: 24px solid transparent;
+    background: linear-gradient(135deg, #2b3a91, #5a7dff) border-box;
+    -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.85;
+}
+
+.aa-team-decor--ring-sm {
+    width: 110px;
+    height: 110px;
+    bottom: -34px;
+    right: 200px;
+    border: 14px solid transparent;
+    background: linear-gradient(135deg, #4a6cf7, #8fa8ff) border-box;
+    -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.7;
+}
+
+.aa-team-decor--fill {
+    width: 90px;
+    height: 90px;
+    bottom: -30px;
+    right: 40px;
+    background: linear-gradient(135deg, #1f2a75, #4a6cf7);
+    opacity: 0.9;
+    box-shadow: 0 10px 24px rgba(31, 42, 117, 0.35);
+}
+
+.aa-team-item:nth-child(even) .aa-team-decor--ring {
+    right: auto;
+    left: 60px;
+}
+
+.aa-team-item:nth-child(even) .aa-team-decor--ring-sm {
+    right: auto;
+    left: 200px;
+}
+
+.aa-team-item:nth-child(even) .aa-team-decor--fill {
+    right: auto;
+    left: 40px;
+}
+
+.aa-team-row {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.78) 55%, color-mix(in srgb, var(--aa-accent-color, var(--db-primary)) 16%, transparent) 100%);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: var(--db-radius-lg);
+    box-shadow: var(--db-shadow-card);
+    padding: 0;
+    overflow: hidden;
+    transition: transform 0.25s ease-in-out, box-shadow 0.25s ease-in-out, background 0.25s ease-in-out;
+}
+
+/* Dev-vibe watermark: a faint </> mark tucked in the corner of every row */
+.aa-team-row::after {
+    content: '</>';
+    position: absolute;
+    bottom: 10px;
+    right: 18px;
+    font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--aa-accent-color, var(--db-primary));
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* Faint dot-grid texture, developer-schematic feel — sits behind the text only */
+.aa-team-info::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image: radial-gradient(var(--aa-accent-color, var(--db-primary)) 1px, transparent 1px);
+    background-size: 16px 16px;
+    opacity: 0.04;
+    pointer-events: none;
+}
+
+.aa-team-row:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 34px rgba(41, 35, 122, 0.16);
+}
+
+.aa-team-row--reverse {
+    flex-direction: row-reverse;
+}
+
+/* --- Photo block: image fills the block edge-to-edge, no card border,
+   no drop shadow, no rotation — just the photo, maximized. --- */
+.aa-team-photo-wrap {
+    position: relative;
+    flex: 0 0 260px;
+    align-self: stretch;
+    min-height: 260px;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.aa-team-photo {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+    transition: transform 0.3s ease-in-out;
+}
+
+.aa-team-row:hover .aa-team-photo {
+    transform: scale(1.04);
+}
+
+.aa-team-photo-initials {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.6rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.02em;
+    background: var(--aa-accent-color, var(--db-primary));
+}
+
+.aa-photo-fallback .aa-team-photo-initials {
+    display: flex;
+}
+
+/* Floating code badge, pinned to the top corner of the photo */
+.aa-team-code--float {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    z-index: 3;
+    font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #ffffff;
+    background-color: var(--aa-accent-color, var(--db-primary));
+    padding: 5px 10px;
+    border-radius: 7px;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+}
+
+.aa-team-row--reverse .aa-team-code--float {
+    left: auto;
+    right: 14px;
+}
+
+/* --- Text info --- */
+.aa-team-info {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 32px 40px;
+    overflow: hidden;
+}
+
+.aa-team-name {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--db-text);
+    letter-spacing: -0.01em;
+}
+
+.aa-team-role {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--aa-accent-color, var(--db-primary));
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.aa-team-desc {
+    margin: 8px 0 0;
+    max-width: 980px;
+    font-size: 0.87rem;
+    line-height: 1.65;
+    color: var(--db-text-muted);
+}
+
+/* --- Contact links: GitHub + email, small pill-style tags beneath the bio --- */
+.aa-team-links {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.aa-team-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--aa-accent-color, var(--db-primary));
+    background-color: #ffffff;
+    border: 1px solid var(--aa-accent-color, var(--db-primary));
+    border-radius: 999px;
+    padding: 6px 13px;
+    text-decoration: none;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.aa-team-link:hover {
+    background-color: var(--aa-accent-color, var(--db-primary));
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.aa-team-link svg {
+    flex-shrink: 0;
+}
+
+/* Role accents — mapped straight onto the badge palette already defined
+   in Dashboard.css, so no new colors enter the system. */
+.aa-accent-primary {
+    --aa-accent-color: var(--db-primary);
+    --aa-accent-bg: rgba(41, 35, 122, 0.08);
+}
+
+.aa-accent-teal {
+    --aa-accent-color: #00838f;
+    --aa-accent-bg: rgba(0, 188, 212, 0.12);
+}
+
+.aa-accent-gold {
+    --aa-accent-color: var(--db-badge-gold-text);
+    --aa-accent-bg: var(--db-badge-gold-bg);
+}
+
+.aa-accent-red {
+    --aa-accent-color: var(--db-badge-red-text);
+    --aa-accent-bg: var(--db-badge-red-bg);
+}
+
+.aa-accent-green {
+    --aa-accent-color: var(--db-badge-green-text);
+    --aa-accent-bg: var(--db-badge-green-bg);
+}
+
+/* ==========================================================================
+   SECTION C — TECHNOLOGY INFRASTRUCTURE (Bento grid)
+   ========================================================================== */
+.aa-stack-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+.aa-stack-tile {
+    background-color: #ffffff;
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: var(--db-radius-md);
+    box-shadow: var(--db-shadow-card);
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.aa-stack-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(41, 35, 122, 0.14);
+}
+
+.aa-stack-tile--wide {
+    grid-column: span 2;
+}
+
+.aa-stack-tile--narrow {
+    grid-column: span 1;
+}
+
+.aa-stack-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background-color: rgba(41, 35, 122, 0.08);
+    color: var(--db-primary);
+    margin-bottom: 6px;
+    flex-shrink: 0;
+}
+
+.aa-stack-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--db-text);
+}
+
+.aa-stack-subtitle {
+    font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--db-secondary-hover);
+}
+
+.aa-stack-desc {
+    margin: 4px 0 0;
+    font-size: 0.83rem;
+    line-height: 1.5;
+    color: var(--db-text-muted);
+}
+
+/* Closing command-center tile — spans the full grid, horizontal layout,
+   the one place on this page where the register shifts from "card" to
+   "banner" to mark it as the summary/closing note. */
+.aa-stack-tile--full {
+    grid-column: span 4;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+    background-color: rgba(41, 35, 122, 0.03);
+}
+
+.aa-stack-tile--full .aa-stack-icon {
+    margin-bottom: 0;
+}
+
+.aa-stack-full-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.aa-stack-tile--full .aa-stack-desc {
+    max-width: 640px;
+}
+
+/* --- Responsive --- */
+@media (max-width: 1100px) {
+    .aa-stack-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .aa-stack-tile--wide,
+    .aa-stack-tile--narrow {
+        grid-column: span 1;
+    }
+
+    .aa-stack-tile--full {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 780px) {
+
+    .aa-overview {
+        padding: 32px 26px;
+    }
+
+    .aa-overview-grid {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    .aa-team-decor {
+        display: none;
+    }
+
+    .aa-team-row,
+    .aa-team-row--reverse {
+        flex-direction: column;
+    }
+
+    .aa-team-photo-wrap {
+        flex-basis: auto;
+        width: 100%;
+        height: 240px;
+        min-height: 240px;
+    }
+
+    .aa-team-info {
+        align-items: center;
+        text-align: center;
+        padding: 28px 24px;
+    }
+
+    .aa-team-desc {
+        max-width: none;
+    }
+
+    .aa-team-links {
+        justify-content: center;
+    }
+
+    .aa-team-code--float {
+        left: 14px !important;
+        right: auto !important;
+    }
+
+    .aa-team-row--reverse .aa-team-code--float {
+        left: 14px !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .aa-hero {
+        padding: 32px 24px;
+    }
+
+    .aa-stack-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .aa-stack-tile--wide,
+    .aa-stack-tile--narrow,
+    .aa-stack-tile--full {
+        grid-column: span 1;
+    }
+
+    .aa-stack-tile--full {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* --- Reduced motion --- */
+@media (prefers-reduced-motion: reduce) {
+
+    .aa-team-row,
+    .aa-team-photo,
+    .aa-stack-tile {
+        transition: none;
+    }
+
+    .aa-team-row:hover .aa-team-photo {
+        transform: none;
+    }
+
+    .aa-stack-tile:hover {
+        transform: none;
+    }
+}

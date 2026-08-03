@@ -6,6 +6,7 @@ import { ForwardToStaffModal } from '../components/ForwardToStaffModal';
 import '../styles/RequestFormEntry.css';
 import { CheckIcon, SaveIcon, LightbulbIcon } from '../components/icons';
 import { addAdminAuditEntry } from '../../admin/services/auditLogService';
+import { TransactionProgressBar } from '../components/TransactionProgressPanel';
 
 interface ExtendedRequestFormData extends RequestFormData {
     id?: string;
@@ -20,6 +21,16 @@ interface RequestFormEntryProps {
     onEntryComplete: (data: CompletedEntryData) => void;
     onNavigateToProcessing: (view: string) => void;
     prefilledRequestData?: any | null;
+    cartItemCount?: number;
+    onGoToTransactionSummary?: () => void;
+    onAddAnotherAfterDiscard?: (base: {
+        declarantName?: string;
+        requestedByName?: string;
+        propertyLocation?: string;
+        purposeId?: string;
+        authRequired?: boolean | null;
+        actionTaken?: string;
+    }) => void;
 }
 
 // --- UI HELPERS ---
@@ -131,7 +142,17 @@ const PURPOSE_OPTIONS = [
 
 // ----------------------------------------------
 
-export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateToProcessing, prefilledRequestData }: RequestFormEntryProps) {
+export function RequestFormEntry({
+    user,
+    onCancel,
+    onEntryComplete,
+    onNavigateToProcessing,
+    prefilledRequestData,
+    cartItemCount = 0,
+    onGoToTransactionSummary,
+    onAddAnotherAfterDiscard,
+}: RequestFormEntryProps) {
+
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [isProceeding, setIsProceeding] = useState(false);
     const [metadata, setMetadata] = useState<{ docTypes: any[]; purposes: any[]; staff: any[]; propertyLocations: { id: string; name: string }[]; }>({ docTypes: [], purposes: PURPOSE_OPTIONS, staff: [], propertyLocations: [], });
@@ -454,15 +475,31 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
     };
 
     const [showDiscardModal, setShowDiscardModal] = useState(false);
+    const [isDiscarding, setIsDiscarding] = useState(false);
+    const [showNextStepChoice, setShowNextStepChoice] = useState(false);
 
     const handleDiscardRequest = () => {
         setShowDiscardModal(true);
     };
 
-    const handleConfirmDiscard = () => {
-        setShowDiscardModal(false);
+    const handleConfirmDiscard = async () => {
+        setIsDiscarding(true);
+        if (formData.id) {
+            try {
+                await requestService.updateRequest(formData.id, { status: 'CANCELLED' });
+            } catch (err) {
+                console.error('Failed to cancel this request on discard', err);
+            }
+        }
         try { localStorage.removeItem(RFE_LS_KEY); } catch { }
-        onCancel();
+        setIsDiscarding(false);
+        setShowDiscardModal(false);
+
+        if (cartItemCount > 0) {
+            setShowNextStepChoice(true);
+        } else {
+            onCancel();
+        }
     };
 
     return (
@@ -470,19 +507,24 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
 
             {/* ── Discard Confirmation Modal ── */}
             {showDiscardModal && (
-                <div className="rfe-modal-overlay" onClick={() => setShowDiscardModal(false)}>
+                <div className="rfe-modal-overlay" onClick={() => !isDiscarding && setShowDiscardModal(false)}>
                     <div className="rfe-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="rfe-modal-icon">🗑</div>
                         <h3 className="rfe-modal-title">Discard This Request?</h3>
                         <p className="rfe-modal-body">
-                            The client's request will be <strong>cancelled</strong> and all unsaved entries will be permanently lost.
-                            This action cannot be undone.
+                            This request will be <strong>cancelled</strong> and all unsaved entries will be permanently lost.
+                            {cartItemCount > 0 && (
+                                <> The <strong>{cartItemCount} document{cartItemCount === 1 ? '' : 's'}</strong> already saved
+                                    in this transaction will <strong>not</strong> be affected.</>
+                            )}
+                            {' '}This action cannot be undone.
                         </p>
                         <div className="rfe-modal-actions">
                             <button
                                 type="button"
                                 className="rfe-modal-btn-cancel"
                                 onClick={() => setShowDiscardModal(false)}
+                                disabled={isDiscarding}
                             >
                                 Keep Editing
                             </button>
@@ -490,8 +532,53 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                 type="button"
                                 className="rfe-modal-btn-confirm"
                                 onClick={handleConfirmDiscard}
+                                disabled={isDiscarding}
                             >
-                                Yes, Discard Request
+                                {isDiscarding ? 'Discarding…' : 'Yes, Discard Request'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showNextStepChoice && (
+                <div className="rfe-modal-overlay" onClick={() => setShowNextStepChoice(false)}>
+                    <div className="rfe-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="rfe-modal-icon">📋</div>
+                        <h3 className="rfe-modal-title">What would you like to do next?</h3>
+                        <p className="rfe-modal-body">
+                            You still have <strong>{cartItemCount} document{cartItemCount === 1 ? '' : 's'}</strong> saved
+                            in this transaction. You can add another document to it, or go review and submit
+                            what's already saved.
+                        </p>
+                        <div className="rfe-modal-actions">
+                            <button
+                                type="button"
+                                className="rfe-modal-btn-cancel"
+                                onClick={() => {
+                                    setShowNextStepChoice(false);
+                                    if (onAddAnotherAfterDiscard) {
+                                        onAddAnotherAfterDiscard({
+                                            declarantName: formData.declarantName,
+                                            requestedByName: formData.requestedByName,
+                                            propertyLocation: formData.propertyLocation,
+                                            purposeId: formData.purposeId,
+                                            authRequired: formData.authRequired,
+                                            actionTaken: formData.actionTaken,
+                                        });
+                                    } else {
+                                        onCancel();
+                                    }
+                                }}
+                            >
+                                Add Another Document
+                            </button>
+                            <button
+                                type="button"
+                                className="rfe-modal-btn-confirm"
+                                onClick={() => { setShowNextStepChoice(false); onGoToTransactionSummary?.(); }}
+                            >
+                                Proceed to Transaction Summary
                             </button>
                         </div>
                     </div>
@@ -506,6 +593,13 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                     </svg>
                 </span>
                 <span className="rfe-breadcrumb-current">Request Form</span>
+            </div>
+
+            <div className="txp-form-wrapper">
+                <TransactionProgressBar
+                    referenceNumber={formData.id ? formData.referenceNumber : undefined}
+                    emptyHint="No documents saved yet — fill out the form below to add your first one."
+                />
             </div>
 
             <div className="rfe-page-inner">
@@ -578,7 +672,6 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                 </div>
                             </div>
 
-                            {/* Hide "Location of the Property" if Certificate of No Landholding (NLH) is chosen */}
                             {!isNoLandholdingSelected && (
                                 <div className="rfe-field" style={{ marginTop: 14 }}>
                                     <label className="rfe-label">Location of the Property</label>
@@ -633,7 +726,6 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                         <div className="rfe-section">
                             <div className="rfe-return-archive-box">
                                 <label className="rfe-label" htmlFor="releasing-staff-select">Encoded By: </label>
-                                {/* Automatically displays the logged-in user's name in a read-only format */}
                                 <input
                                     id="releasing-staff-select"
                                     className="rfe-input"
@@ -644,9 +736,8 @@ export function RequestFormEntry({ user, onCancel, onEntryComplete, onNavigateTo
                                 />
                             </div>
                         </div>
-                    </div> {/* <--- THIS IS THE DIV THAT WAS MISSING! */}
+                    </div>
 
-                    {/* SESSION BANNER */}
                     <div className="form-reuse-notice">
                         <div className="form-reuse-notice-icon"><LightbulbIcon size={20} /></div>
                         <div className="form-reuse-notice-text">
