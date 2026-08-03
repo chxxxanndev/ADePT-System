@@ -603,25 +603,30 @@ export function RequestFormEntry({
             </div>
 
             <div className="rfe-page-inner">
-                <div className="rfe-card">
-                    <div className="rfe-card-header">
-                        <div className="rfe-card-header-left">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <span className="rfe-header-icon"><ClipboardIconLarge /></span>
-                                <div><h2 className="rfe-card-title">REQUEST FORM ENTRY</h2><div className="rfe-card-subtitle">Property Record and Document Request · {today}</div></div>
-                            </div>
-                        </div>
-                        <span className="rfe-ref-chip">{displayReferenceNumber}</span>
-                    </div>
+    <div className="rfe-card">
+        {(prefilledRequestData as any)?.amendedFromReference && (
+            <div style={{ color: '#9a3412', padding: '8px 14px', fontSize: '0.82rem', fontWeight: 600, margin: '16px 32px 0' }}>
+                Amending {(prefilledRequestData as any).amendedFromReference} — review and correct the details below.
+            </div>
+        )}
+        <div className="rfe-card-header">
+            <div className="rfe-card-header-left">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span className="rfe-header-icon"><ClipboardIconLarge /></span>
+                    <div><h2 className="rfe-card-title">REQUEST FORM ENTRY</h2><div className="rfe-card-subtitle">Property Record and Document Request · {today}</div></div>
+                </div>
+            </div>
+            <span className="rfe-ref-chip">{displayReferenceNumber}</span>
+        </div>
 
-                    <ForwardToStaffModal
-                        open={showForwardModal}
-                        staffOptions={metadata.staff}
-                        currentStaffId={user.staffId}
-                        referenceNumber={formData.referenceNumber}
-                        onClose={() => setShowForwardModal(false)}
-                        onConfirm={handleConfirmForward}
-                    />
+        <ForwardToStaffModal
+            open={showForwardModal}
+            staffOptions={metadata.staff}
+            currentStaffId={user.staffId}
+            referenceNumber={formData.referenceNumber}
+            onClose={() => setShowForwardModal(false)}
+            onConfirm={handleConfirmForward}
+        />
 
                     <div className="rfe-form-body">
                         {/* Section 1 */}

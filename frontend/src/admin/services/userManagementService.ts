@@ -124,8 +124,12 @@ export async function setStaffPosition(
 /**
  * Fetches staff performance metrics.
  */
-export async function fetchStaffPerformance(): Promise<StaffPerformanceItem[]> {
-    const res = await api.get('/users/staff-performance');
+export async function fetchStaffPerformance(from?: string, to?: string): Promise<StaffPerformanceItem[]> {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to)   params.set('to', to);
+    const qs = params.toString();
+    const res = await api.get(`/users/staff-performance${qs ? `?${qs}` : ''}`);
     return res.data.performance as StaffPerformanceItem[];
 }
 
@@ -172,7 +176,13 @@ export async function fetchRecentTransactions(limit = 5, from?: string, to?: str
             controlNo: t.referenceNumber || `REF-${(t.id || '').slice(0, 6).toUpperCase()}`,
             declarant: t.client?.declarantName || t.client?.requestedBy || 'Anonymous',
             document: (t.requestedDocuments && t.requestedDocuments.length > 0)
-                ? t.requestedDocuments.join(', ')
+                ? t.requestedDocuments
+                    .map((d: any) =>
+                        typeof d === 'string'
+                            ? d
+                            : (d.documentName || d.document_name || d.name || d.type || JSON.stringify(d))
+                    )
+                    .join(', ')
                 : 'No-Landholding Certificate',
             assignedStaff: t.assignedStaff || 'Unassigned',
             status,

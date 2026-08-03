@@ -6,7 +6,7 @@ Font.register({
   src: window.location.origin + '/fonts/castellar.ttf'
 });
 
-// REGISTER BOOKMAN OLD STYLE (regular, bold, italic, bold-italic) — used for all filled-in data fields
+// REGISTER BOOKMAN OLD STYLE
 Font.register({
   family: 'BookmanOldStyle',
   fonts: [
@@ -38,17 +38,17 @@ const styles = StyleSheet.create({
   },
   formNoTag: { position: 'absolute', top: 15, left: 36, fontSize: 8 },
   content: { paddingHorizontal: 38, paddingTop: 15, paddingBottom: 15 },
-  headerCenter: { textAlign: 'center', marginBottom: 30 },
-  h8: { fontSize: 8 },
-  h10: { fontSize: 10, fontFamily: 'Times-Bold' },
-  h11: { fontSize: 11, fontFamily: 'Times-Bold' },
-  h7: { fontSize: 7.5 },
+  headerCenter: { textAlign: 'center', marginBottom: 50 },
+  h8: { fontSize: 10 },
+  h10: { fontSize: 12, fontFamily: 'Times-Bold' },
+  h11: { fontSize: 14, fontFamily: 'Times-Bold' },
+  h7: { fontSize: 9 },
   refRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   refItem: { flexDirection: 'row', alignItems: 'flex-end', flex: 1 },
   refUnderline: { borderBottomWidth: 1, borderBottomColor: '#000', flex: 1, textAlign: 'center', fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10.5, height: 14, paddingBottom: 0 },
-  title: { fontSize: 16, fontFamily: 'Castellar', textAlign: 'center', marginTop: 20, marginBottom: 12 },
+  title: { fontSize: 16, fontFamily: 'Castellar', textAlign: 'center', marginTop: 20, marginBottom: 30 },
   fieldRow: { flexDirection: 'row', marginBottom: 4, alignItems: 'flex-end' },
-  label10: { fontSize: 11 },
+  label10: { fontSize: 10 },
   underlineData: { 
     flex: 1, 
     borderBottomWidth: 1, 
@@ -74,17 +74,7 @@ const styles = StyleSheet.create({
   tdCell: { width: '19%', borderBottomWidth: 1, fontSize: 10, fontFamily: 'BookmanOldStyle', fontWeight: 'bold', paddingLeft: 2, flexDirection: 'row', alignItems: 'flex-end' },
   totalLabel: { fontSize: 9.5, fontFamily: 'Times-Bold', width: '40%', textAlign: 'right', paddingRight: 10, marginTop: 2 },
 
-  // Signature & Memo Styles
-  signatureSection: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2, marginBottom: 6 },
-  verifiedBlock: { width: '45%' },
-  assessorBlock: { width: '45%', alignItems: 'center' },
-  signatureUnderline: { borderBottomWidth: 1, width: '100%', textAlign: 'center', fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10, minHeight: 14 },
-  signatureSubLabel: { fontSize: 9, marginTop: 2, textAlign: 'center' },
-  memoContainer: { marginTop: 6, marginBottom: 6 },
-  memoLabelRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  memoLine: { borderBottomWidth: 1, width: '100%', minHeight: 14, paddingLeft: 2 },
-
-  // Certified Box Styles
+  // Certified Box
   certifiedBox: { borderWidth: 1, padding: 6, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between' },
   certLeftBlock: { width: '60%', flexDirection: 'row' },
   certSignatoryBlock: { flex: 1, alignItems: 'center', paddingRight: 10, paddingTop: 2 },
@@ -94,6 +84,14 @@ const styles = StyleSheet.create({
 });
 
 const peso = (n: any) => (n ? Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '');
+
+const COL = {
+  kind: '15%',
+  classification: '21%',
+  marketValue: '22%',
+  assessmentLevel: '14%',
+  assessedValue: '22%',
+};
 
 export const TaxDeclarationPDF = ({
   data = {},
@@ -120,16 +118,17 @@ export const TaxDeclarationPDF = ({
             <Text style={styles.h10}>PROVINCE OF ZAMBOANGA DEL NORTE</Text>
             <Text style={styles.h11}>OFFICE OF THE PROVINCIAL ASSESSOR</Text>
             <Text style={styles.h7}>Capitol Building, Dipolog City, Philippines</Text>
+            <Text style={{ fontSize: 10 }}>Tel No. 908 - 1855</Text>
           </View>
 
           <View style={styles.refRow}>
             <View style={[styles.refItem, { marginRight: 15 }]}>
               <Text style={styles.label10}>Assessment of Real Property No.: </Text>
-              <View style={styles.refUnderline}><Text style={{ fontSize: 10 }}>{data.taxDeclarationNumber}</Text></View>
+              <View style={styles.refUnderline}><Text style={{ fontSize: 12 }}>{data.taxDeclarationNumber}</Text></View>
             </View>
             <View style={styles.refItem}>
               <Text style={styles.label10}>Property Index No.: </Text>
-              <View style={styles.refUnderline}><Text style={{ fontSize: 11 }}>{data.propertyIndexNumber}</Text></View>
+              <View style={styles.refUnderline}><Text style={{ fontSize: 12 }}>{data.propertyIndexNumber}</Text></View>
             </View>
           </View>
 
@@ -172,7 +171,7 @@ export const TaxDeclarationPDF = ({
 
           <View style={[styles.fieldRow, { marginTop: 4 }]}>
             <View style={[styles.gridItem, { flex: 1.2 }]}><Text style={styles.label10}>OCT/TCT No. </Text><View style={styles.underlineData}><Text style={{ fontSize: 10 }}>{data.octTctNumber}</Text></View></View>
-            <View style={[styles.gridItem, { flex: 1, marginLeft: 8 }]}><Text style={styles.label10}>Survey No.: </Text><View style={styles.underlineData}><Text style={{ fontSize: 10 }} >{data.surveyNumber}</Text></View></View>
+            <View style={[styles.gridItem, { flex: 1, marginLeft: 8 }]}><Text style={styles.label10}>Survey No.: </Text><View style={styles.underlineData}><Text style={{ fontSize: 10 }}>{data.surveyNumber}</Text></View></View>
             <View style={[styles.gridItem, { flex: 0.8, marginLeft: 8 }]}><Text style={styles.label10}>Lot No.: </Text><View style={styles.underlineData}><Text style={{ fontSize: 10 }}>{data.lotNumber}</Text></View></View>
             <View style={[styles.gridItem, { flex: 0.7, marginLeft: 8 }]}><Text style={styles.label10}>Blk. No.: </Text><View style={styles.underlineData}><Text style={{ fontSize: 10 }}>{data.blkNumber}</Text></View></View>
           </View>
@@ -194,23 +193,23 @@ export const TaxDeclarationPDF = ({
           <View style={styles.doubleLine} />
 
           <View style={styles.tableHeader}>
-            <Text style={[styles.thCell, { width: '19%' }]}>Kind of Property</Text>
-            <Text style={[styles.thCell, { width: '19%' }]}>Classification</Text>
-            <Text style={[styles.thCell, { width: '19%' }]}>Market Value</Text>
-            <View style={[styles.thCell, { width: '19%' }]}><Text>Assessment Level (%)</Text></View>
-            <Text style={[styles.thCell, { width: '19%' }]}>Assessed Value</Text>
+            <Text style={[styles.thCell, { width: COL.kind }]}>Kind of Property</Text>
+            <Text style={[styles.thCell, { width: COL.classification }]}>Classification</Text>
+            <Text style={[styles.thCell, { width: COL.marketValue }]}>Market Value</Text>
+            <View style={[styles.thCell, { width: COL.assessmentLevel }]}><Text>Assessment Level (%)</Text></View>
+            <Text style={[styles.thCell, { width: COL.assessedValue }]}>Assessed Value</Text>
           </View>
 
           {tableRows.map((row: any, i: number) => (
             <View key={i} style={styles.tableRow}>
-              <View style={styles.tdCell}><Text>{row.kindOfProperty || ' '}</Text></View>
-              <View style={styles.tdCell}><Text>{row.classificationLabel ? String(row.classificationLabel).toUpperCase() : ' '}</Text></View>
-              <View style={[styles.tdCell, { justifyContent: 'space-between' }]}>
+              <View style={[styles.tdCell, { width: COL.kind, justifyContent: 'center' }]}><Text style={{ textAlign: 'center', width: '100%' }}>{row.kindOfProperty || ' '}</Text></View>
+              <View style={[styles.tdCell, { width: COL.classification, justifyContent: 'center' }]}><Text style={{ textAlign: 'center', width: '100%' }}>{row.classificationLabel ? String(row.classificationLabel).toUpperCase() : ' '}</Text></View>
+              <View style={[styles.tdCell, { width: COL.marketValue, justifyContent: 'space-between' }]}>
                 <Text>{i === 0 ? 'P' : ''}</Text>
                 <Text>{peso(row.marketValue)}</Text>
               </View>
-              <View style={[styles.tdCell, { justifyContent: 'flex-end', paddingRight: 4 }]}><Text>{row.assessmentLevel ? `${row.assessmentLevel}%` : ''}</Text></View>
-              <View style={[styles.tdCell, { justifyContent: 'space-between' }]}>
+              <View style={[styles.tdCell, { width: COL.assessmentLevel, justifyContent: 'flex-end', paddingRight: 4 }]}><Text>{row.assessmentLevel ? `${row.assessmentLevel}%` : ''}</Text></View>
+              <View style={[styles.tdCell, { width: COL.assessedValue, justifyContent: 'space-between' }]}>
                 <Text>{i === 0 ? 'P' : ''}</Text>
                 <Text>{peso(row.assessedValue)}</Text>
               </View>
@@ -219,57 +218,122 @@ export const TaxDeclarationPDF = ({
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 3 }}>
             <Text style={styles.totalLabel}>TOTAL</Text>
-            <View style={[styles.tdCell, { justifyContent: 'space-between' }]}><Text>P</Text><Text>{peso(totalMarketValue)}</Text></View>
-            <View style={{ width: '19%' }} />
+            <View style={[styles.tdCell, { width: COL.marketValue, justifyContent: 'space-between' }]}><Text>P</Text><Text>{peso(totalMarketValue)}</Text></View>
+            <View style={{ width: COL.assessmentLevel }} />
             <Text style={[styles.totalLabel, { width: 45, textAlign: 'left' }]}>TOTAL</Text>
-            <View style={[styles.tdCell, { justifyContent: 'space-between' }]}><Text>P</Text><Text>{peso(totalAssessedValue)}</Text></View>
+            <View style={[styles.tdCell, { width: COL.assessedValue, justifyContent: 'space-between' }]}><Text>P</Text><Text>{peso(totalAssessedValue)}</Text></View>
           </View>
 
           <View style={[styles.fieldRow, { marginTop: 4 }]}>
             <Text style={styles.label10}>Total Assessed Value: </Text>
-            <View style={styles.underlineData}><Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontStyle: 'italic' }}>{String(data.totalAssessedValueWords || '')}</Text></View></View>
+            <View style={[styles.underlineData, { textAlign: 'left' }]}><Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontStyle: 'italic' }}>{String(data.totalAssessedValueWords || '')}</Text></View>
+          </View>
           <Text style={{ fontSize: 8.5, textAlign: 'center', marginBottom: 4 }}>(Amount in Words)</Text>
 
-          <View style={styles.fieldRow}>
-            <Text style={styles.label10}>Area: </Text>
-            <View style={styles.underlineData}><Text>{data.area}</Text></View>
-            <Text style={{ marginLeft: 10, fontSize: 10 }}>Tax Effectivity: </Text>
-            <View style={styles.underlineData}><Text>{data.taxEffectivity}</Text></View>
+          {/* AREA & TAX EFFECTIVITY */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', width: '45%' }}>
+              <Text style={{ fontSize: 10 }}>Area: </Text>
+              <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', textAlign: 'center', minHeight: 14 }}>
+                <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10 }}>{data.area}</Text>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', width: '40%' }}>
+              <Text style={{ fontSize: 10 }}>Tax Effectivity: </Text>
+              <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', textAlign: 'center', minHeight: 14 }}>
+                <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10 }}>{data.taxEffectivity}</Text>
+              </View>
+            </View>
           </View>
 
+          {/* TAXABLE / EXEMPT */}
           <View style={[styles.fieldRow, { marginTop: 4 }]}>
             <Text style={{ fontSize: 10, marginRight: 20 }}>Taxable [ {data.taxable ? 'X' : ' '} ]</Text>
             <Text style={{ fontSize: 10 }}>Exempt [ {!data.taxable ? 'X' : ' '} ]</Text>
           </View>
 
-          {/* VERIFIED BY & ASSESSOR */}
-          <View style={styles.signatureSection}>
-            <View style={styles.verifiedBlock}>
-              <Text style={{ marginBottom: 2, fontSize: 10 }}>Verified by:</Text>
-              <View style={styles.signatureUnderline}><Text>{data.verifiedByName || ''}</Text></View>
-            </View>
-            <View style={styles.assessorBlock}>
-              <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10 }}>{data.assessorName ? `(SGD) ${data.assessorName}` : ' '}</Text>
-              <View style={styles.signatureUnderline} />
-              <Text style={styles.signatureSubLabel}>{data.assessorTitle || 'Municipal Assessor'}</Text>
+          {/* ============================================================ */}
+          {/* VERIFIED BY & ASSESSOR SECTION (FIXED: MIRRORED & ALIGNED)   */}
+          {/* ============================================================ */}
+          <View style={{ marginTop: 10, marginBottom: 10 }}>
+            <Text style={{ fontSize: 10, marginBottom: 2 }}>Verified by:</Text>
+            
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+              
+              {/* Left Column: Verified By Underline */}
+              <View style={{ width: '42%', alignItems: 'center' }}>
+                <View style={{ borderBottomWidth: 1, borderBottomColor: '#000', width: '100%', minHeight: 18, justifyContent: 'flex-end' }}>
+                  <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10.5, textAlign: 'center' }}>
+                    {data.verifiedByName || ''}
+                  </Text>
+                </View>
+                {/* Space below to mirror the Assessor title height */}
+                <Text style={{ fontSize: 9, marginTop: 2, opacity: 0 }}>Spacer</Text> 
+              </View>
+
+              {/* Right Column: Municipal Assessor */}
+              <View style={{ width: '42%', alignItems: 'center' }}>
+                <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10.5, textAlign: 'center' }}>
+                  {data.assessorName || ''}
+                </Text>
+                <View style={{ borderBottomWidth: 1, borderBottomColor: '#000', width: '100%' }} />
+                <Text style={{ fontSize: 9, marginTop: 2, textAlign: 'center' }}>
+                  {data.assessorTitle || 'Municipal Assessor'}
+                </Text>
+              </View>
+
             </View>
           </View>
 
-          <View style={styles.fieldRow}>
+          {/* CANCELS ARP NO. */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 4, marginBottom: 6 }}>
             <Text style={{ fontSize: 10 }}>This declaration cancels ARP No. </Text>
-            <View style={styles.underlineData}><Text>{data.cancelsArpNo}</Text></View>
+            <View style={{ width: 220, borderBottomWidth: 1, borderBottomColor: '#000', textAlign: 'center', minHeight: 14 }}>
+              <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10 }}>{data.cancelsArpNo || ''}</Text>
+            </View>
           </View>
 
-          <View style={styles.memoContainer}>
-            <View style={styles.memoLabelRow}>
-              <Text style={{ fontSize: 10 }}>Memoranda: </Text>
-              <View style={[styles.memoLine, { flex: 1 }]}>
-                <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontStyle: 'italic', fontSize: 10 }}>{data.memoranda}</Text>
+          {/* ============================================================ */}
+          {/* MEMORANDA (FIXED: RULED LINE WRAPPING)                       */}
+          {/* ============================================================ */}
+          <View style={{ position: 'relative', marginTop: 2 }}>
+            {/* BACKGROUND LAYER: The ruled lines */}
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
+               {/* Line 1: Starts after the "Memoranda:" label space */}
+               <View style={{ flexDirection: 'row', height: 15 }}>
+                 <View style={{ width: 65 }} />
+                 <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000' }} />
+               </View>
+               {/* Line 2 & 3: Full width */}
+               <View style={{ borderBottomWidth: 1, borderBottomColor: '#000', height: 15 }} />
+               <View style={{ borderBottomWidth: 1, borderBottomColor: '#000', height: 15 }} />
+            </View>
+
+            {/* TEXT LAYER: The actual content */}
+            <View style={{ flexDirection: 'row' }}>
+              <Text style={{ fontSize: 10, width: 65 }}>Memoranda: </Text>
+              <View style={{ flex: 1 }}>
+                <Text 
+                  /* Prevents the FFFFF crash for long words with no spaces */
+                  hyphenationCallback={(word) => [word]} 
+                  style={{ 
+                    fontFamily: 'BookmanOldStyle', 
+                    fontWeight: 'bold', 
+                    fontStyle: 'italic', 
+                    fontSize: 9.5,
+                    lineHeight: 1.58, // Math: (15px line height / 9.5 fontSize)
+                    paddingTop: 1.5   // Vertically aligns text to sit perfectly on the line
+                  }}
+                >
+                  {data.memoranda || ''}
+                </Text>
               </View>
             </View>
-            <View style={styles.memoLine} />
-            <View style={styles.memoLine} />
           </View>
+          
+          {/* Gap before the Certified Box */}
+          <View style={{ height: 12 }} />
 
           {/* CERTIFIED COPY BOX */}
           <View style={styles.certifiedBox}>

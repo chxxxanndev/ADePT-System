@@ -95,13 +95,6 @@ export const releaseRequest = async (req, res) => {
     }
 };
 
-/**
- * RESTORED (best-effort reconstruction) — required by request.routes.js
- * (POST /:id/forward) but missing from the version pasted into this
- * conversation. See the detailed comment on
- * RequestService.forwardRequest() — please verify this matches the
- * original intended behavior.
- */
 export const forwardRequest = async (req, res) => {
     try {
         const { id } = req.params;
@@ -132,6 +125,16 @@ export const markAsReleased = async (req, res) => {
     }
 };
 
+export const createReprint = async (req, res) => {
+    try {
+        const { id, docId } = req.params; // Ensure these names match the route :id and :docId
+        const result = await RequestService.createReprint(id, docId);
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export const voidRequest = async (req, res) => {
     try {
         const { id } = req.params;
@@ -140,6 +143,26 @@ export const voidRequest = async (req, res) => {
         res.status(200).json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+};
+
+export const amendRequest = async (req, res) => {
+    try {
+        const result = await RequestService.amendRequest(req.params.id, req.staffId);
+        res.status(200).json(result);
+    } catch (err) {
+        console.error('Amend request failed:', err.message);
+        res.status(400).json({ error: err.message });
+    }
+};
+
+export const getDocumentDataByRequestId = async (req, res) => {
+    try {
+        const result = await RequestService.getDocumentDataByRequestId(req.params.id);
+        res.status(200).json(result);
+    } catch (err) {
+        console.error('Fetch document data failed:', err.message);
+        res.status(400).json({ error: err.message });
     }
 };
 
@@ -161,3 +184,4 @@ export const getReportsData = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+

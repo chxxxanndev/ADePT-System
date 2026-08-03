@@ -41,6 +41,16 @@ api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+
+        // No response at all = network failure — almost always means the
+        // backend is down/restarting, not an auth problem. Surface it
+        // immediately rather than letting each widget's .catch(() => {})
+        // silently eat it.
+        if (!error.response) {
+            window.dispatchEvent(new CustomEvent('app:connection-lost'));
+            return Promise.reject(error);
+        }
+
         if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
             originalRequest._retry = true;
             try {
@@ -54,7 +64,13 @@ api.interceptors.response.use(
             } catch (refreshErr) {
                 console.error('Session retry failed', refreshErr);
             }
+
+            // Retry didn't produce a usable token — the session is genuinely
+            // gone (expired, revoked, or backend restarted and invalidated
+            // it). This is the case that needs an explicit logout prompt.
+            window.dispatchEvent(new CustomEvent('app:session-expired'));
         }
+
         return Promise.reject(error);
     }
 );
@@ -100,6 +116,15 @@ export const requestService = {
     }) => {
         const response = await api.post(`/requests/${id}/release`, paymentData);
         return response.data;
+    },
+
+    amendRequest: async (id: string) => {
+        const response = await api.post(`/requests/${id}/amend`);
+        return response.data; // { request, documentTypeId, documentTypeName, documentPrefix }
+    },
+    getDocumentData: async (id: string) => {
+        const response = await api.get(`/requests/${id}/document-data`);
+        return response.data; // { documentPrefix, data } | null
     },
 
     deleteRequest: async (id: string) => {

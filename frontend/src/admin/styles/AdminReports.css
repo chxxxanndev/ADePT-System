@@ -49,7 +49,7 @@
 /* ===== Charts Row ===== */
 .ar-charts-row {
     display: grid;
-    grid-template-columns: 1.5fr 1fr;
+    grid-template-columns: 2fr 1fr;
     gap: 20px;
 }
 
@@ -90,7 +90,7 @@
 
 .ar-chart-canvas {
     width: 100%;
-    height: 200px;
+    height: 240px;
 }
 
 .ar-chart-tooltip {

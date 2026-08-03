@@ -10,6 +10,7 @@ import { ResetPasswordForm } from './auth-folder/ResetPasswordForm';
 import { Dashboard } from './users/pages/Dashboard';
 import { AdminDashboard } from './admin/pages/AdminDashboard';
 import { CartProvider } from './users/hooks/TransactionCartContext';
+import { SessionInterruptionBanner } from '../src/users/components/SessionInterruptionBanner';
 
 function App() {
   const [view, setView] = useState<View>('login');
@@ -53,6 +54,7 @@ function App() {
   const handleLogin = (...args: Parameters<typeof login>) => {
     sessionStorage.removeItem('adept-active-view');
     sessionStorage.removeItem('adept-completed-entry');
+    sessionStorage.removeItem('adept-admin-active-view'); 
     return login(...args);
   };
 
@@ -62,6 +64,7 @@ function App() {
   const handleReactivate = (...args: Parameters<typeof reactivateAccount>) => {
     sessionStorage.removeItem('adept-active-view');
     sessionStorage.removeItem('adept-completed-entry');
+    sessionStorage.removeItem('adept-admin-active-view'); 
     return reactivateAccount(...args);
   };
 
@@ -87,6 +90,7 @@ function App() {
     return (
       <BrowserRouter>
         <CartProvider>
+          <SessionInterruptionBanner onLogout={logout} />
           {isAdminOrAbove ? (
             <AdminDashboard user={currentUser} onLogout={logout} />
           ) : (

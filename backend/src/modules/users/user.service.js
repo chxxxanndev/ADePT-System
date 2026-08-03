@@ -768,7 +768,7 @@ class UserService {
      * Returns all staff members ranked by the number of requests they have
      * handled (encoded_by in the requests table).
      */
-    async getStaffPerformance() {
+    async getStaffPerformance(from, to) {
         if (useMock || !supabase) {
             return MOCK_STAFF
                 .filter((m) => m.account_status === 'ACTIVE')
@@ -782,33 +782,29 @@ class UserService {
                 .sort((a, b) => b.requests - a.requests);
         }
 
-        // Fetch active staff, request counts, and audit log entries in parallel from Supabase
-        const [{ data: staffRows }, { data: requestRows }, { data: auditRows }] = await Promise.all([
+        // Build date-filtered requests query when a range is provided
+        let requestsQuery = supabase
+            .from('requests')
+            .select('encoded_by')
+            .not('encoded_by', 'is', null);
+        if (from) requestsQuery = requestsQuery.gte('request_date', from);
+        if (to)   requestsQuery = requestsQuery.lte('request_date', to);
+
+        // Fetch active staff and date-filtered request counts in parallel
+        const [{ data: staffRows }, { data: requestRows }] = await Promise.all([
             supabase
                 .from('staff')
                 .select('id, first_name, middle_initial, last_name')
                 .eq('account_status', 'ACTIVE')
                 .is('deleted_at', null),
-            supabase
-                .from('requests')
-                .select('encoded_by')
-                .not('encoded_by', 'is', null),
-            supabase
-                .from('audit_log')
-                .select('actor_id')
-                .not('actor_id', 'is', null),
+            requestsQuery,
         ]);
 
-        // Count requests/actions per staff id from Supabase tables
+        // Count requests per staff id
         const countMap = {};
         for (const row of requestRows ?? []) {
             if (row.encoded_by) {
                 countMap[row.encoded_by] = (countMap[row.encoded_by] ?? 0) + 1;
-            }
-        }
-        for (const row of auditRows ?? []) {
-            if (row.actor_id) {
-                countMap[row.actor_id] = (countMap[row.actor_id] ?? 0) + 1;
             }
         }
 

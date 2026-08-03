@@ -17,11 +17,14 @@ import '../styles/PaymentDetails.css';
 
 interface PaymentDetailsProps {
     payment: any | null;
-    onBack: () => void; // still used to leave the screen manually (e.g. back arrow on step 1)
-    onReleased?: () => void; // called after a successful release — navigate to Transaction Registry
-    onSavedForLater?: () => void;   // NEW — navigate back to Pending For Release
+    onBack: () => void;
+    onReleased?: () => void;
+    onReleasedReprint?: () => void;   // NEW — where reprint releases go instead
+    onSavedForLater?: () => void;
     onEditDocument?: (referenceNumber: string) => void;
 }
+
+const isReprintReference = (referenceNumber: string) => /-R\d+$/.test(referenceNumber || '');
 
 const DEFAULT_SIGNATORIES = [
     { id: 'sig_1', name: 'ELVIRA T. ENAO, REA', title: 'Local Assessment Operations Officer IV', role: 'AUTHORIZED_REP' },
@@ -38,7 +41,7 @@ const getFormattedDates = () => {
     return { day, monthYear, datePaid };
 };
 
-export function PaymentDetails({ payment, onBack, onReleased, onSavedForLater }: PaymentDetailsProps) {
+export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint, onSavedForLater }: PaymentDetailsProps) {
     // Resuming from the "Pending for Release" queue means this payment already
     // has an O.R. number attached (set by releaseRequest when status flipped
     // to PAID) — in that case skip VERIFICATION and land straight on RELEASE.
@@ -409,21 +412,24 @@ export function PaymentDetails({ payment, onBack, onReleased, onSavedForLater }:
                     )}
 
                     {workflowStep === 'RELEASE' && (
-                        <DocumentReleasePanel
-                            documents={documents}
-                            orNumber={orNumber}
-                            activePreview={activePreview}
-                            isGeneratingPdf={isGeneratingPdf}
-                            onSelectDocument={handlePrintDocument}
-                            activeSignatories={activeSignatories}
-                            docSignatories={docSignatories}
-                            onSignatoryChange={handleSignatoryChange}
-                            releaseStaffOptions={releaseStaff}
-                            onMarkAsReleased={handleMarkAsReleased}
-                            onReleased={onReleased ?? onBack}
-                            onQueueForRelease={handleQueueForRelease}
-                        />
-                    )}
+    <DocumentReleasePanel
+        documents={documents}
+        orNumber={orNumber}
+        activePreview={activePreview}
+        isGeneratingPdf={isGeneratingPdf}
+        onSelectDocument={handlePrintDocument}
+        activeSignatories={activeSignatories}
+        docSignatories={docSignatories}
+        onSignatoryChange={handleSignatoryChange}
+        releaseStaffOptions={releaseStaff}
+        onMarkAsReleased={handleMarkAsReleased}
+        onReleased={() => {
+            const isReprint = documents.some((doc: any) => isReprintReference(doc.referenceNumber));
+            (isReprint ? (onReleasedReprint ?? onReleased ?? onBack) : (onReleased ?? onBack))();
+        }}
+        onQueueForRelease={handleQueueForRelease}
+    />
+)}
                 </div>
             </div>
 

@@ -105,7 +105,7 @@ export function DashboardHeader({
                 </div>
                 <div className="header-profile-meta">
                     <span className="header-profile-role">{user.role}</span>
-                    <span className="header-profile-lastlogin">Last Login : {user.lastLogin}</span>
+                    <span className="header-profile-last-login">Last Login : {user.lastLogin}</span>
                 </div>
             </div>
         </header>

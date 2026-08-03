@@ -2,16 +2,20 @@
 
 export type PropertySource = 'TAX_DECLARATION' | 'LAND_HOLDING' | 'NO_LANDHOLDING' | 'UNKNOWN';
 
+// Match the labels shown in the UI
 export type TransactionStatus =
     | 'Pending'
-    | 'For Payment'
-    | 'Payment Verified'
     | 'Processing'
-    | 'Ready for Release'
     | 'Released'
     | 'Void'
     | 'Cancelled'
-    | 'Archived';
+    | 'Archived'
+    | 'Payment Verified'
+    | 'For Payment'          // ← add
+    | 'Ready for Release'; 
+
+
+export type CTCStatus = "Pending" | "Released" | "Voided" | "Archived";
 
 export type DocumentType =
     | 'Tax Declaration'
@@ -38,16 +42,11 @@ export interface GeneratedDocument {
 }
 
 /**
- * One requested document within a request/reference number.
- * TODO: `id` is a client-generated placeholder (`${transactionId}-doc-${index}`)
- * because request_documents doesn't expose its own row id in
- * getTransactionRegistry() yet — swap it for the real id once it does.
- * TODO: `reprintCount` has no backing DB column yet (confirmed — none exists).
- * It lives only in local state for the current session and resets on reload
- * until a backend field/endpoint is added.
+ * One requested document within a request.
+ * reprintCount is now backed by the database count of sibling requests.
  */
 export interface RequestedDocumentItem {
-    id: string;
+    id: string; // The ID from the request_documents table
     documentType: DocumentType | string;
     documentTypeId?: string;
     requiresTaxDeclaration?: boolean;
@@ -61,19 +60,9 @@ export interface PaymentInfo {
     paymentDate: string | null;
     paymentMethod: 'Cash' | 'GCash' | 'Bank Transfer' | 'Unpaid';
     verifiedBy: string | null;
-    /**
-     * Free-text reason recorded when an OR Number is waived/exempted/not
-     * yet issued (e.g. "Senior citizen exemption", "Indigency waiver").
-     * Backed by requests.or_override_justification.
-     */
     orJustification?: string | null;
 }
 
-/**
- * One row from encoded_assessment_rows — a tax declaration can have
- * multiple assessment rows (e.g. part residential + part agricultural on
- * the same property), distinguished by row_order.
- */
 export interface AssessmentRow {
     id: string;
     rowOrder: number;
@@ -88,16 +77,26 @@ export interface AssessmentRow {
     kindOfProperty?: string;
 }
 
+export interface LandholdingRow {
+    id: string;
+    rowOrder: number;
+    tdArpNumber?: string;
+    location?: string;
+    lotNumber?: string;
+    titleNumber?: string;
+    area?: string;
+    assessedValue?: number | null;
+}
+
 export interface PropertyInfo {
-    /** Which encoded record this data came from — drives which fields are populated vs dashed. */
     source?: PropertySource;
-    taxDeclarationNo: string;      // Assessment/TD/ARP No.
-    pin?: string;                  // Property Identification Number
-    octTctNumber?: string;         // OCT/TCT/CLOA No.
+    taxDeclarationNo: string;
+    pin?: string;
+    octTctNumber?: string;
     surveyNumber?: string;
     lotNo?: string;
     blockNumber?: string;
-    titleNumber?: string;          // populated for Land Holding rows
+    titleNumber?: string;
     location: string;
     ownerOnRecord: string;
     ownerAddress?: string;
@@ -111,9 +110,7 @@ export interface PropertyInfo {
     boundarySouth?: string;
     boundaryEast?: string;
     boundaryWest?: string;
-    /** Classification of the first assessment row — kept for quick display; see assessmentRows for the full set. */
     classification?: string;
-    /** Area of the first assessment row — kept for quick display; see assessmentRows for the full set. */
     area?: string;
     marketValue?: number | null;
     assessedValue?: number | null;
@@ -125,8 +122,8 @@ export interface PropertyInfo {
     notes?: string;
     assessorName?: string;
     assessorTitle?: string;
-    /** Every encoded_assessment_rows entry tied to this tax declaration, in row_order. */
     assessmentRows?: AssessmentRow[];
+    landholdingRows?: LandholdingRow[]; 
 }
 
 export interface ClientInfo {
@@ -139,22 +136,16 @@ export interface ClientInfo {
 export interface Transaction {
     id: string;
     referenceNumber: string;
+    /** 
+     * NEW: Distinguishes between the first application 
+     * and subsequent reprint/CTC requests.
+     */
+    requestType: 'ORIGINAL' | 'REPRINT'; 
     client: ClientInfo;
     property: PropertyInfo;
     requestedDocuments: RequestedDocumentItem[];
     dateRequested: string;
-    /**
-     * When this request's documents were actually released (mm/dd/yyyy, same
-     * format as dateRequested). Only meaningfully populated once status is
-     * 'Released' — null/undefined beforehand. Backed by requests.release_date
-     * (see transactionService.ts for the raw-field fallback mapping).
-     */
     dateReleased?: string | null;
-    /**
-     * Display name of the staff member who released the documents (resolved
-     * server-side from requests.released_by, a staff uuid). Null until the
-     * request is actually released.
-     */
     releasedBy?: string | null;
     assignedStaff: string;
     status: TransactionStatus;
@@ -165,21 +156,32 @@ export interface Transaction {
     isVoid?: boolean;
     voidReason?: string;
     voidedAt?: string;
+    hasBeenAmended?: boolean;
 }
 
 /**
- * Frontend-only grouping used by the Transaction Registry table: one row per
- * declarant, bundling every Released request that declarant has.
- * NOTE: grouped by client.declarantName since no client id is exposed by the
- * backend yet — two different people sharing an exact name would merge here.
+ * Used for the Certified True Copy (Reprint) Registry view
  */
+export interface CertifiedCopyRecord {
+    id: string;
+    reference: string;          // The reprint ref (e.g., -R1)
+    declarantName: string;
+    originalDocument: string;   // The parent ref (base)
+    dateRequested: string;
+    dateReleased: string;
+    releasedBy: string;
+    status: CTCStatus;
+    orNumber: string;
+    orJustification: string;
+}
+
 export interface DeclarantGroup {
     declarantName: string;
-    transactions: Transaction[]; // most recently released first
+    transactions: Transaction[];
 }
 
 export interface TransactionFilters {
-    status: 'Released' | 'Reprinted'; // was TransactionStatus | 'All' — registry is Released-only now
+    status: 'Released' | 'Reprinted';
     documentType: DocumentType | 'All';
     dateFrom?: string;
     dateTo?: string;

@@ -12,7 +12,7 @@ import { PendingPayment } from './PendingPayment';
 import { PaymentDetails } from './PaymentDetails';
 import { DocumentRequestDashboard } from './DocumentRequestDashboard';
 import Reports from './Reports';
-import CertifiedTrueCopy from './CertifiedTrueCopy';
+import CertifiedTrueCopy from './CeritifiedTrueCopy-Reprint';
 import ArchiveManagement from './ArchiveManagement';
 import { AboutADePT } from './AboutADePT';
 import { NotificationPage } from './NotificationPage';
@@ -34,6 +34,8 @@ import { TransactionSummary } from './request-processing/TransactionSummary';
 import { ROLES } from '../constants/roles';
 import { useNotifications } from '../hooks/useNotifications';
 import { useCart } from '../hooks/TransactionCartContext';
+import { useOnlinePresence } from '../../admin/services/useOnlinePresence';
+
 // Single shared source of truth for registry-derived analytics — also used
 // by Reports.tsx, so the Analytics Overview / Document Distribution here and
 // the numbers on the Reports page never drift apart.
@@ -165,6 +167,8 @@ const formatLastLogin = (dateString?: string) => {
 };
 
 export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
+    useOnlinePresence(user);
+
     const [activeView, setActiveView] = useState<string>(
         () => sessionStorage.getItem('adept-active-view') || 'dashboard'
     );
@@ -695,7 +699,10 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                     ) : activeView === 'reports' ? (
                         <Reports />
                     ) : activeView === 'certified-true-copy' ? (
-                        <CertifiedTrueCopy />
+                        <CertifiedTrueCopy
+                            onNavigateToRegistry={() => setActiveView('transaction-registry')}
+                            onNavigateToVoidAmend={() => setActiveView('void-amend')}
+                        />
                     ) : activeView === 'archive-management' ? (
                         <ArchiveManagement />
                     ) : activeView === 'about-adept' ? (
@@ -819,6 +826,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             payment={selectedPayment}
                             onBack={() => setActiveView('pending-payment')}
                             onReleased={() => setActiveView('transaction-registry')}
+                            onReleasedReprint={() => setActiveView('certified-true-copy')}
                             onSavedForLater={() => setActiveView('pending-for-release')}
                             onEditDocument={(_controlNumber) => {
                                 if (selectedPayment?.documentType.toLowerCase().includes('landholding')) {
@@ -837,11 +845,23 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onSwitchView={(view: string) => setActiveView(view)} /* ADD THIS */
                         />
                     ) : activeView === 'transaction-registry' ? (
-                        <TransactionRegistry user={user} onNavigateToVoidAmend={handleNavigateToVoidAmend} />
+                        <TransactionRegistry
+                            user={user}
+                            onNavigateToVoidAmend={handleNavigateToVoidAmend}
+                            onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
+                            onNavigateToReprint={() => setActiveView('certified-true-copy')}
+                            onNavigateToPendingRequests={() => setActiveView('document-request')}
+                        />
                     ) : activeView === 'void-amend' ? (
                         <VoidAndAmend
                             pendingItems={pendingVoidItems}
                             onPendingItemsConsumed={() => setPendingVoidItems([])}
+                            onAmend={(payload) => {
+                                setPrefilledRequestData(payload);
+                                setActiveView('new-request');
+                            }}
+                            onNavigateToRegistry={() => setActiveView('transaction-registry')}
+                            onNavigateToReprint={() => setActiveView('certified-true-copy')}
                         />
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>

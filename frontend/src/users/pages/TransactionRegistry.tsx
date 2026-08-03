@@ -2,12 +2,12 @@ import { useState, useMemo, useEffect } from 'react';
 import { RegistrySummarySkeleton, RegistryToolbarSkeleton, RegistryTableSkeleton } from '../components/common/Skeleton';
 import type { Transaction, TransactionFilters, DeclarantGroup } from '../types/transaction';
 import { computeSummary } from '../data/mockTransactions';
-import { fetchTransactionRegistry, voidTransaction } from '../services/transactionService';
-import { recordReprint, mergeReprintCounts } from '../services/reprintStore';
+import { fetchTransactionRegistry, voidTransaction, createReprint } from '../services/transactionService';
 import { SummaryCards } from '../components/SummaryCards';
 import { SearchBar } from '../components/SearchBar';
 import { FilterBar } from '../components/FilterBar';
 import { TransactionTable } from '../components/TransactionTable';
+import { TransactionTabs } from '../components/TransactionTabs';
 import { TransactionDetails } from './TransactionDetails';
 import { VoidDocumentSelectModal } from '../components/DocumentSelectModal';
 import type { User } from '../../auth-folder/types/auth';
@@ -47,10 +47,18 @@ interface TransactionRegistryProps {
     onNavigateToVoidAmend: (newVoidedItems: VoidAmendRecord[]) => void;
     onNavigateToReprint?: () => void;          // NEW — wire from parent/router
     onNavigateToPendingRequests?: () => void;  // NEW — wire from parent/router
+    onNavigateToPendingPayment?: () => void;   // NEW — where "Reprint & Proceed" redirects
     initialSearchQuery?: string;
 }
 
-export function TransactionRegistry({ user, onNavigateToVoidAmend, onNavigateToReprint, onNavigateToPendingRequests, initialSearchQuery }: TransactionRegistryProps) {
+export function TransactionRegistry({
+    user,
+    onNavigateToVoidAmend,
+    onNavigateToReprint,
+    onNavigateToPendingRequests,
+    onNavigateToPendingPayment,
+    initialSearchQuery,
+}: TransactionRegistryProps) {
 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -68,31 +76,29 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, onNavigateToR
     }, [initialSearchQuery]);
 
     const loadTransactions = async (isManualRefresh = false) => {
-        if (isManualRefresh) setIsRefreshing(true);
-        else setIsLoading(true);
-        setLoadError(null);
-        try {
-            const data = await fetchTransactionRegistry();
-            // Overlay persisted reprint counts (see reprintStore.ts) since the
-            // backend response always comes back with reprintCount: 0.
-            setTransactions(mergeReprintCounts(data));
-        } catch (err) {
-            setLoadError(err instanceof Error ? err.message : 'Failed to load transactions.');
-            setTransactions([]);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    };
+    if (isManualRefresh) setIsRefreshing(true);
+    else setIsLoading(true);
+    setLoadError(null);
+    try {
+        const data = await fetchTransactionRegistry();
+        setTransactions(data);   // backend now returns real counts, no overlay needed
+    } catch (err) {
+        setLoadError(err instanceof Error ? err.message : 'Failed to load transactions.');
+        setTransactions([]);
+    } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+    }
+};
 
     useEffect(() => {
         loadTransactions();
     }, []);
 
     const releasedTransactions = useMemo(
-        () => transactions.filter((t) => t.status === 'Released'),
-        [transactions]
-    );
+    () => transactions.filter((t) => t.status === 'Released' && !/-R\d+$/.test(t.referenceNumber)),
+    [transactions]
+);
 
     const summary = useMemo(() => computeSummary(releasedTransactions), [releasedTransactions]);
 
@@ -142,22 +148,15 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, onNavigateToR
             );
     }, [filteredTransactions]);
 
-    const handleReprint = (transactionId: string, docId: string) => {
-        const actor = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User';
-        // Persist the reprint so CertifiedTrueCopy.tsx (and this view, on
-        // reload) can see it — see reprintStore.ts for why this can't just
-        // live in this component's local state.
-        const newCount = recordReprint(docId, actor);
-
-        setTransactions((prev) => prev.map((t) => {
-            if (t.id !== transactionId) return t;
-            return {
-                ...t,
-                requestedDocuments: t.requestedDocuments.map((d) =>
-                    d.id === docId ? { ...d, reprintCount: newCount } : d
-                ),
-            };
-        }));
+    // Creates the -R{n} reprint request on the backend, then hands off to
+    // Pending Payment where staff verifies O.R. and releases it — same as
+    // any other document. No local reprintCount mutation here: the count
+    // shown in the registry reflects released reprints only, and this new
+    // request isn't released yet, so it'll show up correctly once it comes
+    // back through getTransactionRegistry() after being paid + released.
+    const handleReprint = async (transactionId: string, docId: string) => {
+        await createReprint(transactionId, docId);
+        onNavigateToPendingPayment?.();
     };
 
     const handleVoidGroup = (group: DeclarantGroup) => setVoidGroupTarget(group);
@@ -243,18 +242,18 @@ export function TransactionRegistry({ user, onNavigateToVoidAmend, onNavigateToR
                     </button>
                 </div>
 
-                <div className="tr-tabs" role="tablist" aria-label="Transaction sections">
-                    <button type="button" className="tr-tab tr-tab--active" aria-current="page">
-                        Transaction Registry
-                    </button>
-                    <button type="button" className="tr-tab" onClick={onNavigateToReprint}>
-                        Reprint/CTC
-                    </button>
-                    <button type="button" className="tr-tab" onClick={() => onNavigateToVoidAmend([])}>
-                        Void &amp; Amend
-                    </button>
-                    {/* Archive Management pill intentionally left out per Peter's instruction */}
-                </div>
+                {/* TransactionTabs renders its own "tr-tabs" / role="tablist"
+                    wrapper internally, so it's dropped in directly — no extra
+                    div needed around it. "registry" is hardcoded as the active
+                    tab since this IS the registry page; onNavigateToRegistry
+                    is a no-op for the same reason (see TransactionTabs — it
+                    won't even fire onClick for the active tab). */}
+                <TransactionTabs
+                    active="registry"
+                    onNavigateToRegistry={() => {}}
+                    onNavigateToReprint={onNavigateToReprint ?? (() => {})}
+                    onNavigateToVoidAmend={() => onNavigateToVoidAmend([])}
+                />
 
                 {isLoading ? (
                     <RegistrySummarySkeleton />
