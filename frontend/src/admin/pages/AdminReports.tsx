@@ -200,7 +200,6 @@ export function AdminReports({ user }: AdminReportsProps) {
     const [totalDocuments, setTotalDocuments] = useState(0);
     const [distribution, setDistribution] = useState<DistributionSlice[]>([]);
     const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [dateFilterLabel, setDateFilterLabel] = useState('All Time');
     const [dateRange, setDateRange] = useState<{ from: string; to: string } | null>(null);
@@ -260,8 +259,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                 'Office Staff';
 
     const loadReportData = async (isRefresh = false, rangeOverride?: { from: string; to: string } | null) => {
-        if (isRefresh) setRefreshing(true);
-        else setLoading(true);
+        if (!isRefresh) setLoading(true);
         setError(null);
         try {
             const activeRange = rangeOverride !== undefined ? rangeOverride : dateRange;
@@ -306,7 +304,6 @@ export function AdminReports({ user }: AdminReportsProps) {
             setError(err.message || 'Failed to load reports data.');
         } finally {
             setLoading(false);
-            setRefreshing(false);
         }
     };
 
