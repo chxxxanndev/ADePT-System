@@ -81,11 +81,20 @@ interface TaxDeclarationFormProps {
     user: User;
     entryData: CompletedEntryData;
     onDiscard: () => void;
+    onDiscardToSummary?: () => void;
+    onAddAnotherAfterDiscard?: (base: {
+        declarantName?: string;
+        requestedByName?: string;
+        propertyLocation?: string;
+        purposeId?: string;
+        authRequired?: boolean | null;
+        actionTaken?: string;
+    }) => void;
     onAddAnother: () => void;
     onGoToSummary: () => void;
 }
 
-export function TaxDeclarationForm({ user, entryData, onDiscard, onAddAnother, onGoToSummary }: TaxDeclarationFormProps) {
+export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSummary, onAddAnotherAfterDiscard, onAddAnother, onGoToSummary }: TaxDeclarationFormProps) {
     // ═══ ALL HOOKS MUST RUN UNCONDITIONALLY (React Rules of Hooks) ═══
     const LS_KEY = `adept-td-${entryData?.requestId ?? 'tmp'}`;
 
@@ -116,6 +125,7 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onAddAnother, o
     const [showDiscardModal, setShowDiscardModal] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [discardError, setDiscardError] = useState('');
+    const [showNextStepChoice, setShowNextStepChoice] = useState(false);
 
     const [metadata, setMetadata] = useState<{ classifications: { id: string; label: string; code: string }[]; propertyTypes: { id: string; label: string; code: string }[]; }>({ classifications: [], propertyTypes: [], });
 
@@ -124,7 +134,7 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onAddAnother, o
         try { localStorage.setItem(LS_KEY, JSON.stringify(form)); } catch { }
     }, [form, LS_KEY, entryData]);
 
-    const { addItem } = useCart();
+    const { addItem, items: cartItems } = useCart();
 
     useEffect(() => {
         if (!entryData) return;
@@ -259,7 +269,12 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onAddAnother, o
             await requestService.updateRequest(entryData.requestId, { status: 'CANCELLED' });
             try { localStorage.removeItem(LS_KEY); } catch { }
             setShowDiscardModal(false);
-            onDiscard();
+
+            if (cartItems.length > 0) {
+                setShowNextStepChoice(true);
+            } else {
+                onDiscard();
+            }
         } catch (err) {
             setDiscardError('Failed to discard this document. Please try again.');
         } finally {
@@ -487,7 +502,10 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onAddAnother, o
 
                     {/* ── Session progress (compact card above footer) ── */}
                     <div className="txp-form-wrapper">
-                        <TransactionProgressPanel referenceNumber={entryData.referenceNumber} />
+                        <TransactionProgressPanel
+                            referenceNumber={entryData.referenceNumber}
+                            currentDeclarant={entryData.declarantName}
+                        />
                     </div>
 
                     <div className="td-footer">
@@ -529,7 +547,10 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onAddAnother, o
                             <div>
                                 <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#1e293b' }}>Discard this document?</h3>
                                 <p style={{ margin: '6px 0 0', fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5 }}>
-                                    Reference <strong style={{ color: '#334155' }}>{entryData.referenceNumber}</strong> and everything entered on this form will be permanently cancelled. This can't be undone.
+                                    Reference <strong style={{ color: '#334155' }}>{entryData.referenceNumber}</strong> will be permanently cancelled.
+                                    {cartItems.length > 0 && (
+                                        <> Your other <strong style={{ color: '#334155' }}>{cartItems.length} saved document{cartItems.length === 1 ? '' : 's'}</strong> will not be affected.</>
+                                    )} This can't be undone.
                                 </p>
                             </div>
                         </div>
@@ -544,6 +565,54 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onAddAnother, o
                             </button>
                             <button type="button" onClick={handleConfirmDiscard} disabled={discarding} style={{ background: '#e11d48', color: '#fff', border: '1px solid #e11d48', padding: '10px 20px', borderRadius: '8px', fontWeight: 800, cursor: 'pointer', fontSize: '0.9rem', opacity: discarding ? 0.7 : 1 }}>
                                 {discarding ? 'Discarding...' : 'Yes, Discard'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showNextStepChoice && (
+                <div
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}
+                    onClick={() => setShowNextStepChoice(false)}
+                >
+                    <div
+                        style={{ background: '#ffffff', borderRadius: '16px', padding: '28px', maxWidth: '420px', width: '100%', boxShadow: '0 20px 40px -8px rgba(0,0,0,0.35)' }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#1e293b' }}>What would you like to do next?</h3>
+                        <p style={{ margin: '10px 0 20px', fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5 }}>
+                            You still have <strong style={{ color: '#334155' }}>{cartItems.length} document{cartItems.length === 1 ? '' : 's'}</strong> saved
+                            in this transaction. Add another document, or go review and submit what's already saved.
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowNextStepChoice(false);
+                                    if (onAddAnotherAfterDiscard) {
+                                        onAddAnotherAfterDiscard({
+                                            declarantName: entryData.declarantName,
+                                            requestedByName: entryData.requestedByName,
+                                            propertyLocation: entryData.propertyLocation,
+                                            purposeId: entryData.purposeId,
+                                            authRequired: entryData.authRequired,
+                                            actionTaken: entryData.actionTaken,
+                                        });
+                                    } else {
+                                        onDiscard();
+                                    }
+                                }}
+                                style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}
+                            >
+                                Add Another Document
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setShowNextStepChoice(false); (onDiscardToSummary ?? onGoToSummary)(); }}
+                                style={{ background: '#4f46e5', color: '#fff', border: '1px solid #4f46e5', padding: '10px 20px', borderRadius: '8px', fontWeight: 800, cursor: 'pointer', fontSize: '0.9rem' }}
+                            >
+                                Proceed to Transaction Summary
                             </button>
                         </div>
                     </div>
