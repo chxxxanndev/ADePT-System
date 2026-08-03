@@ -1184,6 +1184,10 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
         const totalPending = allReqs.filter(r => ['DRAFT', 'PENDING'].includes(r.status)).length;
         const totalPaid = allReqs.filter(r => r.status === 'PAID').length;
 
+        const originalCount = allReqs.filter(r => r.request_type === 'ORIGINAL' && !r.amended_from_id).length;
+        const reprintCount = allReqs.filter(r => r.request_type === 'REPRINT').length;
+        const amendedCount = allReqs.filter(r => !!r.amended_from_id).length;
+
         const STATUS_LABEL_MAP = {
             DRAFT: 'Pending',
             PENDING: 'Pending',
@@ -1208,6 +1212,8 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
                 processedBy: staffName,
                 status: STATUS_LABEL_MAP[r.status] || 'Pending',
                 orNumber: r.or_number || 'N/A',
+                requestType: r.request_type || 'ORIGINAL',
+                amendedFromId: r.amended_from_id || null,
             };
         });
 
@@ -1216,6 +1222,9 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
             totalReleased,
             totalPending,
             totalPaid,
+            originalCount,
+            reprintCount,
+            amendedCount,
             rows,
         };
     }
