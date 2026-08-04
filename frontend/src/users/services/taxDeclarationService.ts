@@ -78,100 +78,79 @@ export const taxDeclarationService = {
     /**
      * FETCH AND TRANSLATE DATA FOR PDF / VIEWING
      */
-    getTaxDeclaration: async (requestId: string) => {
-        try {
-            // We fetch metadata separately so that if the declaration call 404s, 
-            // we don't lose the metadata context.
-            const meta = await requestService.getMetadata();
+    // frontend/src/services/taxDeclarationService.ts
+
+getTaxDeclaration: async (requestId: string) => {
+    try {
+        const meta = await requestService.getMetadata();
+        const res = await api.get(`/tax-declarations/${requestId}`);
+        const dbData = res.data.data;
+
+        // 1. IMPROVED METADATA MAP: Check both 'classifications' and 'purposes' 
+        // to find where the labels (like "Agricultural") are stored.
+        const lookupMap: Record<string, string> = {};
+        const sourceList = meta?.classifications || meta?.purposes || meta?.docTypes || [];
+
+        sourceList.forEach((item: any) => {
+            lookupMap[item.id] = item.label || item.name;
+        });
+
+        // 2. ROBUST ROW MAPPING
+        const assessmentRows = (dbData.encoded_assessment_rows || []).map((row: any) => {
+            // Get the ID using either the aliased name or the original SQL name
+            const id = row.classificationId || row.classification_id;
             
-            let dbData;
-            try {
-                const res = await api.get(`/tax-declarations/${requestId}`);
-                dbData = res.data.data;
-            } catch (error) {
-                // If it's a 404, it means no declaration has been encoded yet.
-                // We return null so the UI knows it's a fresh/empty request.
-                if (axios.isAxiosError(error) && error.response?.status === 404) {
-                    return null;
-                }
-                // If it's any other error (500, network, etc), re-throw it.
-                throw error;
-            }
-
-            if (!dbData) return null;
-
-            const classificationMap: Record<string, string> = {};
-            (meta?.classifications || []).forEach((c: any) => {
-                classificationMap[c.id] = c.label;
-            });
-
-            const propertyTypeMap: Record<string, string> = {};
-            (meta?.propertyTypes || []).forEach((p: any) => {
-                propertyTypeMap[p.code] = p.label;
-            });
-
-            const assessmentRows = (dbData.encoded_assessment_rows || []).map((row: any) => ({
-                classificationLabel: classificationMap[row.classification_id] || row.classification_id || 'N/A',
-                kindOfProperty: propertyTypeMap[row.kind_of_property] || row.kind_of_property || '',
-                area: row.area,
-                areaUnit: row.area_unit,
-                marketValue: row.market_value,
-                assessmentLevel: row.assessment_level,
-                assessedValue: row.assessed_value,
-            }));
-
-            const totalArea = assessmentRows.reduce(
-                (sum: number, r: any) => sum + (parseFloat(r.area) || 0),
-                0
-            );
-
-            const distinctUnits = [
-                ...new Set(
-                    assessmentRows
-                        .map((r: any) => (r.areaUnit || '').trim())
-                        .filter(Boolean)
-                ),
-            ];
-
-            const areaUnitSuffix = distinctUnits[0] || '';
-
             return {
-                id: dbData.id,
-                request: dbData.request,
-                taxDeclarationNumber: dbData.tax_declaration_number,
-                propertyIndexNumber: dbData.property_identification_number,
-                arpNumber: dbData.arp_number,
-                ownerName: dbData.owner_name,
-                ownerAddress: dbData.owner_address,
-                administratorName: dbData.administrator_name,
-                administratorAddress: dbData.administrator_address,
-                barangay: dbData.barangay?.name || '',
-                municipality: dbData.municipality?.name || '',
-                octTctNumber: dbData.oct_tct_cloa_number,
-                surveyNumber: dbData.survey_number,
-                lotNumber: dbData.lot_number,
-                blkNumber: dbData.block_number,
-                boundaryNorth: dbData.boundary_north,
-                boundarySouth: dbData.boundary_south,
-                boundaryEast: dbData.boundary_east,
-                boundaryWest: dbData.boundary_west,
-                totalMarketValue: dbData.total_market_value,
-                totalAssessedValue: dbData.total_assessed_value,
-                totalAssessedValueWords: dbData.amount_in_words,
-                taxable: dbData.taxability === 'TAXABLE',
-                taxEffectivity: dbData.effectivity_year,
-                cancelsArpNo: dbData.cancelled_td_number,
-                assessorName: dbData.assessor_name,
-                assessorTitle: dbData.assessor_title,
-                memoranda: dbData.memoranda,
-                area: totalArea > 0 ? `${totalArea}${areaUnitSuffix ? ' ' + areaUnitSuffix : ''}` : '',
-                assessmentRows,
+                // Lookup the label in our map using that ID
+                classificationLabel: lookupMap[id] || id || 'Agricultural', 
+                kindOfProperty: row.kindOfProperty || row.kind_of_property || 'LAND',
+                area: row.area,
+                areaUnit: row.areaUnit || row.area_unit,
+                marketValue: row.marketValue || row.market_value,
+                assessmentLevel: row.assessmentLevel || row.assessment_level,
+                assessedValue: row.assessedValue || row.assessed_value,
             };
-        } catch (error) {
-            console.error("[taxDeclarationService] Error fetching details:", error);
-            throw error;
-        }
-    },
+        });
+
+        const totalArea = assessmentRows.reduce((sum: number, r: any) => sum + (parseFloat(r.area) || 0), 0);
+        const areaUnitSuffix = assessmentRows[0]?.areaUnit || 'has.';
+
+        return {
+            id: dbData.id,
+            taxDeclarationNumber: dbData.tax_declaration_number,
+            propertyIndexNumber: dbData.property_identification_number,
+            arpNumber: dbData.arp_number,
+            ownerName: dbData.owner_name,
+            ownerAddress: dbData.owner_address,
+            administratorName: dbData.administrator_name,
+            administratorAddress: dbData.administrator_address,
+            barangay: dbData.barangay?.name || '',
+            municipality: dbData.municipality?.name || '',
+            octTctNumber: dbData.oct_tct_cloa_number,
+            surveyNumber: dbData.survey_number,
+            lotNumber: dbData.lot_number,
+            blkNumber: dbData.block_number,
+            boundaryNorth: dbData.boundary_north,
+            boundarySouth: dbData.boundary_south,
+            boundaryEast: dbData.boundary_east,
+            boundaryWest: dbData.boundary_west,
+            totalMarketValue: dbData.total_market_value,
+            totalAssessedValue: dbData.total_assessed_value,
+            totalAssessedValueWords: dbData.amount_in_words,
+            taxable: dbData.taxability === 'TAXABLE',
+            taxEffectivity: dbData.effectivity_year,
+            cancelsArpNo: dbData.cancelled_td_number,
+            assessorName: dbData.assessor_name,
+            assessorTitle: dbData.assessor_title,
+            memoranda: dbData.memoranda,
+            area: totalArea > 0 ? `${totalArea} ${areaUnitSuffix}` : '',
+            assessmentRows: assessmentRows, 
+        };
+    } catch (error) {
+        console.error("[taxDeclarationService] Error fetching details:", error);
+        throw error;
+    }
+},
 
     updateDraft: async (id: string, updateData: any) => {
         const res = await api.put(`/tax-declarations/${id}/edit-draft`, updateData);

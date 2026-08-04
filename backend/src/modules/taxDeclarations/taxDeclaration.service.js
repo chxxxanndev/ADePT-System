@@ -315,7 +315,7 @@ class TaxDeclarationService {
 
         if (rowsErr) throw rowsErr;
 
-        data.assessments = rows ?? [];
+        data.encoded_assessment_rows = rows ?? []; 
 
         return data;
     }
