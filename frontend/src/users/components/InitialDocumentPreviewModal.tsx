@@ -340,6 +340,9 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
       // (existing id) itself.
       const docId = finalEditData.id;
       if (docType === 'TAX_DEC') {
+        if (!staffAuthId) {
+          throw new Error('Could not determine the current staff user — please re-login and try again.');
+        }
         const saved = await taxDeclarationService.save(
           {
             ...finalEditData,

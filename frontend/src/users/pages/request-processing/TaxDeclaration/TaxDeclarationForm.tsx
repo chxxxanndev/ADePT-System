@@ -302,9 +302,7 @@ export function TaxDeclarationForm({
                 if (!isMounted || !data) return;
 
                 setMetadata({
-                    classifications: buildClassificationOptions(
-                        Array.isArray((data as any).classifications) ? (data as any).classifications : []
-                    ),
+                    classifications: Array.isArray((data as any).classifications) ? (data as any).classifications : [],
                     propertyTypes: Array.isArray((data as any).propertyTypes) ? (data as any).propertyTypes : [],
                 });
 
