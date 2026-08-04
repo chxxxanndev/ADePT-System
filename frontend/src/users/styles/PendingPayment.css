@@ -450,7 +450,7 @@
    the last one for that group) sit flush against each other with no divider —
    the divider only appears after the group's final document row, so the
    group reads as one visual unit even though it's several real <tr>s. */
-.pp-row-group-mid {
+.pp-table tbody tr.pp-row-group-mid {
     border-bottom: none;
 }
 

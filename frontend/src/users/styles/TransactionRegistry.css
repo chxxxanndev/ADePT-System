@@ -371,9 +371,9 @@
     transition: background-color 0.15s ease;
 }
 
-.tr-row:hover {
+/* .tr-row:hover {
     background-color: var(--db-hover-highlight);
-}
+} */
 
 /* ---- Stacked per-document columns (Reference Number, OR Number,
    OR Justification) — one line per requested document, aligned across
@@ -1368,4 +1368,378 @@
     border-color: var(--db-primary);
     color: #ffffff;
     cursor: default;
+}
+
+/* ---- Fixed doc-pill colors to match pp-ref-chip exactly ---- */
+.tr-doc-pill--td {
+    background-color: #DBEAFE;
+    color: #1D4ED8;
+    border-color: #BFDBFE;
+}
+
+.tr-doc-pill--lh {
+    background-color: #FEF9C3;
+    color: #854D0E;
+    border-color: #FDE68A;
+}
+
+.tr-doc-pill--nlh {
+    background-color: #FEE2E2;
+    color: #B91C1C;
+    border-color: #FCA5A5;
+}
+
+/* ---- Legend icon colors, matched to pp-legend-item ---- */
+.tr-legend-item--td svg {
+    color: #2563EB;
+}
+
+.tr-legend-item--lh svg {
+    color: #CA8A04;
+}
+
+.tr-legend-item--nlh svg {
+    color: #DC2626;
+}
+
+/* ---- Declarant text matched to pp-client-name ---- */
+.tr-declarant {
+    font-weight: 600;
+    color: var(--db-slate);
+    font-size: 0.86rem;
+}
+
+/* ---- Toolbar rebalance ---- */
+.tr-table-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 12px;
+}
+
+.tr-search-wrapper {
+    flex: 1 1 auto;
+    min-width: 220px;
+}
+
+/* Room for the clear button, same pattern as pp-toolbar-search-input */
+.tr-search input {
+    padding-right: 22px;
+}
+
+.tr-search-clear-btn {
+    background: transparent;
+    border: none;
+    color: #9CA3AF;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+}
+
+.tr-search-clear-btn:hover {
+    background-color: #f1f5f9;
+    color: var(--db-error);
+}
+
+/* Wider so "All Document Types" no longer truncates */
+.tr-filter-select {
+    flex: 0 0 auto;
+    min-width: 200px;
+    width: auto;
+    border-radius: 999px;
+    padding: 9px 16px;
+}
+
+/* ---- Date range picker ---- */
+.tr-daterange {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.tr-daterange-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #ffffff;
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: 999px;
+    padding: 9px 16px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #94a3b8;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.tr-daterange-btn.has-value {
+    color: var(--db-primary);
+    border-color: var(--db-secondary);
+}
+
+.tr-daterange-btn:hover {
+    background-color: rgba(41, 35, 122, 0.04);
+}
+
+/* ---- Date range picker: presets + calendar ---- */
+
+.tr-daterange-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    display: flex;
+    background-color: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+    border: 1px solid #eef0f6;
+    z-index: 50;
+    animation: pp-modal-in 0.15s ease;
+    overflow: hidden;
+}
+
+/* Narrow (presets only) vs wide (presets + calendar) */
+.tr-daterange-popover:not(.tr-daterange-popover--wide) {
+    width: 190px;
+}
+
+.tr-daterange-popover--wide {
+    width: 500px;
+}
+
+.tr-preset-list {
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    width: 190px;
+    flex: 0 0 190px;
+    border-right: 1px solid #eef0f6;
+}
+
+.tr-daterange-popover:not(.tr-daterange-popover--wide) .tr-preset-list {
+    border-right: none;
+}
+
+.tr-preset-item {
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--db-slate);
+    cursor: pointer;
+    transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.tr-preset-item:hover {
+    background-color: #f1f5f9;
+}
+
+.tr-preset-item--active {
+    background-color: rgba(41, 35, 122, 0.08);
+    color: var(--db-primary);
+}
+
+.tr-preset-item--divider {
+    margin-top: 8px;
+    padding-top: 14px;
+    border-top: 1px solid #eef0f6;
+}
+
+.tr-cal-panel {
+    padding: 18px 20px;
+    width: 310px;
+    flex: 0 0 310px;
+}
+
+.tr-cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.tr-cal-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--db-primary);
+}
+
+.tr-cal-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--db-primary);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.tr-cal-nav-btn:hover {
+    background-color: rgba(41, 35, 122, 0.08);
+}
+
+.tr-cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 4px;
+}
+
+.tr-cal-weekday {
+    text-align: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #94a3b8;
+    padding: 6px 0;
+}
+
+.tr-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    row-gap: 2px;
+}
+
+.tr-cal-day {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    border: none;
+    background: transparent;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--db-slate);
+    cursor: pointer;
+    border-radius: 999px;
+    transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.tr-cal-day--empty {
+    cursor: default;
+}
+
+.tr-cal-day--today {
+    border: 1px solid var(--db-secondary);
+    color: var(--db-secondary);
+}
+
+.tr-cal-day--in-range {
+    background-color: rgba(0, 188, 212, 0.14);
+    border-radius: 0;
+}
+
+.tr-cal-day--selected {
+    background-color: var(--db-primary);
+    color: #ffffff;
+}
+
+.tr-cal-day:hover:not(.tr-cal-day--empty):not(.tr-cal-day--selected) {
+    background-color: rgba(41, 35, 122, 0.08);
+}
+
+.tr-cal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #eef0f6;
+}
+
+.tr-cal-clear-btn {
+    background: none;
+    border: none;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--db-text-muted);
+    cursor: pointer;
+}
+
+.tr-cal-clear-btn:hover {
+    color: var(--db-error);
+}
+
+.tr-cal-done-btn {
+    background-color: var(--db-primary);
+    color: #ffffff;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.tr-cal-done-btn:hover {
+    background-color: var(--db-primary-hover);
+}
+
+.td-reprint-badge--btn {
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.td-reprint-history {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 6px 0 10px 16px;
+    padding: 8px 12px;
+    background: #F8F7FD;
+    border: 1px solid #EEECFB;
+    border-radius: 8px;
+}
+
+.td-reprint-history-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.2fr;
+    gap: 10px;
+    font-size: 0.78rem;
+}
+
+.td-reprint-history-ref {
+    font-weight: 700;
+    color: #7C3AED;
+}
+
+.td-reprint-history-or {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+.td-reprint-history-status {
+    color: #64748b;
+}
+
+/* ---- Multi-transaction group header row ----
+   Higher specificity than `.tr-table tbody td` (0,1,2) is required here —
+   a plain `.tr-group-header-cell` (0,1,0) or `.tr-group-header-row td`
+   (0,1,1) both LOSE that cascade fight and get silently overridden by the
+   table's own 13.5px body cell rule, which is why this label was rendering
+   at full body size instead of the small "1 DOCUMENT" label PendingPayment
+   uses. This selector is (0,2,3) — high enough to always win. */
+.tr-table tbody tr.tr-group-header-row td {
+    padding: 8px 20px;
+    background-color: rgba(41, 35, 122, 0.03);
+    border-bottom: none;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #9CA3AF;
+}
+
+.tr-table tbody tr.tr-row-group-mid td {
+    border-bottom: none;
 }

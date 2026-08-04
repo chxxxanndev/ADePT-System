@@ -18,20 +18,31 @@ import '../styles/TransactionRegistry.css';
 // TransactionRow.tsx, so the key at the top of the page matches what's
 // actually rendered in the table below.
 const RefreshIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>;
-const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11 12 3l9 8" /><path d="M5 10v10h14V10" /></svg>;
-const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><line x1="6" y1="18" x2="18" y2="6" /></svg>;
-const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2h9l3 3v17H6z" /><line x1="9" y1="13" x2="15" y2="13" /><line x1="9" y1="17" x2="15" y2="17" /></svg>;
+const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="21" x2="21" y2="21"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 3 21 9 3 9"></polygon></svg>;
+const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
+const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>;
 
 const DEFAULT_FILTERS: TransactionFilters = {
-    status: 'Released',
     documentType: 'All',
     dateFrom: '',
     dateTo: '',
 };
 
-function toComparableDate(mmddyyyy: string): string {
-    const [m, d, y] = mmddyyyy.split('/');
-    return `${y}-${m}-${d}`;
+function toComparableDate(dateStr: string): string {
+    // Don't assume the input is zero-padded MM/DD/YYYY — normalize through
+    // Date so "8/1/2026", "08/01/2026", and ISO strings all compare correctly.
+    let d: Date;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        // Already ISO — parse the components directly as local time
+        // (new Date("YYYY-MM-DD") parses as UTC per spec, which can shift
+        // the date by a day depending on timezone).
+        const [y, m, day] = dateStr.split('-').map(Number);
+        d = new Date(y, m - 1, day);
+    } else {
+        d = new Date(dateStr); // handles "8/1/2026", "Aug 1, 2026", etc.
+    }
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // The registry only ever shows Released transactions, so dateReleased should
@@ -76,31 +87,37 @@ export function TransactionRegistry({
     }, [initialSearchQuery]);
 
     const loadTransactions = async (isManualRefresh = false) => {
-    if (isManualRefresh) setIsRefreshing(true);
-    else setIsLoading(true);
-    setLoadError(null);
-    try {
-        const data = await fetchTransactionRegistry();
-        setTransactions(data);   // backend now returns real counts, no overlay needed
-    } catch (err) {
-        setLoadError(err instanceof Error ? err.message : 'Failed to load transactions.');
-        setTransactions([]);
-    } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
-    }
-};
+        if (isManualRefresh) setIsRefreshing(true);
+        else setIsLoading(true);
+        setLoadError(null);
+        try {
+            const data = await fetchTransactionRegistry();
+            setTransactions(data);   // backend now returns real counts, no overlay needed
+        } catch (err) {
+            setLoadError(err instanceof Error ? err.message : 'Failed to load transactions.');
+            setTransactions([]);
+        } finally {
+            setIsLoading(false);
+            setIsRefreshing(false);
+        }
+    };
 
     useEffect(() => {
         loadTransactions();
     }, []);
 
     const releasedTransactions = useMemo(
-    () => transactions.filter((t) => t.status === 'Released' && !/-R\d+$/.test(t.referenceNumber)),
-    [transactions]
-);
+        () => transactions.filter((t) => t.status === 'Released' && !/-R\d+$/.test(t.referenceNumber)),
+        [transactions]
+    );
 
     const summary = useMemo(() => computeSummary(releasedTransactions), [releasedTransactions]);
+
+    const transactionsByRef = useMemo(() => {
+        const map = new Map<string, Transaction>();
+        for (const t of transactions) map.set(t.referenceNumber, t);
+        return map;
+    }, [transactions]);
 
     const filteredTransactions = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
@@ -109,39 +126,40 @@ export function TransactionRegistry({
                 t.referenceNumber.toLowerCase().includes(query) ||
                 t.client.declarantName.toLowerCase().includes(query);
 
-            const hasReprint = t.requestedDocuments.some((d) => d.reprintCount > 0);
-            const matchesStatus = filters.status === 'Released' ? true : hasReprint;
-
             const matchesDocType = filters.documentType === 'All' ||
                 t.requestedDocuments.some((d) => d.documentType === filters.documentType);
 
-            const requestDate = toComparableDate(t.dateRequested);
+            const requestDate = toComparableDate(getReleaseSortDate(t));
             const matchesDateFrom = !filters.dateFrom || requestDate >= filters.dateFrom;
             const matchesDateTo = !filters.dateTo || requestDate <= filters.dateTo;
 
-            return matchesQuery && matchesStatus && matchesDocType && matchesDateFrom && matchesDateTo;
+            return matchesQuery && matchesDocType && matchesDateFrom && matchesDateTo;
         });
     }, [releasedTransactions, searchQuery, filters]);
 
     const declarantGroups = useMemo<DeclarantGroup[]>(() => {
         const map = new Map<string, Transaction[]>();
         for (const t of filteredTransactions) {
-            const key = t.client.declarantName;
+            // Group by requester + date — matches PendingPayment's model. A
+            // single requester (agent, relative, attorney-in-fact) can request
+            // documents for several different declarants in one visit, and
+            // those should read as one grouped block, not scattered by
+            // declarant name.
+            const key = `${t.client.requestedBy || 'Unknown'}||${getReleaseSortDate(t)}`;
             if (!map.has(key)) map.set(key, []);
             map.get(key)!.push(t);
         }
         return Array.from(map.entries())
-            .map(([declarantName, txns]) => ({
-                declarantName,
-                // Latest-released first within each declarant's own group.
+            .map(([, txns]) => ({
+                // declarantName field now carries the group's "Requested By"
+                // label (kept as declarantName to avoid touching the shared
+                // type — rename to requestedByLabel later if convenient).
+                declarantName: txns[0].client.requestedBy,
                 transactions: [...txns].sort(
                     (a, b) => new Date(toComparableDate(getReleaseSortDate(b))).getTime() -
                         new Date(toComparableDate(getReleaseSortDate(a))).getTime()
                 ),
             }))
-            // And groups themselves ordered by whichever declarant had the
-            // most recently released document, so the whole table reads
-            // latest-release-on-top, oldest-release-on-bottom.
             .sort(
                 (a, b) => new Date(toComparableDate(getReleaseSortDate(b.transactions[0]))).getTime() -
                     new Date(toComparableDate(getReleaseSortDate(a.transactions[0]))).getTime()
@@ -250,8 +268,8 @@ export function TransactionRegistry({
                     won't even fire onClick for the active tab). */}
                 <TransactionTabs
                     active="registry"
-                    onNavigateToRegistry={() => {}}
-                    onNavigateToReprint={onNavigateToReprint ?? (() => {})}
+                    onNavigateToRegistry={() => { }}
+                    onNavigateToReprint={onNavigateToReprint ?? (() => { })}
                     onNavigateToVoidAmend={() => onNavigateToVoidAmend([])}
                 />
 
@@ -261,9 +279,9 @@ export function TransactionRegistry({
                     <>
                         <SummaryCards summary={summary} />
                         <div className="tr-legend-row">
-                            <div className="tr-legend-item tr-legend-item--lh"><LandholdingIcon />Land Holding</div>
-                            <div className="tr-legend-item tr-legend-item--nlh"><NoLandholdingIcon />No Landholding</div>
                             <div className="tr-legend-item tr-legend-item--td"><TaxDeclarationIcon />Tax Declaration</div>
+                            <div className="tr-legend-item tr-legend-item--lh"><LandholdingIcon />Landholding</div>
+                            <div className="tr-legend-item tr-legend-item--nlh"><NoLandholdingIcon />No Landholding</div>
                         </div>
                     </>
                 )}
@@ -306,6 +324,7 @@ export function TransactionRegistry({
             {selectedGroup && (
                 <TransactionDetails
                     group={selectedGroup}
+                    transactionsByRef={transactionsByRef}
                     onClose={() => setSelectedGroup(null)}
                     onReprint={handleReprint}
                     onVoid={(t) => setVoidGroupTarget({ declarantName: selectedGroup.declarantName, transactions: [t] })}
