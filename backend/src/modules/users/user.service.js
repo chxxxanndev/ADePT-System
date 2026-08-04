@@ -7,6 +7,23 @@ function composeFullName(firstName, middleInitial, lastName) {
     return `${firstName} ${mi} ${lastName}`.replace(/\s+/g, ' ').trim();
 }
 
+// Pings the staff member's own open browser session (via a Realtime
+// broadcast channel) after their role/admin level changes, so they pick up
+// the new access immediately instead of having to log out and back in. The
+// frontend subscribes to this channel and re-fetches /api/account/profile.
+// Fire-and-forget: a failed broadcast must never fail the promotion itself.
+function broadcastStaffRoleUpdate(staffId) {
+    if (!supabase || useMock) return;
+    const channel = supabase.channel('staff-role-updates');
+    channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+            channel
+                .send({ type: 'broadcast', event: 'role-updated', payload: { staffId } })
+                .finally(() => channel.unsubscribe());
+        }
+    });
+}
+
 // ─── Mock fallback ────────────────────────────────────────────────────────────
 const MOCK_STAFF = [
     {
@@ -254,15 +271,20 @@ class UserService {
      * Creating a staff account via the "Add Staff" modal.
      * Permission: SUPER_ADMIN, ADMIN with adminLevel HIGH or MEDIUM.
      * LOW-mode admins cannot create staff.
-     * Optionally accepts adminLevel when roleCode is 'ADMIN' (Super Admin only).
+     * Optionally accepts adminLevel when roleCode is 'ADMIN' (Super Admin or
+     * High-level Admin only).
      */
-    async createStaff({ firstName, lastName, email, username, password, roleCode = 'OFFICE_STAFF', adminLevel }, actingStaff) {
+    async createStaff({ firstName, middleInitial, lastName, suffix, email, username, password, roleCode = 'OFFICE_STAFF', adminLevel }, actingStaff) {
         if (!hasAdminLevel(actingStaff, 'MEDIUM')) {
             throw new Error('Your admin access level does not permit creating staff accounts.');
         }
 
-        if ((roleCode === 'ADMIN' || roleCode === 'SUPER_ADMIN') && actingStaff.roleCode !== 'SUPER_ADMIN') {
-            throw new Error('Only the Super Admin can create Admin accounts.');
+        if (roleCode === 'SUPER_ADMIN') {
+            throw new Error('Cannot create Super Admin accounts.');
+        }
+
+        if (roleCode === 'ADMIN' && actingStaff.roleCode !== 'SUPER_ADMIN' && actingStaff.adminLevel !== 'HIGH') {
+            throw new Error('Your admin access level does not permit creating Admin accounts.');
         }
 
         if (roleCode === 'ADMIN' && adminLevel && !['HIGH', 'MEDIUM', 'LOW'].includes(adminLevel)) {
@@ -284,7 +306,9 @@ class UserService {
             const created = {
                 id: `mock-${Date.now()}`,
                 first_name: firstName,
+                middle_initial: middleInitial || null,
                 last_name: lastName,
+                suffix: suffix || null,
                 email,
                 username,
                 account_status: 'ACTIVE',
@@ -313,7 +337,9 @@ class UserService {
             options: {
                 data: {
                     first_name: firstName,
+                    middle_initial: middleInitial || null,
                     last_name: lastName,
+                    suffix: suffix || null,
                     display_username: username,
                 },
             },
@@ -328,7 +354,9 @@ class UserService {
             .insert([{
                 auth_user_id: authData.user.id,
                 first_name: firstName,
+                middle_initial: middleInitial || null,
                 last_name: lastName,
+                suffix: suffix || null,
                 email,
                 username,
                 role_id: roleData.id,
@@ -427,12 +455,34 @@ class UserService {
     }
 
     /**
-     * Sets or changes an Admin's mode. Super Admin only.
+     * Shared permission check for admin-access actions (promote, demote,
+     * change level). Rules:
+     *  - SUPER_ADMIN → always allowed.
+     *  - ADMIN(HIGH) → allowed on any non-super-admin target.
+     *  - ADMIN(MEDIUM) → allowed only on staff accounts they created.
+     *  - ADMIN(LOW) → never allowed.
+     */
+    _assertCanManageAdminAccess(target, actingStaff) {
+        if (actingStaff.roleCode === 'SUPER_ADMIN') return;
+
+        if (actingStaff.roleCode !== 'ADMIN') {
+            throw new Error('You do not have permission to manage admin access.');
+        }
+
+        if (actingStaff.adminLevel === 'LOW') {
+            throw new Error('Your admin access level does not permit managing admin access.');
+        }
+
+        if (actingStaff.adminLevel === 'MEDIUM' && target.created_by !== actingStaff.id) {
+            throw new Error('You can only manage admin access for staff accounts that you created.');
+        }
+    }
+
+    /**
+     * Sets or changes an Admin's mode. Super Admin always; Admin(HIGH) on
+     * any admin; Admin(MEDIUM) only on admins they created; Admin(LOW) never.
      */
     async setAdminLevel(staffId, newLevel, actingStaff) {
-        if (actingStaff.roleCode !== 'SUPER_ADMIN') {
-            throw new Error('Only the Super Admin can change an Admin\'s access level.');
-        }
         if (!['HIGH', 'MEDIUM', 'LOW'].includes(newLevel)) {
             throw new Error('Invalid admin level. Must be HIGH, MEDIUM, or LOW.');
         }
@@ -441,13 +491,14 @@ class UserService {
             const member = MOCK_STAFF.find((s) => s.id === staffId);
             if (!member) throw new Error('Staff member not found.');
             if (member.roles?.code !== 'ADMIN') throw new Error('Admin level only applies to Admin accounts.');
+            this._assertCanManageAdminAccess(member, actingStaff);
             member.admin_level = newLevel;
             return member;
         }
 
         const { data: target, error: fetchError } = await supabase
             .from('staff')
-            .select('id, roles(code)')
+            .select('id, roles(code), created_by')
             .eq('id', staffId)
             .single();
 
@@ -455,6 +506,8 @@ class UserService {
         if (target.roles?.code !== 'ADMIN') {
             throw new Error('Admin level only applies to Admin accounts.');
         }
+
+        this._assertCanManageAdminAccess(target, actingStaff);
 
         const { data, error } = await supabase
             .from('staff')
@@ -464,17 +517,16 @@ class UserService {
             .single();
 
         if (error) throw error;
+        broadcastStaffRoleUpdate(staffId);
         return data;
     }
 
     /**
      * Promotes an existing OFFICE_STAFF member to ADMIN with an initial level.
-     * Super Admin only.
+     * Super Admin always; Admin(HIGH) on anyone; Admin(MEDIUM) only on staff
+     * they created; Admin(LOW) never.
      */
     async promoteToAdmin(staffId, adminLevel, actingStaff) {
-        if (actingStaff.roleCode !== 'SUPER_ADMIN') {
-            throw new Error('Only the Super Admin can promote staff to Admin.');
-        }
         if (!['HIGH', 'MEDIUM', 'LOW'].includes(adminLevel)) {
             throw new Error('Invalid admin level. Must be HIGH, MEDIUM, or LOW.');
         }
@@ -485,6 +537,7 @@ class UserService {
             if (member.roles?.code !== 'OFFICE_STAFF') {
                 throw new Error('Only Office Staff accounts can be promoted to Admin.');
             }
+            this._assertCanManageAdminAccess(member, actingStaff);
             member.roles = { code: 'ADMIN' };
             member.admin_level = adminLevel;
             return member;
@@ -492,7 +545,7 @@ class UserService {
 
         const { data: target, error: fetchError } = await supabase
             .from('staff')
-            .select('id, roles(code)')
+            .select('id, roles(code), created_by')
             .eq('id', staffId)
             .single();
 
@@ -500,6 +553,8 @@ class UserService {
         if (target.roles?.code !== 'OFFICE_STAFF') {
             throw new Error('Only Office Staff accounts can be promoted to Admin.');
         }
+
+        this._assertCanManageAdminAccess(target, actingStaff);
 
         const { data: roleData, error: roleError } = await supabase
             .from('roles')
@@ -522,24 +577,23 @@ class UserService {
             .single();
 
         if (error) throw error;
+        broadcastStaffRoleUpdate(staffId);
         return data;
     }
 
     /**
      * Demotes an existing ADMIN back to OFFICE_STAFF, clearing their level.
-     * Super Admin only.
+     * Super Admin always; Admin(HIGH) on anyone; Admin(MEDIUM) only on admins
+     * they created; Admin(LOW) never.
      */
     async demoteToStaff(staffId, actingStaff) {
-        if (actingStaff.roleCode !== 'SUPER_ADMIN') {
-            throw new Error('Only the Super Admin can demote an Admin.');
-        }
-
         if (useMock || !supabase) {
             const member = MOCK_STAFF.find((s) => s.id === staffId);
             if (!member) throw new Error('Staff member not found.');
             if (member.roles?.code !== 'ADMIN') {
                 throw new Error('Only Admin accounts can be demoted.');
             }
+            this._assertCanManageAdminAccess(member, actingStaff);
             member.roles = { code: 'OFFICE_STAFF' };
             member.admin_level = null;
             return member;
@@ -547,7 +601,7 @@ class UserService {
 
         const { data: target, error: fetchError } = await supabase
             .from('staff')
-            .select('id, roles(code)')
+            .select('id, roles(code), created_by')
             .eq('id', staffId)
             .single();
 
@@ -555,6 +609,8 @@ class UserService {
         if (target.roles?.code !== 'ADMIN') {
             throw new Error('Only Admin accounts can be demoted.');
         }
+
+        this._assertCanManageAdminAccess(target, actingStaff);
 
         const { data: roleData, error: roleError } = await supabase
             .from('roles')
@@ -577,6 +633,7 @@ class UserService {
             .single();
 
         if (error) throw error;
+        broadcastStaffRoleUpdate(staffId);
         return data;
     }
 

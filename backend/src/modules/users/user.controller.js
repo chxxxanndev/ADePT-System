@@ -58,7 +58,7 @@ export const decideAccountRequest = async (req, res) => {
  */
 export const createStaff = async (req, res) => {
     try {
-        const { firstName, lastName, email, username, password, roleCode, adminLevel } = req.body;
+        const { firstName, middleInitial, lastName, suffix, email, username, password, roleCode, adminLevel } = req.body;
 
         if (!firstName || !lastName || !email || !username || !password) {
             return res.status(400).json({ error: 'First name, last name, email, username, and password are required.' });
@@ -67,7 +67,9 @@ export const createStaff = async (req, res) => {
         const actingStaff = await UserService.getActingStaff(req.user.id);
         const created = await UserService.createStaff({
             firstName,
+            middleInitial,
             lastName,
+            suffix,
             email,
             username,
             password,
@@ -136,7 +138,7 @@ export const setAdminLevel = async (req, res) => {
     } catch (error) {
         const statusCode = error.message.includes('not found')
             ? 404
-            : error.message.includes('Only the Super Admin')
+            : error.message.includes('permit') || error.message.includes('Only the Super Admin') || error.message.includes('only manage')
                 ? 403
                 : 400;
         res.status(statusCode).json({ error: error.message });
@@ -165,7 +167,7 @@ export const promoteToAdmin = async (req, res) => {
     } catch (error) {
         const statusCode = error.message.includes('not found')
             ? 404
-            : error.message.includes('Only the Super Admin')
+            : error.message.includes('permit') || error.message.includes('Only the Super Admin') || error.message.includes('only manage')
                 ? 403
                 : 400;
         res.status(statusCode).json({ error: error.message });
@@ -189,12 +191,11 @@ export const demoteToStaff = async (req, res) => {
     } catch (error) {
         const statusCode = error.message.includes('not found')
             ? 404
-            : error.message.includes('Only the Super Admin')
+            : error.message.includes('permit') || error.message.includes('Only the Super Admin') || error.message.includes('only manage')
                 ? 403
                 : 400;
         res.status(statusCode).json({ error: error.message });
     }
-
 };
 
 /**

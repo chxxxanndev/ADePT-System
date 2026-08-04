@@ -464,9 +464,19 @@ export function RequestFormEntry({
 
             onEntryComplete(completedData);
 
+            const docTypeNames = metadata.docTypes
+                .filter((d) => formData.documentTypeIds.includes(d.id))
+                .map((d) => d.name)
+                .join(', ') || 'N/A';
+
             addAdminAuditEntry({
                 type: 'document_pending',
                 description: `Pending document request submitted — Ref# ${actualRef || actualId || 'N/A'}`,
+                details: {
+                    Declarant: formData.declarantName || 'N/A',
+                    'Document Type': docTypeNames,
+                    Reference: actualRef || actualId || 'N/A',
+                },
             }).catch(() => { });
 
             // Clear persisted entry data — transaction has moved to the processing form

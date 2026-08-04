@@ -16,6 +16,7 @@ export interface AuditLogEntry {
   actorRole: AuditActorRole;
   description: string;
   details?: Record<string, string>;
+  timestamp?: number; // epoch ms, used for time-range filtering
   date: string;
   time: string;
 }
@@ -56,6 +57,7 @@ function toAuditLogEntry(row: any): AuditLogEntry {
     actorRole: row.actor_role,
     description: row.description,
     details: row.details ?? undefined,
+    timestamp: row.created_at ? Date.parse(row.created_at) : undefined,
     date: formatEntryDate(row.created_at),
     time: formatEntryTime(row.created_at),
   };

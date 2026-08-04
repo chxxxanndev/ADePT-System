@@ -36,7 +36,6 @@ body {
     background-color: #f1f5f9;
 }
 
-/* Full Screen Container — always fills the viewport, no matter the screen size */
 .auth-container {
     position: relative;
     width: 100vw;
@@ -45,7 +44,6 @@ body {
     overflow: hidden;
 }
 
-/* --- BANNER / BRANDING SLIDER --- */
 .auth-banner {
     position: absolute;
     top: 0;
@@ -59,7 +57,6 @@ body {
     padding: 5vh 5vw;
     color: var(--text-light);
     background-image: linear-gradient(135deg, rgba(37, 33, 117, 0.9) 50%, rgba(15, 23, 42, 0.88) 100%), url('./assets/background.jpg');
-    /* background-image: linear-gradient(135deg, rgba(37, 33, 117, 0.55) 50%, rgba(15, 23, 42, 0.55) 100%), url('./assets/background.jpg'); */
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -67,7 +64,6 @@ body {
     transition: transform 0.7s cubic-bezier(0.76, 0, 0.24, 1), border 0.7s ease;
 }
 
-/* Signup mode: banner slides to the right */
 .auth-container.signup-mode .auth-banner {
     transform: translateX(100%);
     border-right: none;
@@ -81,7 +77,6 @@ body {
     justify-content: space-between;
 }
 
-/* Banner Top Headers */
 .banner-header {
     display: flex;
     align-items: center;
@@ -136,7 +131,6 @@ body {
     opacity: 0.85;
 }
 
-/* Banner Branding Area — grows to fill vertical space */
 .banner-branding-area {
     position: relative;
     flex-grow: 1;
@@ -160,7 +154,6 @@ body {
     visibility: visible;
 }
 
-/* LOGIN branding: centered title + subtitle */
 .banner-branding-login {
     display: flex;
     flex-direction: column;
@@ -193,7 +186,6 @@ body {
     display: none;
 }
 
-/* SIGNUP branding: left-aligned ADePT + vertical divider + taglines */
 .banner-branding-signup {
     display: flex;
     flex-direction: row;
@@ -233,9 +225,10 @@ body {
     text-transform: uppercase;
     opacity: 0.9;
     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+
+
 }
 
-/* Banner Footer Description */
 .banner-footer-area {
     height: 90px;
     position: relative;
@@ -267,8 +260,6 @@ body {
     text-align: center;
 }
 
-
-/* --- FORM SLIDER / INTERACTIVE SECTION --- */
 .auth-form-container {
     position: absolute;
     top: 0;
@@ -283,7 +274,6 @@ body {
     transition: transform 0.7s cubic-bezier(0.76, 0, 0.24, 1);
 }
 
-/* Signup mode: form slides to the left */
 .auth-container.signup-mode .auth-form-container {
     transform: translateX(-100%);
 }
@@ -298,13 +288,10 @@ body {
     overflow-y: hidden;
 }
 
-/* Form Content Wrapper — scales with viewport instead of a hard pixel cap,
-   so it never gets cramped on small screens or absurdly small on huge ones */
 .form-content-wrapper {
     position: absolute;
     width: 100%;
     max-width: 100%;
-    /* was min(520px, 92%) — now spans the full panel */
     height: auto;
     max-height: 100%;
     display: flex;
@@ -312,7 +299,6 @@ body {
     align-items: center;
     gap: clamp(14px, 2vh, 25px);
     padding: clamp(20px, 4vh, 40px) 0;
-    /* horizontal padding moved to children below */
     opacity: 0;
     transform: translateY(20px);
     visibility: hidden;
@@ -320,7 +306,6 @@ body {
     transition: opacity 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94), visibility 0.55s;
     overflow-y: auto;
     direction: rtl;
-    /* moves the scrollbar to the left edge */
 }
 
 .form-content-wrapper.active {
@@ -358,7 +343,6 @@ body {
     font-weight: 550;
 }
 
-/* Form Layout (Fixed spacing, no flex stretching) */
 .auth-form {
     display: flex;
     flex-direction: column;
@@ -391,7 +375,6 @@ body {
     align-items: center;
 }
 
-/* Glassmorphic Input Fields */
 .form-input {
     width: 100%;
     padding: 12px 16px;
@@ -450,7 +433,6 @@ body {
     height: 18px;
 }
 
-/* Link Actions */
 .forgot-password-link {
     font-size: 13.5px;
     font-weight: 600;
@@ -465,7 +447,6 @@ body {
     color: #1e40af;
 }
 
-/* Submit Button */
 .submit-btn {
     width: 100%;
     padding: 13px;
@@ -498,7 +479,6 @@ body {
     box-shadow: none;
 }
 
-/* Form Footer Actions */
 .form-footer-actions {
     text-align: center;
     margin-top: 5px;
@@ -519,7 +499,6 @@ body {
     color: #1e40af;
 }
 
-/* Disclaimers */
 .authorized-disclaimer {
     display: flex;
     align-items: flex-start;
@@ -537,7 +516,6 @@ body {
     margin-top: 2px;
 }
 
-/* Alert Notification Banner */
 .alert-banner {
     padding: 10px 14px;
     border-radius: 8px;
@@ -613,7 +591,6 @@ body {
     box-shadow: 0 6px 12px rgba(239, 68, 68, 0.3);
 }
 
-/* Animations */
 @keyframes slideDown {
     from {
         transform: translateY(-10px);
@@ -638,9 +615,6 @@ body {
     }
 }
 
-/* Responsive Breakpoints — below this width the split layout gets too
-   cramped for the form, so we stack banner on top of a full-width form
-   instead of continuing to squeeze two 50% columns together. */
 @media (max-width: 900px) {
     .auth-container {
         flex-direction: column;
@@ -728,6 +702,225 @@ body {
     .branding-divider {
         height: 70px;
     }
+}
 
+.role-notice-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: role-notice-fade 0.2s ease;
+}
 
+.role-notice-modal {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(37, 33, 117, 0.3);
+    padding: 28px 32px 24px;
+    max-width: 420px;
+    width: calc(100% - 40px);
+    text-align: center;
+    animation: role-notice-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.role-notice-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-color);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    padding: 7px 16px;
+    border-radius: 999px;
+    margin-bottom: 16px;
+}
+
+.role-notice-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+}
+
+.role-notice-message {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    margin-bottom: 22px;
+}
+
+.role-notice-button {
+    background: var(--primary-color);
+    color: #ffffff;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 34px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.role-notice-button:hover {
+    background: var(--primary-hover);
+}
+
+@keyframes role-notice-fade {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes role-notice-pop {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.role-notice-badge--staff {
+    background: var(--text-muted);
+}
+
+/* ── Developer credit link (login/signup footer) ─────────────── */
+.developer-credit {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    cursor: pointer;
+}
+
+.developer-credit-link {
+    font-weight: 600;
+    color: #1d4ed8;
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.developer-credit-link:hover {
+    color: #1e40af;
+}
+
+/* ── About ADePT modal (embeds the full AboutADePT.tsx page) ──────────
+   Compound selector `.as-modal.about-us-full-modal` is required — the
+   base `.as-modal` rule (max-width: 420px) lives in AccountSettings.css,
+   and a single-class selector here would tie on specificity and lose
+   depending on stylesheet load order. Compounding both classes gives
+   this rule higher specificity so it always wins regardless of order. */
+.as-modal.about-us-full-modal {
+    position: relative;
+    max-width: 1000px;
+    width: calc(100% - 40px);
+    max-height: 90vh;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.about-us-full-modal-body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 24px;
+}
+
+.about-us-modal-close {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.about-us-modal-close:hover {
+    color: var(--text-dark);
+    background: #ffffff;
+}
+
+/* Force AboutADePT's internal layout (built for a full dashboard page,
+   4-col grid + wide side-by-side team rows) to behave inside this
+   narrower modal instead. High-specificity 3-class chains are used so
+   these overrides win regardless of stylesheet load order. */
+
+.about-us-full-modal-body .aa-page {
+    max-width: 100%;
+}
+
+/* Tech stack: force a single readable column instead of the 4-col grid,
+   which was wrapping text into 15+ lines and breaking tile heights. */
+.about-us-full-modal .about-us-full-modal-body .aa-stack-grid {
+    grid-template-columns: 1fr;
+}
+
+.about-us-full-modal .about-us-full-modal-body .aa-stack-tile--wide,
+.about-us-full-modal .about-us-full-modal-body .aa-stack-tile--narrow,
+.about-us-full-modal .about-us-full-modal-body .aa-stack-tile--full {
+    grid-column: span 1;
+}
+
+/* Team rows: stack photo-on-top, text-below instead of side-by-side.
+   Photo wrap gets real height (not a cramped 220px) and object-position
+   is recentered so faces aren't cropped out — the original CSS assumed
+   a tall side-by-side box with top-anchored cropping, which doesn't
+   translate to a shorter stacked box. */
+.about-us-full-modal-body .aa-team-row,
+.about-us-full-modal-body .aa-team-row--reverse {
+    flex-direction: column;
+}
+
+.about-us-full-modal-body .aa-team-photo-wrap {
+    flex-basis: auto;
+    width: 100%;
+    height: 340px;
+    min-height: 340px;
+}
+
+.about-us-full-modal-body .aa-team-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 25%;
+}
+
+.about-us-full-modal-body .aa-team-info {
+    padding: 28px 32px;
+}
+
+@media (max-width: 640px) {
+    .about-us-full-modal-body .aa-team-photo-wrap {
+        height: 260px;
+        min-height: 260px;
+    }
+
+    .about-us-full-modal-body .aa-team-info {
+        padding: 22px 20px;
+    }
 }

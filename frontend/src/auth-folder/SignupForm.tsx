@@ -5,6 +5,7 @@ import { PasswordInput } from './components/PasswordInput';
 import { LockDisclaimer } from './components/LockDisclaimer';
 import sealImg from './assets/seal.png';
 import logoImg from './assets/logo.png';
+import { DeveloperCredit } from './components/DeveloperCredit';
 
 interface SignupFormProps {
     active: boolean;
@@ -179,6 +180,7 @@ export function SignupForm({ active, loading, onSignUp, navigateTo, prefillUsern
             </form>
 
             <LockDisclaimer />
+            <DeveloperCredit />
         </div>
     );
 }

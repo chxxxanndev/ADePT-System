@@ -1146,7 +1146,7 @@ async _copyTaxDeclaration(originalRequestId, newRequestId) {
             return {
                 id: r.id,
                 referenceNo: r.reference_number || `REF-${r.id.slice(0, 6).toUpperCase()}`,
-                clientName: r.declarant_name || 'Anonymous Client',
+                clientName: r.declarant_name || 'Anonymous Declarant',
                 documentType: relDocs.join(', ') || 'No-Landholding Certificate',
                 date: r.request_date ? new Date(r.request_date).toLocaleDateString() : new Date(r.created_at).toLocaleDateString(),
                 assignedStaff: staffName,

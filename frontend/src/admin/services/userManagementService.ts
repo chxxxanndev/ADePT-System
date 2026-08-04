@@ -21,7 +21,9 @@ export interface StaffMember {
 
 export interface CreateStaffPayload {
     firstName: string;
+    middleInitial?: string;
     lastName: string;
+    suffix?: string;
     email: string;
     username: string;
     password: string;

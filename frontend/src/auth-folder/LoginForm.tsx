@@ -6,6 +6,7 @@ import { PasswordInput } from './components/PasswordInput';
 import { LockDisclaimer } from './components/LockDisclaimer';
 import sealImg from './assets/seal.png';
 import logoImg from './assets/logo.png';
+import { DeveloperCredit } from './components/DeveloperCredit';
 
 interface LoginResult {
     success: boolean;
@@ -136,6 +137,7 @@ export function LoginForm({ active, loading, onLogin, onReactivate, navigateTo, 
             </form>
 
             <LockDisclaimer />
+            <DeveloperCredit />
 
             {/* Rendered via portal straight onto document.body — this modal
                 used to be a normal descendant of .form-content-wrapper, but

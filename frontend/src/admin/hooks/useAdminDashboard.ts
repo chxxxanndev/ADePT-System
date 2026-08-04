@@ -26,9 +26,9 @@ interface AccountRequestSummary {
     status: 'approved' | 'declined' | 'pending';
     submitted?: string;
     created_at?: string;
+    applicantName?: string;
 }
 
-// ... (keep isSameDay, buildAccessRequestItems, buildRequestQueueItems exactly as they are)
 function isSameDay(value: string | undefined, reference: Date) {
     if (!value) return false;
     const date = new Date(value);
@@ -38,18 +38,22 @@ function isSameDay(value: string | undefined, reference: Date) {
         && date.getDate() === reference.getDate();
 }
 
+function staffDisplayName(member: StaffMember): string {
+    return `${member.first_name} ${member.last_name}`.trim() || member.username || 'Unknown';
+}
+
 function buildAccessRequestItems(staff: StaffMember[], requests: AccountRequestSummary[]): AdminStatItem[] {
     const today = new Date();
-    const activeAccounts = staff.filter((member) => member.account_status === 'ACTIVE').length;
-    const pendingRegistration = requests.filter((request) => request.status === 'pending').length;
-    const approvedToday = requests.filter((request) => request.status === 'approved' && isSameDay(request.submitted || request.created_at, today)).length;
-    const declinedToday = requests.filter((request) => request.status === 'declined' && isSameDay(request.submitted || request.created_at, today)).length;
+    const activeAccounts = staff.filter((member) => member.account_status === 'ACTIVE');
+    const pendingRegistration = requests.filter((request) => request.status === 'pending');
+    const approvedToday = requests.filter((request) => request.status === 'approved' && isSameDay(request.submitted || request.created_at, today));
+    const declinedToday = requests.filter((request) => request.status === 'declined' && isSameDay(request.submitted || request.created_at, today));
 
     return [
-        { id: 'active-accounts', label: 'Active Accounts', value: activeAccounts, icon: 'user', accent: 'teal' },
-        { id: 'pending-registration', label: 'Pending Registration', value: pendingRegistration, icon: 'alert', accent: 'gold' },
-        { id: 'approved-today', label: 'Approved Today', value: approvedToday, icon: 'check', accent: 'green' },
-        { id: 'declined-today', label: 'Declined Today', value: declinedToday, icon: 'close', accent: 'red' },
+        { id: 'active-accounts', label: 'Active Accounts', value: activeAccounts.length, icon: 'user', accent: 'teal', details: activeAccounts.map(staffDisplayName) },
+        { id: 'pending-registration', label: 'Pending Registration', value: pendingRegistration.length, icon: 'alert', accent: 'gold', details: pendingRegistration.map((r) => r.applicantName || 'Unknown') },
+        { id: 'approved-today', label: 'Approved Today', value: approvedToday.length, icon: 'check', accent: 'green', details: approvedToday.map((r) => r.applicantName || 'Unknown') },
+        { id: 'declined-today', label: 'Declined Today', value: declinedToday.length, icon: 'close', accent: 'red', details: declinedToday.map((r) => r.applicantName || 'Unknown') },
     ];
 }
 
@@ -58,6 +62,20 @@ interface RequestQueueSummary {
     processingCount: number;
     releasedCount: number;
     voidCount: number;
+}
+
+interface RegistryTransaction {
+    id: string;
+    referenceNumber?: string;
+    client?: { declarantName?: string; requestedBy?: string };
+    status?: string;
+    dateRequested?: string;
+}
+
+const PENDING_LIKE_STATUSES = new Set(['Pending', 'Processing', 'Payment Verified']);
+
+function declarantOf(t: RegistryTransaction): string {
+    return t.client?.declarantName || 'Unknown Declarant';
 }
 
 // Picks the label for the first queue card based on the selected range:
@@ -72,12 +90,24 @@ function requestCardLabel(range: { from: string; to: string }): string {
     return 'Requests In Range';
 }
 
-function buildRequestQueueItems(summary: RequestQueueSummary, range: { from: string; to: string }): AdminStatItem[] {
+function buildRequestQueueItems(
+    summary: RequestQueueSummary,
+    range: { from: string; to: string },
+    transactions: RegistryTransaction[]
+): AdminStatItem[] {
+    const inRange = transactions.filter((t) => {
+        const day = (t.dateRequested || '').slice(0, 10);
+        return day >= range.from && day <= range.to;
+    });
+    const processing = inRange.filter((t) => PENDING_LIKE_STATUSES.has(t.status || ''));
+    const approved = inRange.filter((t) => t.status === 'Released');
+    const voided = inRange.filter((t) => t.status === 'Void' || t.status === 'Cancelled');
+
     return [
-        { id: 'request-today', label: requestCardLabel(range), value: summary.requestedTodayCount, icon: 'inboxDown', accent: 'teal' },
-        { id: 'processing', label: 'Processing', value: summary.processingCount, icon: 'gears', accent: 'gold' },
-        { id: 'approved-documents', label: 'Approved Documents', value: summary.releasedCount, icon: 'check', accent: 'green' },
-        { id: 'void-documents', label: 'Void Documents', value: summary.voidCount, icon: 'close', accent: 'red' },
+        { id: 'request-today', label: requestCardLabel(range), value: summary.requestedTodayCount, icon: 'inboxDown', accent: 'teal', details: inRange.map(declarantOf) },
+        { id: 'processing', label: 'Processing', value: summary.processingCount, icon: 'gears', accent: 'gold', details: processing.map(declarantOf) },
+        { id: 'approved-documents', label: 'Approved Documents', value: summary.releasedCount, icon: 'check', accent: 'green', details: approved.map(declarantOf) },
+        { id: 'void-documents', label: 'Void Documents', value: summary.voidCount, icon: 'close', accent: 'red', details: voided.map(declarantOf) },
     ];
 }
 
@@ -166,18 +196,20 @@ export function useAdminDashboard() {
     const loadDashboardData = async (rangeOverride?: { from: string; to: string }) => {
         try {
             const range = rangeOverride ?? dateRange;
-            const [metrics, recent, performance] = await Promise.all([
+            const [metrics, recent, performance, registryRes] = await Promise.all([
                 fetchDashboardMetrics(range.from, range.to).catch(() => ({})),
                 fetchRecentTransactions(5, range.from, range.to).catch(() => []),
                 fetchStaffPerformance(range.from, range.to).catch(() => []),
+                api.get('/requests/registry').catch(() => ({ data: { transactions: [] } })),
             ]);
+            const registryTransactions: RegistryTransaction[] = registryRes?.data?.transactions ?? [];
             if (metrics.summaryCounts) {
                 setRequestQueue(buildRequestQueueItems({
                     requestedTodayCount: metrics.summaryCounts.requestedTodayCount ?? 0,
                     processingCount: metrics.summaryCounts.processingCount ?? 0,
                     releasedCount: metrics.summaryCounts.releasedCount ?? 0,
                     voidCount: metrics.summaryCounts.voidCount ?? 0,
-                }, range));
+                }, range, registryTransactions));
             }
             if (metrics.distribution) {
                 const normalized = metrics.distribution.map((d: any) => ({
