@@ -156,6 +156,7 @@ export interface Transaction {
     isVoid?: boolean;
     voidReason?: string;
     voidedAt?: string;
+    cancelledAt?: string;
     hasBeenAmended?: boolean;
 }
 

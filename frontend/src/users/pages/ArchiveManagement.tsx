@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+﻿import { useMemo, useState, useEffect } from "react";
 import type { ReactElement } from "react";
 import {
   Search,
@@ -100,23 +100,22 @@ function ReferenceBadge({ reference, type }: { reference: string; type: Document
   );
 }
 
-function ReasonBadge({ reason }: { reason: ArchiveReason }) {
-  return (
-    <span className={`arc-badge ${reason === "Auto" ? "arc-badge--auto" : "arc-badge--manual"}`}>
-      {reason}
-    </span>
-  );
-}
-
 /**
  * Transaction has no `archivedAt`/`archivedBy` columns yet — only
  * `dateRequested` and `assignedStaff` are available from the registry.
  * These are used as the best available stand-ins until the backend adds
  * dedicated archive-audit fields (mirrors the same limitation documented
  * for void records in VoidAndAmend.tsx).
+ *
+ * Cancelled requests (cancelled in Final Verification & Payment) land in
+ * this queue too — for those, the backend's `cancelledAt` (the moment the
+ * status flipped to CANCELLED) is used for the date/time instead of the
+ * original request date.
  */
 function toArchivedRecord(t: Transaction): ArchivedRecord {
-  const requested = new Date(t.dateRequested);
+  const isCancelled = t.status === "Cancelled";
+  const actionedAt = isCancelled ? t.cancelledAt : null;
+  const requested = actionedAt ? new Date(actionedAt) : new Date(t.dateRequested);
   return {
     id: t.id,
     reference: t.referenceNumber,
@@ -136,7 +135,7 @@ function toArchivedRecord(t: Transaction): ArchivedRecord {
     // No archive-reason field exists on the backend yet — every archived
     // transaction is reported as "Manual" until one is added.
     reasonType: "Manual",
-    reasonDetail: "Manually moved from queue.",
+    reasonDetail: isCancelled ? "Cancelled from pending payment." : "Manually moved from queue.",
   };
 }
 
@@ -162,8 +161,11 @@ export default function ArchiveManagement() {
       // Reads from the same registry endpoint as Reports, Transaction Registry,
       // and Void and Amend, so this page's archived count always matches the
       // "Archived" figure shown in Reports & Analytics and on the Dashboard.
+      // Cancelled requests (from Final Verification & Payment) also land here.
       const all = await fetchTransactionRegistry();
-      const archivedOnly = all.filter((t) => t.status === "Archived").map(toArchivedRecord);
+      const archivedOnly = all
+        .filter((t) => t.status === "Archived" || t.status === "Cancelled")
+        .map(toArchivedRecord);
       setRecords(archivedOnly);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Failed to fetch archive.");
@@ -203,7 +205,7 @@ export default function ArchiveManagement() {
     });
   }, [records, search, docTypeFilter, reasonFilter]);
 
-  // ─── Pagination (mirrors TransactionRegistry's TransactionTable) ────────
+  // â”€â”€â”€ Pagination (mirrors TransactionRegistry's TransactionTable) â”€â”€â”€â”€â”€â”€â”€â”€
   const totalRecords = filteredRecords.length;
   const totalPages = Math.ceil(totalRecords / pageSize) || 1;
 
@@ -394,8 +396,11 @@ export default function ArchiveManagement() {
                       <DocTypeTag type={record.documentType} />
                     </td>
                     <td>
-                      <ReasonBadge reason={record.reasonType} />
-                      <div className="arc-reason-detail">{record.reasonDetail}</div>
+                      <div className="arc-reason-cell">
+                        {record.reasonDetail && (
+                          <span className="arc-reason-detail">{record.reasonDetail}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="arc-cell-muted">{record.archivedBy}</td>
                     <td className="arc-cell-muted">

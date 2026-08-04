@@ -17,6 +17,7 @@ interface DocumentVerificationPanelProps {
 
     onPreviewDoc: (doc: any) => void;
     onConfirmAndGenerate: () => void;
+    onCancelRequest: () => void;
 }
 
 const currency = (n: number) => `\u20B1 ${n.toFixed(2)}`;
@@ -53,6 +54,13 @@ const PencilIcon = () => (
     </svg>
 );
 
+const XIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+);
+
 export const DocumentVerificationPanel: React.FC<DocumentVerificationPanelProps> = ({
     documents,
     totalAmount,
@@ -67,6 +75,7 @@ export const DocumentVerificationPanel: React.FC<DocumentVerificationPanelProps>
     onEditVerify,
     onPreviewDoc,
     onConfirmAndGenerate,
+    onCancelRequest,
 }) => {
     return (
         <div className="pd-split-layout">
@@ -94,13 +103,23 @@ export const DocumentVerificationPanel: React.FC<DocumentVerificationPanelProps>
                                     <td className="pd-doc-type">{docTypeLabel(doc)}</td>
                                     <td className="pd-doc-declarant">{doc.declarantName || doc.declarant_name}</td>
                                     <td className="pd-col-action">
-                                        <button
-                                            onClick={() => onPreviewDoc(doc)}
-                                            className="pd-btn--view-details"
-                                            title="View and edit encoded details"
-                                        >
-                                            <EyeIcon /> View & Edit
-                                        </button>
+                                        <div className="pd-action-btns">
+                                            <button
+                                                onClick={() => onPreviewDoc(doc)}
+                                                className="pd-btn--view-details"
+                                                title="View and edit encoded details"
+                                            >
+                                                <EyeIcon /> View & Edit
+                                            </button>
+                                            <button
+                                                onClick={onCancelRequest}
+                                                className="pd-btn--cancel-doc"
+                                                title="Cancel request"
+                                                aria-label="Cancel request"
+                                            >
+                                                <XIcon /> Cancel
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

@@ -84,6 +84,9 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
     const [justificationError, setJustificationError] = useState('');
     const [existingRequestInfo, setExistingRequestInfo] = useState<{ referenceNumber?: string; declarantName?: string } | null>(null);
 
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [isCancelling, setIsCancelling] = useState(false);
+
     const [documents, setDocuments] = useState<any[]>([]);
     const [selectedDocForPreview, setSelectedDocForPreview] = useState<any | null>(null);
 
@@ -706,6 +709,40 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
         (onSavedForLater ?? onBack)();
     };
 
+    const handleCancelRequest = async () => {
+        setIsCancelling(true);
+        setBanner(null);
+        try {
+            await Promise.all(documents.map((doc: any) =>
+                requestService.updateRequest(doc.id, { status: 'CANCELLED' })
+            ));
+            const cancelledDocTypes = [...new Set(documents.map((doc: any) =>
+                doc.documentType
+                || (doc.referenceNumber?.startsWith('TD')
+                    ? 'Tax Declaration'
+                    : doc.referenceNumber?.startsWith('NLH')
+                        ? 'Certificate of No Landholding'
+                        : 'Certificate of Landholding')
+            ))].join(', ') || 'N/A';
+            const cancelledDeclarants = [...new Set(documents.map((doc: any) => doc.declarantName || doc.declarant_name || 'N/A'))].join(', ');
+            addAdminAuditEntry({
+                type: 'decline',
+                description: `Cancelled ${documents.length} pending payment document(s) for ${requesterName}`,
+                details: {
+                    Declarant: cancelledDeclarants,
+                    'Document Type': cancelledDocTypes,
+                },
+            }).catch(() => { });
+            setShowCancelModal(false);
+            onBack();
+        } catch (err: any) {
+            setBanner({ type: 'error', text: err?.response?.data?.error || err?.message || 'Failed to cancel the request.' });
+            setShowCancelModal(false);
+        } finally {
+            setIsCancelling(false);
+        }
+    };
+
     return (
         <div className="pd-page page-transition">
             {workflowStep === 'VERIFICATION' && (
@@ -752,6 +789,7 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
                             onEditVerify={handleEditVerify}
                             onPreviewDoc={setSelectedDocForPreview}
                             onConfirmAndGenerate={handleConfirmAndGenerate}
+                            onCancelRequest={() => setShowCancelModal(true)}
                         />
                     )}
 
@@ -793,11 +831,33 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
                 </div>
             </div>
 
+            {showCancelModal && (
+                <div className="pd-modal-overlay" onClick={() => !isCancelling && setShowCancelModal(false)}>
+                    <div className="pd-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="pd-modal-header"><h3>Cancel pending payment?</h3></div>
+                        <div className="pd-modal-body">
+                            <p>
+                                This will cancel <strong>{documents.length} pending document(s)</strong> for <strong>{requesterName}</strong>. They'll be removed from the queue and moved to <strong>Archive Management</strong>, under Transaction Management — you can restore them from there anytime.
+                            </p>
+                        </div>
+                        <div className="pd-modal-footer">
+                            <button onClick={() => setShowCancelModal(false)} className="pd-btn pd-btn--secondary pd-btn--compact" disabled={isCancelling}>
+                                Keep
+                            </button>
+                            <button onClick={handleCancelRequest} className="pd-btn pd-btn--cancel pd-btn--compact" disabled={isCancelling}>
+                                {isCancelling ? 'Cancelling...' : 'Cancel Request'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {selectedDocForPreview && (
                 <InitialDocumentPreviewModal
                     documentItem={selectedDocForPreview}
                     onClose={() => setSelectedDocForPreview(null)}
                     onUpdateSuccess={handleUpdateSuccess}
+                    orNumber={orNumber}
                 />
             )}
 

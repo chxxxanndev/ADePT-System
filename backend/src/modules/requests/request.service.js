@@ -515,6 +515,7 @@ class RequestService {
                 isVoid: r.status === 'VOID' || r.status === 'VOIDED',
                 voidReason: (r.status === 'VOID' || r.status === 'VOIDED') ? (r.void_reason || '') : undefined,
                 voidedAt: (r.status === 'VOID' || r.status === 'VOIDED') ? (r.updated_at || null) : undefined,
+                cancelledAt: r.status === 'CANCELLED' ? (r.updated_at || null) : undefined,
             };
         });
     }
