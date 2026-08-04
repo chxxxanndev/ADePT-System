@@ -1,11 +1,10 @@
 import type { TransactionFilters, DocumentType } from '../types/transaction';
-
-const STATUS_OPTIONS: TransactionFilters['status'][] = ['Released', 'Reprinted'];
+import { DateRangePicker } from './DateRangePicker';
 
 const DOC_TYPE_OPTIONS: (DocumentType | 'All')[] = [
     'All',
     'Tax Declaration',
-    'Certificate of Land Holding',
+    'Certificate of Landholding',
     'Certificate of No Landholding',
 ];
 
@@ -20,17 +19,6 @@ export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
         <>
             <select
                 className="tr-filter-select"
-                value={filters.status}
-                onChange={(e) => onChange({ ...filters, status: e.target.value as TransactionFilters['status'] })}
-                aria-label="Filter by status"
-            >
-                {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                ))}
-            </select>
-
-            <select
-                className="tr-filter-select"
                 value={filters.documentType}
                 onChange={(e) => onChange({ ...filters, documentType: e.target.value as DocumentType | 'All' })}
                 aria-label="Filter by document type"
@@ -40,21 +28,11 @@ export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
                 ))}
             </select>
 
-            <div className="tr-filter-date">
-                <input
-                    type="date"
-                    value={filters.dateFrom || ''}
-                    onChange={(e) => onChange({ ...filters, dateFrom: e.target.value })}
-                    aria-label="Date from"
-                />
-                <span>to</span>
-                <input
-                    type="date"
-                    value={filters.dateTo || ''}
-                    onChange={(e) => onChange({ ...filters, dateTo: e.target.value })}
-                    aria-label="Date to"
-                />
-            </div>
+            <DateRangePicker
+                dateFrom={filters.dateFrom}
+                dateTo={filters.dateTo}
+                onChange={(dateFrom, dateTo) => onChange({ ...filters, dateFrom, dateTo })}
+            />
 
             <button type="button" className="tr-filter-reset" onClick={onReset}>
                 Reset Filters

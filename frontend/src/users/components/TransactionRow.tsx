@@ -1,28 +1,22 @@
 import type { ReactElement } from 'react';
-import type { DeclarantGroup, DocumentType, RequestedDocumentItem, Transaction } from '../types/transaction';
+import type { DeclarantGroup, DocumentType } from '../types/transaction';
 import { StatusBadge } from './StatusBadge';
 
-// Pill icons for the reference-number stack — mirrors the icon set used in
-// PendingPayment.tsx (LandholdingIcon / NoLandholdingIcon / TaxDeclarationIcon)
-// so the same document type reads identically across both screens.
-const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><line x1="6" y1="18" x2="18" y2="6" /></svg>;
-const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11 12 3l9 8" /><path d="M5 10v10h14V10" /></svg>;
-const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2h9l3 3v17H6z" /><line x1="9" y1="13" x2="15" y2="13" /><line x1="9" y1="17" x2="15" y2="17" /></svg>;
-const GenericDocIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h8l4 4v14H7z" /></svg>;
+const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="21" x2="21" y2="21"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 3 21 9 3 9"></polygon></svg>;
+const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
+const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>;
+const GenericDocIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h8l4 4v14H7z" /></svg>;
 
 interface DocPillMeta {
     className: string;
     Icon: () => ReactElement;
 }
 
-// Maps a document's type to how its reference-number pill should look.
-// Falls back to a neutral style for anything not in the known list
-// (e.g. 'Certified True Copy', or a future type added on the backend).
 function getDocPillMeta(documentType: DocumentType | string): DocPillMeta {
     switch (documentType) {
         case 'Certificate of No Landholding':
             return { className: 'tr-doc-pill--nlh', Icon: NoLandholdingIcon };
-        case 'Certificate of Land Holding':
+        case 'Certificate of Landholding':
             return { className: 'tr-doc-pill--lh', Icon: LandholdingIcon };
         case 'Tax Declaration':
             return { className: 'tr-doc-pill--td', Icon: TaxDeclarationIcon };
@@ -31,113 +25,91 @@ function getDocPillMeta(documentType: DocumentType | string): DocPillMeta {
     }
 }
 
-interface DocLine {
-    key: string;
-    referenceNumber: string;
-    doc: RequestedDocumentItem | undefined;
-    orNumber: string | null;
-    orJustification: string | null | undefined;
-}
-
-// Flattens every (transaction, requestedDocument) pair in the group into one
-// line per pill/row — each line carries its parent transaction's reference
-// number and payment info, color-coded by that specific document's type.
-// Kept as one shared list so Reference Number, OR Number, and OR
-// Justification all stack in the same order and stay aligned row-for-row.
-function buildDocLines(transactions: Transaction[]): DocLine[] {
-    return transactions.flatMap((t): DocLine[] => {
-        const base = {
-            referenceNumber: t.referenceNumber,
-            orNumber: t.payment.orNumber,
-            orJustification: t.payment.orJustification ?? null,
-        };
-        return t.requestedDocuments.length > 0
-            ? t.requestedDocuments.map((doc) => ({ key: `${t.id}-${doc.id}`, doc, ...base }))
-            : [{ key: t.id, doc: undefined, ...base }];
-    });
-}
-
 interface TransactionRowProps {
     group: DeclarantGroup;
     onViewDetails: (group: DeclarantGroup) => void;
 }
 
-// A declarant group can hold several released requests, each with its own
-// reference number. Void now lives entirely inside TransactionDetails
-// (per-transaction, in its Actions card) — the row itself only opens details.
+const COLUMN_COUNT = 11;
+
 export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
-    // group.transactions is sorted latest-released-first (see
-    // TransactionRegistry.tsx), so `latest` here means "most recently
-    // released" rather than "most recently requested".
-    const latest = group.transactions[0];
-    const docLines = buildDocLines(group.transactions);
+    const { transactions } = group;
+    const rowCount = transactions.length;
 
     return (
-        <tr className="tr-row">
-            <td className="tr-ref">
-                <div className="tr-stack-count-label">
-                    {docLines.length} document{docLines.length !== 1 && 's'}
-                </div>
-                <div className="tr-stack-list">
-                    {docLines.map(({ key, referenceNumber, doc }) => {
-                        const meta = getDocPillMeta(doc?.documentType ?? '');
-                        return (
-                            <div className="tr-stack-line" key={key}>
-                                <span className={`tr-doc-pill ${meta.className}`}>
-                                    <meta.Icon />
-                                    {referenceNumber}
-                                </span>
-                            </div>
-                        );
-                    })}
-                </div>
-            </td>
+        <>
+            {/* Group label row — always rendered, uniform with PendingPayment's
+            pp-group-header-row ("1 document" / "2 documents" / etc.),
+            regardless of how many transactions are in this group. */}
+            <tr className="tr-group-header-row">
+                <td colSpan={COLUMN_COUNT}>
+                    {rowCount} document{rowCount !== 1 && 's'}
+                </td>
+            </tr>
 
-            <td>
-                <span className="tr-declarant">{group.declarantName}</span>
-            </td>
-            <td>{latest.client.requestedBy}</td>
-            <td>{latest.dateRequested}</td>
-            <td>{latest.dateReleased || '—'}</td>
-            <td>{latest.assignedStaff}</td>
-            <td>{latest.releasedBy || '—'}</td>
+            {transactions.map((t, idx) => {
+                // A single transaction can itself request multiple document
+                // types (e.g. Tax Declaration + Landholding) — that still
+                // stacks inside its own row.
+                const docs = t.requestedDocuments.length > 0 ? t.requestedDocuments : [undefined];
 
-            <td>
-                <div className="tr-stack-count-label tr-stack-count-label--spacer">&nbsp;</div>
-                <div className="tr-stack-list">
-                    {docLines.map(({ key, orNumber }) => (
-                        <div className="tr-stack-line" key={key}>
-                            <span className="tr-or-number">{orNumber || '—'}</span>
-                        </div>
-                    ))}
-                </div>
-            </td>
-
-            <td>
-                <div className="tr-stack-count-label tr-stack-count-label--spacer">&nbsp;</div>
-                <div className="tr-stack-list">
-                    {docLines.map(({ key, orJustification }) => (
-                        <div className="tr-stack-line" key={key}>
-                            <span className={`tr-or-justification${orJustification ? '' : ' tr-or-justification--none'}`}>
-                                {orJustification || 'OR Unique'}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            </td>
-
-            <td><StatusBadge status={latest.status} /></td>
-            <td>
-                <div className="tr-actions">
-                    <button
-                        type="button"
-                        className="tr-view-details-btn"
-                        onClick={() => onViewDetails(group)}
+                return (
+                    <tr
+                        key={t.id}
+                        className={`tr-row${rowCount > 1 && idx !== rowCount - 1 ? ' tr-row-group-mid' : ''}`}
                     >
-                        View
-                    </button>
-                </div>
-            </td>
-        </tr>
+                        <td className="tr-ref">
+                            <div className="tr-stack-list">
+                                {docs.map((doc, i) => {
+                                    const meta = getDocPillMeta(doc?.documentType ?? '');
+                                    return (
+                                        <div className="tr-stack-line" key={doc?.id ?? i}>
+                                            <span className={`tr-doc-pill ${meta.className}`}>
+                                                <meta.Icon />
+                                                {t.referenceNumber}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </td>
+
+                        {/* Declarant varies per transaction within the group
+                            (e.g. Arsenio Noel Jr. vs Spouses Arsenio Noel),
+                            so it repeats per row — not rowSpan'd. */}
+                        <td><span className="tr-declarant">{t.client.declarantName}</span></td>
+
+                        {/* Requested By is the group key, so it's identical
+                            for every row — repeats per row like
+                            PendingPayment's Requested By column does. */}
+                        <td>{t.client.requestedBy}</td>
+
+                        <td>{t.dateRequested}</td>
+                        <td>{t.dateReleased || '—'}</td>
+                        <td>{t.assignedStaff}</td>
+                        <td>{t.releasedBy || '—'}</td>
+                        <td><span className="tr-or-number">{t.payment.orNumber || '—'}</span></td>
+                        <td>
+                            <span className={`tr-or-justification${t.payment.orJustification ? '' : ' tr-or-justification--none'}`}>
+                                {t.payment.orJustification || 'OR Unique'}
+                            </span>
+                        </td>
+                        <td><StatusBadge status={t.status} /></td>
+
+                        {/* Actions rowSpan's the group — "View" opens every
+                            transaction in this requester's group. */}
+                        {idx === 0 && (
+                            <td rowSpan={rowCount}>
+                                <div className="tr-actions">
+                                    <button type="button" className="tr-view-details-btn" onClick={() => onViewDetails(group)}>
+                                        View
+                                    </button>
+                                </div>
+                            </td>
+                        )}
+                    </tr>
+                );
+            })}
+        </>
     );
 }

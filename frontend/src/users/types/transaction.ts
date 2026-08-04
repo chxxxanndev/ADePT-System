@@ -12,14 +12,14 @@ export type TransactionStatus =
     | 'Archived'
     | 'Payment Verified'
     | 'For Payment'          // ← add
-    | 'Ready for Release'; 
+    | 'Ready for Release';
 
 
 export type CTCStatus = "Pending" | "Released" | "Voided" | "Archived";
 
 export type DocumentType =
     | 'Tax Declaration'
-    | 'Certificate of Land Holding'
+    | 'Certificate of Landholding'
     | 'Certificate of No Landholding'
     | 'Certified True Copy';
 
@@ -123,7 +123,7 @@ export interface PropertyInfo {
     assessorName?: string;
     assessorTitle?: string;
     assessmentRows?: AssessmentRow[];
-    landholdingRows?: LandholdingRow[]; 
+    landholdingRows?: LandholdingRow[];
 }
 
 export interface ClientInfo {
@@ -140,7 +140,7 @@ export interface Transaction {
      * NEW: Distinguishes between the first application 
      * and subsequent reprint/CTC requests.
      */
-    requestType: 'ORIGINAL' | 'REPRINT'; 
+    requestType: 'ORIGINAL' | 'REPRINT';
     client: ClientInfo;
     property: PropertyInfo;
     requestedDocuments: RequestedDocumentItem[];
@@ -181,7 +181,6 @@ export interface DeclarantGroup {
 }
 
 export interface TransactionFilters {
-    status: 'Released' | 'Reprinted';
     documentType: DocumentType | 'All';
     dateFrom?: string;
     dateTo?: string;

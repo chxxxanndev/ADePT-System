@@ -81,7 +81,7 @@ export function TransactionTable({ groups, onViewDetails, toolbar }: Transaction
                         ) : (
                             pageItems.map((g) => (
                                 <TransactionRow
-                                    key={g.declarantName}
+                                    key={g.transactions[0].id}
                                     group={g}
                                     onViewDetails={onViewDetails}
                                 />

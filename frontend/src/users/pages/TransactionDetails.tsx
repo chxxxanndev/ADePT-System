@@ -7,6 +7,7 @@ import { HomeIcon, PrinterIcon, UserIcon, VoidIcon, DocIcon, CashIcon } from '..
 
 export interface TransactionDetailsProps {
     group: DeclarantGroup;
+    transactionsByRef: Map<string, Transaction>;
     onClose: () => void;
     onReprint: (transactionId: string, docId: string) => void | Promise<void>;
     onVoid: (transaction: Transaction) => void;
@@ -41,14 +42,64 @@ const PROPERTY_SOURCE_LABEL: Record<string, string> = {
 
 /** Small pill next to each document's Reprint button — replaces the old
     plain-text "Reprinted N× / Not reprinted" line with something scannable. */
-function ReprintCountBadge({ count }: { count: number }) {
+function ReprintCountBadge({
+    count,
+    expanded,
+    onToggle,
+}: {
+    count: number;
+    expanded: boolean;
+    onToggle: () => void;
+}) {
     if (count <= 0) {
         return <span className="td-docitem-meta">Not reprinted</span>;
     }
     return (
-        <span className="td-reprint-badge" title={`Reprinted ${count} time${count !== 1 ? 's' : ''}`}>
-            <PrinterIcon size={10} /> {count}×
-        </span>
+        <button type="button" className="td-reprint-badge td-reprint-badge--btn" onClick={onToggle}>
+            <PrinterIcon size={10} /> {count}× {expanded ? '▲' : '▼'}
+        </button>
+    );
+}
+
+/** Expandable list of each individual reprint for a document — shows the
+    constructed reference number (base + "-R{n}") and, if that reprint
+    transaction has gone through payment, its OR number and release status. */
+function ReprintHistoryList({
+    originalReference,
+    reprintCount,
+    transactionsByRef,
+}: {
+    originalReference: string;
+    reprintCount: number;
+    transactionsByRef: Map<string, Transaction>;
+}) {
+    if (reprintCount <= 0) return null;
+
+    const entries = Array.from({ length: reprintCount }, (_, i) => {
+        const n = i + 1;
+        const reference = `${originalReference}-R${n}`;
+        const reprintTxn = transactionsByRef.get(reference);
+        return { n, reference, reprintTxn };
+    });
+
+    return (
+        <div className="td-reprint-history">
+            {entries.map(({ n, reference, reprintTxn }) => (
+                <div key={n} className="td-reprint-history-row">
+                    <span className="td-reprint-history-ref">{reference}</span>
+                    <span className="td-reprint-history-or">
+                        {reprintTxn?.payment.orNumber || 'OR pending'}
+                    </span>
+                    <span className="td-reprint-history-status">
+                        {reprintTxn
+                            ? reprintTxn.status === 'Released'
+                                ? `Released ${fmt(reprintTxn.dateReleased)}`
+                                : reprintTxn.status
+                            : 'Not yet on record'}
+                    </span>
+                </div>
+            ))}
+        </div>
     );
 }
 
@@ -424,13 +475,22 @@ function PropertyCard({ property }: { property: PropertyInfo }) {
 
 /* ── component ──────────────────────────────────────────────────────────── */
 
-export function TransactionDetails({ group, onClose, onReprint, onVoid, onVoidAll }: TransactionDetailsProps) {
+export function TransactionDetails({
+    group,
+    transactionsByRef,   // ← was missing
+    onClose,
+    onReprint,
+    onVoid,
+    onVoidAll,
+}: TransactionDetailsProps) {
     const { transactions } = group;
 
     const [reprintTarget, setReprintTarget] = useState<{
         transaction: Transaction;
         doc: Transaction['requestedDocuments'][number];
     } | null>(null);
+
+    const [expandedDocId, setExpandedDocId] = useState<string | null>(null);   // ← was missing
 
     if (!transactions.length) return null;
 
@@ -553,19 +613,34 @@ export function TransactionDetails({ group, onClose, onReprint, onVoid, onVoidAl
                                             <div className="td-empty-note">No documents recorded.</div>
                                         )}
                                         {t.requestedDocuments.map((doc) => (
-                                            <div key={doc.id} className="td-docitem">
-                                                <span className="td-docitem-name">{doc.documentType}</span>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                                                    <ReprintCountBadge count={doc.reprintCount} />
-                                                    <button
-                                                        type="button"
-                                                        className="td-link-btn"
-                                                        style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                                                        onClick={() => setReprintTarget({ transaction: t, doc })}
-                                                    >
-                                                        <PrinterIcon size={13} /> Reprint
-                                                    </button>
+                                            <div key={doc.id}>
+                                                <div className="td-docitem">
+                                                    <span className="td-docitem-name">{doc.documentType}</span>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                                                        <ReprintCountBadge
+                                                            count={doc.reprintCount}
+                                                            expanded={expandedDocId === doc.id}
+                                                            onToggle={() =>
+                                                                setExpandedDocId((cur) => (cur === doc.id ? null : doc.id))
+                                                            }
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            className="td-link-btn"
+                                                            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                            onClick={() => setReprintTarget({ transaction: t, doc })}
+                                                        >
+                                                            <PrinterIcon size={13} /> Reprint
+                                                        </button>
+                                                    </div>
                                                 </div>
+                                                {expandedDocId === doc.id && (
+                                                    <ReprintHistoryList
+                                                        originalReference={t.referenceNumber}
+                                                        reprintCount={doc.reprintCount}
+                                                        transactionsByRef={transactionsByRef}
+                                                    />
+                                                )}
                                             </div>
                                         ))}
                                     </div>
