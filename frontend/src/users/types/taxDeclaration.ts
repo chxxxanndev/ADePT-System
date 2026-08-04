@@ -59,6 +59,12 @@ export interface TaxDeclarationFormData {
     // — Kind of Property / Valuation table —
     assessmentRows: AssessmentRow[];
 
+    // — Total Land Area (document-level; separate from the per-row `area`
+    //   on each AssessmentRow) — shown as its own single, non-addable
+    //   field + unit dropdown, no longer part of the assessment table.
+    area: string;
+    areaUnit: 'has.' | 'sqm.';
+
     // — Totals (computed) —
     totalMarketValue: number;
     totalAssessedValue: number;
@@ -142,6 +148,8 @@ export const EMPTY_TAX_DECLARATION = (): TaxDeclarationFormData => ({
     boundaryEast: '',
     boundaryWest: '',
     assessmentRows: [EMPTY_ASSESSMENT_ROW()],
+    area: '',
+    areaUnit: 'has.',
     totalMarketValue: 0,
     totalAssessedValue: 0,
     amountInWords: '',

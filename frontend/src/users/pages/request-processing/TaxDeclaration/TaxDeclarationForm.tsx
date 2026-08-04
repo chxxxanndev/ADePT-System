@@ -17,7 +17,7 @@ import {
 } from '../../../components/icons';
 import { TransactionProgressPanel } from '../../../components/TransactionProgressPanel';
 
-// 1. RESTORED HELPER FUNCTIONS
+// 1. HELPER FUNCTIONS
 function numberToWords(num: number): string {
     if (!num || isNaN(num)) return '';
     const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -49,34 +49,180 @@ function calcAssessedValue(marketValue: number, assessmentLevel: number): number
     return Math.round(raw / 10) * 10;
 }
 
-function AssessmentRowItem({ row, onUpdate, onRemove, canRemove, classificationOptions, propertyTypeOptions }: { row: AssessmentRow; onUpdate: (id: string, field: keyof AssessmentRow, value: string) => void; onRemove: (id: string) => void; canRemove: boolean; classificationOptions: { id: string; label: string; code: string }[]; propertyTypeOptions: { id: string; label: string; code: string }[]; }) {
+// ── Total Area (document-level, single field, not addable) ──
+//
+// The backend currently stores this as ONE combined free-text string on
+// the tax declaration row, e.g. "1234 HECTARE" (confirmed from a raw
+// Supabase response). The form's internal `areaUnit` uses the same
+// 'has.' | 'sqm.' literal values as AssessmentRow.areaUnit elsewhere in
+// this codebase, so AREA_UNIT_LABELS below only exists to translate
+// between that internal value and the backend's combined-string format.
+//
+// NOTE: double-check the 'sqm.' → "SQ.M." mapping against whatever your
+// PDF template / the earlier "area unit display" fix expects — "SQ.M."
+// is a best guess based on the "HECTARE" convention seen in the raw
+// response. If the PDF renderer expects a different literal (e.g.
+// "SQUARE METER", "sq. m."), update the map here to match.
+const AREA_UNIT_LABELS: Record<'has.' | 'sqm.', string> = {
+    'has.': 'HECTARE',
+    'sqm.': 'SQ.M.',
+};
+
+function parseAreaString(raw: string | null | undefined): { value: string; unit: 'has.' | 'sqm.' } {
+    if (!raw) return { value: '', unit: 'has.' };
+    const match = String(raw).trim().match(/^([\d.,]+)\s*(.*)$/);
+    if (!match) return { value: String(raw).trim(), unit: 'has.' };
+    const [, numPart, unitPart] = match;
+    const unitNormalized: 'has.' | 'sqm.' = /sq/i.test(unitPart) ? 'sqm.' : 'has.';
+    return { value: numPart.replace(/,/g, ''), unit: unitNormalized };
+}
+
+function formatAreaString(value: string, unit: 'has.' | 'sqm.'): string {
+    if (!value) return '';
+    return `${value} ${AREA_UNIT_LABELS[unit] || unit}`;
+}
+
+// ── Sentinel used to represent "Others (specify)" selection ──
+const OTHERS_SENTINEL = '__OTHERS__';
+
+function AssessmentRowItem({
+    row,
+    onUpdate,
+    onRemove,
+    canRemove,
+    classificationOptions,
+    propertyTypeOptions,
+}: {
+    row: AssessmentRow;
+    onUpdate: (id: string, field: keyof AssessmentRow, value: string) => void;
+    onRemove: (id: string) => void;
+    canRemove: boolean;
+    classificationOptions: { id: string; label: string; code: string }[];
+    propertyTypeOptions: { id: string; label: string; code: string }[];
+}) {
     const mv = parseFloat(row.marketValue) || 0;
     const al = parseFloat(row.assessmentLevel) || 0;
     const av = calcAssessedValue(mv, al);
+
+    const knownPropertyCodes = propertyTypeOptions.map((o) => o.code);
+    const isKindOthers =
+        row.kindOfProperty === OTHERS_SENTINEL ||
+        (!!row.kindOfProperty && !knownPropertyCodes.includes(row.kindOfProperty));
+
+    const knownClassIds = classificationOptions.map((o) => o.id);
+    const isClassOthers =
+        row.classificationId === OTHERS_SENTINEL ||
+        (!!row.classificationLabel && !knownClassIds.includes(row.classificationId));
+
+    const kindSelectValue = isKindOthers ? OTHERS_SENTINEL : (row.kindOfProperty || '');
+    const classSelectValue = isClassOthers ? OTHERS_SENTINEL : (row.classificationId || '');
+    const kindOtherText = row.kindOfProperty === OTHERS_SENTINEL ? '' : (isKindOthers ? row.kindOfProperty : '');
+
     return (
         <tr>
+            {/* ── Kind of Property: swaps to text input when Others is active ── */}
             <td>
-                <select className="td-select" value={row.kindOfProperty} onChange={(e) => onUpdate(row.id, 'kindOfProperty', e.target.value)}>
-                    <option value="">-- Select Kind --</option>
-                    {propertyTypeOptions.map((opt) => (<option key={opt.id} value={opt.code}>{opt.label}</option>))}
-                </select>
+                {isKindOthers ? (
+                    <input
+                        className="td-input"
+                        type="text"
+                        placeholder="Specify kind of property…"
+                        value={kindOtherText}
+                        onChange={(e) => onUpdate(row.id, 'kindOfProperty', e.target.value || OTHERS_SENTINEL)}
+                        autoFocus
+                        onBlur={(e) => {
+                            // If they blur with nothing typed, snap back to the dropdown
+                            if (!e.target.value.trim()) onUpdate(row.id, 'kindOfProperty', '');
+                        }}
+                    />
+                ) : (
+                    <select
+                        className="td-select"
+                        value={kindSelectValue}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            onUpdate(row.id, 'kindOfProperty', val === OTHERS_SENTINEL ? OTHERS_SENTINEL : val);
+                        }}
+                    >
+                        <option value="">-- Select Kind --</option>
+                        {propertyTypeOptions.map((opt) => (
+                            <option key={opt.id} value={opt.code}>{opt.label}</option>
+                        ))}
+                        <option value={OTHERS_SENTINEL}>Others (specify)</option>
+                    </select>
+                )}
+            </td>
+
+            {/* ── Classification: same swap pattern ── */}
+            <td>
+                {isClassOthers ? (
+                    <input
+                        className="td-input"
+                        type="text"
+                        placeholder="Specify classification…"
+                        value={row.classificationLabel || ''}
+                        onChange={(e) => {
+                            onUpdate(row.id, 'classificationLabel', e.target.value);
+                            onUpdate(row.id, 'classificationId', OTHERS_SENTINEL);
+                        }}
+                        autoFocus
+                        onBlur={(e) => {
+                            // If they blur with nothing typed, snap back to the dropdown
+                            if (!e.target.value.trim()) {
+                                onUpdate(row.id, 'classificationId', '');
+                                onUpdate(row.id, 'classificationLabel', '');
+                            }
+                        }}
+                    />
+                ) : (
+                    <select
+                        className="td-select"
+                        value={classSelectValue}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === OTHERS_SENTINEL) {
+                                onUpdate(row.id, 'classificationId', OTHERS_SENTINEL);
+                                onUpdate(row.id, 'classificationLabel', '');
+                            } else {
+                                const matched = classificationOptions.find((o) => o.id === val);
+                                if (matched) {
+                                    onUpdate(row.id, 'classificationId', matched.id);
+                                    onUpdate(row.id, 'classificationLabel', matched.label);
+                                }
+                            }
+                        }}
+                    >
+                        <option value="">-- Select Classification --</option>
+                        {classificationOptions.map((opt) => (
+                            <option key={opt.id} value={opt.id}>{opt.label}</option>
+                        ))}
+                        <option value={OTHERS_SENTINEL}>Others (specify)</option>
+                    </select>
+                )}
+            </td>
+
+            <td className="td-table-input-right">
+                <input className="td-input" type="number" placeholder="0.00" value={row.marketValue}
+                    onChange={(e) => onUpdate(row.id, 'marketValue', e.target.value)} min="0" step="0.01" />
+            </td>
+            <td className="td-table-input-right">
+                <input className="td-input" type="number" placeholder="%" value={row.assessmentLevel}
+                    onChange={(e) => onUpdate(row.id, 'assessmentLevel', e.target.value)} min="0" max="100" step="0.01" />
+            </td>
+            <td className="td-table-input-right">
+                <input className="td-input" readOnly value={av > 0 ? formatPeso(av) : ''} placeholder="Auto-calc" />
             </td>
             <td>
-                <select className="td-select" value={row.classificationId || row.classificationLabel} onChange={(e) => { const val = e.target.value; const matched = classificationOptions.find((o) => o.id === val || o.code === val); if (matched) { onUpdate(row.id, 'classificationId', matched.id); onUpdate(row.id, 'classificationLabel', matched.label); } else { onUpdate(row.id, 'classificationId', ''); onUpdate(row.id, 'classificationLabel', val); } }}>
-                    <option value="">-- Select Classification --</option>
-                    {classificationOptions.map((opt) => (<option key={opt.id} value={opt.id}>{opt.label}</option>))}
-                </select>
+                <button type="button" className="td-row-remove-btn" onClick={() => onRemove(row.id)}
+                    disabled={!canRemove} title="Remove row">
+                    <XIcon size={13} />
+                </button>
             </td>
-            <td className="td-table-input-right"><input className="td-input" type="number" placeholder="0.00" value={row.marketValue} onChange={(e) => onUpdate(row.id, 'marketValue', e.target.value)} min="0" step="0.01" /></td>
-            <td className="td-table-input-right"><input className="td-input" type="number" placeholder="%" value={row.assessmentLevel} onChange={(e) => onUpdate(row.id, 'assessmentLevel', e.target.value)} min="0" max="100" step="0.01" /></td>
-            <td className="td-table-input-right"><input className="td-input" readOnly value={av > 0 ? formatPeso(av) : ''} placeholder="Auto-calc" /></td>
-            <td><input className="td-input" placeholder="has." value={row.area} onChange={(e) => onUpdate(row.id, 'area', e.target.value)} /></td>
-            <td><button type="button" className="td-row-remove-btn" onClick={() => onRemove(row.id)} disabled={!canRemove} title="Remove row"><XIcon size={13} /></button></td>
         </tr>
     );
 }
 
-// 2. UPDATED PROPS (Removed unused onBackToDashboard to fix yellow warning)
+// 2. PROPS
 interface TaxDeclarationFormProps {
     user: User;
     entryData: CompletedEntryData;
@@ -94,7 +240,15 @@ interface TaxDeclarationFormProps {
     onGoToSummary: () => void;
 }
 
-export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSummary, onAddAnotherAfterDiscard, onAddAnother, onGoToSummary }: TaxDeclarationFormProps) {
+export function TaxDeclarationForm({
+    user,
+    entryData,
+    onDiscard,
+    onDiscardToSummary,
+    onAddAnotherAfterDiscard,
+    onAddAnother,
+    onGoToSummary,
+}: TaxDeclarationFormProps) {
     // ═══ ALL HOOKS MUST RUN UNCONDITIONALLY (React Rules of Hooks) ═══
     const LS_KEY = `adept-td-${entryData?.requestId ?? 'tmp'}`;
 
@@ -127,7 +281,10 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
     const [discardError, setDiscardError] = useState('');
     const [showNextStepChoice, setShowNextStepChoice] = useState(false);
 
-    const [metadata, setMetadata] = useState<{ classifications: { id: string; label: string; code: string }[]; propertyTypes: { id: string; label: string; code: string }[]; }>({ classifications: [], propertyTypes: [], });
+    const [metadata, setMetadata] = useState<{
+        classifications: { id: string; label: string; code: string }[];
+        propertyTypes: { id: string; label: string; code: string }[];
+    }>({ classifications: [], propertyTypes: [] });
 
     useEffect(() => {
         if (!entryData) return;
@@ -164,13 +321,28 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
                 }
             } catch (err) { console.error('Failed to fetch meta', err); }
         };
-        fetchMeta(); return () => { isMounted = false; };
+        fetchMeta();
+        return () => { isMounted = false; };
     }, [entryData?.propertyLocation, entryData]);
 
-    const classificationOptions = metadata.classifications.length > 0 ? metadata.classifications : [{ id: 'AGRICULTURAL', label: 'Agricultural', code: 'AGRICULTURAL' }, { id: 'RESIDENTIAL', label: 'Residential', code: 'RESIDENTIAL' }];
-    const propertyTypeOptions = metadata.propertyTypes.length > 0 ? metadata.propertyTypes : [{ id: 'LAND', label: 'Land', code: 'LAND' }, { id: 'BUILDING', label: 'Building', code: 'BUILDING' }];
+    const classificationOptions = metadata.classifications.length > 0
+        ? metadata.classifications
+        : [
+            { id: 'AGRICULTURAL', label: 'Agricultural', code: 'AGRICULTURAL' },
+            { id: 'RESIDENTIAL', label: 'Residential', code: 'RESIDENTIAL' },
+          ];
+    const propertyTypeOptions = (
+    metadata.propertyTypes.length > 0
+        ? metadata.propertyTypes
+        : [
+            { id: 'LAND', label: 'Land', code: 'LAND' },
+            { id: 'BUILDING', label: 'Building', code: 'BUILDING' },
+          ]
+).filter((o) => o.label.trim().toLowerCase() !== 'others');
 
-    const totalMarketValue = form.assessmentRows.reduce((sum, r) => sum + (parseFloat(r.marketValue) || 0), 0);
+    const totalMarketValue = form.assessmentRows.reduce(
+        (sum, r) => sum + (parseFloat(r.marketValue) || 0), 0
+    );
     const totalAssessedValue = form.assessmentRows.reduce((sum, r) => {
         const mv = parseFloat(r.marketValue) || 0;
         const al = parseFloat(r.assessmentLevel) || 0;
@@ -186,6 +358,8 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
             if (hadLocalDraftOnMount) return;
             const dbData = await taxDeclarationService.getRawForEdit(entryData.requestId);
             if (!isMounted || !dbData) return;
+
+            const parsedArea = parseAreaString(dbData.area);
 
             setForm((prev) => ({
                 ...prev,
@@ -209,6 +383,9 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
                 memoranda: dbData.memoranda || prev.memoranda,
                 assessorName: dbData.assessor_name || prev.assessorName,
                 assessorTitle: dbData.assessor_title || prev.assessorTitle,
+                // Document-level total area (see parseAreaString/formatAreaString above)
+                area: dbData.area != null ? parsedArea.value : prev.area,
+                areaUnit: dbData.area != null ? parsedArea.unit : prev.areaUnit,
                 assessmentRows: dbData.encoded_assessment_rows?.length
                     ? dbData.encoded_assessment_rows
                           .slice()
@@ -236,7 +413,9 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
 
     const amountInWords = numberToWords(totalAssessedValue);
 
-    useEffect(() => { setForm((prev) => ({ ...prev, totalMarketValue, totalAssessedValue, amountInWords })); }, [totalMarketValue, totalAssessedValue, amountInWords]);
+    useEffect(() => {
+        setForm((prev) => ({ ...prev, totalMarketValue, totalAssessedValue, amountInWords }));
+    }, [totalMarketValue, totalAssessedValue, amountInWords]);
 
     const set = (field: keyof TaxDeclarationFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -297,17 +476,20 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
 
     const handleSave = async (action: 'draft' | 'review' | 'add_another') => {
         if (!form.taxDeclarationNumber.trim()) return setSaveError('Assessment of Real Property No. is required.');
-        setSaveError(''); setSaving(true);
+        setSaveError('');
+        setSaving(true);
         try {
-            await taxDeclarationService.save(form, entryData.requestId, user.id);
+            // Recombine the split value/unit back into the single combined
+            // string the backend column expects (see formatAreaString above).
+            const payload = { ...form, area: formatAreaString(form.area, form.areaUnit) };
+            await taxDeclarationService.save(payload, entryData.requestId, user.id);
             localStorage.removeItem(LS_KEY);
 
-            // Replace the old addItem logic:
             if (action !== 'draft') {
                 addItem({
-                    id: entryData.requestId,                  // FIX: Use real DB ID instead of Math.random()
-                    referenceNumber: entryData.referenceNumber, // FIX: Pass the ref number
-                    documentType: 'Tax Declaration', // (Change string based on the form)
+                    id: entryData.requestId,
+                    referenceNumber: entryData.referenceNumber,
+                    documentType: 'Tax Declaration',
                     fee: 40.00,
                     declarantName: entryData.declarantName,
                     requestedByName: entryData.requestedByName,
@@ -319,7 +501,11 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
                 if (action === 'review') onGoToSummary();
                 else if (action === 'add_another') onAddAnother();
             }, 1500);
-        } catch (err: any) { setSaveError('Failed to save. Check database connection.'); } finally { setSaving(false); }
+        } catch (err: any) {
+            setSaveError('Failed to save. Check database connection.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -365,24 +551,48 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
                                     )}
                                 </div>
                             </div>
-                            <div className="td-doc-header-field"><label>Property Index No.:</label><input id="td-pin" className="td-input" placeholder="e.g. 050-21-0004-002-30" value={form.propertyIndexNumber} onChange={(e) => set('propertyIndexNumber', e.target.value)} /></div>
+                            <div className="td-doc-header-field">
+                                <label>Property Index No.:</label>
+                                <input
+                                    id="td-pin"
+                                    className="td-input"
+                                    placeholder="e.g. 050-21-0004-002-30"
+                                    value={form.propertyIndexNumber}
+                                    onChange={(e) => set('propertyIndexNumber', e.target.value)}
+                                />
+                            </div>
                         </div>
                         <div className="td-doc-title">Declaration of Real Property</div>
                     </div>
 
                     <div className="td-form-body">
+
+                        {/* ── Owner Information ── */}
                         <div className="td-section">
                             <div className="td-section-title">Owner Information</div>
                             <div className="td-row td-row-2">
-                                <div className="td-field"><label className="td-label">Owner</label><input id="td-owner-name" className="td-input" placeholder="Full name of owner" value={form.ownerName} onChange={(e) => set('ownerName', e.target.value)} autoComplete="off" /></div>
-                                <div className="td-field"><label className="td-label">Address</label><input id="td-owner-address" className="td-input" placeholder="e.g. Pob. Sibutad, ZN" value={form.ownerAddress} onChange={(e) => set('ownerAddress', e.target.value)} autoComplete="off" /></div>
+                                <div className="td-field">
+                                    <label className="td-label">Owner</label>
+                                    <input id="td-owner-name" className="td-input" placeholder="Full name of owner" value={form.ownerName} onChange={(e) => set('ownerName', e.target.value)} autoComplete="off" />
+                                </div>
+                                <div className="td-field">
+                                    <label className="td-label">Address</label>
+                                    <input id="td-owner-address" className="td-input" placeholder="e.g. Pob. Sibutad, ZN" value={form.ownerAddress} onChange={(e) => set('ownerAddress', e.target.value)} autoComplete="off" />
+                                </div>
                             </div>
                             <div className="td-row td-row-2">
-                                <div className="td-field"><label className="td-label">Administrator <span className="td-label-sub">(if applicable)</span></label><input id="td-admin-name" className="td-input" placeholder="Full name of administrator" value={form.administratorName} onChange={(e) => set('administratorName', e.target.value)} autoComplete="off" /></div>
-                                <div className="td-field"><label className="td-label">Administrator Address</label><input id="td-admin-address" className="td-input" placeholder="Administrator's address" value={form.administratorAddress} onChange={(e) => set('administratorAddress', e.target.value)} autoComplete="off" /></div>
+                                <div className="td-field">
+                                    <label className="td-label">Administrator <span className="td-label-sub">(if applicable)</span></label>
+                                    <input id="td-admin-name" className="td-input" placeholder="Full name of administrator" value={form.administratorName} onChange={(e) => set('administratorName', e.target.value)} autoComplete="off" />
+                                </div>
+                                <div className="td-field">
+                                    <label className="td-label">Administrator Address</label>
+                                    <input id="td-admin-address" className="td-input" placeholder="Administrator's address" value={form.administratorAddress} onChange={(e) => set('administratorAddress', e.target.value)} autoComplete="off" />
+                                </div>
                             </div>
                         </div>
 
+                        {/* ── Location of Property ── */}
                         <div className="td-section">
                             <div className="td-section-title">Location of Property</div>
                             <div className="td-location-strip">
@@ -401,77 +611,214 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
                             </div>
                         </div>
 
+                        {/* ── Land Reference Numbers ── */}
                         <div className="td-section">
                             <div className="td-section-title">Land Reference Numbers</div>
                             <div className="td-row td-row-4">
-                                <div className="td-field"><label className="td-label">OCT/TCT/CLOA No.</label><input id="td-oct-tct" className="td-input" placeholder="e.g. T-72142" value={form.octTctNumber} onChange={(e) => set('octTctNumber', e.target.value)} /></div>
-                                <div className="td-field"><label className="td-label">Survey No.</label><input id="td-survey-no" className="td-input" placeholder="Survey number" value={form.surveyNumber} onChange={(e) => set('surveyNumber', e.target.value)} /></div>
-                                <div className="td-field"><label className="td-label">Lot No.</label><input id="td-lot-no" className="td-input" placeholder="e.g. 3979-H" value={form.lotNumber} onChange={(e) => set('lotNumber', e.target.value)} /></div>
-                                <div className="td-field"><label className="td-label">Blk. No.</label><input id="td-blk-no" className="td-input" placeholder="Block no." value={form.blockNumber} onChange={(e) => set('blockNumber', e.target.value)} /></div>
+                                <div className="td-field">
+                                    <label className="td-label">OCT/TCT/CLOA No.</label>
+                                    <input id="td-oct-tct" className="td-input" placeholder="e.g. T-72142" value={form.octTctNumber} onChange={(e) => set('octTctNumber', e.target.value)} />
+                                </div>
+                                <div className="td-field">
+                                    <label className="td-label">Survey No.</label>
+                                    <input id="td-survey-no" className="td-input" placeholder="Survey number" value={form.surveyNumber} onChange={(e) => set('surveyNumber', e.target.value)} />
+                                </div>
+                                <div className="td-field">
+                                    <label className="td-label">Lot No.</label>
+                                    <input id="td-lot-no" className="td-input" placeholder="e.g. 3979-H" value={form.lotNumber} onChange={(e) => set('lotNumber', e.target.value)} />
+                                </div>
+                                <div className="td-field">
+                                    <label className="td-label">Blk. No.</label>
+                                    <input id="td-blk-no" className="td-input" placeholder="Block no." value={form.blockNumber} onChange={(e) => set('blockNumber', e.target.value)} />
+                                </div>
                             </div>
                         </div>
 
+                        {/* ── Boundaries ── */}
                         <div className="td-section">
                             <div className="td-section-title">Boundaries</div>
                             <div className="td-boundaries-box">
                                 <div className="td-boundaries-note">State streets, streams or PIN by bounded, or names of owner of adjoining lands.</div>
                                 <div className="td-boundaries-grid">
-                                    <div className="td-field"><label className="td-label">North</label><textarea id="td-north" className="td-input" rows={2} placeholder="e.g. NW: ALONG LINES 2-3-4-5-6-7-8 BY LOT NO. 31-F-1-K, PSD-09-069818" value={form.boundaryNorth} onChange={(e) => set('boundaryNorth', e.target.value)} /></div>
-                                    <div className="td-field"><label className="td-label">South</label><textarea id="td-south" className="td-input" rows={2} placeholder="e.g. S: ALONG LINES 9-10-11 BY LOT NO. 31-F-1-L" value={form.boundarySouth} onChange={(e) => set('boundarySouth', e.target.value)} /></div>
-                                    <div className="td-field"><label className="td-label">East</label><textarea id="td-east" className="td-input" rows={2} placeholder="e.g. E: ALONG LINE 8-9 BY ROAD" value={form.boundaryEast} onChange={(e) => set('boundaryEast', e.target.value)} /></div>
-                                    <div className="td-field"><label className="td-label">West</label><textarea id="td-west" className="td-input" rows={2} placeholder="e.g. W: ALONG LINE 1-2 BY CREEK" value={form.boundaryWest} onChange={(e) => set('boundaryWest', e.target.value)} /></div>
+                                    <div className="td-field">
+                                        <label className="td-label">North</label>
+                                        <textarea id="td-north" className="td-input" rows={2} placeholder="e.g. NW: ALONG LINES 2-3-4-5-6-7-8 BY LOT NO. 31-F-1-K, PSD-09-069818" value={form.boundaryNorth} onChange={(e) => set('boundaryNorth', e.target.value)} />
+                                    </div>
+                                    <div className="td-field">
+                                        <label className="td-label">South</label>
+                                        <textarea id="td-south" className="td-input" rows={2} placeholder="e.g. S: ALONG LINES 9-10-11 BY LOT NO. 31-F-1-L" value={form.boundarySouth} onChange={(e) => set('boundarySouth', e.target.value)} />
+                                    </div>
+                                    <div className="td-field">
+                                        <label className="td-label">East</label>
+                                        <textarea id="td-east" className="td-input" rows={2} placeholder="e.g. E: ALONG LINE 8-9 BY ROAD" value={form.boundaryEast} onChange={(e) => set('boundaryEast', e.target.value)} />
+                                    </div>
+                                    <div className="td-field">
+                                        <label className="td-label">West</label>
+                                        <textarea id="td-west" className="td-input" rows={2} placeholder="e.g. W: ALONG LINE 1-2 BY CREEK" value={form.boundaryWest} onChange={(e) => set('boundaryWest', e.target.value)} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
+                        {/* ── Kind of Property & Valuation ── */}
                         <div className="td-assessment-section">
-                            <div className="td-table-header-bar"><span>Kind of Property &amp; Valuation</span><button type="button" className="td-add-row-btn" onClick={addRow}>+ Add Row</button></div>
+                            <div className="td-table-header-bar">
+                                <span>Kind of Property &amp; Valuation</span>
+                                <button type="button" className="td-add-row-btn" onClick={addRow}>+ Add Row</button>
+                            </div>
                             <div style={{ overflowX: 'auto' }}>
                                 <table className="td-assessment-table">
                                     <thead>
                                         <tr>
-                                            <th style={{ minWidth: 140 }}>Kind of Property</th><th style={{ minWidth: 160 }}>Classification</th><th className="td-th-right" style={{ minWidth: 120 }}>Market Value (₱)</th><th className="td-th-right" style={{ minWidth: 100 }}>Assess. Level (%)</th><th className="td-th-right" style={{ minWidth: 120 }}>Assessed Value (₱)</th><th style={{ minWidth: 90 }}>Area</th><th style={{ width: 40 }}></th>
+                                            <th style={{ minWidth: 160 }}>Kind of Property</th>
+                                            <th style={{ minWidth: 180 }}>Classification</th>
+                                            <th className="td-th-right" style={{ minWidth: 120 }}>Market Value (₱)</th>
+                                            <th className="td-th-right" style={{ minWidth: 100 }}>Assess. Level (%)</th>
+                                            <th className="td-th-right" style={{ minWidth: 120 }}>Assessed Value (₱)</th>
+                                            <th style={{ width: 40 }}></th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {form.assessmentRows.map((row) => (
-                                            <AssessmentRowItem key={row.id} row={row} onUpdate={updateRow} onRemove={removeRow} canRemove={form.assessmentRows.length > 1} classificationOptions={classificationOptions} propertyTypeOptions={propertyTypeOptions} />
+                                            <AssessmentRowItem
+                                                key={row.id}
+                                                row={row}
+                                                onUpdate={updateRow}
+                                                onRemove={removeRow}
+                                                canRemove={form.assessmentRows.length > 1}
+                                                classificationOptions={classificationOptions}
+                                                propertyTypeOptions={propertyTypeOptions}
+                                            />
                                         ))}
                                     </tbody>
                                     <tfoot>
-                                        <tr><td colSpan={2} className="td-total-label">TOTAL</td><td className="td-total-value">₱ {formatPeso(totalMarketValue)}</td><td></td><td className="td-total-value">₱ {formatPeso(totalAssessedValue)}</td><td colSpan={2}></td></tr>
+                                        <tr>
+                                            <td colSpan={2} className="td-total-label">TOTAL</td>
+                                            <td className="td-total-value">₱ {formatPeso(totalMarketValue)}</td>
+                                            <td></td>
+                                            <td className="td-total-value">₱ {formatPeso(totalAssessedValue)}</td>
+                                            <td></td>
+                                        </tr>
                                     </tfoot>
                                 </table>
                             </div>
                         </div>
 
+                        {/* ── Total Land Area ── */}
+                        <div className="td-section">
+                            <div className="td-section-title">Total Land Area</div>
+                            <div className="td-row td-row-2">
+                                <div className="td-field">
+                                    <label className="td-label">Area</label>
+                                    {/*
+                                     * Plain text input — intentionally NOT type="number".
+                                     * A numeric input lets the scroll wheel silently change the
+                                     * value, which staff may not notice on a busy form. Text
+                                     * input forces an explicit keyboard entry with no accidental
+                                     * scroll drift. parseAreaString / formatAreaString handle
+                                     * the string → backend conversion regardless of input type.
+                                     */}
+                                    <input
+                                        id="td-total-area"
+                                        className="td-input"
+                                        type="text"
+                                        placeholder="e.g. 1234.56"
+                                        value={form.area}
+                                        onChange={(e) => set('area', e.target.value)}
+                                    />
+                                </div>
+                                <div className="td-field">
+                                    <label className="td-label">Unit</label>
+                                    <select
+                                        id="td-total-area-unit"
+                                        className="td-select"
+                                        value={form.areaUnit || 'has.'}
+                                        onChange={(e) => set('areaUnit', e.target.value)}
+                                    >
+                                        <option value="has.">has.</option>
+                                        <option value="sqm.">sq.m.</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ── Totals & Taxability ── */}
                         <div className="td-summary-row">
                             <div className="td-amount-words-block">
-                                <span className="td-amount-words-label">Total Assessed Value <span className="td-amount-words-sub">(Amount in Words)</span></span>
-                                <div className="td-amount-words-value">{amountInWords || <span style={{ color: '#94a3b8', fontStyle: 'italic', fontWeight: 400 }}>Auto-generated from totals above…</span>}</div>
+                                <span className="td-amount-words-label">
+                                    Total Assessed Value <span className="td-amount-words-sub">(Amount in Words)</span>
+                                </span>
+                                <div className="td-amount-words-value">
+                                    {amountInWords || (
+                                        <span style={{ color: '#94a3b8', fontStyle: 'italic', fontWeight: 400 }}>
+                                            Auto-generated from totals above…
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                             <div className="td-taxability-block">
                                 <span className="td-taxability-label">Taxability</span>
                                 <div className="td-taxability-toggle">
-                                    <button type="button" className={`td-taxability-btn ${form.taxability === 'TAXABLE' ? 'active-taxable' : ''}`} onClick={() => set('taxability', 'TAXABLE')}>
+                                    <button
+                                        type="button"
+                                        className={`td-taxability-btn ${form.taxability === 'TAXABLE' ? 'active-taxable' : ''}`}
+                                        onClick={() => set('taxability', 'TAXABLE')}
+                                    >
                                         <span>{form.taxability === 'TAXABLE' ? <CheckIcon size={14} /> : <SquareIcon size={14} />}</span> Taxable
                                     </button>
-                                    <button type="button" className={`td-taxability-btn ${form.taxability === 'EXEMPT' ? 'active-exempt' : ''}`} onClick={() => set('taxability', 'EXEMPT')}>
+                                    <button
+                                        type="button"
+                                        className={`td-taxability-btn ${form.taxability === 'EXEMPT' ? 'active-exempt' : ''}`}
+                                        onClick={() => set('taxability', 'EXEMPT')}
+                                    >
                                         <span>{form.taxability === 'EXEMPT' ? <CheckIcon size={14} /> : <SquareIcon size={14} />}</span> Exempt
                                     </button>
                                 </div>
                             </div>
                         </div>
 
+                        {/* ── Tax Effectivity & Cancellation ── */}
                         <div className="td-section">
                             <div className="td-section-title">Tax Effectivity &amp; Cancellation</div>
                             <div className="td-row td-row-2">
-                                <div className="td-field"><label className="td-label">Tax Effectivity Year</label><input id="td-effectivity-year" className="td-input" type="number" placeholder="e.g. 2021" value={form.effectivityYear} onChange={(e) => set('effectivityYear', e.target.value)} min="1900" max="2100" /></div>
-                                <div className="td-field"><label className="td-label">This Declaration Cancels ARP No.</label><input id="td-cancels-arp" className="td-input" placeholder="e.g. 21-00004-00074" value={form.arpNumber} onChange={(e) => set('arpNumber', e.target.value)} /></div>
+                                <div className="td-field">
+                                    <label className="td-label">Tax Effectivity Year</label>
+                                    <input
+                                        id="td-effectivity-year"
+                                        className="td-input"
+                                        type="number"
+                                        placeholder="e.g. 2021"
+                                        value={form.effectivityYear}
+                                        onChange={(e) => set('effectivityYear', e.target.value)}
+                                        min="1900"
+                                        max="2100"
+                                    />
+                                </div>
+                                <div className="td-field">
+                                    <label className="td-label">This Declaration Cancels ARP No.</label>
+                                    <input
+                                        id="td-cancels-arp"
+                                        className="td-input"
+                                        placeholder="e.g. 21-00004-00074"
+                                        value={form.arpNumber}
+                                        onChange={(e) => set('arpNumber', e.target.value)}
+                                    />
+                                </div>
                             </div>
-                            <div className="td-field"><label className="td-label">Memoranda</label><textarea id="td-memoranda" className="td-input" rows={3} placeholder="e.g. Revised Under Provincial Ordinance No. ZN-19-183…" value={form.memoranda} onChange={(e) => set('memoranda', e.target.value)} /></div>
+                            <div className="td-field">
+                                <label className="td-label">Memoranda</label>
+                                <textarea
+                                    id="td-memoranda"
+                                    className="td-input"
+                                    rows={3}
+                                    placeholder="e.g. Revised Under Provincial Ordinance No. ZN-19-183…"
+                                    value={form.memoranda}
+                                    onChange={(e) => set('memoranda', e.target.value)}
+                                />
+                            </div>
                         </div>
 
+                        {/* ── Assessor Signatory ── */}
                         <div className="td-section">
                             <div className="td-section-title">Assessor Signatory</div>
                             <div className="td-row td-row-2">
@@ -497,7 +844,11 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
                                 </div>
                             </div>
                         </div>
-                        <div className="td-important-notice"><strong>IMPORTANT:</strong> This declaration is issued only in connection with real property taxation and the valuation indicated herein is based on a schedule of market values prepared for the purpose. It should <em>not</em> be considered as title to the property.</div>
+
+                        <div className="td-important-notice">
+                            <strong>IMPORTANT:</strong> This declaration is issued only in connection with real property taxation and the valuation indicated herein is based on a schedule of market values prepared for the purpose. It should <em>not</em> be considered as title to the property.
+                        </div>
+
                     </div>
 
                     {/* ── Session progress (compact card above footer) ── */}
@@ -508,6 +859,7 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
                         />
                     </div>
 
+                    {/* ── Footer actions ── */}
                     <div className="td-footer">
                         <div className="td-footer-left">
                             <button
@@ -521,9 +873,23 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
                             </button>
                         </div>
                         <div className="td-footer-right">
-
-                            <button type="button" className="td-btn td-btn-add-another" onClick={() => handleSave('add_another')} disabled={saving} style={{ backgroundColor: '#10b981', color: 'white' }}>{saving ? <span className="td-spinner" /> : <PlusIcon size={14} />} Save & Add Another Doc</button>
-                            <button type="button" className="td-btn td-btn-submit" onClick={() => handleSave('review')} disabled={saving}>{saving ? <span className="td-spinner" /> : <ClipboardListIcon size={14} />} Review Transaction</button>
+                            <button
+                                type="button"
+                                className="td-btn td-btn-add-another"
+                                onClick={() => handleSave('add_another')}
+                                disabled={saving}
+                                style={{ backgroundColor: '#10b981', color: 'white' }}
+                            >
+                                {saving ? <span className="td-spinner" /> : <PlusIcon size={14} />} Save & Add Another Doc
+                            </button>
+                            <button
+                                type="button"
+                                className="td-btn td-btn-submit"
+                                onClick={() => handleSave('review')}
+                                disabled={saving}
+                            >
+                                {saving ? <span className="td-spinner" /> : <ClipboardListIcon size={14} />} Review Transaction
+                            </button>
                         </div>
                     </div>
 
@@ -560,10 +926,20 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
                             </div>
                         )}
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                            <button type="button" onClick={() => setShowDiscardModal(false)} disabled={discarding} style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>
+                            <button
+                                type="button"
+                                onClick={() => setShowDiscardModal(false)}
+                                disabled={discarding}
+                                style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}
+                            >
                                 Keep Editing
                             </button>
-                            <button type="button" onClick={handleConfirmDiscard} disabled={discarding} style={{ background: '#e11d48', color: '#fff', border: '1px solid #e11d48', padding: '10px 20px', borderRadius: '8px', fontWeight: 800, cursor: 'pointer', fontSize: '0.9rem', opacity: discarding ? 0.7 : 1 }}>
+                            <button
+                                type="button"
+                                onClick={handleConfirmDiscard}
+                                disabled={discarding}
+                                style={{ background: '#e11d48', color: '#fff', border: '1px solid #e11d48', padding: '10px 20px', borderRadius: '8px', fontWeight: 800, cursor: 'pointer', fontSize: '0.9rem', opacity: discarding ? 0.7 : 1 }}
+                            >
                                 {discarding ? 'Discarding...' : 'Yes, Discard'}
                             </button>
                         </div>
@@ -571,6 +947,7 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
                 </div>
             )}
 
+            {/* ── Next Step Choice Modal (after discard with cart items) ── */}
             {showNextStepChoice && (
                 <div
                     style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}
