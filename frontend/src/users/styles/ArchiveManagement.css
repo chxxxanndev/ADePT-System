@@ -318,14 +318,16 @@
 }
 
 /* Column widths — table-layout is fixed, so long declarant names get room
-   to wrap cleanly instead of cramming into an equal slice. */
-.arc-table thead th:nth-child(1) { width: 14%; }
-.arc-table thead th:nth-child(2) { width: 16%; }
-.arc-table thead th:nth-child(3) { width: 13%; }
+   to wrap cleanly instead of cramming into an equal slice. (7 columns:
+   Reference No., Declarant, Document Type, Reason, Archived By, Date &
+   Time, Action.) */
+.arc-table thead th:nth-child(1) { width: 17%; }
+.arc-table thead th:nth-child(2) { width: 12%; }
+.arc-table thead th:nth-child(3) { width: 14%; }
 .arc-table thead th:nth-child(4) { width: 17%; }
 .arc-table thead th:nth-child(5) { width: 12%; }
-.arc-table thead th:nth-child(6) { width: 15%; }
-.arc-table thead th:nth-child(7) { width: 13%; }
+.arc-table thead th:nth-child(6) { width: 16%; }
+.arc-table thead th:nth-child(7) { width: 12%; }
 
 .arc-table tbody td {
     padding: 16px 20px;
@@ -440,7 +442,10 @@
     padding: 4px 10px;
     border-radius: 999px;
     border: 1px solid transparent;
-    white-space: nowrap;
+    line-height: 1.35;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    max-width: 100%;
 }
 
 .arc-doc-pill--td {
@@ -471,29 +476,6 @@
     background-color: #ede9fd;
     color: #7c6fe8;
     border-color: #ddd6fb;
-}
-
-/* ---- Reason badge ---- */
-
-.arc-badge {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 999px;
-    font-size: 10.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    white-space: nowrap;
-}
-
-.arc-badge--auto {
-    background-color: rgba(0, 188, 212, 0.1);
-    color: var(--db-secondary);
-}
-
-.arc-badge--manual {
-    background-color: rgba(96, 125, 139, 0.12);
-    color: #607d8b;
 }
 
 /* ---- Actions ---- */

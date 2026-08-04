@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { pdf } from '@react-pdf/renderer';
 import { requestService } from '../services/requestService';
 import { taxDeclarationService } from '../services/taxDeclarationService';
 import { landholdingService } from '../services/landholdingService';
 import { noLandholdingService } from '../services/noLandholdingService';
+import { CertOfNoLandholdingPDF } from './templates/NoLandholdingPDF';
+import { CertOfLandholdingPDF } from './templates/LandholdingPDF';
+import { TaxDeclarationPDF } from './templates/TaxDeclarationPDF';
 // FIX: the backend resolves staffAuthId against staff.auth_user_id, which
 // is a Supabase Auth user id — so instead of guessing at a custom
 // useAuth()/context shape, we go straight to the Supabase client your
@@ -45,12 +49,14 @@ interface InitialDocumentPreviewModalProps {
   documentItem: any;
   onClose: () => void;
   onUpdateSuccess: (updatedDoc: any) => void;
+  orNumber?: string;
 }
 
 export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalProps> = ({
   documentItem,
   onClose,
-  onUpdateSuccess
+  onUpdateSuccess,
+  orNumber
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -58,6 +64,9 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [fullData, setFullData] = useState<any>(null);
   const [editData, setEditData] = useState<any>({});
+
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const [locationOptions, setLocationOptions] = useState<string[]>([]);
 
@@ -76,6 +85,9 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
   const [error, setError] = useState<string | null>(null);
 
   const declarantNameEditRef = useRef<HTMLTextAreaElement>(null);
+  // Guards the fetch effect against StrictMode's dev-only double invoke, so
+  // the document data (and its PDF) is only loaded/generated once per open.
+  const fetchStartedRef = useRef(false);
 
   const resizeDeclarantNameEdit = () => {
     const el = declarantNameEditRef.current;
@@ -87,6 +99,99 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
   useEffect(() => {
     if (isEditing) resizeDeclarantNameEdit();
   }, [isEditing, formData.declarantName]);
+
+  const getFormattedDates = () => {
+    const today = new Date();
+    const day = today.getDate().toString();
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const monthYear = `${monthNames[today.getMonth()]} ${today.getFullYear()}`;
+    const datePaid = today.toLocaleDateString('en-PH', { month: '2-digit', day: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+    return { day, monthYear, datePaid };
+  };
+
+  // Renders the encoded document as a live PDF (same templates the release
+  // step prints), so "Initial Document Preview" shows the actual document
+  // form instead of a data-field summary.
+  const generatePdfPreview = async (data: any, type: 'NO_LANDHOLDING' | 'LANDHOLDING' | 'TAX_DEC') => {
+    if (!data) return;
+    setIsGeneratingPdf(true);
+    try {
+      const { day, monthYear, datePaid } = getFormattedDates();
+      let PDFComponent;
+
+      if (type === 'NO_LANDHOLDING') {
+        PDFComponent = (
+          <CertOfNoLandholdingPDF
+            ownerName={documentItem.declarantName || documentItem.declarant_name}
+            pronoun={data.pronoun}
+            property_count={data.propertyCount || data.property_count}
+            date_given={data.dateGiven || data.date_given}
+            given_at={data.givenAt || data.given_at}
+            purpose={data.purpose}
+            day={day}
+            monthYear={monthYear}
+            orNumber={orNumber}
+            datePaid={datePaid}
+            paperSize={documentItem.paperSize || 'LETTER'}
+          />
+        );
+      } else if (type === 'LANDHOLDING') {
+        PDFComponent = (
+          <CertOfLandholdingPDF
+            ownerName={documentItem.declarantName || documentItem.declarant_name}
+            properties={data.properties || []}
+            day={day}
+            monthYear={monthYear}
+            orNumber={orNumber}
+            datePaid={datePaid}
+            signatoryTopSpacing={data.signatory_top_spacing}
+            signatoryGapSpacing={data.signatory_gap_spacing}
+            signatoryNameFontSize={data.signatory_name_font_size}
+            signatoryTitleFontSize={data.signatory_title_font_size}
+            signatoryBlockWidth={data.signatory_block_width}
+            signatory1HorizontalOffset={data.signatory_1_offset_x}
+            signatory2HorizontalOffset={data.signatory_2_offset_x}
+            receiptBottomPosition={data.receipt_bottom_position}
+            receiptLeftPosition={data.receipt_left_position}
+            receiptRowSpacing={data.receipt_row_spacing}
+            tableRowHeight={data.table_row_height}
+            tableFontSize={data.table_font_size}
+            tableHeaderFontSize={data.table_header_font_size}
+            colWidths={data.table_col_widths}
+          />
+        );
+      } else {
+        PDFComponent = (
+          <TaxDeclarationPDF
+            data={data}
+            orNumber={orNumber}
+            datePaid={datePaid}
+          />
+        );
+      }
+
+      const blob = await pdf(PDFComponent).toBlob();
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+    } catch (err) {
+      console.error("Failed to generate PDF preview:", err);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  // Revoke the generated blob URL when the modal unmounts
+  useEffect(() => {
+    return () => {
+      setPdfUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    };
+  }, []);
 
   // Fetch the complete form data based on document type AND Metadata for dropdown
   useEffect(() => {
@@ -161,6 +266,7 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
 
           setFullData(data);
           setEditData(JSON.parse(JSON.stringify(data))); // Deep copy for editing
+          generatePdfPreview(data, determinedType);
         } else {
           setEditData(determinedType === 'TAX_DEC' ? { assessments: [] } : { properties: [] });
         }
@@ -183,7 +289,10 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
       }
     };
 
+    if (fetchStartedRef.current) return;
+    fetchStartedRef.current = true;
     fetchFullDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentItem]);
 
   const handleSave = async () => {
@@ -207,57 +316,42 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
       if (docType === 'TAX_DEC' && finalEditData.assessments) {
         let totalMV = 0;
         let totalAV = 0;
-        finalEditData.assessments.forEach((a: any) => {
-          const mv = parseFloat(a.marketValue || a.market_value) || 0;
-          const lvl = parseFloat(a.assessmentLevel || a.assessment_level) || 0;
+        finalEditData.assessments = finalEditData.assessments.map((a: any) => {
+          const mv = parseFloat(a.marketValue ?? a.market_value) || 0;
+          const lvl = parseFloat(a.assessmentLevel ?? a.assessment_level) || 0;
+          const av = calcAssessedValue(mv, lvl);
           totalMV += mv;
-          totalAV += (mv * lvl) / 100;
+          totalAV += av;
+          // Persist the rounded per-row assessed value too, so it stays
+          // consistent with what TaxDeclarationForm.tsx would have saved.
+          return { ...a, marketValue: mv, assessmentLevel: lvl, assessedValue: av };
         });
         finalEditData.totalMarketValue = totalMV;
         finalEditData.totalAssessedValue = totalAV;
       }
 
-      // FIX: previously this whole block was gated on `if (docId)`, so a
-      // brand-new record (no id yet, because nothing has ever been
-      // encoded for this request) silently skipped saving entirely —
-      // requestService.updateRequest() above would "succeed" and make the
-      // Save button look like it worked, but nothing was ever written to
-      // encoded_tax_declarations / encoded_landholding_certificates /
-      // encoded_no_landholding_certificates. There was no create path at
-      // all. Now: if there's no id, call the upsert-capable `save`
-      // endpoint instead of `updateDraft` (which requires an existing id).
+      // FIX: this used to be `if (docId) { ...TAX_DEC only... } else if
+      // (docType === 'LANDHOLDING') {...} else if (docType === 'NO_LANDHOLDING')
+      // {...}` — so any Landholding/No-Landholding certificate that ALREADY
+      // had an encoded record (i.e. docId is set) fell into the first
+      // branch, skipped the TAX_DEC inner check, and its edits (added
+      // property rows, ownership type, etc.) were silently NEVER persisted.
+      // Now each document type handles both create (no id yet) and update
+      // (existing id) itself.
       const docId = finalEditData.id;
-      if (docId) {
-        if (docType === 'TAX_DEC') {
-          if (finalEditData.assessments) {
-            let totalMV = 0;
-            let totalAV = 0;
-            finalEditData.assessments = finalEditData.assessments.map((a: any) => {
-              const mv = parseFloat(a.marketValue ?? a.market_value) || 0;
-              const lvl = parseFloat(a.assessmentLevel ?? a.assessment_level) || 0;
-              const av = calcAssessedValue(mv, lvl);
-              totalMV += mv;
-              totalAV += av;
-              // Persist the rounded per-row assessed value too, so it stays
-              // consistent with what TaxDeclarationForm.tsx would have saved.
-              return { ...a, marketValue: mv, assessmentLevel: lvl, assessedValue: av };
-            });
-            finalEditData.totalMarketValue = totalMV;
-            finalEditData.totalAssessedValue = totalAV;
-          }
-          if (!staffAuthId) {
-            throw new Error('Could not determine the current staff user — please re-login and try again.');
-          }
-          const saved = await taxDeclarationService.save(
-            {
-              ...finalEditData,
-              assessmentRows: finalEditData.assessments || [],
-            } as any,
-            documentItem.id,
-            staffAuthId
-          );
-          finalEditData = { ...finalEditData, ...(saved?.data ?? saved) };
+      if (docType === 'TAX_DEC') {
+        if (!staffAuthId) {
+          throw new Error('Could not determine the current staff user — please re-login and try again.');
         }
+        const saved = await taxDeclarationService.save(
+          {
+            ...finalEditData,
+            assessmentRows: finalEditData.assessments || [],
+          } as any,
+          documentItem.id,
+          staffAuthId
+        );
+        finalEditData = { ...finalEditData, ...(saved?.data ?? saved) };
       }
       else if (docType === 'LANDHOLDING') {
         const payload = {
@@ -272,9 +366,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
           if (!staffAuthId) {
             throw new Error('Could not determine the current staff user — please re-login and try again.');
           }
-          // FIX: actual method is saveCertificate(payload, staffAuthId) —
-          // no separate requestId param; it's read off payload.requestId
-          // by the backend (see LandholdingService.saveLandholdingCertificate).
           const saved = await landholdingService.saveCertificate(
             { ...payload, requestId: documentItem.id },
             staffAuthId
@@ -295,7 +386,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
           if (!staffAuthId) {
             throw new Error('Could not determine the current staff user — please re-login and try again.');
           }
-          // FIX: actual method is saveCertificate(payload, staffAuthId).
           const saved = await noLandholdingService.saveCertificate(
             { ...payload, requestId: documentItem.id },
             staffAuthId
@@ -305,6 +395,7 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
       }
 
       setFullData(finalEditData);
+      if (docType) generatePdfPreview(finalEditData, docType);
 
       onUpdateSuccess({
         ...documentItem,
@@ -327,11 +418,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
   const formatCurrency = (val: number | string) => {
     const num = typeof val === 'string' ? parseFloat(val) : val;
     return isNaN(num) ? '0.00' : num.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  const formatDate = (isoStr: string) => {
-    if (!isoStr) return 'N/A';
-    return new Date(isoStr).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   // --- ARRAY UPDATERS FOR EDIT MODE ---
@@ -404,142 +490,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     const m = municipalities.find((x: any) => x.id === b.municipality_id);
     return `${b.name}, ${m ? m.name : 'Unknown'}`;
   };
-
-  // --- RENDERING SPECIFIC PREVIEWS ---
-  const renderNoLandholdingPreview = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
-        <div><span style={labelStyle}>Pronoun</span><div style={valueStyle}>{fullData?.pronoun || 'N/A'}</div></div>
-        <div><span style={labelStyle}>Property Count</span><div style={valueStyle}>{fullData?.propertyCount === 'plural' ? 'Plural (Properties/Names)' : 'Singular (Property/Name)'}</div></div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        <div><span style={labelStyle}>Date Given</span><div style={valueStyle}>{formatDate(fullData?.dateGiven || fullData?.date_given)}</div></div>
-        <div><span style={labelStyle}>Given At</span><div style={valueStyle}>{fullData?.givenAt || fullData?.given_at || 'N/A'}</div></div>
-      </div>
-      <div><span style={labelStyle}>Purpose / Intent</span><div style={valueStyle}>{fullData?.purpose || 'N/A'}</div></div>
-    </div>
-  );
-
-  const renderLandholdingPreview = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
-        <div><span style={labelStyle}>Ownership Type</span><div style={valueStyle}>{fullData?.ownershipType === 'multiple' ? 'Multiple Owners' : 'Single Owner'}</div></div>
-        <div><span style={labelStyle}>Given At</span><div style={valueStyle}>{fullData?.givenAt || fullData?.given_at || 'N/A'}</div></div>
-      </div>
-      <div><span style={labelStyle}>Purpose / Intent</span><div style={valueStyle}>{fullData?.purpose || 'N/A'}</div></div>
-
-      <div>
-        <span style={labelStyle}>Declared Properties ({(fullData?.properties || []).length})</span>
-        <div style={{ overflowX: 'auto', marginTop: '8px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', tableLayout: 'fixed' }}>
-            <colgroup>
-              <col style={{ width: '15%' }} />
-              <col style={{ width: '26%' }} />
-              <col style={{ width: '13%' }} />
-              <col style={{ width: '15%' }} />
-              <col style={{ width: '11%' }} />
-              <col style={{ width: '20%' }} />
-            </colgroup>
-            <thead style={{ backgroundColor: '#f3f4f6' }}>
-              <tr>
-                <th style={thStyle}>TD/ARP No.</th>
-                <th style={thStyle}>Location</th>
-                <th style={thStyle}>Lot No.</th>
-                <th style={thStyle}>Title No.</th>
-                <th style={thStyle}>Area</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Assessed Val.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(fullData?.properties || []).length === 0 && <tr><td colSpan={6} style={{ padding: '12px', textAlign: 'center', color: '#6b7280' }}>No properties recorded.</td></tr>}
-              {(fullData?.properties || []).map((p: any, i: number) => (
-                <tr key={i} style={{ borderTop: '1px solid #e5e7eb' }}>
-                  <td style={tdStyle}>{p.td_arp_number || p.tdArpNumber}</td>
-                  <td style={tdStyle}>{p.location_of_property || p.locationOfProperty}</td>
-                  <td style={tdStyle}>{p.lot_number || p.lotNumber}</td>
-                  <td style={tdStyle}>{p.title_number || p.titleNumber}</td>
-                  <td style={tdStyle}>{p.area}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>₱ {formatCurrency(p.assessed_value || p.assessedValue)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderTaxDecPreview = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', backgroundColor: '#f0fdf4', padding: '16px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-        <div><span style={labelStyle}>ARP No.</span><div style={{ ...valueStyle, color: '#166534', fontWeight: 700 }}>{fullData?.taxDeclarationNumber || fullData?.tax_declaration_number || 'N/A'}</div></div>
-        <div><span style={labelStyle}>PIN</span><div style={{ ...valueStyle, color: '#166534', fontWeight: 700 }}>{fullData?.propertyIndexNumber || fullData?.property_index_number || 'N/A'}</div></div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        <div><span style={labelStyle}>Owner Name</span><div style={valueStyle}>{fullData?.ownerName || fullData?.owner_name || 'N/A'}</div></div>
-        <div><span style={labelStyle}>Owner Address</span><div style={valueStyle}>{fullData?.ownerAddress || fullData?.owner_address || 'N/A'}</div></div>
-        <div><span style={labelStyle}>Administrator</span><div style={valueStyle}>{fullData?.administratorName || fullData?.administrator_name || 'N/A'}</div></div>
-        <div><span style={labelStyle}>Admin Address</span><div style={valueStyle}>{fullData?.administratorAddress || fullData?.administrator_address || 'N/A'}</div></div>
-      </div>
-
-      <div style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
-        <span style={{ ...labelStyle, marginBottom: '12px', display: 'block' }}>Boundaries</span>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          <div><span style={{ fontSize: '11px', color: '#9ca3af' }}>NORTH:</span> <span style={{ fontSize: '13px' }}>{fullData?.boundaryNorth || fullData?.boundary_north || '-'}</span></div>
-          <div><span style={{ fontSize: '11px', color: '#9ca3af' }}>SOUTH:</span> <span style={{ fontSize: '13px' }}>{fullData?.boundarySouth || fullData?.boundary_south || '-'}</span></div>
-          <div><span style={{ fontSize: '11px', color: '#9ca3af' }}>EAST:</span> <span style={{ fontSize: '13px' }}>{fullData?.boundaryEast || fullData?.boundary_east || '-'}</span></div>
-          <div><span style={{ fontSize: '11px', color: '#9ca3af' }}>WEST:</span> <span style={{ fontSize: '13px' }}>{fullData?.boundaryWest || fullData?.boundary_west || '-'}</span></div>
-        </div>
-      </div>
-
-      <div>
-        <span style={labelStyle}>Assessments ({(fullData?.assessments || []).length})</span>
-        <div style={{ overflowX: 'auto', marginTop: '8px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-            <thead style={{ backgroundColor: '#f3f4f6' }}>
-              <tr>
-                <th style={thStyle}>Kind of Property</th>
-                <th style={thStyle}>Classification</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Market Val.</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Level</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Assessed Val.</th>
-                <th style={thStyle}>Area</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(fullData?.assessments || []).length === 0 && <tr><td colSpan={6} style={{ padding: '12px', textAlign: 'center', color: '#6b7280' }}>No assessments recorded.</td></tr>}
-              {(fullData?.assessments || []).map((a: any, i: number) => {
-                const mv = parseFloat(a.marketValue || a.market_value) || 0;
-                const lvl = parseFloat(a.assessmentLevel || a.assessment_level) || 0;
-                const computed = calcAssessedValue(mv, lvl);
-                const av = computed > 0 ? computed : (parseFloat(a.assessedValue) || 0);
-                return (
-                  <tr key={i} style={{ borderTop: '1px solid #e5e7eb' }}>
-                    <td style={tdStyle}>{a.kindOfProperty || a.kind_of_property || '-'}</td>
-                    <td style={tdStyle}>{a.classificationLabel || a.classification_label || '-'}</td>
-                    <td style={{ ...tdStyle, textAlign: 'right' }}>₱ {formatCurrency(mv)}</td>
-                    <td style={{ ...tdStyle, textAlign: 'right' }}>{lvl}%</td>
-                    <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>₱ {formatCurrency(av)}</td>
-                    <td style={tdStyle}>{a.area || '-'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot style={{ backgroundColor: '#f9fafb', fontWeight: 700, borderTop: '2px solid #d1d5db' }}>
-              <tr>
-                <td colSpan={2} style={tdStyle}>TOTALS</td>
-                <td style={{ ...tdStyle, textAlign: 'right' }}>₱ {formatCurrency(fullData?.totalMarketValue || fullData?.total_market_value || 0)}</td>
-                <td style={tdStyle}></td>
-                <td style={{ ...tdStyle, textAlign: 'right', color: '#166534' }}>₱ {formatCurrency(fullData?.totalAssessedValue || fullData?.total_assessed_value || 0)}</td>
-                <td style={tdStyle}></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
 
   // --- RENDERING SPECIFIC EDITORS ---
   const renderNoLandholdingEdit = () => (
@@ -912,8 +862,10 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
           </div>
 
           {!isEditing ? (
-            isLoadingData ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>Loading complete form details...</div>
+            isLoadingData || isGeneratingPdf ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+                Loading PDF preview...
+              </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 {/* Base Request Fields */}
@@ -937,9 +889,19 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
                     This document hasn't been encoded yet. Click <strong>Edit Full Document</strong> below to fill in the details.
                   </div>
                 )}
-                {!fetchError && fullData && docType === 'NO_LANDHOLDING' && renderNoLandholdingPreview()}
-                {!fetchError && fullData && docType === 'LANDHOLDING' && renderLandholdingPreview()}
-                {!fetchError && fullData && docType === 'TAX_DEC' && renderTaxDecPreview()}
+                {!fetchError && fullData && (
+                  pdfUrl ? (
+                    <iframe
+                      src={pdfUrl}
+                      title="Document PDF Preview"
+                      style={{ width: '100%', height: '70vh', border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#f9fafb' }}
+                    />
+                  ) : (
+                    <div style={{ color: '#b91c1c', padding: 16, backgroundColor: '#fee2e2', borderRadius: 6 }}>
+                      Could not generate the PDF preview. Please try editing the document, or check the console for details.
+                    </div>
+                  )
+                )}
               </div>
             )
           ) : (
