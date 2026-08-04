@@ -128,7 +128,7 @@ export default function CertifiedTrueCopy({
 
       const matchesSearch = [
         r.reference, r.declarantName, r.originalDocument, r.orNumber,
-        r.orJustification, r.dateRequested, r.dateReleased, r.releasedBy, r.status
+        r.orJustification, r.dateRequested, r.dateReleased, r.releasedBy
       ].some(value => value.toLowerCase().includes(term));
 
       return matchesStatus && matchesSearch;
@@ -262,15 +262,15 @@ export default function CertifiedTrueCopy({
               <table className="tr-table">
                 <thead>
                   <tr>
-                    <th>Reference No.</th>
-                    <th>Declarant</th>
-                    <th>Original Doc</th>
-                    <th>OR Number</th>
-                    <th>Justification</th>
-                    <th>Requested</th>
-                    <th>Released</th>
-                    <th>Released By</th>
-                    <th>Status</th>
+                    <th style={{ width: '13%' }}>Reference No.</th>
+                    <th style={{ width: '15%' }}>Declarant</th>
+                    <th style={{ width: '12%' }}>Original Doc</th>
+                    <th style={{ width: '9%' }}>OR Number</th>
+                    <th style={{ width: '12%' }}>Justification</th>
+                    <th style={{ width: '8%' }}>Requested</th>
+                    <th style={{ width: '8%' }}>Released</th>
+                    <th style={{ width: '11%' }}>Released By</th>
+                    <th style={{ width: '12%' }}>Status</th>
                   </tr>
                 </thead>
                 <tbody>

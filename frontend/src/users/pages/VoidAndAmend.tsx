@@ -292,7 +292,8 @@ export default function VoidAndAmend({
           record.reference.toLowerCase().includes(search.toLowerCase()) ||
           record.declarantName.toLowerCase().includes(search.toLowerCase()) ||
           record.documentType.toLowerCase().includes(search.toLowerCase()) ||
-          record.detail.toLowerCase().includes(search.toLowerCase());
+          record.detail.toLowerCase().includes(search.toLowerCase()) ||
+          record.actionedBy.toLowerCase().includes(search.toLowerCase());
         const matchesTime = matchesTimeRange(record.actionedAt || null, timeRange);
         return matchesSearch && matchesTime;
       })

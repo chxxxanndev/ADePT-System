@@ -48,35 +48,35 @@ class TaxDeclarationService {
      * Returns null if no match is found.
      */
     async _resolveClassificationLabel(label) {
-        if (!label?.trim()) return null;
-        const trimmed = label.trim();
-        const candidateCode = trimmed.toUpperCase().replace(/\s+/g, '_');
+    if (!label?.trim()) return null;
+    const trimmed = label.trim();
+    const candidateCode = trimmed.toUpperCase().replace(/\s+/g, '_');
 
-        const { data: existing, error: findErr } = await supabase
-            .from('lookup_values')
-            .select('code')
-            .eq('category', 'CLASSIFICATION')
-            .or(`code.eq.${candidateCode},value.ilike.${trimmed}`)
-            .maybeSingle();
+    // Two separate .eq()/.ilike() lookups instead of a hand-built .or()
+    // filter string — a label containing a comma, parenthesis, or other
+    // PostgREST filter-syntax character would make the old .or() string
+    // malformed and throw. With the old delete-then-insert ordering,
+    // that throw arrived *after* existing rows were already wiped.
+    const [byCode, byValue] = await Promise.all([
+        supabase.from('lookup_values').select('code').eq('category', 'CLASSIFICATION').eq('code', candidateCode).maybeSingle(),
+        supabase.from('lookup_values').select('code').eq('category', 'CLASSIFICATION').ilike('value', trimmed).maybeSingle(),
+    ]);
+    if (byCode.error) throw byCode.error;
+    if (byValue.error) throw byValue.error;
 
-        if (findErr) throw findErr;
-        if (existing?.code) return existing.code;
+    const existing = byCode.data || byValue.data;
+    if (existing?.code) return existing.code;
 
-        const { data: created, error: createErr } = await supabase
-            .from('lookup_values')
-            .insert([{ category: 'CLASSIFICATION', code: candidateCode, value: trimmed }])
-            .select('code')
-            .single();
+    const { data: created, error: createErr } = await supabase
+        .from('lookup_values')
+        .insert([{ category: 'CLASSIFICATION', code: candidateCode, value: trimmed }])
+        .select('code')
+        .single();
 
-        if (createErr) {
-            // Likely a race with another save creating the same code —
-            // fall back to using the normalized code directly rather than
-            // losing the user's input.
-            return candidateCode;
-        }
+    if (createErr) return candidateCode; // race with another save — use the normalized code
+    return created?.code || candidateCode;
+}
 
-        return created?.code || candidateCode;
-    }
 
     /**
      * Creates or updates the single Tax Declaration for a request. Business
@@ -365,96 +365,117 @@ class TaxDeclarationService {
      * because '' is falsy. `??` only falls back on null/undefined.
      */
     async updateDraft(id, formData) {
-        // Update the main table
-        const { data, error } = await supabase
-            .from('encoded_tax_declarations')
-            .update({
-                tax_declaration_number: formData.taxDeclarationNumber ?? formData.tax_declaration_number,
-                property_identification_number: formData.propertyIndexNumber ?? formData.property_index_number,
-                owner_name: formData.ownerName ?? formData.owner_name,
-                owner_address: formData.ownerAddress ?? formData.owner_address,
-                administrator_name: formData.administratorName ?? formData.administrator_name,
-                administrator_address: formData.administratorAddress ?? formData.administrator_address,
-                boundary_north: formData.boundaryNorth ?? formData.boundary_north,
-                boundary_south: formData.boundarySouth ?? formData.boundary_south,
-                boundary_east: formData.boundaryEast ?? formData.boundary_east,
-                boundary_west: formData.boundaryWest ?? formData.boundary_west,
-                oct_tct_cloa_number: formData.octTctNumber ?? formData.oct_tct_cloa_number,
-                lot_number: formData.lotNumber ?? formData.lot_number,
-                total_market_value: formData.totalMarketValue ?? formData.total_market_value,
-                total_assessed_value: formData.totalAssessedValue ?? formData.total_assessed_value,
-                taxability: formData.taxability,
-                effectivity_year: formData.effectivityYear ?? formData.effectivity_year,
-                assessor_name: formData.assessorName ?? formData.assessor_name,
-                assessor_title: formData.assessorTitle ?? formData.assessor_title
+    // Update the main table
+    const { data, error } = await supabase
+        .from('encoded_tax_declarations')
+        .update({
+            tax_declaration_number: formData.taxDeclarationNumber ?? formData.tax_declaration_number,
+            property_identification_number: formData.propertyIndexNumber ?? formData.property_index_number,
+            owner_name: formData.ownerName ?? formData.owner_name,
+            owner_address: formData.ownerAddress ?? formData.owner_address,
+            administrator_name: formData.administratorName ?? formData.administrator_name,
+            administrator_address: formData.administratorAddress ?? formData.administrator_address,
+            boundary_north: formData.boundaryNorth ?? formData.boundary_north,
+            boundary_south: formData.boundarySouth ?? formData.boundary_south,
+            boundary_east: formData.boundaryEast ?? formData.boundary_east,
+            boundary_west: formData.boundaryWest ?? formData.boundary_west,
+            oct_tct_cloa_number: formData.octTctNumber ?? formData.oct_tct_cloa_number,
+            lot_number: formData.lotNumber ?? formData.lot_number,
+            total_market_value: formData.totalMarketValue ?? formData.total_market_value,
+            total_assessed_value: formData.totalAssessedValue ?? formData.total_assessed_value,
+            taxability: formData.taxability,
+            effectivity_year: formData.effectivityYear ?? formData.effectivity_year,
+            assessor_name: formData.assessorName ?? formData.assessor_name,
+            assessor_title: formData.assessorTitle ?? formData.assessor_title
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    // Handle assessment rows.
+    //
+    // FIX: previously this deleted the existing rows FIRST, then built and
+    // inserted the replacement rows. Those are two separate, non-transactional
+    // Supabase calls — if building/inserting the new rows failed for any
+    // reason (bad classification lookup, a freshly-added row with an odd
+    // value, a transient error), the delete had already committed and there
+    // was no rollback. That silently wiped the whole assessment section,
+    // which is exactly the "add a row, save, reopen, assessment section is
+    // empty" symptom. Now: capture the old row ids, build + INSERT the new
+    // rows first, and only delete the old ids once the insert has actually
+    // succeeded. If the insert throws, nothing has been deleted yet.
+    if (Array.isArray(formData.assessments)) {
+        const { data: oldRows, error: oldRowsErr } = await supabase
+            .from('encoded_assessment_rows')
+            .select('id')
+            .eq('encoded_tax_declaration_id', id);
+        if (oldRowsErr) throw oldRowsErr;
+        const oldRowIds = (oldRows ?? []).map((r) => r.id);
+
+        // assessed_value is computed here, server-side, from market_value +
+        // assessment_level. The edit modal only ever displays it live in the
+        // UI — it never writes it back onto the row object — so trusting a
+        // client-supplied assessedValue silently saved NULL for every row on
+        // every edit.
+        const newRows = await Promise.all(
+            formData.assessments.map(async (row, idx) => {
+                const classificationCode = await this._resolveClassificationLabel(
+                    row.classificationLabel || row.classification_label
+                );
+                const marketValue = Number(row.marketValue ?? row.market_value ?? 0) || 0;
+                const assessmentLevel = Number(row.assessmentLevel ?? row.assessment_level ?? 0) || 0;
+                const assessedValue = Math.round(((marketValue * assessmentLevel) / 100) / 10) * 10;
+
+                return {
+                    encoded_tax_declaration_id: id,
+                    row_order: idx,
+                    classification_id: classificationCode,
+                    kind_of_property: (row.kindOfProperty || row.kind_of_property || '').trim() || null,
+                    area: row.area ?? null,
+                    market_value: marketValue,
+                    assessment_level: assessmentLevel,
+                    assessed_value: assessedValue,
+                };
             })
-            .eq('id', id)
-            .select()
-            .single();
+        );
 
-        if (error) throw error;
-
-        // Handle assessment rows
-        if (formData.assessments) {
-            // Delete existing rows
-            await supabase
+        if (newRows.length > 0) {
+            const { error: insertErr } = await supabase
                 .from('encoded_assessment_rows')
-                .delete()
-                .eq('encoded_tax_declaration_id', id);
-
-            // Resolve each classification label to a UUID
-            const newRows = await Promise.all(
-                formData.assessments.map(async (row, idx) => {
-                    const classificationCode = await this._resolveClassificationLabel(
-                        row.classificationLabel || row.classification_label
-                    );
-                    return {
-                        encoded_tax_declaration_id: id,
-                        row_order: idx,
-                        classification_id: classificationCode,
-                        kind_of_property: row.kindOfProperty || row.kind_of_property || null,
-                        area: row.area,
-                        market_value: row.marketValue || row.market_value,
-                        assessment_level: row.assessmentLevel || row.assessment_level,
-                        assessed_value: row.assessedValue || row.assessed_value
-                    };
-                })
-            );
-
-            if (newRows.length > 0) {
-                const { error: insertErr } = await supabase
-                    .from('encoded_assessment_rows')
-                    .insert(newRows);
-                if (insertErr) throw insertErr;
-            }
-
-            // Keep the stored totals in sync with whatever rows were just
-            // saved, so preview mode (which reads total_market_value /
-            // total_assessed_value directly) never shows stale numbers
-            // again even if the caller forgets to recompute them.
-            const totalMarketValue = formData.assessments.reduce(
-                (sum, r) => sum + (parseFloat(r.marketValue ?? r.market_value) || 0), 0
-            );
-            const totalAssessedValue = formData.assessments.reduce((sum, r) => {
-                const mv = parseFloat(r.marketValue ?? r.market_value) || 0;
-                const lvl = parseFloat(r.assessmentLevel ?? r.assessment_level) || 0;
-                return sum + (mv * lvl) / 100;
-            }, 0);
-
-            await supabase
-                .from('encoded_tax_declarations')
-                .update({
-                    total_market_value: totalMarketValue,
-                    total_assessed_value: totalAssessedValue
-                })
-                .eq('id', id);
-
-            data.total_market_value = totalMarketValue;
-            data.total_assessed_value = totalAssessedValue;
+                .insert(newRows);
+            if (insertErr) throw insertErr; // nothing deleted yet — old rows are safe
         }
 
-        return data;
+        // Only now remove the old rows. If this step fails you get
+        // duplicates (recoverable), never an empty table.
+        if (oldRowIds.length > 0) {
+            const { error: delRowsErr } = await supabase
+                .from('encoded_assessment_rows')
+                .delete()
+                .in('id', oldRowIds);
+            if (delRowsErr) throw delRowsErr;
+        }
+
+        const totalMarketValue = newRows.reduce((sum, r) => sum + (r.market_value || 0), 0);
+        const totalAssessedValue = newRows.reduce((sum, r) => sum + (r.assessed_value || 0), 0);
+
+        await supabase
+            .from('encoded_tax_declarations')
+            .update({
+                total_market_value: totalMarketValue,
+                total_assessed_value: totalAssessedValue
+            })
+            .eq('id', id);
+
+        data.total_market_value = totalMarketValue;
+        data.total_assessed_value = totalAssessedValue;
+        data.assessments = newRows;
     }
+
+    return data;
+}
 
     _mockSave(data, staffAuthId) {
         const id = randomUUID();

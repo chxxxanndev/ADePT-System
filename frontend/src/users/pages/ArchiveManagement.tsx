@@ -1,9 +1,27 @@
 import { useMemo, useState, useEffect } from "react";
-import { Search, ChevronDown, Archive, RotateCcw, Loader2 } from "lucide-react";
+import type { ReactElement } from "react";
+import {
+  Search,
+  ChevronDown,
+  Archive,
+  RotateCcw,
+  Loader2,
+  RefreshCw,
+  X,
+} from "lucide-react";
 import { requestService } from "../services/requestService";
 import { fetchTransactionRegistry } from "../services/transactionService";
 import type { Transaction, RequestedDocumentItem } from "../types/transaction";
 import "../styles/ArchiveManagement.css";
+
+/* ------------------------------------------------------------------ */
+/*  Reference-number icons — same SVG shapes as TransactionRegistry's  */
+/*  TransactionRow.tsx so reference pills read identically.            */
+/* ------------------------------------------------------------------ */
+const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="21" x2="21" y2="21"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 3 21 9 3 9"></polygon></svg>;
+const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
+const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>;
+const GenericDocIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h8l4 4v14H7z" /></svg>;
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -33,11 +51,19 @@ type DocTypeFilter = "All types" | DocumentType;
 type ReasonFilter = "All reasons" | ArchiveReason;
 
 const DOC_TYPE_CLASS: Record<DocumentType, string> = {
-  "Tax Declaration": "arc-tag--primary",
-  "Certificate of Land Holding": "arc-tag--success",
-  "No-Landholding Certificate": "arc-tag--secondary",
-  "Certified True Copy": "arc-tag--truecopy",
-  "General Document": "arc-tag--general",
+  "Tax Declaration": "arc-doc-pill--td",
+  "Certificate of Land Holding": "arc-doc-pill--lh",
+  "No-Landholding Certificate": "arc-doc-pill--nlh",
+  "Certified True Copy": "arc-doc-pill--tc",
+  "General Document": "arc-doc-pill--gen",
+};
+
+const DOC_TYPE_ICON: Record<DocumentType, () => ReactElement> = {
+  "Tax Declaration": TaxDeclarationIcon,
+  "Certificate of Land Holding": LandholdingIcon,
+  "No-Landholding Certificate": NoLandholdingIcon,
+  "Certified True Copy": GenericDocIcon,
+  "General Document": GenericDocIcon,
 };
 
 /* ------------------------------------------------------------------ */
@@ -61,7 +87,25 @@ function resolveArchiveDocName(docs: RequestedDocumentItem[]): DocumentType {
 }
 
 function DocTypeTag({ type }: { type: DocumentType }) {
-  return <span className={`arc-tag ${DOC_TYPE_CLASS[type]}`}>{type}</span>;
+  return <span className={`arc-doc-pill ${DOC_TYPE_CLASS[type]}`}>{type}</span>;
+}
+
+function ReferenceBadge({ reference, type }: { reference: string; type: DocumentType }) {
+  const Icon = DOC_TYPE_ICON[type];
+  return (
+    <span className={`arc-ref-pill ${DOC_TYPE_CLASS[type]}`}>
+      <Icon />
+      {reference}
+    </span>
+  );
+}
+
+function ReasonBadge({ reason }: { reason: ArchiveReason }) {
+  return (
+    <span className={`arc-badge ${reason === "Auto" ? "arc-badge--auto" : "arc-badge--manual"}`}>
+      {reason}
+    </span>
+  );
 }
 
 /**
@@ -103,13 +147,17 @@ export default function ArchiveManagement() {
   const [records, setRecords] = useState<ArchivedRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [docTypeFilter, setDocTypeFilter] = useState<DocTypeFilter>("All types");
   const [reasonFilter, setReasonFilter] = useState<ReasonFilter>("All reasons");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-  const fetchArchivedData = async () => {
+  const fetchArchivedData = async (isManualRefresh = false) => {
     try {
-      setLoading(true);
+      if (isManualRefresh) setIsRefreshing(true);
+      else setLoading(true);
       setLoadError(null);
       // Reads from the same registry endpoint as Reports, Transaction Registry,
       // and Void and Amend, so this page's archived count always matches the
@@ -122,6 +170,7 @@ export default function ArchiveManagement() {
       setRecords([]);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -148,54 +197,136 @@ export default function ArchiveManagement() {
         search.trim() === "" ||
         record.reference.toLowerCase().includes(search.toLowerCase()) ||
         record.declarantName.toLowerCase().includes(search.toLowerCase()) ||
+        record.archivedBy.toLowerCase().includes(search.toLowerCase()) ||
         record.reasonDetail.toLowerCase().includes(search.toLowerCase());
       return matchesType && matchesReason && matchesSearch;
     });
   }, [records, search, docTypeFilter, reasonFilter]);
 
+  // ─── Pagination (mirrors TransactionRegistry's TransactionTable) ────────
+  const totalRecords = filteredRecords.length;
+  const totalPages = Math.ceil(totalRecords / pageSize) || 1;
+
+  // Reset to page 1 when filters, search, or page size change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, docTypeFilter, reasonFilter, pageSize]);
+
+  const start = (currentPage - 1) * pageSize;
+  const end = Math.min(start + pageSize, totalRecords);
+  const pageRecords = useMemo(() => filteredRecords.slice(start, end), [filteredRecords, start, end]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPageSize(Number(e.target.value));
+  };
+
+  const autoCount = useMemo(() => records.filter((r) => r.reasonType === "Auto").length, [records]);
+  const manualCount = useMemo(() => records.filter((r) => r.reasonType === "Manual").length, [records]);
+
+  const hasActiveFilters = search.trim() !== "" || docTypeFilter !== "All types" || reasonFilter !== "All reasons";
+
+  const resetFilters = () => {
+    setSearch("");
+    setDocTypeFilter("All types");
+    setReasonFilter("All reasons");
+  };
+
   return (
     <div className="arc-page">
-      <div className="arc-container">
-        <div className="arc-header">
-          <div className="arc-header-icon">
-            <Archive size={20} />
+      {/* ---- Header card ---- */}
+      <div className="arc-header">
+        <div className="arc-header-top">
+          <div className="arc-header-titles">
+            <h2>
+              Archive Management
+            </h2>
+            <p>Archived records across all document types.</p>
           </div>
-          <div>
-            <h1 className="arc-title">Archive Management</h1>
-            <p className="arc-subtitle">Archived records across all document types.</p>
-          </div>
+          <button
+            className={`arc-refresh-btn ${isRefreshing ? "is-spinning" : ""}`}
+            onClick={() => fetchArchivedData(true)}
+            title="Refresh"
+          >
+            <RefreshCw size={16} />
+          </button>
         </div>
 
-        <div className="arc-filters">
-          <div className="arc-search-field">
-            <Search size={16} className="arc-search-icon" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search reference or declarant..."
-              className="arc-search-input"
-            />
+        <div className="arc-summary-grid">
+          <div className="arc-summary-card">
+            <div className="arc-summary-icon-wrap arc-summary-icon-wrap--total">
+              <Archive size={20} />
+            </div>
+            <div className="arc-summary-card-text">
+              <span className="arc-summary-card-value">{records.length}</span>
+              <span className="arc-summary-card-label">Total Archived</span>
+            </div>
           </div>
-          <div className="arc-select-field">
+          <div className="arc-summary-card">
+            <div className="arc-summary-icon-wrap arc-summary-icon-wrap--auto">
+              <RefreshCw size={18} />
+            </div>
+            <div className="arc-summary-card-text">
+              <span className="arc-summary-card-value">{autoCount}</span>
+              <span className="arc-summary-card-label">Auto-Archived</span>
+            </div>
+          </div>
+          <div className="arc-summary-card">
+            <div className="arc-summary-icon-wrap arc-summary-icon-wrap--manual">
+              <RotateCcw size={18} />
+            </div>
+            <div className="arc-summary-card-text">
+              <span className="arc-summary-card-value">{manualCount}</span>
+              <span className="arc-summary-card-label">Manually Archived</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ---- Table card ---- */}
+      <div className="arc-card">
+        <div className="arc-table-toolbar">
+          <div className="arc-search-wrapper">
+            <div className="arc-search">
+              <Search size={15} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search reference or declarant..."
+              />
+              {search && (
+                <button className="arc-search-clear-btn" onClick={() => setSearch("")}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="arc-filter-select-wrap">
             <select
               value={docTypeFilter}
               onChange={(e) => setDocTypeFilter(e.target.value as DocTypeFilter)}
-              className="arc-select"
+              className="arc-filter-select"
             >
               <option value="All types">All types</option>
               <option value="Tax Declaration">Tax Declaration</option>
               <option value="Certificate of Land Holding">Certificate of Land Holding</option>
               <option value="No-Landholding Certificate">No-Landholding Certificate</option>
               <option value="Certified True Copy">Certified True Copy</option>
-              <option value="General Document">General Document</option>
             </select>
             <ChevronDown size={14} className="arc-select-chevron" />
           </div>
-          <div className="arc-select-field">
+
+          <div className="arc-filter-select-wrap">
             <select
               value={reasonFilter}
               onChange={(e) => setReasonFilter(e.target.value as ReasonFilter)}
-              className="arc-select"
+              className="arc-filter-select"
             >
               <option value="All reasons">All reasons</option>
               <option value="Auto">Auto</option>
@@ -203,59 +334,75 @@ export default function ArchiveManagement() {
             </select>
             <ChevronDown size={14} className="arc-select-chevron" />
           </div>
+
+          {hasActiveFilters && (
+            <button className="arc-filter-reset" onClick={resetFilters}>
+              Reset
+            </button>
+          )}
         </div>
 
-        <div className="arc-card">
-          <div className="arc-table-scroll">
-            <table className="arc-table">
-              <thead>
+        <div className="arc-table-scroll">
+          <table className="arc-table">
+            <thead>
+              <tr>
+                <th>Reference Number</th>
+                <th>Declarant</th>
+                <th>Document Type</th>
+                <th>Reason</th>
+                <th>Archived By</th>
+                <th>Date &amp; Time</th>
+                <th style={{ textAlign: "center" }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
                 <tr>
-                  <th>Control Number</th>
-                  <th>Declarant</th>
-                  <th>Document Type</th>
-                  <th>Reason</th>
-                  <th>Archived By</th>
-                  <th>Date &amp; Time</th>
-                  <th>Action</th>
+                  <td colSpan={7} className="arc-table-empty">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                      <Loader2 size={18} style={{ animation: "arc-spin 1s linear infinite" }} />
+                      Loading archives...
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr className="arc-empty-row">
-                    <td colSpan={7}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                        <Loader2 size={18} className="arc-spinner" style={{ animation: 'spin 1s linear infinite' }} /> 
-                        Loading archives...
-                      </div>
+              ) : loadError ? (
+                <tr>
+                  <td colSpan={7} className="arc-table-empty">
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", padding: "8px 0" }}>
+                      <strong style={{ color: "var(--db-error)" }}>{loadError}</strong>
+                      <button className="arc-restore-btn" onClick={() => fetchArchivedData()}>
+                        Retry
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="arc-table-empty">
+                    <strong>No archived records found.</strong>
+                    Try adjusting your search or filters.
+                  </td>
+                </tr>
+              ) : (
+                pageRecords.map((record) => (
+                  <tr key={record.id} className="arc-row">
+                    <td>
+                      <ReferenceBadge reference={record.reference} type={record.documentType} />
                     </td>
-                  </tr>
-                ) : loadError ? (
-                  <tr className="arc-empty-row">
-                    <td colSpan={7} style={{ color: '#B0281C' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '16px 0' }}>
-                        <span style={{ fontWeight: 600 }}>{loadError}</span>
-                        <button className="arc-restore-btn" onClick={fetchArchivedData}>Retry</button>
-                      </div>
+                    <td className="arc-declarant">{record.declarantName}</td>
+                    <td>
+                      <DocTypeTag type={record.documentType} />
                     </td>
-                  </tr>
-                ) : filteredRecords.length === 0 ? (
-                  <tr className="arc-empty-row">
-                    <td colSpan={7}>No archived records found.</td>
-                  </tr>
-                ) : (
-                  filteredRecords.map((record, idx) => (
-                    <tr key={record.id} className={idx % 2 !== 0 ? "arc-row-alt" : ""}>
-                      <td className="arc-cell-reference">#{record.reference}</td>
-                      <td className="arc-cell-name">{record.declarantName}</td>
-                      <td>
-                        <DocTypeTag type={record.documentType} />
-                      </td>
-                      <td className="arc-cell-muted">{record.reasonDetail}</td>
-                      <td className="arc-cell-muted">{record.archivedBy}</td>
-                      <td className="arc-cell-muted">
-                        {record.archivedDate}, {record.archivedTime}
-                      </td>
-                      <td>
+                    <td>
+                      <ReasonBadge reason={record.reasonType} />
+                      <div className="arc-reason-detail">{record.reasonDetail}</div>
+                    </td>
+                    <td className="arc-cell-muted">{record.archivedBy}</td>
+                    <td className="arc-cell-muted">
+                      {record.archivedDate}, {record.archivedTime}
+                    </td>
+                    <td>
+                      <div className="arc-actions">
                         <button
                           className="arc-restore-btn"
                           onClick={() => handleRestore(record.id, record.reference)}
@@ -263,12 +410,53 @@ export default function ArchiveManagement() {
                           <RotateCcw size={14} />
                           Restore
                         </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="arc-pagination-footer">
+          <div className="arc-pagination-left">
+            <span className="arc-pagination-label">Rows per page:</span>
+            <select
+              className="arc-items-per-page"
+              value={pageSize}
+              onChange={handlePageSizeChange}
+            >
+              {[5, 10, 20, 50, 100, 150].map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="arc-pagination-center">
+            {totalRecords === 0 ? "0 of 0" : `${start + 1}–${end} of ${totalRecords}`}
+          </div>
+
+          <div className="arc-pagination-right">
+            <button
+              type="button"
+              className="arc-page-btn-text"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              aria-label="Previous page"
+            >
+              Previous
+            </button>
+            <span className="arc-page-current">Page {currentPage} of {totalPages}</span>
+            <button
+              type="button"
+              className="arc-page-btn-text"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              aria-label="Next page"
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>

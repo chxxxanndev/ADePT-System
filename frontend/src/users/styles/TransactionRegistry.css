@@ -491,6 +491,7 @@
     font-weight: 600;
     color: var(--db-slate);
     font-size: 0.86rem;
+    text-wrap: pretty;
 }
 
 .tr-declarant-sub {
