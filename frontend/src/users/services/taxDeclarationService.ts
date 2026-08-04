@@ -4,7 +4,11 @@ import axios from 'axios';
 
 export const taxDeclarationService = {
     /**
-     * Save a tax declaration to the backend.
+     * Save a tax declaration to the backend. This hits the upsert-capable
+     * endpoint (backend saveTaxDeclaration finds-or-creates by requestId),
+     * so it is safe to call this for BOTH first-time creation and
+     * subsequent saves — see the modal's handleSave for how this replaces
+     * the old id-gated branching.
      */
     save: async (
         formData: TaxDeclarationFormData,
@@ -50,6 +54,12 @@ export const taxDeclarationService = {
                 rowOrder: idx,
                 kindOfProperty: row.kindOfProperty || null,
                 classificationId: row.classificationId || null,
+                // NEW: pass the free-text label through too. The backend's
+                // saveTaxDeclaration now falls back to resolving this into
+                // a classificationId when one wasn't already supplied —
+                // needed because the quick-edit modal only ever collects a
+                // free-text label, never a resolved id.
+                classificationLabel: (row as any).classificationLabel || null,
                 actualUseId: row.actualUseId || null,
                 actualUseOtherText: row.actualUseOtherText || null,
                 area: row.area || null,
@@ -77,6 +87,16 @@ export const taxDeclarationService = {
 
     /**
      * FETCH AND TRANSLATE DATA FOR PDF / VIEWING
+     *
+     * FIX: the object returned here now includes BOTH the original
+     * "translated" keys (assessmentRows, taxable) AND the keys the
+     * InitialDocumentPreviewModal actually reads (assessments, taxability).
+     * Previously the modal's `fullData?.assessments` and
+     * `editData?.taxability` always came back undefined — not because the
+     * data wasn't there, but because it was there under different key
+     * names. That silently produced "0 assessments" / "always TAXABLE" in
+     * the UI even when the backend had real rows and a real taxability
+     * value.
      */
     getTaxDeclaration: async (requestId: string) => {
         try {
@@ -102,7 +122,13 @@ export const taxDeclarationService = {
 
             const classificationMap: Record<string, string> = {};
             (meta?.classifications || []).forEach((c: any) => {
-                classificationMap[c.id] = c.label;
+                // FIX: classification_id in the DB actually stores the
+                // classification's CODE (e.g. "AGRICULTURAL"), not its
+                // lookup_values.id UUID — same pattern as kind_of_property.
+                // Keying this map by c.id was why almost every row fell
+                // through to showing the raw code (or "N/A" when null)
+                // instead of the pretty label.
+                classificationMap[c.code] = c.label;
             });
 
             const propertyTypeMap: Record<string, string> = {};
@@ -110,15 +136,23 @@ export const taxDeclarationService = {
                 propertyTypeMap[p.code] = p.label;
             });
 
-            const assessmentRows = (dbData.encoded_assessment_rows || []).map((row: any) => ({
-                classificationLabel: classificationMap[row.classification_id] || row.classification_id || 'N/A',
-                kindOfProperty: propertyTypeMap[row.kind_of_property] || row.kind_of_property || '',
-                area: row.area,
-                areaUnit: row.area_unit,
-                marketValue: row.market_value,
-                assessmentLevel: row.assessment_level,
-                assessedValue: row.assessed_value,
-            }));
+            const assessmentRows = (dbData.encoded_assessment_rows || []).map((row: any) => {
+                // FIX: a handful of legacy rows stored mixed-case values
+                // ("Residential") instead of the uppercase code
+                // ("RESIDENTIAL") that lookup_values.code actually uses.
+                // Normalize before lookup so both forms resolve correctly.
+                const rawClassification = (row.classification_id || '').trim();
+                const normalizedKey = rawClassification.toUpperCase();
+                return {
+                    classificationLabel: classificationMap[normalizedKey] || rawClassification || 'N/A',
+                    kindOfProperty: propertyTypeMap[row.kind_of_property] || row.kind_of_property || '',
+                    area: row.area,
+                    areaUnit: row.area_unit,
+                    marketValue: row.market_value,
+                    assessmentLevel: row.assessment_level,
+                    assessedValue: row.assessed_value,
+                };
+            });
 
             const totalArea = assessmentRows.reduce(
                 (sum: number, r: any) => sum + (parseFloat(r.area) || 0),
@@ -158,14 +192,23 @@ export const taxDeclarationService = {
                 totalMarketValue: dbData.total_market_value,
                 totalAssessedValue: dbData.total_assessed_value,
                 totalAssessedValueWords: dbData.amount_in_words,
+                // Kept for any other callers relying on the old boolean shape.
                 taxable: dbData.taxability === 'TAXABLE',
+                // FIX: added — this is the key the modal's edit <select> and
+                // preview actually read (`editData?.taxability`).
+                taxability: dbData.taxability || 'TAXABLE',
                 taxEffectivity: dbData.effectivity_year,
                 cancelsArpNo: dbData.cancelled_td_number,
                 assessorName: dbData.assessor_name,
                 assessorTitle: dbData.assessor_title,
                 memoranda: dbData.memoranda,
                 area: totalArea > 0 ? `${totalArea}${areaUnitSuffix ? ' ' + areaUnitSuffix : ''}` : '',
+                // Kept for any other callers relying on the old key name.
                 assessmentRows,
+                // FIX: added — this is the key the modal's preview/edit
+                // tables, updateAssessment/addAssessmentRow/removeAssessmentRow,
+                // and handleSave's total calculation all actually read.
+                assessments: assessmentRows,
             };
         } catch (error) {
             console.error("[taxDeclarationService] Error fetching details:", error);

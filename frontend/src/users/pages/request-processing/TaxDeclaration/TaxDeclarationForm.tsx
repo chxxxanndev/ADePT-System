@@ -49,6 +49,49 @@ function calcAssessedValue(marketValue: number, assessmentLevel: number): number
     return Math.round(raw / 10) * 10;
 }
 
+// ── Custom display order for property classifications ──
+// This is NOT alphabetical — it matches the order the province wants
+// shown in the dropdown, regardless of what order the backend/API
+// returns the classification list in.
+const CLASSIFICATION_ORDER = [
+    'RESIDENTIAL',
+    'AGRICULTURAL',
+    'COMMERCIAL',
+    'INDUSTRIAL',
+    'MINERAL LAND',
+    'TIMBERLAND',
+    'SPECIAL',
+];
+
+// Human-readable label for any classification not returned by the backend
+// (e.g. "MINERAL LAND" -> "Mineral Land").
+function toTitleCase(code: string): string {
+    return code
+        .toLowerCase()
+        .split(' ')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+}
+
+// Always returns all 7 classifications, in CLASSIFICATION_ORDER order.
+// If the backend/API already has an entry for a given classification, that
+// entry (with its real id/label from the DB) is used as-is. If the backend
+// is missing one (e.g. "MINERAL LAND" or "TIMBERLAND" don't exist yet as
+// rows in your classifications table), a sensible default option is
+// synthesized so it still shows up and is selectable in the dropdown.
+function buildClassificationOptions(
+    fetched: { id: string; label: string; code: string }[]
+): { id: string; label: string; code: string }[] {
+    const byCode = new Map(
+        fetched.map((c) => [(c.code || c.id || c.label || '').toUpperCase(), c])
+    );
+    return CLASSIFICATION_ORDER.map((code) => {
+        const existing = byCode.get(code);
+        if (existing) return existing;
+        return { id: code, label: toTitleCase(code), code };
+    });
+}
+
 function AssessmentRowItem({ row, onUpdate, onRemove, canRemove, classificationOptions, propertyTypeOptions }: { row: AssessmentRow; onUpdate: (id: string, field: keyof AssessmentRow, value: string) => void; onRemove: (id: string) => void; canRemove: boolean; classificationOptions: { id: string; label: string; code: string }[]; propertyTypeOptions: { id: string; label: string; code: string }[]; }) {
     const mv = parseFloat(row.marketValue) || 0;
     const al = parseFloat(row.assessmentLevel) || 0;
@@ -62,9 +105,34 @@ function AssessmentRowItem({ row, onUpdate, onRemove, canRemove, classificationO
                 </select>
             </td>
             <td>
-                <select className="td-select" value={row.classificationId || row.classificationLabel} onChange={(e) => { const val = e.target.value; const matched = classificationOptions.find((o) => o.id === val || o.code === val); if (matched) { onUpdate(row.id, 'classificationId', matched.id); onUpdate(row.id, 'classificationLabel', matched.label); } else { onUpdate(row.id, 'classificationId', ''); onUpdate(row.id, 'classificationLabel', val); } }}>
+                {/*
+                    IMPORTANT: the <select>'s value/options use `opt.code`
+                    (e.g. "RESIDENTIAL"), NOT `opt.id` (a raw DB UUID for
+                    entries that came from the backend's classifications
+                    table). The backend's read path (taxDeclarationService
+                    .getTaxDeclaration) resolves classification_id back to
+                    a label by looking it up as a CODE, not a UUID — so if
+                    we ever store/select by `opt.id` here, the saved value
+                    won't match on read and the raw UUID leaks straight
+                    into the printed PDF instead of a readable label.
+                */}
+                <select
+                    className="td-select"
+                    value={row.classificationId || row.classificationLabel}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        const matched = classificationOptions.find((o) => o.code === val);
+                        if (matched) {
+                            onUpdate(row.id, 'classificationId', matched.code);
+                            onUpdate(row.id, 'classificationLabel', matched.label);
+                        } else {
+                            onUpdate(row.id, 'classificationId', '');
+                            onUpdate(row.id, 'classificationLabel', val);
+                        }
+                    }}
+                >
                     <option value="">-- Select Classification --</option>
-                    {classificationOptions.map((opt) => (<option key={opt.id} value={opt.id}>{opt.label}</option>))}
+                    {classificationOptions.map((opt) => (<option key={opt.id} value={opt.code}>{opt.label}</option>))}
                 </select>
             </td>
             <td className="td-table-input-right"><input className="td-input" type="number" placeholder="0.00" value={row.marketValue} onChange={(e) => onUpdate(row.id, 'marketValue', e.target.value)} min="0" step="0.01" /></td>
@@ -145,7 +213,9 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
                 if (!isMounted || !data) return;
 
                 setMetadata({
-                    classifications: Array.isArray((data as any).classifications) ? (data as any).classifications : [],
+                    classifications: buildClassificationOptions(
+                        Array.isArray((data as any).classifications) ? (data as any).classifications : []
+                    ),
                     propertyTypes: Array.isArray((data as any).propertyTypes) ? (data as any).propertyTypes : [],
                 });
 
@@ -167,7 +237,11 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
         fetchMeta(); return () => { isMounted = false; };
     }, [entryData?.propertyLocation, entryData]);
 
-    const classificationOptions = metadata.classifications.length > 0 ? metadata.classifications : [{ id: 'AGRICULTURAL', label: 'Agricultural', code: 'AGRICULTURAL' }, { id: 'RESIDENTIAL', label: 'Residential', code: 'RESIDENTIAL' }];
+    // Even before the API responds (or if it fails), show all 7
+    // classifications using the synthesized defaults.
+    const classificationOptions = metadata.classifications.length > 0
+        ? metadata.classifications
+        : buildClassificationOptions([]);
     const propertyTypeOptions = metadata.propertyTypes.length > 0 ? metadata.propertyTypes : [{ id: 'LAND', label: 'Land', code: 'LAND' }, { id: 'BUILDING', label: 'Building', code: 'BUILDING' }];
 
     const totalMarketValue = form.assessmentRows.reduce((sum, r) => sum + (parseFloat(r.marketValue) || 0), 0);
@@ -213,19 +287,33 @@ export function TaxDeclarationForm({ user, entryData, onDiscard, onDiscardToSumm
                     ? dbData.encoded_assessment_rows
                           .slice()
                           .sort((a: any, b: any) => (a.row_order || 0) - (b.row_order || 0))
-                          .map((r: any) => ({
-                              id: r.id,
-                              kindOfProperty: r.kind_of_property || '',
-                              classificationId: r.classification_id || '',
-                              classificationLabel: '',
-                              actualUseId: r.actual_use_id || '',
-                              actualUseOtherText: r.actual_use_other_text || '',
-                              area: r.area || '',
-                              areaUnit: r.area_unit || 'HECTARE',
-                              marketValue: r.market_value != null ? String(r.market_value) : '',
-                              assessmentLevel: r.assessment_level != null ? String(r.assessment_level) : '',
-                              assessedValue: r.assessed_value != null ? String(r.assessed_value) : '',
-                          }))
+                          .map((r: any) => {
+                              // classification_id is stored as a CODE
+                              // (e.g. "AGRICULTURAL"), not a UUID — see
+                              // taxDeclarationService.getTaxDeclaration.
+                              // Resolve it against classificationOptions
+                              // here so classificationLabel is populated
+                              // immediately instead of showing blank/raw
+                              // codes until the user re-picks a value.
+                              const rawCode = (r.classification_id || '').trim();
+                              const normalizedCode = rawCode.toUpperCase();
+                              const matched = classificationOptions.find(
+                                  (o) => o.code === normalizedCode
+                              );
+                              return {
+                                  id: r.id,
+                                  kindOfProperty: r.kind_of_property || '',
+                                  classificationId: rawCode,
+                                  classificationLabel: matched?.label || rawCode,
+                                  actualUseId: r.actual_use_id || '',
+                                  actualUseOtherText: r.actual_use_other_text || '',
+                                  area: r.area || '',
+                                  areaUnit: r.area_unit || 'HECTARE',
+                                  marketValue: r.market_value != null ? String(r.market_value) : '',
+                                  assessmentLevel: r.assessment_level != null ? String(r.assessment_level) : '',
+                                  assessedValue: r.assessed_value != null ? String(r.assessed_value) : '',
+                              };
+                          })
                     : prev.assessmentRows,
             }));
         };

@@ -610,15 +610,27 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
                     colWidths={finalTableSpacing.colWidths}
                 />;
             } else if (doc.referenceNumber.startsWith('TD')) {
-                let tdData = doc.data;
-
-                if (!tdData) {
-                    try {
-                        tdData = await taxDeclarationService.getTaxDeclaration(doc.id);
-                    } catch (err) {
-                        console.error('Failed to fetch tax declaration:', err);
-                        tdData = {};
-                    }
+                // FIX: previously this only fetched via
+                // taxDeclarationService.getTaxDeclaration() when doc.data
+                // was falsy — but the documents list (payment.documents)
+                // can already carry a truthy `data` object of a different,
+                // unmapped shape (or an empty {}), which short-circuited
+                // this fetch and fed raw/mismatched fields straight into
+                // TaxDeclarationPDF. That produced blank rows and blank
+                // totals in the generated PDF even though the record had
+                // real assessment data saved.
+                //
+                // Always fetch fresh via the properly-mapped service call,
+                // which translates snake_case DB fields (market_value,
+                // assessment_level, classification_id, ...) into the
+                // camelCase shape TaxDeclarationPDF actually reads
+                // (marketValue, assessmentLevel, classificationLabel, ...).
+                let tdData;
+                try {
+                    tdData = await taxDeclarationService.getTaxDeclaration(doc.id);
+                } catch (err) {
+                    console.error('Failed to fetch tax declaration:', err);
+                    tdData = {};
                 }
 
                 PDFComponent = <TaxDeclarationPDF

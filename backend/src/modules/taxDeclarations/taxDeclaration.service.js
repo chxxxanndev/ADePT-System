@@ -44,18 +44,53 @@ class TaxDeclarationService {
     }
 
     /**
-     * Resolve a classification label (free text) to its UUID in the lookup_values table.
-     * Returns null if no match is found.
+     * Resolve a classification label (free text) to a CODE for storage in
+     * encoded_assessment_rows.classification_id.
+     *
+     * IMPORTANT: despite the column name "classification_id", the actual
+     * data in this text column has never been a lookup_values.id UUID —
+     * it holds a CODE string (e.g. "AGRICULTURAL"), same convention as
+     * kind_of_property. Storing a UUID here (an earlier version of this
+     * fix did that) would introduce a third, incompatible format on top
+     * of the two that already exist in production (uppercase codes, and
+     * a handful of legacy mixed-case labels like "Residential").
+     *
+     * Resolution: normalize the typed text to an uppercase code, and
+     * check it against existing lookup_values.code. If nothing matches,
+     * create a new CLASSIFICATION lookup value (so the typed text becomes
+     * a reusable option going forward) and return its code. Never returns
+     * null when given non-empty text — the goal is to never silently
+     * discard what the user typed.
      */
     async _resolveClassificationLabel(label) {
         if (!label?.trim()) return null;
-        const { data } = await supabase
+        const trimmed = label.trim();
+        const candidateCode = trimmed.toUpperCase().replace(/\s+/g, '_');
+
+        const { data: existing, error: findErr } = await supabase
             .from('lookup_values')
-            .select('id')
-            .eq('category', 'CLASSIFICATION')   // adjust if your category name differs
-            .ilike('value', label.trim())       // adjust column name if needed (e.g., 'label', 'name')
+            .select('code')
+            .eq('category', 'CLASSIFICATION')
+            .or(`code.eq.${candidateCode},value.ilike.${trimmed}`)
             .maybeSingle();
-        return data?.id || null;
+
+        if (findErr) throw findErr;
+        if (existing?.code) return existing.code;
+
+        const { data: created, error: createErr } = await supabase
+            .from('lookup_values')
+            .insert([{ category: 'CLASSIFICATION', code: candidateCode, value: trimmed }])
+            .select('code')
+            .single();
+
+        if (createErr) {
+            // Likely a race with another save creating the same code —
+            // fall back to using the normalized code directly rather than
+            // losing the user's input.
+            return candidateCode;
+        }
+
+        return created?.code || candidateCode;
     }
 
     /**
@@ -172,18 +207,29 @@ class TaxDeclarationService {
         // no FK join). This is what the PDF template reads per assessment
         // row via row.kindOfProperty.
         if (data.assessmentRows?.length) {
-            const rows = data.assessmentRows.map((row, idx) => ({
-                encoded_tax_declaration_id: td.id,
-                row_order: idx,
-                classification_id: row.classificationId || null,
-                actual_use_id: row.actualUseId || null,
-                actual_use_other_text: row.actualUseOtherText || null,
-                kind_of_property: row.kindOfProperty || null,
-                area: row.area ?? null,
-                area_unit: row.areaUnit ?? 'HECTARE',
-                market_value: row.marketValue ?? null,
-                assessment_level: row.assessmentLevel ?? null,
-                assessed_value: row.assessedValue ?? null,
+            // NOTE: classification_id (despite its name) stores a CODE, not a
+            // lookup_values.id UUID — see _resolveClassificationLabel above.
+            // row.classificationId is trusted as-is when the caller already
+            // supplies one (e.g. the full encoding form's dropdown, which
+            // presumably already sends a valid code). The quick-edit modal
+            // only ever sends a free-text classificationLabel, which gets
+            // resolved to a code here so it's never silently dropped.
+            const rows = await Promise.all(data.assessmentRows.map(async (row, idx) => {
+                const classificationCode = row.classificationId
+                    || await this._resolveClassificationLabel(row.classificationLabel);
+                return {
+                    encoded_tax_declaration_id: td.id,
+                    row_order: idx,
+                    classification_id: classificationCode,
+                    actual_use_id: row.actualUseId || null,
+                    actual_use_other_text: row.actualUseOtherText || null,
+                    kind_of_property: row.kindOfProperty || null,
+                    area: row.area ?? null,
+                    area_unit: row.areaUnit ?? 'HECTARE',
+                    market_value: row.marketValue ?? null,
+                    assessment_level: row.assessmentLevel ?? null,
+                    assessed_value: row.assessedValue ?? null,
+                };
             }));
 
             const { error: rowErr } = await supabase
@@ -296,26 +342,21 @@ class TaxDeclarationService {
         if (!data) return null;
 
         // Explicit, standalone fetch of the child rows — see FIX note above.
+        // NOTE: key is deliberately "encoded_assessment_rows" (not
+        // "assessments") — that's the exact key the frontend
+        // taxDeclarationService.getTaxDeclaration() reads off dbData.
+        // Naming it anything else means the rows arrive in the API
+        // response but get silently dropped at the frontend translation
+        // step, which is what was still happening even after the join fix.
         const { data: rows, error: rowsErr } = await supabase
             .from('encoded_assessment_rows')
-            .select(`
-                id,
-                kindOfProperty:kind_of_property,
-                classificationId:classification_id,
-                actualUseId:actual_use_id,
-                area,
-                areaUnit:area_unit,
-                marketValue:market_value,
-                assessmentLevel:assessment_level,
-                assessedValue:assessed_value,
-                rowOrder:row_order
-            `)
+            .select('*')
             .eq('encoded_tax_declaration_id', data.id)
             .order('row_order', { ascending: true });
 
         if (rowsErr) throw rowsErr;
 
-        data.assessments = rows ?? [];
+        data.encoded_assessment_rows = rows ?? [];
 
         return data;
     }
@@ -379,19 +420,18 @@ class TaxDeclarationService {
             // Resolve each classification label to a UUID
             const newRows = await Promise.all(
                 formData.assessments.map(async (row, idx) => {
-                    const classificationId = row.classificationId || row.classification_id
-                        || await this._resolveClassificationLabel(
-                            row.classificationLabel || row.classification_label
-                        );
+                    const classificationCode = await this._resolveClassificationLabel(
+                        row.classificationLabel || row.classification_label
+                    );
                     return {
                         encoded_tax_declaration_id: id,
                         row_order: idx,
-                        classification_id: classificationId,
-                        kind_of_property: row.kindOfProperty ?? row.kind_of_property ?? null,
-                        area: row.area ?? null,
-                        market_value: row.marketValue ?? row.market_value ?? null,
-                        assessment_level: row.assessmentLevel ?? row.assessment_level ?? null,
-                        assessed_value: row.assessedValue ?? row.assessed_value ?? null
+                        classification_id: classificationCode,
+                        kind_of_property: row.kindOfProperty || row.kind_of_property || null,
+                        area: row.area,
+                        market_value: row.marketValue || row.market_value,
+                        assessment_level: row.assessmentLevel || row.assessment_level,
+                        assessed_value: row.assessedValue || row.assessed_value
                     };
                 })
             );
