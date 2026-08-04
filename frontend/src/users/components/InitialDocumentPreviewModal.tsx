@@ -245,6 +245,9 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
             finalEditData.totalMarketValue = totalMV;
             finalEditData.totalAssessedValue = totalAV;
           }
+          if (!staffAuthId) {
+            throw new Error('Could not determine the current staff user — please re-login and try again.');
+          }
           const saved = await taxDeclarationService.save(
             {
               ...finalEditData,
