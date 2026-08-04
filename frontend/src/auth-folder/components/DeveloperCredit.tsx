@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AboutADePT } from '../../users/pages/AboutADePT';
-import '../../users/styles/Dashboard.css'; // supplies the --db-* tokens AboutADePT.css depends on
+import '../../users/styles/dashboard.css'; // supplies the --db-* tokens AboutADePT.css depends on
 
 export function DeveloperCredit() {
     const [showModal, setShowModal] = useState(false);
