@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, ChevronDown, FileStack, ChevronLeft, ChevronRight } from "lucide-react";
-import "../styles/CertifiedTrueCopy-Reprint.css";
+import { Search } from "lucide-react";
+import "../styles/TransactionRegistry.css";
 import type { CertifiedCopyRecord, CTCStatus } from "../types/transaction";
 import { fetchCertifiedTrueCopies } from "../services/transactionService";
-import { TransactionTabs } from "../components/TransactionTabs";
 
-const PAGE_SIZE = 10;
+const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
 /* --- Helper to format dates for table display --- */
 function formatDate(dateStr: string): string {
@@ -18,21 +17,17 @@ function formatDate(dateStr: string): string {
   } catch { return dateStr; }
 }
 
-/* --- Skeleton pieces (mirrors the real table so columns line up) --- */
-const SkeletonBox = ({ width = "100%", height = "12px", borderRadius = "4px" }) => (
-  <div className="ctc-skeleton-item" style={{ width, height, borderRadius }} />
-);
-
 const CTC_COLUMNS = [
   "Reference No.", "Declarant", "Original Doc", "OR Number",
   "Justification", "Requested", "Released", "Released By", "Status",
 ];
 
+/* --- Skeleton (mirrors PendingPayment/TransactionRegistry's shimmer pattern) --- */
 function CTCTableSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <div className="ctc-card">
-      <div className="ctc-table-scroll">
-        <table className="ctc-table">
+    <div className="tr-card">
+      <div className="tr-table-scroll">
+        <table className="tr-table">
           <thead>
             <tr>
               {CTC_COLUMNS.map((col) => <th key={col}>{col}</th>)}
@@ -40,16 +35,16 @@ function CTCTableSkeleton({ rows = 8 }: { rows?: number }) {
           </thead>
           <tbody>
             {Array.from({ length: rows }).map((_, i) => (
-              <tr key={i} className={i % 2 !== 0 ? "ctc-row-alt" : ""}>
-                <td><SkeletonBox width="85%" /></td>
-                <td><SkeletonBox width="70%" /></td>
-                <td><SkeletonBox width="60%" /></td>
-                <td><SkeletonBox width="50%" /></td>
-                <td><SkeletonBox width="90%" /></td>
-                <td><SkeletonBox width="55%" /></td>
-                <td><SkeletonBox width="55%" /></td>
-                <td><SkeletonBox width="60%" /></td>
-                <td><SkeletonBox width="70px" height="20px" borderRadius="999px" /></td>
+              <tr key={i} className="tr-row">
+                <td><div className="skeleton-item" style={{ width: '85%', height: 12 }} /></td>
+                <td><div className="skeleton-item" style={{ width: '70%', height: 12 }} /></td>
+                <td><div className="skeleton-item" style={{ width: '60%', height: 12 }} /></td>
+                <td><div className="skeleton-item" style={{ width: '50%', height: 12 }} /></td>
+                <td><div className="skeleton-item" style={{ width: '90%', height: 12 }} /></td>
+                <td><div className="skeleton-item" style={{ width: '55%', height: 12 }} /></td>
+                <td><div className="skeleton-item" style={{ width: '55%', height: 12 }} /></td>
+                <td><div className="skeleton-item" style={{ width: '60%', height: 12 }} /></td>
+                <td><div className="skeleton-item" style={{ width: '70px', height: 20, borderRadius: 999 }} /></td>
               </tr>
             ))}
           </tbody>
@@ -62,21 +57,33 @@ function CTCTableSkeleton({ rows = 8 }: { rows?: number }) {
 interface CertifiedTrueCopyProps {
   onNavigateToRegistry?: () => void;
   onNavigateToVoidAmend?: () => void;
+  /** Same two props TransactionRegistry uses for its first two breadcrumb
+   * links — wire these from Dashboard.tsx the same way
+   * (onNavigateToPendingRequests -> 'document-request' view,
+   * onNavigateToPendingPayment -> 'pending-payment' view) so the breadcrumb
+   * here matches the registry's exactly. */
+  onNavigateToPendingRequests?: () => void;
+  onNavigateToPendingPayment?: () => void;
 }
 
 export default function CertifiedTrueCopy({
   onNavigateToRegistry,
   onNavigateToVoidAmend,
+  onNavigateToPendingRequests,
+  onNavigateToPendingPayment,
 }: CertifiedTrueCopyProps) {
   const [records, setRecords] = useState<CertifiedCopyRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All statuses");
   const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const loadData = async () => {
-    setIsLoading(true);
+  const loadData = async (isManualRefresh = false) => {
+    if (isManualRefresh) setIsRefreshing(true);
+    else setIsLoading(true);
     setLoadError(null);
     try {
       const reprints = await fetchCertifiedTrueCopies();
@@ -91,7 +98,7 @@ export default function CertifiedTrueCopy({
         releasedBy: t.releasedBy || "—",
         status: (
           t.status === "Released" ? "Released" :
-          "Pending"
+            "Pending"
         ) as CTCStatus,
         orNumber: t.payment?.orNumber || "—",
         orJustification: t.payment?.orJustification || "—",
@@ -102,6 +109,7 @@ export default function CertifiedTrueCopy({
       setLoadError("Failed to fetch reprint records.");
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -109,7 +117,7 @@ export default function CertifiedTrueCopy({
 
   // Reset to page 1 whenever the filter criteria change, so you don't
   // get stranded on e.g. page 4 of a filtered result set that only has 2 pages.
-  useEffect(() => { setCurrentPage(1); }, [search, statusFilter]);
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, rowsPerPage]);
 
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
@@ -127,147 +135,225 @@ export default function CertifiedTrueCopy({
     });
   }, [records, search, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / rowsPerPage));
   const safePage = Math.min(currentPage, totalPages);
 
   const paginatedRecords = useMemo(() => {
-    const start = (safePage - 1) * PAGE_SIZE;
-    return filteredRecords.slice(start, start + PAGE_SIZE);
-  }, [filteredRecords, safePage]);
+    const start = (safePage - 1) * rowsPerPage;
+    return filteredRecords.slice(start, start + rowsPerPage);
+  }, [filteredRecords, safePage, rowsPerPage]);
 
   return (
-    <div className="ctc-page">
-      <div className="ctc-container">
-        {/* Header */}
-        <div className="ctc-header">
-          <div className="ctc-header-icon"><FileStack size={20} /></div>
-          <div>
-            <h1 className="ctc-title">Certified True Copy</h1>
-            <p className="ctc-subtitle">Connected to Backend • Searchable Reprint Registry</p>
+    <div className="tr-page">
+      <div className="tr-header">
+        {/* Document Request > Pending Requests > Standing Transaction Management > Reprint/CTC —
+            same breadcrumb chain as TransactionRegistry, just one level deeper. The first two
+            links reuse the same props/wiring TransactionRegistry uses; "Standing Transaction
+            Management" reuses the onNavigateToRegistry prop this component already received. */}
+        <nav className="tr-breadcrumb" aria-label="Breadcrumb">
+          <button
+            type="button"
+            className="tr-breadcrumb-item--link"
+            onClick={onNavigateToPendingRequests}
+          >
+            Document Request
+          </button>
+          <span className="tr-breadcrumb-sep">&gt;</span>
+          <button
+            type="button"
+            className="tr-breadcrumb-item--link"
+            onClick={onNavigateToPendingPayment}
+          >
+            Pending Requests
+          </button>
+          <span className="tr-breadcrumb-sep">&gt;</span>
+          <button
+            type="button"
+            className="tr-breadcrumb-item--link"
+            onClick={onNavigateToRegistry}
+          >
+            Standing Transaction Management
+          </button>
+          <span className="tr-breadcrumb-sep">&gt;</span>
+          <span className="tr-breadcrumb-item--current">Reprint/CTC</span>
+        </nav>
+
+        <div className="tr-header-top">
+          <div className="tr-header-titles">
+            <h2>Reprint / Certified True Copy</h2>
+            <p>Searchable registry of every certified true copy and reprint issued.</p>
           </div>
+          <button
+            className={`tr-refresh-btn${isRefreshing ? ' is-spinning' : ''}`}
+            onClick={() => loadData(true)}
+            title="Refresh registry"
+            aria-label="Refresh registry"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          </button>
         </div>
 
-        <TransactionTabs
-          active="reprint"
-          onNavigateToRegistry={onNavigateToRegistry ?? (() => {})}
-          onNavigateToReprint={() => {}}
-          onNavigateToVoidAmend={onNavigateToVoidAmend ?? (() => {})}
-        />
-
-        {/* Search and Filters */}
-        <div className="ctc-filters">
-          <div className="ctc-search-field">
-            <Search size={16} className="ctc-search-icon" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search reference, name, OR number, or justification..."
-              className="ctc-search-input"
-            />
-          </div>
-          <div className="ctc-select-field">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="ctc-select"
-            >
-              <option value="All statuses">All statuses</option>
-              <option value="Released">Released</option>
-              <option value="Pending">Pending</option>
-            </select>
-            <ChevronDown size={14} className="ctc-select-chevron" />
-          </div>
+        {/* Pill tab nav — inlined directly here (no separate TransactionTabs.tsx
+            import), matching how TransactionRegistry and PendingPayment render
+            their own tabs in-page. "reprint" is always the active tab since
+            this IS the reprint page. */}
+        <div className="tr-tabs" role="tablist" aria-label="Transaction sections">
+          <button
+            type="button"
+            className="tr-tab"
+            onClick={onNavigateToRegistry}
+          >
+            Transaction Registry
+          </button>
+          <button
+            type="button"
+            className="tr-tab tr-tab--active"
+            aria-current="page"
+          >
+            Reprint/CTC
+          </button>
+          <button
+            type="button"
+            className="tr-tab"
+            onClick={onNavigateToVoidAmend}
+          >
+            Void &amp; Amend
+          </button>
         </div>
+      </div>
 
-        {/* Content */}
-        {isLoading ? (
-          <CTCTableSkeleton />
-        ) : loadError ? (
-          <div className="ctc-card ctc-error-state">
-            <p>{loadError}</p>
-            <button onClick={loadData}>Retry</button>
-          </div>
-        ) : (
-          <>
-            <div className="ctc-card">
-              <div className="ctc-table-scroll">
-                <table className="ctc-table">
-                  <thead>
+      {/* Search + status filter toolbar, styled identically to
+          TransactionRegistry's tr-table-toolbar (search left, filter right). */}
+      {isLoading ? (
+        <CTCTableSkeleton />
+      ) : loadError ? (
+        <div className="tr-card" style={{ padding: '32px', textAlign: 'center', color: '#B0281C' }}>
+          <p style={{ margin: '0 0 12px', fontWeight: 600 }}>{loadError}</p>
+          <button className="tr-filter-reset" onClick={() => loadData()}>Retry</button>
+        </div>
+      ) : (
+        <>
+          <div className="tr-card">
+            <div className="tr-table-toolbar">
+              <div className="tr-search-wrapper">
+                <div className="tr-search">
+                  <Search size={16} />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search reference, name, OR number, or justification..."
+                  />
+                </div>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="tr-filter-select"
+                >
+                  <option value="All statuses">All statuses</option>
+                  <option value="Released">Released</option>
+                  <option value="Pending">Pending</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="tr-table-scroll">
+              <table className="tr-table">
+                <thead>
+                  <tr>
+                    <th>Reference No.</th>
+                    <th>Declarant</th>
+                    <th>Original Doc</th>
+                    <th>OR Number</th>
+                    <th>Justification</th>
+                    <th>Requested</th>
+                    <th>Released</th>
+                    <th>Released By</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedRecords.length === 0 ? (
                     <tr>
-                      <th>Reference No.</th>
-                      <th>Declarant</th>
-                      <th>Original Doc</th>
-                      <th>OR Number</th>
-                      <th>Justification</th>
-                      <th>Requested</th>
-                      <th>Released</th>
-                      <th>Released By</th>
-                      <th>Status</th>
+                      <td className="tr-table-empty" colSpan={9}>
+                        <strong>No records found</strong>
+                        No records match your search criteria.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedRecords.map((record, idx) => (
-                      <tr key={record.id} className={idx % 2 !== 0 ? "ctc-row-alt" : ""}>
-                        <td className="ctc-cell-reference">{record.reference}</td>
-                        <td className="ctc-cell-name">{record.declarantName}</td>
-                        <td className="ctc-cell-muted">{record.originalDocument}</td>
-                        <td className="ctc-cell-or">{record.orNumber}</td>
-                        <td className="ctc-cell-justification" title={record.orJustification}>
-                          {record.orJustification}
-                        </td>
-                        <td className="ctc-cell-muted">{record.dateRequested}</td>
-                        <td className="ctc-cell-muted">{record.dateReleased}</td>
-                        <td className="ctc-cell-muted">{record.releasedBy}</td>
+                  ) : (
+                    paginatedRecords.map((record) => (
+                      <tr key={record.id} className="tr-row">
+                        <td><span className="tr-ref">{record.reference}</span></td>
+                        <td><span className="tr-declarant">{record.declarantName}</span></td>
+                        <td>{record.originalDocument}</td>
+                        <td><span className="tr-or-number">{record.orNumber}</span></td>
                         <td>
-                          <span className={`ctc-badge ctc-badge--${record.status.toLowerCase()}`}>
+                          <span
+                            className={`tr-or-justification${record.orJustification === '—' ? ' tr-or-justification--none' : ''}`}
+                            title={record.orJustification}
+                          >
+                            {record.orJustification}
+                          </span>
+                        </td>
+                        <td>{record.dateRequested}</td>
+                        <td>{record.dateReleased}</td>
+                        <td>{record.releasedBy}</td>
+                        <td>
+                          <span className={`tr-badge tr-badge--${record.status.toLowerCase()}`}>
                             {record.status}
                           </span>
                         </td>
                       </tr>
-                    ))}
-                    {filteredRecords.length === 0 && (
-                      <tr className="ctc-empty-row">
-                        <td colSpan={9}>No records match your search criteria.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            {/* Pagination */}
             {filteredRecords.length > 0 && (
-              <div className="ctc-pagination">
-                <span className="ctc-pagination-info">
-                  Showing {(safePage - 1) * PAGE_SIZE + 1}
-                  –{Math.min(safePage * PAGE_SIZE, filteredRecords.length)} of {filteredRecords.length}
-                </span>
-                <div className="ctc-pagination-controls">
+              <div className="tr-pagination-footer">
+                <div className="tr-pagination-left">
+                  <span className="tr-pagination-label">Rows per page:</span>
+                  <select
+                    className="tr-items-per-page"
+                    value={rowsPerPage}
+                    onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                  >
+                    {ROWS_PER_PAGE_OPTIONS.map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="tr-pagination-center">
+                  {(safePage - 1) * rowsPerPage + 1}–{Math.min(safePage * rowsPerPage, filteredRecords.length)} of {filteredRecords.length}
+                </div>
+
+                <div className="tr-pagination-right">
                   <button
-                    className="ctc-pagination-btn"
+                    type="button"
+                    className="tr-page-btn-text"
+                    disabled={safePage <= 1}
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={safePage === 1}
-                    aria-label="Previous page"
                   >
-                    <ChevronLeft size={16} />
+                    Previous
                   </button>
-                  <span className="ctc-pagination-page">
-                    Page {safePage} of {totalPages}
-                  </span>
+                  <span className="tr-page-current">Page {safePage} of {totalPages}</span>
                   <button
-                    className="ctc-pagination-btn"
+                    type="button"
+                    className="tr-page-btn-text"
+                    disabled={safePage >= totalPages}
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={safePage === totalPages}
-                    aria-label="Next page"
                   >
-                    <ChevronRight size={16} />
+                    Next
                   </button>
                 </div>
               </div>
             )}
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

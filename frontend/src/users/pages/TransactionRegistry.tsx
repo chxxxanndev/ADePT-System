@@ -7,7 +7,6 @@ import { SummaryCards } from '../components/SummaryCards';
 import { SearchBar } from '../components/SearchBar';
 import { FilterBar } from '../components/FilterBar';
 import { TransactionTable } from '../components/TransactionTable';
-import { TransactionTabs } from '../components/TransactionTabs';
 import { TransactionDetails } from './TransactionDetails';
 import { VoidDocumentSelectModal } from '../components/DocumentSelectModal';
 import type { User } from '../../auth-folder/types/auth';
@@ -232,16 +231,32 @@ export function TransactionRegistry({
     return (
         <div className="tr-page">
             <div className="tr-header">
+                {/* Document Request > Pending Requests > Standing Transaction Management.
+                    "Document Request" routes via onNavigateToPendingRequests (it lands on
+                    the document-request view in Dashboard.tsx) and "Pending Requests" routes
+                    via onNavigateToPendingPayment (the actual Pending Payment/Requests page) —
+                    matches how Dashboard.tsx already wires these two props today, so no new
+                    props are needed. Styled identically to PendingPayment's pp-breadcrumb
+                    (teal on hover/active). */}
                 <nav className="tr-breadcrumb" aria-label="Breadcrumb">
-                    <span
-                        className={`tr-breadcrumb-item${onNavigateToPendingRequests ? ' tr-breadcrumb-item--link' : ''}`}
+                    <button
+                        type="button"
+                        className="tr-breadcrumb-item--link"
                         onClick={onNavigateToPendingRequests}
                     >
+                        Document Request
+                    </button>
+                    <span className="tr-breadcrumb-sep">&gt;</span>
+                    <button
+                        type="button"
+                        className="tr-breadcrumb-item--link"
+                        onClick={onNavigateToPendingPayment}
+                    >
                         Pending Requests
-                    </span>
-                    <span className="tr-breadcrumb-sep">›</span>
-                    <span className="tr-breadcrumb-item tr-breadcrumb-item--current">
-                        Transaction Registry
+                    </button>
+                    <span className="tr-breadcrumb-sep">&gt;</span>
+                    <span className="tr-breadcrumb-item--current">
+                        Transaction Management
                     </span>
                 </nav>
 
@@ -260,18 +275,34 @@ export function TransactionRegistry({
                     </button>
                 </div>
 
-                {/* TransactionTabs renders its own "tr-tabs" / role="tablist"
-                    wrapper internally, so it's dropped in directly — no extra
-                    div needed around it. "registry" is hardcoded as the active
-                    tab since this IS the registry page; onNavigateToRegistry
-                    is a no-op for the same reason (see TransactionTabs — it
-                    won't even fire onClick for the active tab). */}
-                <TransactionTabs
-                    active="registry"
-                    onNavigateToRegistry={() => { }}
-                    onNavigateToReprint={onNavigateToReprint ?? (() => { })}
-                    onNavigateToVoidAmend={() => onNavigateToVoidAmend([])}
-                />
+                {/* Pill tab nav — inlined here (not a separate component) so it matches
+                    how PendingPayment renders its own tabs directly in-page. "registry" is
+                    always the active tab since this IS the registry page, so that button
+                    has no onClick (same no-op behavior the old TransactionTabs gave it). */}
+                <div className="tr-tabs" role="tablist" aria-label="Transaction sections">
+                    <button
+                        type="button"
+                        className="tr-tab tr-tab--active"
+                        aria-current="page"
+                    >
+                        Transaction Registry
+                    </button>
+                    <button
+                        type="button"
+                        className="tr-tab"
+                        onClick={onNavigateToReprint ?? (() => { })}
+                    >
+                        Reprint/CTC
+                    </button>
+                    <button
+                        type="button"
+                        className="tr-tab"
+                        onClick={() => onNavigateToVoidAmend([])}
+                    >
+                        Void &amp; Amend
+                    </button>
+                    {/* Archive Management pill intentionally left out per Peter's instruction */}
+                </div>
 
                 {isLoading ? (
                     <RegistrySummarySkeleton />

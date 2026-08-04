@@ -4,19 +4,20 @@
 
 .tr-page {
     background-color: transparent;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
     min-height: 100%;
-    padding: 0 4px 32px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 40px;
+    min-width: 0;
 }
 
 /* ---- Header card (title, refresh, summary stats, legend) ---- */
 .tr-header {
     display: flex;
     flex-direction: column;
-    padding: 0 32px;
-    margin-top: 24px;
 }
 
 .tr-header-top {
@@ -34,10 +35,12 @@
 
 .tr-header-titles h2 {
     margin: 0;
-    font-size: 1.5rem;
+    margin-top: 50px;
+    font-size: 28px;
     font-weight: 800;
     color: var(--db-primary);
     letter-spacing: -0.02em;
+    margin-top: 30px;
 }
 
 .tr-header-titles p {
@@ -75,61 +78,87 @@
     }
 }
 
-/* ---- Summary stat chips (rendered by <SummaryCards/>, classnames below
-   are the ones it already outputs — restyled here to match pp-stat-chip) ---- */
+/* ---- Summary stat chips (icon-led, matches pp-stat-chip) ---- */
 
 .tr-summary-grid {
     display: flex;
-    gap: 12px;
+    gap: 14px;
     margin-top: 18px;
     flex-wrap: wrap;
 }
 
 .tr-summary-card {
     flex: 1;
-    min-width: 130px;
+    min-width: 220px;
     display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 12px 18px;
-    border-radius: var(--db-radius-sm);
-    background-color: rgba(41, 35, 122, 0.05);
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    border-radius: var(--db-radius-lg);
+    background-color: var(--db-glass-card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--db-glass-border-alt);
-    box-shadow: none;
-    min-height: 62px;
-    justify-content: center;
-    transition: background-color 0.15s ease;
+    box-shadow: var(--db-shadow-card);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .tr-summary-card:hover {
-    background-color: rgba(41, 35, 122, 0.08);
+    transform: translateY(-2px);
+}
+
+.tr-summary-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+
+.tr-summary-icon-wrap--total {
+    background-color: rgba(41, 35, 122, 0.1);
+    color: var(--db-primary);
+}
+
+.tr-summary-icon-wrap--pending {
+    background-color: rgba(202, 138, 4, 0.1);
+    color: #CA8A04;
+}
+
+.tr-summary-icon-wrap--released {
+    background-color: rgba(22, 163, 74, 0.1);
+    color: var(--db-success);
+}
+
+.tr-summary-icon-wrap--void {
+    background-color: rgba(211, 47, 47, 0.1);
+    color: var(--db-error);
+}
+
+.tr-summary-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.tr-summary-card-value {
+    font-size: 24px;
+    line-height: 1.1;
+    font-weight: 800;
+    color: var(--db-primary);
 }
 
 .tr-summary-card-label {
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--db-text-muted);
     white-space: normal;
     line-height: 1.25;
-}
-
-.tr-summary-card-value {
-    font-size: 17px;
-    font-weight: 800;
-    color: var(--db-primary);
-}
-
-/* Accent left-borders from the previous design are dropped so the chips read
-   flat/uniform, matching PendingPayment's stat chips. */
-.tr-summary-card--accent-total,
-.tr-summary-card--accent-pending,
-.tr-summary-card--accent-processing,
-.tr-summary-card--accent-ready,
-.tr-summary-card--accent-released,
-.tr-summary-card--accent-void {
-    border-left: 1px solid var(--db-glass-border-alt);
 }
 
 /* SummaryCards currently renders exactly one "Total Transactions" chip, so
@@ -168,25 +197,13 @@
     flex-shrink: 0;
 }
 
-.tr-legend-item--lh svg {
-    color: #0369A1;
-}
-
-.tr-legend-item--nlh svg {
-    color: #92400E;
-}
-
-.tr-legend-item--td svg {
-    color: #166534;
-}
-
 /* ---- Toolbar: search + filters (rendered inside the table card now) ---- */
 
 .tr-table-toolbar {
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     padding: 16px 24px;
     border-bottom: 1px solid var(--db-glass-border-alt);
     background-color: rgba(41, 35, 122, 0.02);
@@ -194,7 +211,7 @@
 
 .tr-search-wrapper {
     flex: 1 1 auto;
-    min-width: 160px;
+    min-width: 220px;
 }
 
 .tr-search {
@@ -227,19 +244,40 @@
     font-weight: 600;
     color: var(--db-slate);
     background: transparent;
+    padding-right: 22px;
+}
+
+.tr-search-clear-btn {
+    background: transparent;
+    border: none;
+    color: #9CA3AF;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+}
+
+.tr-search-clear-btn:hover {
+    background-color: #f1f5f9;
+    color: var(--db-error);
 }
 
 .tr-filter-select {
     background-color: #ffffff;
     border: 1px solid var(--db-glass-border-alt);
-    border-radius: 10px;
-    padding: 9px 14px;
+    border-radius: 999px;
+    padding: 9px 16px;
     font-size: 0.85rem;
     color: var(--db-primary);
     font-weight: 600;
     cursor: pointer;
-    flex: 0 1 150px;
-    min-width: 110px;
+    flex: 0 0 auto;
+    min-width: 200px;
+    width: auto;
 }
 
 .tr-filter-date {
@@ -298,7 +336,6 @@
     overflow: hidden;
 }
 
-/* REMOVE the min-width, stop forcing scroll */
 .tr-table-scroll {
     width: 100%;
 }
@@ -307,32 +344,6 @@
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    /* min-width: 1180px;  ← deleted */
-}
-
-.tr-table thead th {
-    padding: 16px 18px;
-    /* was 14px 20px */
-    font-size: 0.7rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--db-primary);
-    white-space: normal;
-    word-break: keep-all;
-    overflow-wrap: normal;
-    hyphens: none;
-}
-
-.tr-table tbody td {
-    padding: 18px 18px;
-    /* was 16px 20px */
-    font-size: 13.5px;
-    color: #2B2A34;
-    border-bottom: 1px solid var(--db-glass-border-alt);
-    vertical-align: middle;
-    white-space: normal;
-    overflow-wrap: break-word;
 }
 
 .tr-table thead {
@@ -371,14 +382,7 @@
     transition: background-color 0.15s ease;
 }
 
-/* .tr-row:hover {
-    background-color: var(--db-hover-highlight);
-} */
-
-/* ---- Stacked per-document columns (Reference Number, OR Number,
-   OR Justification) — one line per requested document, aligned across
-   columns via a count-label/spacer pair at the top, same pattern used by
-   PendingPayment's pp-doc-count-label / pp-ref-list / pp-doc-line. ---- */
+/* ---- Stacked per-document columns ---- */
 
 .tr-stack-count-label {
     font-size: 10.5px;
@@ -434,22 +438,22 @@
 
 /* Document-type color variants — matches PendingPayment's pp-ref-chip
    variants exactly so a reference number reads the same color on both screens. */
-.tr-doc-pill--nlh {
-    background-color: #FEF3C7;
-    color: #92400E;
-    border-color: #FDE9A8;
-}
-
 .tr-doc-pill--td {
-    background-color: #DCFCE7;
-    color: #166534;
-    border-color: #BBF7D0;
+    background-color: #DBEAFE;
+    color: #1D4ED8;
+    border-color: #BFDBFE;
 }
 
 .tr-doc-pill--lh {
-    background-color: #E0F2FE;
-    color: #0369A1;
-    border-color: #BFE3FA;
+    background-color: #FEF9C3;
+    color: #854D0E;
+    border-color: #FDE68A;
+}
+
+.tr-doc-pill--nlh {
+    background-color: #FEE2E2;
+    color: #B91C1C;
+    border-color: #FCA5A5;
 }
 
 .tr-or-number {
@@ -484,9 +488,9 @@
 }
 
 .tr-declarant {
-    font-size: 0.80rem;
     font-weight: 600;
-    color: #1e293b;
+    color: var(--db-slate);
+    font-size: 0.86rem;
 }
 
 .tr-declarant-sub {
@@ -608,7 +612,7 @@
     margin-left: 6px;
 }
 
-/* ---- Pagination footer (matches pp-pagination-footer's 3-column layout) ---- */
+/* ---- Pagination footer ---- */
 
 .tr-pagination-footer {
     display: flex;
@@ -1120,12 +1124,6 @@
 }
 
 @media (max-width: 720px) {
-
-    .tr-header {
-        padding-left: 12px;
-        padding-right: 12px;
-    }
-
     .tr-card {
         margin-left: 12px;
         margin-right: 12px;
@@ -1203,10 +1201,7 @@
 
 .skeleton-item {
     background: #f1f5f9;
-    background-image: linear-gradient(90deg,
-            #f1f5f9 0%,
-            #f8fafc 50%,
-            #f1f5f9 100%);
+    background-image: linear-gradient(90deg, #f1f5f9 0%, #f8fafc 50%, #f1f5f9 100%);
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.5s infinite linear;
     border-radius: 4px;
@@ -1304,29 +1299,38 @@
     transform: translateX(2px);
 }
 
-/* NEW — breadcrumb */
+/* ---- Breadcrumb (matches pp-breadcrumb exactly: size, weight, teal hover) ---- */
 .tr-breadcrumb {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 0.78rem;
+    gap: 8px;
+    font-size: 0.9rem;
     font-weight: 600;
-    color: #94a3b8;
-    margin-bottom: 10px;
+    color: var(--db-text-muted);
+    margin-bottom: -6px;
 }
 
 .tr-breadcrumb-item--link {
     cursor: pointer;
     transition: color 0.15s ease;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
 }
 
-.tr-breadcrumb-item--link:hover {
-    color: var(--db-primary);
-    text-decoration: underline;
+.tr-breadcrumb-item--link:hover,
+.tr-breadcrumb-item--link:active,
+.tr-breadcrumb-item--link:focus-visible {
+    color: var(--db-secondary);
+    outline: none;
 }
 
 .tr-breadcrumb-sep {
     color: #cbd5e1;
+    font-size: 0.9rem;
 }
 
 .tr-breadcrumb-item--current {
@@ -1334,59 +1338,40 @@
     font-weight: 800;
 }
 
-/* NEW — pill tab nav (styled like Pending Payments / Pending For Release) */
+/* ---- Pill tab nav (matches pp-tab-btn exactly: size, radius, colors) ---- */
 .tr-tabs {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 16px;
+    gap: 12px;
+    margin-top: 20px;
+    margin-bottom: 10px;
 }
 
 .tr-tab {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 9px 20px;
+    padding: 10px 24px;
     border-radius: 999px;
-    border: 1px solid var(--db-glass-border-alt);
-    background-color: #ffffff;
-    color: var(--db-text-muted);
-    font-size: 0.85rem;
+    font-size: 13.5px;
     font-weight: 700;
+    border: none;
     cursor: pointer;
-    transition: all 0.15s ease;
+    background-color: #e2e8f0;
+    color: #475569;
+    transition: all 0.2s ease;
+    font-family: inherit;
     white-space: nowrap;
 }
 
 .tr-tab:hover:not(.tr-tab--active) {
-    background-color: rgba(41, 35, 122, 0.06);
-    color: var(--db-primary);
+    background-color: #cbd5e1;
 }
 
 .tr-tab--active {
-    background-color: var(--db-primary);
-    border-color: var(--db-primary);
+    background-color: #29237A;
     color: #ffffff;
+    box-shadow: 0 4px 12px rgba(4, 37, 108, 0.3);
     cursor: default;
-}
-
-/* ---- Fixed doc-pill colors to match pp-ref-chip exactly ---- */
-.tr-doc-pill--td {
-    background-color: #DBEAFE;
-    color: #1D4ED8;
-    border-color: #BFDBFE;
-}
-
-.tr-doc-pill--lh {
-    background-color: #FEF9C3;
-    color: #854D0E;
-    border-color: #FDE68A;
-}
-
-.tr-doc-pill--nlh {
-    background-color: #FEE2E2;
-    color: #B91C1C;
-    border-color: #FCA5A5;
 }
 
 /* ---- Legend icon colors, matched to pp-legend-item ---- */
@@ -1400,59 +1385,6 @@
 
 .tr-legend-item--nlh svg {
     color: #DC2626;
-}
-
-/* ---- Declarant text matched to pp-client-name ---- */
-.tr-declarant {
-    font-weight: 600;
-    color: var(--db-slate);
-    font-size: 0.86rem;
-}
-
-/* ---- Toolbar rebalance ---- */
-.tr-table-toolbar {
-    display: flex;
-    align-items: center;
-    flex-wrap: nowrap;
-    gap: 12px;
-}
-
-.tr-search-wrapper {
-    flex: 1 1 auto;
-    min-width: 220px;
-}
-
-/* Room for the clear button, same pattern as pp-toolbar-search-input */
-.tr-search input {
-    padding-right: 22px;
-}
-
-.tr-search-clear-btn {
-    background: transparent;
-    border: none;
-    color: #9CA3AF;
-    padding: 4px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: all 0.15s ease;
-}
-
-.tr-search-clear-btn:hover {
-    background-color: #f1f5f9;
-    color: var(--db-error);
-}
-
-/* Wider so "All Document Types" no longer truncates */
-.tr-filter-select {
-    flex: 0 0 auto;
-    min-width: 200px;
-    width: auto;
-    border-radius: 999px;
-    padding: 9px 16px;
 }
 
 /* ---- Date range picker ---- */
@@ -1486,8 +1418,6 @@
     background-color: rgba(41, 35, 122, 0.04);
 }
 
-/* ---- Date range picker: presets + calendar ---- */
-
 .tr-daterange-popover {
     position: absolute;
     top: calc(100% + 8px);
@@ -1502,7 +1432,6 @@
     overflow: hidden;
 }
 
-/* Narrow (presets only) vs wide (presets + calendar) */
 .tr-daterange-popover:not(.tr-daterange-popover--wide) {
     width: 190px;
 }
