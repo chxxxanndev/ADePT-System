@@ -302,7 +302,9 @@ export function TaxDeclarationForm({
                 if (!isMounted || !data) return;
 
                 setMetadata({
-                    classifications: Array.isArray((data as any).classifications) ? (data as any).classifications : [],
+                    classifications: buildClassificationOptions(
+                        Array.isArray((data as any).classifications) ? (data as any).classifications : []
+                    ),
                     propertyTypes: Array.isArray((data as any).propertyTypes) ? (data as any).propertyTypes : [],
                 });
 
@@ -390,19 +392,33 @@ export function TaxDeclarationForm({
                     ? dbData.encoded_assessment_rows
                           .slice()
                           .sort((a: any, b: any) => (a.row_order || 0) - (b.row_order || 0))
-                          .map((r: any) => ({
-                              id: r.id,
-                              kindOfProperty: r.kind_of_property || '',
-                              classificationId: r.classification_id || '',
-                              classificationLabel: '',
-                              actualUseId: r.actual_use_id || '',
-                              actualUseOtherText: r.actual_use_other_text || '',
-                              area: r.area || '',
-                              areaUnit: r.area_unit || 'HECTARE',
-                              marketValue: r.market_value != null ? String(r.market_value) : '',
-                              assessmentLevel: r.assessment_level != null ? String(r.assessment_level) : '',
-                              assessedValue: r.assessed_value != null ? String(r.assessed_value) : '',
-                          }))
+                          .map((r: any) => {
+                              // classification_id is stored as a CODE
+                              // (e.g. "AGRICULTURAL"), not a UUID — see
+                              // taxDeclarationService.getTaxDeclaration.
+                              // Resolve it against classificationOptions
+                              // here so classificationLabel is populated
+                              // immediately instead of showing blank/raw
+                              // codes until the user re-picks a value.
+                              const rawCode = (r.classification_id || '').trim();
+                              const normalizedCode = rawCode.toUpperCase();
+                              const matched = classificationOptions.find(
+                                  (o) => o.code === normalizedCode
+                              );
+                              return {
+                                  id: r.id,
+                                  kindOfProperty: r.kind_of_property || '',
+                                  classificationId: rawCode,
+                                  classificationLabel: matched?.label || rawCode,
+                                  actualUseId: r.actual_use_id || '',
+                                  actualUseOtherText: r.actual_use_other_text || '',
+                                  area: r.area || '',
+                                  areaUnit: r.area_unit || 'HECTARE',
+                                  marketValue: r.market_value != null ? String(r.market_value) : '',
+                                  assessmentLevel: r.assessment_level != null ? String(r.assessment_level) : '',
+                                  assessedValue: r.assessed_value != null ? String(r.assessed_value) : '',
+                              };
+                          })
                     : prev.assessmentRows,
             }));
         };

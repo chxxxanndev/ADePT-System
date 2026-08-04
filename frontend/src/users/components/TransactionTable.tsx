@@ -21,16 +21,16 @@ interface ColumnDef {
 
 const COLUMNS: ColumnDef[] = [
     { label: 'Reference Number', width: '12%' },
-    { label: 'Declarant', width: '9%' },
-    { label: 'Requested By', width: '9%' },
+    { label: 'Declarant', width: '14%' },
+    { label: 'Requested By', width: '11%' },
     { label: 'Date Requested', width: '7%' },
     { label: 'Date Released', width: '7%' },
-    { label: 'Assigned Staff', width: '10%' },
-    { label: 'Releasing Staff', width: '10%' },
+    { label: 'Assigned Staff', width: '9%' },
+    { label: 'Releasing Staff', width: '9%' },
     { label: 'OR Number', width: '8%' },
-    { label: 'OR Justification', width: '11%' },
-    { label: 'Current Status', width: '9%' },
-    { label: 'Actions', width: '8%', align: 'center' },
+    { label: 'OR Justification', width: '9%' },
+    { label: 'Current Status', width: '8%' },
+    { label: 'Actions', width: '6%', align: 'center' },
 ];
 
 const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];

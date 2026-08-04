@@ -48,15 +48,35 @@ class TaxDeclarationService {
      * Returns null if no match is found.
      */
     async _resolveClassificationLabel(label) {
-        if (!label?.trim()) return null;
-        const { data } = await supabase
-            .from('lookup_values')
-            .select('id')
-            .eq('category', 'CLASSIFICATION')   // adjust if your category name differs
-            .ilike('value', label.trim())       // adjust column name if needed (e.g., 'label', 'name')
-            .maybeSingle();
-        return data?.id || null;
-    }
+    if (!label?.trim()) return null;
+    const trimmed = label.trim();
+    const candidateCode = trimmed.toUpperCase().replace(/\s+/g, '_');
+
+    // Two separate .eq()/.ilike() lookups instead of a hand-built .or()
+    // filter string — a label containing a comma, parenthesis, or other
+    // PostgREST filter-syntax character would make the old .or() string
+    // malformed and throw. With the old delete-then-insert ordering,
+    // that throw arrived *after* existing rows were already wiped.
+    const [byCode, byValue] = await Promise.all([
+        supabase.from('lookup_values').select('code').eq('category', 'CLASSIFICATION').eq('code', candidateCode).maybeSingle(),
+        supabase.from('lookup_values').select('code').eq('category', 'CLASSIFICATION').ilike('value', trimmed).maybeSingle(),
+    ]);
+    if (byCode.error) throw byCode.error;
+    if (byValue.error) throw byValue.error;
+
+    const existing = byCode.data || byValue.data;
+    if (existing?.code) return existing.code;
+
+    const { data: created, error: createErr } = await supabase
+        .from('lookup_values')
+        .insert([{ category: 'CLASSIFICATION', code: candidateCode, value: trimmed }])
+        .select('code')
+        .single();
+
+    if (createErr) return candidateCode; // race with another save — use the normalized code
+    return created?.code || candidateCode;
+}
+
 
     /**
      * Creates or updates the single Tax Declaration for a request. Business
@@ -172,18 +192,29 @@ class TaxDeclarationService {
         // no FK join). This is what the PDF template reads per assessment
         // row via row.kindOfProperty.
         if (data.assessmentRows?.length) {
-            const rows = data.assessmentRows.map((row, idx) => ({
-                encoded_tax_declaration_id: td.id,
-                row_order: idx,
-                classification_id: row.classificationId || null,
-                actual_use_id: row.actualUseId || null,
-                actual_use_other_text: row.actualUseOtherText || null,
-                kind_of_property: row.kindOfProperty || null,
-                area: row.area ?? null,
-                area_unit: row.areaUnit ?? 'HECTARE',
-                market_value: row.marketValue ?? null,
-                assessment_level: row.assessmentLevel ?? null,
-                assessed_value: row.assessedValue ?? null,
+            // NOTE: classification_id (despite its name) stores a CODE, not a
+            // lookup_values.id UUID — see _resolveClassificationLabel above.
+            // row.classificationId is trusted as-is when the caller already
+            // supplies one (e.g. the full encoding form's dropdown, which
+            // presumably already sends a valid code). The quick-edit modal
+            // only ever sends a free-text classificationLabel, which gets
+            // resolved to a code here so it's never silently dropped.
+            const rows = await Promise.all(data.assessmentRows.map(async (row, idx) => {
+                const classificationCode = row.classificationId
+                    || await this._resolveClassificationLabel(row.classificationLabel);
+                return {
+                    encoded_tax_declaration_id: td.id,
+                    row_order: idx,
+                    classification_id: classificationCode,
+                    actual_use_id: row.actualUseId || null,
+                    actual_use_other_text: row.actualUseOtherText || null,
+                    kind_of_property: row.kindOfProperty || null,
+                    area: row.area ?? null,
+                    area_unit: row.areaUnit ?? 'HECTARE',
+                    market_value: row.marketValue ?? null,
+                    assessment_level: row.assessmentLevel ?? null,
+                    assessed_value: row.assessedValue ?? null,
+                };
             }));
 
             const { error: rowErr } = await supabase
@@ -296,26 +327,21 @@ class TaxDeclarationService {
         if (!data) return null;
 
         // Explicit, standalone fetch of the child rows — see FIX note above.
+        // NOTE: key is deliberately "encoded_assessment_rows" (not
+        // "assessments") — that's the exact key the frontend
+        // taxDeclarationService.getTaxDeclaration() reads off dbData.
+        // Naming it anything else means the rows arrive in the API
+        // response but get silently dropped at the frontend translation
+        // step, which is what was still happening even after the join fix.
         const { data: rows, error: rowsErr } = await supabase
             .from('encoded_assessment_rows')
-            .select(`
-                id,
-                kindOfProperty:kind_of_property,
-                classificationId:classification_id,
-                actualUseId:actual_use_id,
-                area,
-                areaUnit:area_unit,
-                marketValue:market_value,
-                assessmentLevel:assessment_level,
-                assessedValue:assessed_value,
-                rowOrder:row_order
-            `)
+            .select('*')
             .eq('encoded_tax_declaration_id', data.id)
             .order('row_order', { ascending: true });
 
         if (rowsErr) throw rowsErr;
 
-        data.encoded_assessment_rows = rows ?? []; 
+        data.assessments = rows ?? [];
 
         return data;
     }
@@ -339,97 +365,117 @@ class TaxDeclarationService {
      * because '' is falsy. `??` only falls back on null/undefined.
      */
     async updateDraft(id, formData) {
-        // Update the main table
-        const { data, error } = await supabase
-            .from('encoded_tax_declarations')
-            .update({
-                tax_declaration_number: formData.taxDeclarationNumber ?? formData.tax_declaration_number,
-                property_identification_number: formData.propertyIndexNumber ?? formData.property_index_number,
-                owner_name: formData.ownerName ?? formData.owner_name,
-                owner_address: formData.ownerAddress ?? formData.owner_address,
-                administrator_name: formData.administratorName ?? formData.administrator_name,
-                administrator_address: formData.administratorAddress ?? formData.administrator_address,
-                boundary_north: formData.boundaryNorth ?? formData.boundary_north,
-                boundary_south: formData.boundarySouth ?? formData.boundary_south,
-                boundary_east: formData.boundaryEast ?? formData.boundary_east,
-                boundary_west: formData.boundaryWest ?? formData.boundary_west,
-                oct_tct_cloa_number: formData.octTctNumber ?? formData.oct_tct_cloa_number,
-                lot_number: formData.lotNumber ?? formData.lot_number,
-                total_market_value: formData.totalMarketValue ?? formData.total_market_value,
-                total_assessed_value: formData.totalAssessedValue ?? formData.total_assessed_value,
-                taxability: formData.taxability,
-                effectivity_year: formData.effectivityYear ?? formData.effectivity_year,
-                assessor_name: formData.assessorName ?? formData.assessor_name,
-                assessor_title: formData.assessorTitle ?? formData.assessor_title
+    // Update the main table
+    const { data, error } = await supabase
+        .from('encoded_tax_declarations')
+        .update({
+            tax_declaration_number: formData.taxDeclarationNumber ?? formData.tax_declaration_number,
+            property_identification_number: formData.propertyIndexNumber ?? formData.property_index_number,
+            owner_name: formData.ownerName ?? formData.owner_name,
+            owner_address: formData.ownerAddress ?? formData.owner_address,
+            administrator_name: formData.administratorName ?? formData.administrator_name,
+            administrator_address: formData.administratorAddress ?? formData.administrator_address,
+            boundary_north: formData.boundaryNorth ?? formData.boundary_north,
+            boundary_south: formData.boundarySouth ?? formData.boundary_south,
+            boundary_east: formData.boundaryEast ?? formData.boundary_east,
+            boundary_west: formData.boundaryWest ?? formData.boundary_west,
+            oct_tct_cloa_number: formData.octTctNumber ?? formData.oct_tct_cloa_number,
+            lot_number: formData.lotNumber ?? formData.lot_number,
+            total_market_value: formData.totalMarketValue ?? formData.total_market_value,
+            total_assessed_value: formData.totalAssessedValue ?? formData.total_assessed_value,
+            taxability: formData.taxability,
+            effectivity_year: formData.effectivityYear ?? formData.effectivity_year,
+            assessor_name: formData.assessorName ?? formData.assessor_name,
+            assessor_title: formData.assessorTitle ?? formData.assessor_title
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    // Handle assessment rows.
+    //
+    // FIX: previously this deleted the existing rows FIRST, then built and
+    // inserted the replacement rows. Those are two separate, non-transactional
+    // Supabase calls — if building/inserting the new rows failed for any
+    // reason (bad classification lookup, a freshly-added row with an odd
+    // value, a transient error), the delete had already committed and there
+    // was no rollback. That silently wiped the whole assessment section,
+    // which is exactly the "add a row, save, reopen, assessment section is
+    // empty" symptom. Now: capture the old row ids, build + INSERT the new
+    // rows first, and only delete the old ids once the insert has actually
+    // succeeded. If the insert throws, nothing has been deleted yet.
+    if (Array.isArray(formData.assessments)) {
+        const { data: oldRows, error: oldRowsErr } = await supabase
+            .from('encoded_assessment_rows')
+            .select('id')
+            .eq('encoded_tax_declaration_id', id);
+        if (oldRowsErr) throw oldRowsErr;
+        const oldRowIds = (oldRows ?? []).map((r) => r.id);
+
+        // assessed_value is computed here, server-side, from market_value +
+        // assessment_level. The edit modal only ever displays it live in the
+        // UI — it never writes it back onto the row object — so trusting a
+        // client-supplied assessedValue silently saved NULL for every row on
+        // every edit.
+        const newRows = await Promise.all(
+            formData.assessments.map(async (row, idx) => {
+                const classificationCode = await this._resolveClassificationLabel(
+                    row.classificationLabel || row.classification_label
+                );
+                const marketValue = Number(row.marketValue ?? row.market_value ?? 0) || 0;
+                const assessmentLevel = Number(row.assessmentLevel ?? row.assessment_level ?? 0) || 0;
+                const assessedValue = Math.round(((marketValue * assessmentLevel) / 100) / 10) * 10;
+
+                return {
+                    encoded_tax_declaration_id: id,
+                    row_order: idx,
+                    classification_id: classificationCode,
+                    kind_of_property: (row.kindOfProperty || row.kind_of_property || '').trim() || null,
+                    area: row.area ?? null,
+                    market_value: marketValue,
+                    assessment_level: assessmentLevel,
+                    assessed_value: assessedValue,
+                };
             })
-            .eq('id', id)
-            .select()
-            .single();
+        );
 
-        if (error) throw error;
-
-        // Handle assessment rows
-        if (formData.assessments) {
-            // Delete existing rows
-            await supabase
+        if (newRows.length > 0) {
+            const { error: insertErr } = await supabase
                 .from('encoded_assessment_rows')
-                .delete()
-                .eq('encoded_tax_declaration_id', id);
-
-            // Resolve each classification label to a UUID
-            const newRows = await Promise.all(
-                formData.assessments.map(async (row, idx) => {
-                    const classificationId = row.classificationId || row.classification_id
-                        || await this._resolveClassificationLabel(
-                            row.classificationLabel || row.classification_label
-                        );
-                    return {
-                        encoded_tax_declaration_id: id,
-                        row_order: idx,
-                        classification_id: classificationId,
-                        kind_of_property: row.kindOfProperty ?? row.kind_of_property ?? null,
-                        area: row.area ?? null,
-                        market_value: row.marketValue ?? row.market_value ?? null,
-                        assessment_level: row.assessmentLevel ?? row.assessment_level ?? null,
-                        assessed_value: row.assessedValue ?? row.assessed_value ?? null
-                    };
-                })
-            );
-
-            if (newRows.length > 0) {
-                const { error: insertErr } = await supabase
-                    .from('encoded_assessment_rows')
-                    .insert(newRows);
-                if (insertErr) throw insertErr;
-            }
-
-            // Keep the stored totals in sync with whatever rows were just
-            // saved, so preview mode (which reads total_market_value /
-            // total_assessed_value directly) never shows stale numbers
-            // again even if the caller forgets to recompute them.
-            const totalMarketValue = formData.assessments.reduce(
-                (sum, r) => sum + (parseFloat(r.marketValue ?? r.market_value) || 0), 0
-            );
-            const totalAssessedValue = formData.assessments.reduce((sum, r) => {
-                const mv = parseFloat(r.marketValue ?? r.market_value) || 0;
-                const lvl = parseFloat(r.assessmentLevel ?? r.assessment_level) || 0;
-                return sum + (mv * lvl) / 100;
-            }, 0);
-
-            await supabase
-                .from('encoded_tax_declarations')
-                .update({
-                    total_market_value: totalMarketValue,
-                    total_assessed_value: totalAssessedValue
-                })
-                .eq('id', id);
-
-            data.total_market_value = totalMarketValue;
-            data.total_assessed_value = totalAssessedValue;
+                .insert(newRows);
+            if (insertErr) throw insertErr; // nothing deleted yet — old rows are safe
         }
 
-        return data;
+        // Only now remove the old rows. If this step fails you get
+        // duplicates (recoverable), never an empty table.
+        if (oldRowIds.length > 0) {
+            const { error: delRowsErr } = await supabase
+                .from('encoded_assessment_rows')
+                .delete()
+                .in('id', oldRowIds);
+            if (delRowsErr) throw delRowsErr;
+        }
+
+        const totalMarketValue = newRows.reduce((sum, r) => sum + (r.market_value || 0), 0);
+        const totalAssessedValue = newRows.reduce((sum, r) => sum + (r.assessed_value || 0), 0);
+
+        await supabase
+            .from('encoded_tax_declarations')
+            .update({
+                total_market_value: totalMarketValue,
+                total_assessed_value: totalAssessedValue
+            })
+            .eq('id', id);
+
+        data.total_market_value = totalMarketValue;
+        data.total_assessed_value = totalAssessedValue;
+        data.assessments = newRows;
     }
+
+    return data;
+}
 
     _mockSave(data, staffAuthId) {
         const id = randomUUID();

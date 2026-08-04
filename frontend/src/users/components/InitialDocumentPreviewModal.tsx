@@ -4,6 +4,15 @@ import { requestService } from '../services/requestService';
 import { taxDeclarationService } from '../services/taxDeclarationService';
 import { landholdingService } from '../services/landholdingService';
 import { noLandholdingService } from '../services/noLandholdingService';
+// FIX: the backend resolves staffAuthId against staff.auth_user_id, which
+// is a Supabase Auth user id — so instead of guessing at a custom
+// useAuth()/context shape, we go straight to the Supabase client your
+// frontend already has for talking to auth. ADJUST THIS IMPORT PATH to
+// wherever your frontend's Supabase client is created (it will NOT be the
+// backend's ../../config/supabase.js — that one likely uses a service
+// role key and must never ship to the browser). Common locations:
+// '../lib/supabaseClient', '../config/supabaseClient', '../supabaseClient'.
+import { supabase } from '../../lib/supabaseClient';
 
 const EditIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -128,6 +137,7 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
         }
 
         setDocType(determinedType);
+        setFullData(data);
 
         if (data) {
           // Fix: Normalize the assessment row data so the table can read and preserve it.
@@ -182,12 +192,40 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     try {
       let finalEditData = { ...editData };
 
+      // Resolved once, used by whichever create branch below needs it.
+      const { data: { user: authUser } = { user: null } } = await supabase.auth.getUser();
+      const staffAuthId = authUser?.id;
+
       await requestService.updateRequest(documentItem.id, {
         declarantName: formData.declarantName,
         requestedByName: formData.requestedByName,
         propertyLocation: docType === 'NO_LANDHOLDING' ? undefined : formData.propertyLocation
       });
 
+      // Compute totals up front so a FIRST-TIME save also persists correct
+      // totals, not just subsequent edits.
+      if (docType === 'TAX_DEC' && finalEditData.assessments) {
+        let totalMV = 0;
+        let totalAV = 0;
+        finalEditData.assessments.forEach((a: any) => {
+          const mv = parseFloat(a.marketValue || a.market_value) || 0;
+          const lvl = parseFloat(a.assessmentLevel || a.assessment_level) || 0;
+          totalMV += mv;
+          totalAV += (mv * lvl) / 100;
+        });
+        finalEditData.totalMarketValue = totalMV;
+        finalEditData.totalAssessedValue = totalAV;
+      }
+
+      // FIX: previously this whole block was gated on `if (docId)`, so a
+      // brand-new record (no id yet, because nothing has ever been
+      // encoded for this request) silently skipped saving entirely —
+      // requestService.updateRequest() above would "succeed" and make the
+      // Save button look like it worked, but nothing was ever written to
+      // encoded_tax_declarations / encoded_landholding_certificates /
+      // encoded_no_landholding_certificates. There was no create path at
+      // all. Now: if there's no id, call the upsert-capable `save`
+      // endpoint instead of `updateDraft` (which requires an existing id).
       const docId = finalEditData.id;
       if (docId) {
         if (docType === 'TAX_DEC') {
@@ -207,21 +245,59 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
             finalEditData.totalMarketValue = totalMV;
             finalEditData.totalAssessedValue = totalAV;
           }
-          await taxDeclarationService.updateDraft(docId, finalEditData);
+          const saved = await taxDeclarationService.save(
+            {
+              ...finalEditData,
+              assessmentRows: finalEditData.assessments || [],
+            } as any,
+            documentItem.id,
+            staffAuthId
+          );
+          finalEditData = { ...finalEditData, ...(saved?.data ?? saved) };
         }
-        else if (docType === 'LANDHOLDING') {
-          await landholdingService.updateDraft(docId, {
-            ...finalEditData,
-            declarantName: formData.declarantName,
-            declarant_name: formData.declarantName
-          });
+      }
+      else if (docType === 'LANDHOLDING') {
+        const payload = {
+          ...finalEditData,
+          declarantName: formData.declarantName,
+          declarant_name: formData.declarantName
+        };
+        if (docId) {
+          const updated = await landholdingService.updateDraft(docId, payload);
+          finalEditData = { ...finalEditData, ...updated };
+        } else {
+          if (!staffAuthId) {
+            throw new Error('Could not determine the current staff user — please re-login and try again.');
+          }
+          // FIX: actual method is saveCertificate(payload, staffAuthId) —
+          // no separate requestId param; it's read off payload.requestId
+          // by the backend (see LandholdingService.saveLandholdingCertificate).
+          const saved = await landholdingService.saveCertificate(
+            { ...payload, requestId: documentItem.id },
+            staffAuthId
+          );
+          finalEditData = { ...finalEditData, ...(saved?.data ?? saved) };
         }
-        else if (docType === 'NO_LANDHOLDING') {
-          await noLandholdingService.updateDraft(docId, {
-            ...finalEditData,
-            declarantName: formData.declarantName,
-            declarant_name: formData.declarantName
-          });
+      }
+      else if (docType === 'NO_LANDHOLDING') {
+        const payload = {
+          ...finalEditData,
+          declarantName: formData.declarantName,
+          declarant_name: formData.declarantName
+        };
+        if (docId) {
+          const updated = await noLandholdingService.updateDraft(docId, payload);
+          finalEditData = { ...finalEditData, ...updated };
+        } else {
+          if (!staffAuthId) {
+            throw new Error('Could not determine the current staff user — please re-login and try again.');
+          }
+          // FIX: actual method is saveCertificate(payload, staffAuthId).
+          const saved = await noLandholdingService.saveCertificate(
+            { ...payload, requestId: documentItem.id },
+            staffAuthId
+          );
+          finalEditData = { ...finalEditData, ...(saved?.data ?? saved) };
         }
       }
 
@@ -259,7 +335,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
   const updateProperty = (index: number, field: string, value: any) => {
     const newProps = [...(editData?.properties || [])];
     newProps[index] = { ...newProps[index], [field]: value };
-    // Remove old camelCase keys if they exist (to keep consistency)
     if (field === 'tdArpNumber') delete newProps[index].td_arp_number;
     if (field === 'locationOfProperty') delete newProps[index].location_of_property;
     if (field === 'lotNumber') delete newProps[index].lot_number;
@@ -438,8 +513,8 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
                 const av = computed > 0 ? computed : (parseFloat(a.assessedValue) || 0);
                 return (
                   <tr key={i} style={{ borderTop: '1px solid #e5e7eb' }}>
-                    <td style={tdStyle}>{a.kindOfProperty || '-'}</td>
-                    <td style={tdStyle}>{a.classificationLabel || (a.classification?.value) || '-'}</td>
+                    <td style={tdStyle}>{a.kindOfProperty || a.kind_of_property || '-'}</td>
+                    <td style={tdStyle}>{a.classificationLabel || a.classification_label || '-'}</td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>₱ {formatCurrency(mv)}</td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>{lvl}%</td>
                     <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>₱ {formatCurrency(av)}</td>

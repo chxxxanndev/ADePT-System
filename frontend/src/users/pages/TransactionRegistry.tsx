@@ -123,7 +123,12 @@ export function TransactionRegistry({
         return releasedTransactions.filter((t) => {
             const matchesQuery = query === '' ||
                 t.referenceNumber.toLowerCase().includes(query) ||
-                t.client.declarantName.toLowerCase().includes(query);
+                t.client.declarantName.toLowerCase().includes(query) ||
+                t.client.requestedBy.toLowerCase().includes(query) ||
+                (t.assignedStaff ?? '').toLowerCase().includes(query) ||
+                (t.releasedBy ?? '').toLowerCase().includes(query) ||
+                (t.payment?.orNumber ?? '').toLowerCase().includes(query) ||
+                (t.payment?.orJustification ?? '').toLowerCase().includes(query);
 
             const matchesDocType = filters.documentType === 'All' ||
                 t.requestedDocuments.some((d) => d.documentType === filters.documentType);
