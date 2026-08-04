@@ -6,7 +6,7 @@ import { DocumentVerificationPanel } from '../pages/DocumentVerificationPanel';
 import { DocumentReleasePanel } from '../pages/DocumentReleasePanel';
 import { pdf } from '@react-pdf/renderer';
 
-import { CertOfNoLandholdingPDF } from '../components/templates/NoLandholdingPDF';
+import { CertOfNoLandholdingPDF, DEFAULT_NLH_SPACING, type NLHSpacing } from '../components/templates/NoLandholdingPDF';
 import { CertOfLandholdingPDF } from '../components/templates/LandholdingPDF';
 import { TaxDeclarationPDF } from '../components/templates/TaxDeclarationPDF';
 import { landholdingService } from '../services/landholdingService';
@@ -108,9 +108,36 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
     // pattern, Landholding certs only. Exists so a very long name/title
     // has somewhere to go besides clipping or overflowing the layout.
     const [docSignatoryStyle, setDocSignatoryStyle] = useState<Record<string, SignatoryStyle>>({});
+    
+    // Per-document NLH Spacing state
+    const [docNLHSpacing, setDocNLHSpacing] = useState<Record<string, NLHSpacing>>({});
+
     const [activePreview, setActivePreview] = useState<{ docId: string; url: string; label: string } | null>(null);
     const [releaseStaff, setReleaseStaff] = useState<{ id: string; name: string }[]>([]);
     const [activeSignatories, setActiveSignatories] = useState(DEFAULT_SIGNATORIES);
+
+    // --- NLH Spacing Handlers ---
+    const handleNLHSpacingChange = (docId: string, field: keyof NLHSpacing, value: number) => {
+        setDocNLHSpacing(prev => {
+            const updated = { ...prev, [docId]: { ...(prev[docId] || DEFAULT_NLH_SPACING), [field]: value } };
+            const doc = documents.find(d => d.id === docId);
+            if (doc && activePreview?.docId === docId) {
+                setTimeout(() => handlePrintDocument(doc, undefined, undefined, undefined, undefined, undefined, updated), 0);
+            }
+            return updated;
+        });
+    };
+
+    const handleResetNLHSpacing = (docId: string) => {
+        setDocNLHSpacing(prev => {
+            const updated = { ...prev, [docId]: DEFAULT_NLH_SPACING };
+            const doc = documents.find(d => d.id === docId);
+            if (doc && activePreview?.docId === docId) {
+                setTimeout(() => handlePrintDocument(doc, undefined, undefined, undefined, undefined, undefined, updated), 0);
+            }
+            return updated;
+        });
+    };
 
     useEffect(() => {
         const loadFromStaffFallback = () => {
@@ -368,10 +395,7 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
         });
     };
 
-    // --- Per-section "Reset to default" handlers, one per accordion in the
-    // release panel. Kept separate (rather than one global reset) so
-    // fixing a fat-fingered value in one section doesn't wipe out
-    // deliberate adjustments made in another. ---
+    // --- Per-section "Reset to default" handlers ---
     const handleResetSpacing = (docId: string) => {
         setDocSpacing(prev => {
             const updated = { ...prev, [docId]: { top: 60, gap: 65 } };
@@ -438,16 +462,14 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
     };
 
     // --- PDF GENERATION (INLINE PREVIEW) ---
-    // Accepts optional overrides for signatories, signature spacing, receipt
-    // spacing, table layout, and signatory text sizing so a just-changed
-    // control reflects immediately without waiting for a state re-read.
     const handlePrintDocument = async (
         doc: any,
         signatoriesOverride?: Record<string, any>,
         spacingOverride?: Record<string, { top: number; gap: number }>,
         receiptSpacingOverride?: Record<string, { bottom: number; left: number; rowGap: number }>,
         tableSpacingOverride?: Record<string, TableSpacing>,
-        signatoryStyleOverride?: Record<string, SignatoryStyle>
+        signatoryStyleOverride?: Record<string, SignatoryStyle>,
+        nlhSpacingOverride?: Record<string, NLHSpacing>
     ) => {
         setIsGeneratingPdf(doc.id);
         try {
@@ -457,14 +479,18 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
             const liveReceiptSpacing = (receiptSpacingOverride || docReceiptSpacing)[doc.id];
             const liveTableSpacing = (tableSpacingOverride || docTableSpacing)[doc.id];
             const liveSignatoryStyle = (signatoryStyleOverride || docSignatoryStyle)[doc.id];
+            const liveNLHSpacing = (nlhSpacingOverride || docNLHSpacing)[doc.id] || DEFAULT_NLH_SPACING;
+
             let PDFComponent;
 
             if (doc.referenceNumber.startsWith('NLH')) {
                 PDFComponent = <CertOfNoLandholdingPDF
+                    paperSize={doc.paperSize || 'LETTER'} // 👈 'LEGAL' or 'LETTER'
                     ownerName={doc.declarantName || doc.declarant_name}
                     day={day} monthYear={monthYear} orNumber={orNumber} datePaid={datePaid}
                     signatory1Name={sigs?.primary?.name} signatory1Title={sigs?.primary?.title}
                     signatory2Name={sigs?.secondary?.name} signatory2Title={sigs?.secondary?.title}
+                    spacing={liveNLHSpacing} // 👈 Change nlhSpacing to spacing
                 />;
             } else if (doc.referenceNumber.startsWith('LH')) {
                 let landholdingProperties = doc.properties || doc.data?.properties;
@@ -474,17 +500,12 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
                     left: doc.receipt_left_position,
                     rowGap: doc.receipt_row_spacing,
                 };
-                // Table layout fields are optional on the backend record —
-                // if the columns don't exist yet, these all resolve to
-                // undefined and the defaults below kick in.
                 let fetchedTableSpacing = {
                     rowHeight: doc.table_row_height,
                     fontSize: doc.table_font_size,
                     headerFontSize: doc.table_header_font_size,
                     colWidths: doc.table_col_widths,
                 };
-                // Signatory text sizing is likewise optional on the backend
-                // record — undefined columns just fall through to defaults.
                 let fetchedSignatoryStyle = {
                     nameFontSize: doc.signatory_name_font_size,
                     titleFontSize: doc.signatory_title_font_size,
@@ -525,9 +546,6 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
                     }
                 }
 
-                // Seed docSpacing / docReceiptSpacing / docTableSpacing /
-                // docSignatoryStyle on first load of this document so the
-                // sidebar controls have real starting values to display/edit.
                 if (!docSpacing[doc.id]) {
                     setDocSpacing(prev => ({
                         ...prev,
@@ -760,6 +778,9 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
                             docSignatoryStyle={docSignatoryStyle}
                             onSignatoryStyleChange={handleSignatoryStyleChange}
                             onResetSignatoryStyle={handleResetSignatoryStyle}
+                            docNLHSpacing={docNLHSpacing}
+                            onNLHSpacingChange={handleNLHSpacingChange}
+                            onResetNLHSpacing={handleResetNLHSpacing}
                             releaseStaffOptions={releaseStaff}
                             onMarkAsReleased={handleMarkAsReleased}
                             onReleased={() => {

@@ -345,6 +345,10 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                 <option value={10}>10</option>
                                 <option value={20}>20</option>
                                 <option value={50}>50</option>
+                                <option value={50}>100</option>
+                                <option value={50}>150</option>
+                                <option value={50}>200</option>
+
                             </select>
                         </div>
                         <div className="pp-pagination-center">
