@@ -60,13 +60,13 @@ export function DashboardSummary({ title, items, iconType, isLoading = false }: 
                             <div key={item.id} className={`stat-card accent-${item.accent}`}>
                                 <div className="stat-card-top">
                                     <span className="stat-card-label">{item.label}</span>
-                                    <div className="stat-card-icon">
-                                        <MainIcon size={22} />
+                                    <div className="stat-card-icon-wrap">
+                                        <MainIcon size={18} />
                                     </div>
                                 </div>
-                                <div className="stat-card-value">{item.value}</div>
+                                <span className="stat-card-value">{item.value}</span>
                                 <div className="stat-card-sublabel">
-                                    <SubIcon size={16} className="sub-icon" />
+                                    <SubIcon size={13} className="sub-icon" />
                                     {item.sublabel}
                                 </div>
                             </div>

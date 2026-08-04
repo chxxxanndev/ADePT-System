@@ -1,10 +1,9 @@
 import { useMemo, useState, useEffect } from "react";
-import { Search, ChevronDown, Ban, PencilLine, Loader2 } from "lucide-react";
+import { Search, Ban, PencilLine, Loader2 } from "lucide-react";
 import { fetchTransactionRegistry } from "../services/transactionService";
 import { requestService } from "../services/requestService";
 import type { Transaction } from "../types/transaction";
-import { TransactionTabs } from '../components/TransactionTabs';
-import "../styles/VoidAndAmend.css";
+import "../styles/TransactionRegistry.css";
 
 export type ActionType = "void";
 
@@ -39,8 +38,14 @@ interface VoidAndAmendProps {
   onAmend?: (payload: AmendNavigationPayload) => void;
   pendingItems?: VoidAmendRecord[];
   onPendingItemsConsumed?: () => void;
-  onNavigateToRegistry?: () => void;   // ← new
-  onNavigateToReprint?: () => void;   
+  onNavigateToRegistry?: () => void;
+  onNavigateToReprint?: () => void;
+  /** Same two props TransactionRegistry / CertifiedTrueCopy use for their
+   * first two breadcrumb links — wire these from Dashboard.tsx the same way
+   * (onNavigateToPendingRequests -> 'document-request' view,
+   * onNavigateToPendingPayment -> 'pending-payment' view). */
+  onNavigateToPendingRequests?: () => void;
+  onNavigateToPendingPayment?: () => void;
 }
 
 type TimeRange = "Today" | "Yesterday" | "This Week" | "This Month" | "All Time";
@@ -119,7 +124,7 @@ function matchesTimeRange(isoString: string | null, range: TimeRange): boolean {
   const dayDiff = Math.floor(
     (new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate()).getTime() -
       new Date(actionedDate.getFullYear(), actionedDate.getMonth(), actionedDate.getDate()).getTime()) /
-      msPerDay
+    msPerDay
   );
 
   switch (range) {
@@ -141,7 +146,7 @@ function matchesTimeRange(isoString: string | null, range: TimeRange): boolean {
 
 function ActionBadge() {
   return (
-    <span className="va-badge va-badge--void">
+    <span className="tr-badge tr-badge--void" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
       <Ban size={14} />
       Void
     </span>
@@ -172,9 +177,49 @@ function toDisplayRecord(t: Transaction, metadata: VoidMetadataEntry | undefined
   };
 }
 
+const VA_COLUMNS = ["Reference No.", "Declarant", "Document Type", "Reason / Change", "Actioned By", "Date & Time", "Action"];
+
+/* --- Skeleton (mirrors TransactionRegistry / CertifiedTrueCopy's shimmer pattern) --- */
+function VoidAmendTableSkeleton({ rows = 8 }: { rows?: number }) {
+  return (
+    <div className="tr-card">
+      <div className="tr-table-scroll">
+        <table className="tr-table">
+          <thead>
+            <tr>
+              {VA_COLUMNS.map((col) => <th key={col} style={col === "Action" ? { textAlign: "center" } : undefined}>{col}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: rows }).map((_, i) => (
+              <tr key={i} className="tr-row">
+                <td><div className="skeleton-item" style={{ width: '85%', height: 12 }} /></td>
+                <td><div className="skeleton-item" style={{ width: '70%', height: 12 }} /></td>
+                <td><div className="skeleton-item" style={{ width: '60%', height: 12 }} /></td>
+                <td><div className="skeleton-item" style={{ width: '80%', height: 12 }} /></td>
+                <td><div className="skeleton-item" style={{ width: '55%', height: 12 }} /></td>
+                <td><div className="skeleton-item" style={{ width: '65%', height: 12 }} /></td>
+                <td style={{ textAlign: "center" }}><div className="skeleton-item" style={{ width: '32px', height: 32, borderRadius: 7, margin: "0 auto" }} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ─────────────────────────────────────────────
 
-export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItemsConsumed, onNavigateToRegistry, onNavigateToReprint, }: VoidAndAmendProps) {
+export default function VoidAndAmend({
+  onAmend,
+  pendingItems = [],
+  onPendingItemsConsumed,
+  onNavigateToRegistry,
+  onNavigateToReprint,
+  onNavigateToPendingRequests,
+  onNavigateToPendingPayment,
+}: VoidAndAmendProps) {
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("All Time");
   const [currentPage, setCurrentPage] = useState(1);
@@ -324,192 +369,238 @@ export default function VoidAndAmend({ onAmend, pendingItems = [], onPendingItem
   // ─── Render ──────────────────────────────────────────────
 
   return (
-    <div className="va-page">
-      <div className="va-container">
-        <div className="va-header">
-          <div>
-            <h1 className="va-title">Void and Amended Records</h1>
-            <p className="va-subtitle">
-              Every voided document, with the reason and who actioned it.
-            </p>
-          </div>
-        </div>
-
-        <TransactionTabs
-          active="voidAmend"
-          onNavigateToRegistry={onNavigateToRegistry ?? (() => {})}
-          onNavigateToReprint={onNavigateToReprint ?? (() => {})}
-          onNavigateToVoidAmend={() => {}}
-        />
-
-        <div className="va-filters">
-          <div className="va-search-field">
-            <Search size={16} className="va-search-icon" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search reference, declarant, or reason"
-              className="va-search-input"
-            />
-          </div>
-          <div className="va-select-field">
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value as TimeRange)}
-              className="va-select"
-            >
-              <option>All Time</option>
-              <option>Today</option>
-              <option>Yesterday</option>
-              <option>This Week</option>
-              <option>This Month</option>
-            </select>
-            <ChevronDown size={14} className="va-select-chevron" />
-          </div>
-        </div>
-
-        {amendError && (
-          <div
-            style={{
-              padding: "10px 16px",
-              background: "#fee2e2",
-              border: "1px solid #fca5a5",
-              borderRadius: 8,
-              color: "#b91c1c",
-              fontSize: "0.85rem",
-              fontWeight: 600,
-              marginBottom: 12,
-            }}
+    <div className="tr-page">
+      <div className="tr-header">
+        {/* Document Request > Pending Requests > Standing Transaction Management > Void & Amend —
+            same breadcrumb chain as TransactionRegistry / CertifiedTrueCopy. The first two links
+            reuse the same props/wiring those pages use; "Standing Transaction Management" reuses
+            the onNavigateToRegistry prop this component already received. */}
+        <nav className="tr-breadcrumb" aria-label="Breadcrumb">
+          <button
+            type="button"
+            className="tr-breadcrumb-item--link"
+            onClick={onNavigateToPendingRequests}
           >
-            {amendError}
+            Document Request
+          </button>
+          <span className="tr-breadcrumb-sep">&gt;</span>
+          <button
+            type="button"
+            className="tr-breadcrumb-item--link"
+            onClick={onNavigateToPendingPayment}
+          >
+            Pending Requests
+          </button>
+          <span className="tr-breadcrumb-sep">&gt;</span>
+          <button
+            type="button"
+            className="tr-breadcrumb-item--link"
+            onClick={onNavigateToRegistry}
+          >
+            Transaction Management
+          </button>
+          <span className="tr-breadcrumb-sep">&gt;</span>
+          <span className="tr-breadcrumb-item--current">Void &amp; Amend</span>
+        </nav>
+
+        <div className="tr-header-top">
+          <div className="tr-header-titles">
+            <h2>Void and Amended Records</h2>
+            <p>Every voided document, with the reason and who actioned it.</p>
           </div>
-        )}
+        </div>
 
-        <div className="va-card">
-          {loading ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "48px 0" }}>
-              <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />
-              Loading voided records...
-            </div>
-          ) : loadError ? (
-            <div style={{ padding: "32px", textAlign: "center", color: "#B0281C" }}>
-              <p style={{ margin: "0 0 12px", fontWeight: 600 }}>{loadError}</p>
-              <button className="va-amend-btn" style={{ width: "auto", padding: "8px 16px" }} onClick={loadVoidedTransactions}>
-                Retry
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="va-table-scroll">
-                <table className="va-table">
-                  <thead>
-                    <tr>
-                      <th>Reference No.</th>
-                      <th>Declarant</th>
-                      <th>Document Type</th>
-                      <th>Reason / Change</th>
-                      <th>Actioned By</th>
-                      <th>Date &amp; Time</th>
-                      <th style={{ textAlign: "center" }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedRecords.map((record, idx) => (
-                      <tr key={record.id} className={idx % 2 !== 0 ? "va-row-alt" : ""}>
-                        <td className="va-cell-reference">#{record.reference}</td>
-                        <td className="va-cell-name">{record.declarantName}</td>
-                        <td className="va-cell-muted">{record.documentType}</td>
-                        <td className="va-cell-muted">{record.detail}</td>
-                        <td className="va-cell-muted">{record.actionedBy}</td>
-                        <td className="va-cell-muted va-cell-nowrap">
-                          {record.actionedAt ? formatDateTime(record.actionedAt) : "—"}
-                        </td>
-                        <td>
-                          <div className="va-action-cell">
-                            <ActionBadge />
-                            <button
-                              type="button"
-                              className="va-amend-btn"
-                              title={
-                                record.hasBeenAmended
-                                  ? `${record.reference} has already been amended`
-                                  : `Amend ${record.reference}`
-                              }
-                              aria-label={`Amend ${record.reference}`}
-                              onClick={() => handleAmendClick(record)}
-                              disabled={amendingId === record.id || record.hasBeenAmended}
-                              style={
-                                record.hasBeenAmended
-                                  ? { opacity: 0.4, cursor: "not-allowed" }
-                                  : undefined
-                              }
-                            >
-                              {amendingId === record.id ? (
-                                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-                              ) : (
-                                <PencilLine size={14} />
-                              )}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {paginatedRecords.length === 0 && (
-                      <tr className="va-empty-row">
-                        <td colSpan={7}>No voided records match your filters.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* ─── Pagination Controls ────────────────────────── */}
-              {totalRecords > 0 && (
-                <div className="va-pagination">
-                  <div className="va-pagination-rows">
-                    <span>Rows per page:</span>
-                    <select value={pageSize} onChange={handlePageSizeChange}>
-                      {PAGE_SIZE_OPTIONS.map((size) => (
-                        <option key={size} value={size}>
-                          {size}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <span className="va-pagination-label">
-                    {totalRecords === 0 ? "0 of 0" : `${start + 1}–${end} of ${totalRecords}`}
-                  </span>
-
-                  <div className="va-pagination-controls">
-                    <button
-                      type="button"
-                      className="va-pagination-btn"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      aria-label="Previous page"
-                    >
-                      Previous
-                    </button>
-                    <span className="va-pagination-label">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      className="va-pagination-btn"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      aria-label="Next page"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+        {/* Pill tab nav — inlined directly here (no separate TransactionTabs.tsx
+            import), matching how TransactionRegistry and CertifiedTrueCopy render
+            their own tabs in-page. "voidAmend" is always the active tab since
+            this IS the void & amend page. */}
+        <div className="tr-tabs" role="tablist" aria-label="Transaction sections">
+          <button
+            type="button"
+            className="tr-tab"
+            onClick={onNavigateToRegistry}
+          >
+            Transaction Registry
+          </button>
+          <button
+            type="button"
+            className="tr-tab"
+            onClick={onNavigateToReprint}
+          >
+            Reprint/CTC
+          </button>
+          <button
+            type="button"
+            className="tr-tab tr-tab--active"
+            aria-current="page"
+          >
+            Void &amp; Amend
+          </button>
         </div>
       </div>
+
+      {amendError && (
+        <div
+          style={{
+            padding: "10px 16px",
+            background: "#fee2e2",
+            border: "1px solid #fca5a5",
+            borderRadius: 8,
+            color: "#b91c1c",
+            fontSize: "0.85rem",
+            fontWeight: 600,
+          }}
+        >
+          {amendError}
+        </div>
+      )}
+
+      {loading ? (
+        <VoidAmendTableSkeleton />
+      ) : loadError ? (
+        <div className="tr-card" style={{ padding: '32px', textAlign: 'center', color: '#B0281C' }}>
+          <p style={{ margin: '0 0 12px', fontWeight: 600 }}>{loadError}</p>
+          <button className="tr-filter-reset" onClick={loadVoidedTransactions}>Retry</button>
+        </div>
+      ) : (
+        <div className="tr-card">
+          <div className="tr-table-toolbar">
+            <div className="tr-search-wrapper">
+              <div className="tr-search">
+                <Search size={16} />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search reference, declarant, or reason"
+                />
+              </div>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <select
+                value={timeRange}
+                onChange={(e) => setTimeRange(e.target.value as TimeRange)}
+                className="tr-filter-select"
+              >
+                <option>All Time</option>
+                <option>Today</option>
+                <option>Yesterday</option>
+                <option>This Week</option>
+                <option>This Month</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="tr-table-scroll">
+            <table className="tr-table">
+              <thead>
+                <tr>
+                  <th>Reference No.</th>
+                  <th>Declarant</th>
+                  <th>Document Type</th>
+                  <th>Reason / Change</th>
+                  <th>Actioned By</th>
+                  <th>Date &amp; Time</th>
+                  <th style={{ textAlign: "center" }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedRecords.length === 0 ? (
+                  <tr>
+                    <td className="tr-table-empty" colSpan={7}>
+                      <strong>No voided records found</strong>
+                      No voided records match your filters.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedRecords.map((record) => (
+                    <tr key={record.id} className="tr-row">
+                      <td><span className="tr-ref">#{record.reference}</span></td>
+                      <td><span className="tr-declarant">{record.declarantName}</span></td>
+                      <td>{record.documentType}</td>
+                      <td>{record.detail}</td>
+                      <td>{record.actionedBy}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {record.actionedAt ? formatDateTime(record.actionedAt) : "—"}
+                      </td>
+                      <td>
+                        <div className="tr-actions">
+                          <ActionBadge />
+                          <button
+                            type="button"
+                            className="tr-action-btn"
+                            title={
+                              record.hasBeenAmended
+                                ? `${record.reference} has already been amended`
+                                : `Amend ${record.reference}`
+                            }
+                            aria-label={`Amend ${record.reference}`}
+                            onClick={() => handleAmendClick(record)}
+                            disabled={amendingId === record.id || record.hasBeenAmended}
+                            style={
+                              record.hasBeenAmended
+                                ? { opacity: 0.4, cursor: "not-allowed" }
+                                : undefined
+                            }
+                          >
+                            {amendingId === record.id ? (
+                              <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                            ) : (
+                              <PencilLine size={14} />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {totalRecords > 0 && (
+            <div className="tr-pagination-footer">
+              <div className="tr-pagination-left">
+                <span className="tr-pagination-label">Rows per page:</span>
+                <select
+                  className="tr-items-per-page"
+                  value={pageSize}
+                  onChange={handlePageSizeChange}
+                >
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="tr-pagination-center">
+                {totalRecords === 0 ? "0 of 0" : `${start + 1}–${end} of ${totalRecords}`}
+              </div>
+
+              <div className="tr-pagination-right">
+                <button
+                  type="button"
+                  className="tr-page-btn-text"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  aria-label="Previous page"
+                >
+                  Previous
+                </button>
+                <span className="tr-page-current">Page {currentPage} of {totalPages}</span>
+                <button
+                  type="button"
+                  className="tr-page-btn-text"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  aria-label="Next page"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -235,8 +235,16 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                 >
                     Document Request
                 </button>
-                <span className="pp-breadcrumb-sep">›</span>
-                <span className="pp-breadcrumb-current">Pending Payments</span>
+                <span className="pp-breadcrumb-sep">&gt;</span>
+                <span className="pp-breadcrumb-current">Pending Requests</span>
+                <span className="pp-breadcrumb-sep">&gt;</span>
+                <button
+                    type="button"
+                    className="pp-breadcrumb-link"
+                    onClick={() => onSwitchView && onSwitchView('transaction-registry')}
+                >
+                    Transaction Management
+                </button>
             </div>
 
             {/* --- PAGE HEADER (no card wrapper) --- */}

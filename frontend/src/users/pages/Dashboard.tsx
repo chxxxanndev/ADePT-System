@@ -702,6 +702,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                         <CertifiedTrueCopy
                             onNavigateToRegistry={() => setActiveView('transaction-registry')}
                             onNavigateToVoidAmend={() => setActiveView('void-amend')}
+                            onNavigateToPendingRequests={() => setActiveView('document-request')}
+                            onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
                         />
                     ) : activeView === 'archive-management' ? (
                         <ArchiveManagement />
@@ -862,6 +864,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             }}
                             onNavigateToRegistry={() => setActiveView('transaction-registry')}
                             onNavigateToReprint={() => setActiveView('certified-true-copy')}
+                            onNavigateToPendingRequests={() => setActiveView('document-request')}
+                            onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
                         />
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>
