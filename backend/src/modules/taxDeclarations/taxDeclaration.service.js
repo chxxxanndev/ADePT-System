@@ -44,23 +44,8 @@ class TaxDeclarationService {
     }
 
     /**
-     * Resolve a classification label (free text) to a CODE for storage in
-     * encoded_assessment_rows.classification_id.
-     *
-     * IMPORTANT: despite the column name "classification_id", the actual
-     * data in this text column has never been a lookup_values.id UUID —
-     * it holds a CODE string (e.g. "AGRICULTURAL"), same convention as
-     * kind_of_property. Storing a UUID here (an earlier version of this
-     * fix did that) would introduce a third, incompatible format on top
-     * of the two that already exist in production (uppercase codes, and
-     * a handful of legacy mixed-case labels like "Residential").
-     *
-     * Resolution: normalize the typed text to an uppercase code, and
-     * check it against existing lookup_values.code. If nothing matches,
-     * create a new CLASSIFICATION lookup value (so the typed text becomes
-     * a reusable option going forward) and return its code. Never returns
-     * null when given non-empty text — the goal is to never silently
-     * discard what the user typed.
+     * Resolve a classification label (free text) to its UUID in the lookup_values table.
+     * Returns null if no match is found.
      */
     async _resolveClassificationLabel(label) {
         if (!label?.trim()) return null;
@@ -356,7 +341,7 @@ class TaxDeclarationService {
 
         if (rowsErr) throw rowsErr;
 
-        data.encoded_assessment_rows = rows ?? [];
+        data.assessments = rows ?? [];
 
         return data;
     }

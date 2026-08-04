@@ -136,7 +136,18 @@ export const taxDeclarationService = {
                 propertyTypeMap[p.code] = p.label;
             });
 
-            const assessmentRows = (dbData.encoded_assessment_rows || []).map((row: any) => {
+            // FIX: the backend (encoded_tax_declarations service,
+            // getTaxDeclarationByRequestId) attaches the child rows under
+            // the key `assessments`, not `encoded_assessment_rows`. That
+            // key never existed on the API response, so this line always
+            // evaluated to `[]`, and both `assessmentRows` and
+            // `assessments` further down came back empty even though the
+            // rows exist in the database. This is what produced
+            // "Assessments (0)" in the preview/edit modal AND empty rows in
+            // the generated PDF — both read off this same translated
+            // object. The dbData.encoded_assessment_rows fallback is kept
+            // only in case some other backend response shape still uses it.
+            const assessmentRows = (dbData.assessments || dbData.encoded_assessment_rows || []).map((row: any) => {
                 // FIX: a handful of legacy rows stored mixed-case values
                 // ("Residential") instead of the uppercase code
                 // ("RESIDENTIAL") that lookup_values.code actually uses.
