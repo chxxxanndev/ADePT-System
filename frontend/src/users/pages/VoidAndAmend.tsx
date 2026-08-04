@@ -397,7 +397,7 @@ export default function VoidAndAmend({
             className="tr-breadcrumb-item--link"
             onClick={onNavigateToRegistry}
           >
-            Standing Transaction Management
+            Transaction Management
           </button>
           <span className="tr-breadcrumb-sep">&gt;</span>
           <span className="tr-breadcrumb-item--current">Void &amp; Amend</span>

@@ -172,7 +172,7 @@ export default function CertifiedTrueCopy({
             className="tr-breadcrumb-item--link"
             onClick={onNavigateToRegistry}
           >
-            Standing Transaction Management
+            Transaction Management
           </button>
           <span className="tr-breadcrumb-sep">&gt;</span>
           <span className="tr-breadcrumb-item--current">Reprint/CTC</span>
