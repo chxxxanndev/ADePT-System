@@ -32,6 +32,15 @@ const PlusIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
+// Matches the official Declaration of Real Property rounding convention
+// (round assessed value to nearest ₱10) — same logic as TaxDeclarationForm.tsx's
+// calcAssessedValue, kept in sync here so preview/edit and the main form
+// never disagree on totals.
+function calcAssessedValue(marketValue: number, assessmentLevel: number): number {
+  const raw = (marketValue * assessmentLevel) / 100;
+  return Math.round(raw / 10) * 10;
+}
+
 interface InitialDocumentPreviewModalProps {
   documentItem: any;
   onClose: () => void;
@@ -131,13 +140,29 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
         setFullData(data);
 
         if (data) {
-          setEditData(data);
+          // Fix: Normalize the assessment row data so the table can read and preserve it.
+          // Backend returns rows under `assessmentRows` with snake_case fields
+          // (market_value, assessment_level, assessed_value, area_unit) —
+          // read those as primary, fall back to camelCase for safety.
+          if (determinedType === 'TAX_DEC') {
+            const rawAssessments = data.assessmentRows || data.assessments || [];
+            data.assessments = rawAssessments.map((a: any) => ({
+              id: a.id,
+              kindOfProperty: a.kind_of_property || a.kindOfProperty || '',
+              classificationId: a.classification_id || a.classificationId || '',
+              classificationLabel: a.classificationLabel || a.classification_label || (a.classification?.value) || '',
+              marketValue: parseFloat(a.market_value ?? a.marketValue ?? 0),
+              assessmentLevel: parseFloat(a.assessment_level ?? a.assessmentLevel ?? 0),
+              assessedValue: parseFloat(a.assessed_value ?? a.assessedValue ?? 0),
+              area: a.area || '',
+              areaUnit: a.area_unit || a.areaUnit || '',
+            }));
+          }
+
+          setFullData(data);
+          setEditData(JSON.parse(JSON.stringify(data))); // Deep copy for editing
         } else {
-          setEditData(
-            determinedType === 'LANDHOLDING' ? { properties: [] } :
-              determinedType === 'TAX_DEC' ? { assessments: [] } :
-                {}
-          );
+          setEditData(determinedType === 'TAX_DEC' ? { assessments: [] } : { properties: [] });
         }
         if (data) {
           const reqByName = data.request?.requested_by_name || data.requestedByName || data.requested_by_name || documentItem.requestedByName || '';
@@ -202,14 +227,23 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
       // all. Now: if there's no id, call the upsert-capable `save`
       // endpoint instead of `updateDraft` (which requires an existing id).
       const docId = finalEditData.id;
-
-      if (docType === 'TAX_DEC') {
-        if (docId) {
-          const updated = await taxDeclarationService.updateDraft(docId, finalEditData);
-          finalEditData = { ...finalEditData, ...updated };
-        } else {
-          if (!staffAuthId) {
-            throw new Error('Could not determine the current staff user — please re-login and try again.');
+      if (docId) {
+        if (docType === 'TAX_DEC') {
+          if (finalEditData.assessments) {
+            let totalMV = 0;
+            let totalAV = 0;
+            finalEditData.assessments = finalEditData.assessments.map((a: any) => {
+              const mv = parseFloat(a.marketValue ?? a.market_value) || 0;
+              const lvl = parseFloat(a.assessmentLevel ?? a.assessment_level) || 0;
+              const av = calcAssessedValue(mv, lvl);
+              totalMV += mv;
+              totalAV += av;
+              // Persist the rounded per-row assessed value too, so it stays
+              // consistent with what TaxDeclarationForm.tsx would have saved.
+              return { ...a, marketValue: mv, assessmentLevel: lvl, assessedValue: av };
+            });
+            finalEditData.totalMarketValue = totalMV;
+            finalEditData.totalAssessedValue = totalAV;
           }
           const saved = await taxDeclarationService.save(
             {
@@ -475,7 +509,8 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
               {(fullData?.assessments || []).map((a: any, i: number) => {
                 const mv = parseFloat(a.marketValue || a.market_value) || 0;
                 const lvl = parseFloat(a.assessmentLevel || a.assessment_level) || 0;
-                const av = (mv * lvl) / 100;
+                const computed = calcAssessedValue(mv, lvl);
+                const av = computed > 0 ? computed : (parseFloat(a.assessedValue) || 0);
                 return (
                   <tr key={i} style={{ borderTop: '1px solid #e5e7eb' }}>
                     <td style={tdStyle}>{a.kindOfProperty || a.kind_of_property || '-'}</td>
@@ -752,7 +787,8 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
               {(editData?.assessments || []).map((a: any, i: number) => {
                 const mv = parseFloat(a.marketValue || a.market_value) || 0;
                 const lvl = parseFloat(a.assessmentLevel || a.assessment_level) || 0;
-                const av = (mv * lvl) / 100;
+                const computed = calcAssessedValue(mv, lvl);
+                const av = computed > 0 ? computed : (parseFloat(a.assessedValue) || 0);
                 return (
                   <tr key={i} style={{ borderTop: '1px solid #e5e7eb' }}>
                     <td style={tdStyle}>
@@ -818,7 +854,8 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
                 <td style={{ ...tdStyle, textAlign: 'right', color: '#166534' }}>₱ {formatCurrency(editData?.assessments?.reduce((sum: number, a: any) => {
                   const mv = parseFloat(a.marketValue || a.market_value) || 0;
                   const lvl = parseFloat(a.assessmentLevel || a.assessment_level) || 0;
-                  return sum + (mv * lvl) / 100;
+                  const computed = calcAssessedValue(mv, lvl);
+                  return sum + (computed > 0 ? computed : (parseFloat(a.assessedValue || a.assessed_value) || 0));
                 }, 0) || 0)}</td>
                 <td style={tdStyle}></td>
                 <td style={tdStyle}></td>
