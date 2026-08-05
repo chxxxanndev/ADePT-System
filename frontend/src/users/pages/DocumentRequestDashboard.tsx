@@ -20,6 +20,7 @@ interface DocumentRequestDashboardProps {
     onSelectNewRequest: (type: 'tax' | 'landholding' | 'nolandholding') => void;
     onSelectDraft: (draft: any) => void;
     onSelectDocumentView: (view: string) => void;
+    onNavigateToDashboard?: () => void;
 }
 
 export function DocumentRequestDashboard({
@@ -27,6 +28,7 @@ export function DocumentRequestDashboard({
     onSelectNewRequest,
     onSelectDraft,
     onSelectDocumentView: _onSelectDocumentView,
+    onNavigateToDashboard,
 }: DocumentRequestDashboardProps) {
     const [drafts, setDrafts] = useState<any[]>([]);
     const [metadata, setMetadata] = useState<{ docTypes: any[] }>({ docTypes: [] });
@@ -169,6 +171,19 @@ export function DocumentRequestDashboard({
 
     return (
         <div className="doc-req-container page-transition">
+            {/* Breadcrumb — Dashboard > Document Request */}
+            <nav className="doc-req-breadcrumb" aria-label="Breadcrumb">
+                <button
+                    type="button"
+                    className="doc-req-breadcrumb-item--link"
+                    onClick={onNavigateToDashboard}
+                >
+                    Dashboard
+                </button>
+                <span className="doc-req-breadcrumb-sep">&gt;</span>
+                <span className="doc-req-breadcrumb-item--current">Document Request</span>
+            </nav>
+
             {/* Header Area */}
             <div className="doc-req-header">
                 <div className="doc-req-title-section">

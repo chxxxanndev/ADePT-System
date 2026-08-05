@@ -137,6 +137,21 @@
     color: var(--db-error);
 }
 
+.tr-summary-icon-wrap--td {
+    background-color: rgba(37, 99, 235, 0.1);
+    color: #2563EB;
+}
+
+.tr-summary-icon-wrap--lh {
+    background-color: rgba(202, 138, 4, 0.1);
+    color: #CA8A04;
+}
+
+.tr-summary-icon-wrap--nlh {
+    background-color: rgba(220, 38, 38, 0.1);
+    color: #DC2626;
+}
+
 .tr-summary-card-text {
     display: flex;
     flex-direction: column;
@@ -161,9 +176,9 @@
     line-height: 1.25;
 }
 
-/* SummaryCards currently renders exactly one "Total Transactions" chip, so
-   keep it compact and left-aligned rather than letting flex:1 stretch it
-   across the whole header card width. */
+/* The registry summary grid now renders five chips (Total, Released Today,
+   and the per-document-type breakdown), so cards stretch evenly across the
+   header — no --single modifier needed. */
 .tr-summary-grid--single {
     justify-content: flex-start;
 }
@@ -472,6 +487,18 @@
 .tr-or-justification--none {
     color: #94a3b8;
     font-style: italic;
+}
+
+/* ---- Expandable text (See more / See less) ----
+   Long cell values (declarant, requested-by, OR justification) are truncated
+   at the shared 28-char limit by components/common/ExpandableText.tsx and get
+   a "See more"/"See less" toggle. The toggle button's base styling lives in
+   ExpandableText.css (imported by the component); these rules keep it reading
+   as part of this page's cells. */
+
+.tr-table .expandable-text-toggle {
+    white-space: nowrap;
+    color: var(--db-secondary);
 }
 
 .tr-table-empty {

@@ -205,6 +205,18 @@
   white-space: nowrap;
 }
 
+/* ---------- Expandable text (See more / See less) ----------
+   Long cell values (declarant, document type, reason) are truncated at the
+   shared 28-char limit by components/common/ExpandableText.tsx and get a
+   "See more"/"See less" toggle. The toggle's base styling lives in
+   ExpandableText.css (imported by the component); this rule keeps it
+   aligned with the page. */
+
+.va-table .expandable-text-toggle {
+  white-space: nowrap;
+  color: var(--color-secondary);
+}
+
 .va-empty-row td {
   padding: 40px 24px;
   text-align: center;

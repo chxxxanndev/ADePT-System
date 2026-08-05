@@ -163,9 +163,22 @@ const COLLAB = {
         'Commanding the project lifecycle\u2014from strategic blueprinting and pixel-perfect prototyping to stringent version control.',
 };
 
-export function AboutADePT() {
+export function AboutADePT({ onNavigateToDashboard }: { onNavigateToDashboard?: () => void }) {
     return (
         <div className="aa-page page-transition">
+            {/* Breadcrumb — Dashboard > About ADePT */}
+            <nav className="aa-breadcrumb" aria-label="Breadcrumb">
+                <button
+                    type="button"
+                    className="aa-breadcrumb-item--link"
+                    onClick={onNavigateToDashboard}
+                >
+                    Dashboard
+                </button>
+                <span className="aa-breadcrumb-sep">&gt;</span>
+                <span className="aa-breadcrumb-item--current">About ADePT</span>
+            </nav>
+
             {/* --- HERO --- */}
             <div className="aa-hero">
                 <span className="aa-hero-eyebrow">System Architecture &amp; Development Team</span>

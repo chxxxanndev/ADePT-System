@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactElement } from "react";
 import { Search } from "lucide-react";
 import "../styles/TransactionRegistry.css";
 import type { CertifiedCopyRecord, CTCStatus } from "../types/transaction";
@@ -6,6 +7,45 @@ import { fetchCertifiedTrueCopies } from "../services/transactionService";
 import { ExpandableText } from '../components/common/ExpandableText';
 
 const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];
+
+/* --- Summary chip icons (same shapes/colors as TransactionRegistry's
+    tr-summary-card chips) --- */
+const TotalIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
+const ReleasedIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>;
+const PendingIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
+
+/* --- Document-type icons — same shapes/colors as the reference-number pills
+    in the registry, so NLH-* reads red here too. --- */
+const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="21" x2="21" y2="21"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 3 21 9 3 9"></polygon></svg>;
+const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
+const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>;
+const GenericDocIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h8l4 4v14H7z" /></svg>;
+
+interface RefPillMeta {
+  className: string;
+  Icon: () => ReactElement;
+}
+
+/* Reference numbers encode their document type in the prefix (NLH-/LH-/TD-),
+   so the pill color/icon is derived from that — matching the registry. */
+function getRefPillMeta(referenceNumber: string): RefPillMeta {
+  const ref = (referenceNumber || '').toUpperCase();
+  if (ref.startsWith('NLH')) return { className: 'tr-doc-pill--nlh', Icon: NoLandholdingIcon };
+  if (ref.startsWith('LH')) return { className: 'tr-doc-pill--lh', Icon: LandholdingIcon };
+  if (ref.startsWith('TD')) return { className: 'tr-doc-pill--td', Icon: TaxDeclarationIcon };
+  return { className: '', Icon: GenericDocIcon };
+}
+
+/* --- Summary skeleton (mirrors RegistrySummarySkeleton, one card per chip) --- */
+function SummarySkeleton() {
+  return (
+    <div className="tr-summary-grid">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="skeleton-card-ghost tr-summary-skeleton-card" style={{ flex: 1 }} />
+      ))}
+    </div>
+  );
+}
 
 /* --- Helper to format dates for table display --- */
 function formatDate(dateStr: string): string {
@@ -120,6 +160,15 @@ export default function CertifiedTrueCopy({
   // get stranded on e.g. page 4 of a filtered result set that only has 2 pages.
   useEffect(() => { setCurrentPage(1); }, [search, statusFilter, rowsPerPage]);
 
+  const summary = useMemo(
+    () => ({
+      total: records.length,
+      released: records.filter((r) => r.status === "Released").length,
+      pending: records.filter((r) => r.status === "Pending").length,
+    }),
+    [records]
+  );
+
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
       const matchesStatus = statusFilter === "All statuses" || r.status === statusFilter;
@@ -221,6 +270,49 @@ export default function CertifiedTrueCopy({
             Void &amp; Amend
           </button>
         </div>
+
+        {/* Summary chips + doc-type legend — same layout/style as the
+            TransactionRegistry page (tr-summary-card / tr-legend-row). */}
+        {isLoading ? (
+          <SummarySkeleton />
+        ) : (
+          <>
+            <div className="tr-summary-grid">
+              <div className="tr-summary-card">
+                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--total">
+                  <TotalIcon />
+                </div>
+                <div className="tr-summary-card-text">
+                  <span className="tr-summary-card-value">{summary.total}</span>
+                  <span className="tr-summary-card-label">Total Reprints / CTCs</span>
+                </div>
+              </div>
+              <div className="tr-summary-card">
+                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--released">
+                  <ReleasedIcon />
+                </div>
+                <div className="tr-summary-card-text">
+                  <span className="tr-summary-card-value">{summary.released}</span>
+                  <span className="tr-summary-card-label">Released</span>
+                </div>
+              </div>
+              <div className="tr-summary-card">
+                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--pending">
+                  <PendingIcon />
+                </div>
+                <div className="tr-summary-card-text">
+                  <span className="tr-summary-card-value">{summary.pending}</span>
+                  <span className="tr-summary-card-label">Pending</span>
+                </div>
+              </div>
+            </div>
+            <div className="tr-legend-row">
+              <div className="tr-legend-item tr-legend-item--td"><TaxDeclarationIcon />Tax Declaration</div>
+              <div className="tr-legend-item tr-legend-item--lh"><LandholdingIcon />Landholding</div>
+              <div className="tr-legend-item tr-legend-item--nlh"><NoLandholdingIcon />No Landholding</div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Search + status filter toolbar, styled identically to
@@ -283,19 +375,24 @@ export default function CertifiedTrueCopy({
                       </td>
                     </tr>
                   ) : (
-                    paginatedRecords.map((record) => (
+                    paginatedRecords.map((record) => {
+                      const meta = getRefPillMeta(record.reference);
+                      return (
                       <tr key={record.id} className="tr-row">
-                        <td><span className="tr-ref">{record.reference}</span></td>
+                        <td>
+                          <span className={`tr-doc-pill ${meta.className}`}>
+                            <meta.Icon />
+                            {record.reference}
+                          </span>
+                        </td>
                         <td><span className="tr-declarant"><ExpandableText text={record.declarantName} /></span></td>
                         <td>{record.originalDocument}</td>
                         <td><span className="tr-or-number">{record.orNumber}</span></td>
                         <td>
-                          <span
+                          <ExpandableText
+                            text={record.orJustification}
                             className={`tr-or-justification${record.orJustification === '—' ? ' tr-or-justification--none' : ''}`}
-                            title={record.orJustification}
-                          >
-                            {record.orJustification}
-                          </span>
+                          />
                         </td>
                         <td>{record.dateRequested}</td>
                         <td>{record.dateReleased}</td>
@@ -306,7 +403,8 @@ export default function CertifiedTrueCopy({
                           </span>
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>

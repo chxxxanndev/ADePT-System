@@ -3,7 +3,6 @@ import { RegistrySummarySkeleton, RegistryToolbarSkeleton, RegistryTableSkeleton
 import type { Transaction, TransactionFilters, DeclarantGroup } from '../types/transaction';
 import { computeSummary } from '../data/mockTransactions';
 import { fetchTransactionRegistry, voidTransaction, createReprint } from '../services/transactionService';
-import { SummaryCards } from '../components/SummaryCards';
 import { SearchBar } from '../components/SearchBar';
 import { FilterBar } from '../components/FilterBar';
 import { TransactionTable } from '../components/TransactionTable';
@@ -17,9 +16,15 @@ import '../styles/TransactionRegistry.css';
 // TransactionRow.tsx, so the key at the top of the page matches what's
 // actually rendered in the table below.
 const RefreshIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>;
+const TotalIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
+const TodayIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>;
 const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="21" x2="21" y2="21"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 3 21 9 3 9"></polygon></svg>;
 const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
 const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>;
+/* 20px variants for the summary chips (legend keeps the 11px ones) */
+const TaxDeclarationIconLg = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="21" x2="21" y2="21"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 3 21 9 3 9"></polygon></svg>;
+const LandholdingIconLg = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
+const NoLandholdingIconLg = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>;
 
 const DEFAULT_FILTERS: TransactionFilters = {
     documentType: 'All',
@@ -111,6 +116,33 @@ export function TransactionRegistry({
     );
 
     const summary = useMemo(() => computeSummary(releasedTransactions), [releasedTransactions]);
+
+    const todayIso = useMemo(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }, []);
+
+    const releasedToday = useMemo(
+        () => releasedTransactions.filter((t) => toComparableDate(getReleaseSortDate(t)) === todayIso).length,
+        [releasedTransactions, todayIso]
+    );
+
+    // Per-document-type counts — doc-level (a transaction can request
+    // several document types), using the same tolerant matching the pills use.
+    const docTypeCounts = useMemo(() => {
+        let td = 0;
+        let lh = 0;
+        let nlh = 0;
+        for (const t of releasedTransactions) {
+            for (const d of t.requestedDocuments) {
+                const dt = (d.documentType || '').toLowerCase();
+                if (dt.includes('no landholding')) nlh += 1;
+                else if (dt.includes('landholding')) lh += 1;
+                else if (dt.includes('tax declaration')) td += 1;
+            }
+        }
+        return { td, lh, nlh };
+    }, [releasedTransactions]);
 
     const transactionsByRef = useMemo(() => {
         const map = new Map<string, Transaction>();
@@ -313,7 +345,53 @@ export function TransactionRegistry({
                     <RegistrySummarySkeleton />
                 ) : (
                     <>
-                        <SummaryCards summary={summary} />
+                        <div className="tr-summary-grid">
+                            <div className="tr-summary-card">
+                                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--total">
+                                    <TotalIcon />
+                                </div>
+                                <div className="tr-summary-card-text">
+                                    <span className="tr-summary-card-value">{summary.total}</span>
+                                    <span className="tr-summary-card-label">Total Transactions</span>
+                                </div>
+                            </div>
+                            <div className="tr-summary-card">
+                                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--released">
+                                    <TodayIcon />
+                                </div>
+                                <div className="tr-summary-card-text">
+                                    <span className="tr-summary-card-value">{releasedToday}</span>
+                                    <span className="tr-summary-card-label">Released Today</span>
+                                </div>
+                            </div>
+                            <div className="tr-summary-card">
+                                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--td">
+                                    <TaxDeclarationIconLg />
+                                </div>
+                                <div className="tr-summary-card-text">
+                                    <span className="tr-summary-card-value">{docTypeCounts.td}</span>
+                                    <span className="tr-summary-card-label">Tax Declaration</span>
+                                </div>
+                            </div>
+                            <div className="tr-summary-card">
+                                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--lh">
+                                    <LandholdingIconLg />
+                                </div>
+                                <div className="tr-summary-card-text">
+                                    <span className="tr-summary-card-value">{docTypeCounts.lh}</span>
+                                    <span className="tr-summary-card-label">Landholding</span>
+                                </div>
+                            </div>
+                            <div className="tr-summary-card">
+                                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--nlh">
+                                    <NoLandholdingIconLg />
+                                </div>
+                                <div className="tr-summary-card-text">
+                                    <span className="tr-summary-card-value">{docTypeCounts.nlh}</span>
+                                    <span className="tr-summary-card-label">No Landholding</span>
+                                </div>
+                            </div>
+                        </div>
                         <div className="tr-legend-row">
                             <div className="tr-legend-item tr-legend-item--td"><TaxDeclarationIcon />Tax Declaration</div>
                             <div className="tr-legend-item tr-legend-item--lh"><LandholdingIcon />Landholding</div>

@@ -779,7 +779,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             </div>
                         </>
                     ) : activeView === 'reports' ? (
-                        <Reports />
+                        <Reports onNavigateToDashboard={() => setActiveView('dashboard')} />
                     ) : activeView === 'certified-true-copy' ? (
                         <CertifiedTrueCopy
                             onNavigateToRegistry={() => setActiveView('transaction-registry')}
@@ -788,9 +788,9 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
                         />
                     ) : activeView === 'archive-management' ? (
-                        <ArchiveManagement />
+                        <ArchiveManagement onNavigateToDashboard={() => setActiveView('dashboard')} />
                     ) : activeView === 'about-adept' ? (
-                        <AboutADePT />
+                        <AboutADePT onNavigateToDashboard={() => setActiveView('dashboard')} />
                     ) : activeView === 'notifications' ? (
                         <NotificationPage
                             notifications={notifications}
@@ -800,6 +800,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onRetry={refetchNotifications}
                             unreadCount={unreadCount}
                             onMarkAllRead={markAllAsRead}
+                            onNavigateToDashboard={() => setActiveView('dashboard')}
                         />
                     ) : isRequestFormView ? (
                         <RequestFormEntry
@@ -872,6 +873,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onSelectNewRequest={handleSelectNewRequest}
                             onSelectDraft={handleSelectDraft}
                             onSelectDocumentView={(view) => setActiveView(view)}
+                            onNavigateToDashboard={() => setActiveView('dashboard')}
                         />
                     ) : activeView === 'transaction-summary' ? (
                         (completedEntryData || cartItems.length > 0) ? (
@@ -898,6 +900,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onChangePassword={handleChangePassword}
                             onChangePhoto={handleChangePhoto}
                             onDisableAccount={handleDisableAccount}
+                            onNavigateToDashboard={() => setActiveView('dashboard')}
                         />
                     ) : activeView === 'pending-payment' ? (
                         <PendingPayment

@@ -11,6 +11,7 @@ interface AccountSettingsProps {
     onChangePassword: (currentPassword: string, newPassword: string) => Promise<void>;
     onChangePhoto: (file: File) => Promise<string>;
     onDisableAccount: (disabled: boolean) => Promise<void> | void;
+    onNavigateToDashboard?: () => void;
     readOnlyFields?: string[];
 }
 
@@ -18,7 +19,7 @@ function getInitials(fullName: string): string {
     return fullName.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('');
 }
 
-export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword, onChangePhoto, onDisableAccount, readOnlyFields = ['position'] }: AccountSettingsProps) {
+export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword, onChangePhoto, onDisableAccount, onNavigateToDashboard, readOnlyFields = ['position'] }: AccountSettingsProps) {
     // --- 1. STAGED PROFILE STATE (Requires Save Changes button) ---
     const [form, setForm] = useState({ fullName: user.fullName, username: user.username, position: user.position || '', suffix: user.suffix || '' });
     const [savedBaseline, setSavedBaseline] = useState({ fullName: user.fullName, username: user.username, position: user.position || '', suffix: user.suffix || '' });
@@ -121,6 +122,19 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
 
     return (
         <div className="as-page">
+            {/* Breadcrumb — Dashboard > Account Settings */}
+            <nav className="as-breadcrumb" aria-label="Breadcrumb">
+                <button
+                    type="button"
+                    className="as-breadcrumb-item--link"
+                    onClick={onNavigateToDashboard}
+                >
+                    Dashboard
+                </button>
+                <span className="as-breadcrumb-sep">&gt;</span>
+                <span className="as-breadcrumb-item--current">Account Settings</span>
+            </nav>
+
             <div className="as-page-header">
                 <h1 className="as-page-title">Account settings</h1>
                 <span className="as-page-subtitle">Manage your profile, login details, and account security.</span>

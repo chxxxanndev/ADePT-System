@@ -18,6 +18,45 @@
     min-width: 0;
 }
 
+/* ---- Breadcrumb (matches tr-breadcrumb exactly: size, weight, teal hover) ---- */
+.arc-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--db-text-muted);
+    margin-bottom: -6px;
+}
+
+.arc-breadcrumb-item--link {
+    cursor: pointer;
+    transition: color 0.15s ease;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+}
+
+.arc-breadcrumb-item--link:hover,
+.arc-breadcrumb-item--link:active,
+.arc-breadcrumb-item--link:focus-visible {
+    color: var(--db-secondary);
+    outline: none;
+}
+
+.arc-breadcrumb-sep {
+    color: #cbd5e1;
+    font-size: 0.9rem;
+}
+
+.arc-breadcrumb-item--current {
+    color: var(--db-primary);
+    font-weight: 800;
+}
+
 /* ---- Header card (title, refresh, summary stats) ---- */
 
 .arc-header {
@@ -121,6 +160,11 @@
 .arc-summary-icon-wrap--total {
     background-color: rgba(41, 35, 122, 0.1);
     color: var(--db-primary);
+}
+
+.arc-summary-icon-wrap--cancelled {
+    background-color: rgba(220, 38, 38, 0.1);
+    color: #b91c1c;
 }
 
 .arc-summary-icon-wrap--auto {
@@ -313,21 +357,26 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--db-primary);
-    white-space: nowrap;
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: normal;
+    hyphens: none;
     text-align: left;
 }
 
 /* Column widths — table-layout is fixed, so long declarant names get room
-   to wrap cleanly instead of cramming into an equal slice. (7 columns:
-   Reference No., Declarant, Document Type, Reason, Archived By, Date &
-   Time, Action.) */
-.arc-table thead th:nth-child(1) { width: 17%; }
-.arc-table thead th:nth-child(2) { width: 12%; }
-.arc-table thead th:nth-child(3) { width: 14%; }
-.arc-table thead th:nth-child(4) { width: 17%; }
-.arc-table thead th:nth-child(5) { width: 12%; }
-.arc-table thead th:nth-child(6) { width: 16%; }
-.arc-table thead th:nth-child(7) { width: 12%; }
+   to wrap cleanly instead of cramming into an equal slice. (8 columns:
+   Reference No., Declarant, Document Type, Status, Reason, Archived By,
+   Date & Time, Action.) Widths sum to exactly 100% so no column gets
+   squeezed out of view — especially the Action column. */
+.arc-table thead th:nth-child(1) { width: 15%; }
+.arc-table thead th:nth-child(2) { width: 13%; }
+.arc-table thead th:nth-child(3) { width: 13%; }
+.arc-table thead th:nth-child(4) { width: 9%; }
+.arc-table thead th:nth-child(5) { width: 17%; }
+.arc-table thead th:nth-child(6) { width: 10%; }
+.arc-table thead th:nth-child(7) { width: 14%; }
+.arc-table thead th:nth-child(8) { width: 9%; }
 
 .arc-table tbody td {
     padding: 16px 20px;
@@ -351,16 +400,21 @@
     background-color: rgba(41, 35, 122, 0.02);
 }
 
+/* ---- Reference pill (matches tr-doc-pill / pp-ref-chip exactly: size,
+   weight, radius, palette — so a ref no. reads identical on every screen) ---- */
+
 .arc-ref-pill {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
+    gap: 5px;
     font-family: inherit;
-    font-size: 0.8rem;
-    font-weight: 700;
-    padding: 6px 14px;
-    border-radius: 999px;
-    border: 1px solid transparent;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background-color: #f1f5f9;
+    color: var(--db-text-muted);
+    padding: 4px 10px;
+    border-radius: 5px;
+    border: 1px solid #e2e8f0;
     white-space: nowrap;
 }
 
@@ -368,33 +422,48 @@
     flex-shrink: 0;
 }
 
-.arc-ref-pill.arc-doc-pill--td {
+.arc-ref-pill--td {
     background-color: #dbeafe;
     color: #1d4ed8;
     border-color: #bfdbfe;
 }
 
-.arc-ref-pill.arc-doc-pill--lh {
+.arc-ref-pill--lh {
     background-color: #fef9c3;
     color: #854d0e;
     border-color: #fde68a;
 }
 
-.arc-ref-pill.arc-doc-pill--nlh {
+.arc-ref-pill--nlh {
     background-color: #fee2e2;
     color: #b91c1c;
     border-color: #fca5a5;
 }
 
-.arc-ref-pill.arc-doc-pill--tc {
-    background-color: #e3f2fd;
-    color: #1976d2;
-    border-color: #bfe3fb;
+/* ---- Status pill (Cancelled = red, Archived = violet) ---- */
+
+.arc-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    white-space: nowrap;
 }
 
-.arc-ref-pill.arc-doc-pill--gen {
+.arc-status-pill--cancelled {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+}
+
+.arc-status-pill--archived {
     background-color: #ede9fd;
-    color: #7c6fe8;
+    color: #6d28d9;
     border-color: #ddd6fb;
 }
 
@@ -430,52 +499,13 @@
     margin-bottom: 4px;
 }
 
-/* ---- Document type pill (matches tr-doc-pill variants) ---- */
+/* ---- Document type (plain text, no pill) ---- */
 
-.arc-doc-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-family: inherit;
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 999px;
-    border: 1px solid transparent;
-    line-height: 1.35;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    max-width: 100%;
-}
-
-.arc-doc-pill--td {
-    background-color: #dbeafe;
-    color: #1d4ed8;
-    border-color: #bfdbfe;
-}
-
-.arc-doc-pill--lh {
-    background-color: #fef9c3;
-    color: #854d0e;
-    border-color: #fde68a;
-}
-
-.arc-doc-pill--nlh {
-    background-color: #fee2e2;
-    color: #b91c1c;
-    border-color: #fca5a5;
-}
-
-.arc-doc-pill--tc {
-    background-color: #e3f2fd;
-    color: #1976d2;
-    border-color: #bfe3fb;
-}
-
-.arc-doc-pill--gen {
-    background-color: #ede9fd;
-    color: #7c6fe8;
-    border-color: #ddd6fb;
+.arc-doc-type {
+    font-weight: 600;
+    color: var(--db-slate);
+    font-size: 0.85rem;
+    text-wrap: pretty;
 }
 
 /* ---- Actions ---- */
@@ -669,11 +699,6 @@
     .arc-table thead th,
     .arc-table tbody td {
         padding: 8px 10px;
-    }
-
-    .arc-doc-pill {
-        padding: 3px 9px;
-        font-size: 10px;
     }
 
     .arc-restore-btn {

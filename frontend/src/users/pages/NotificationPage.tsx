@@ -10,6 +10,7 @@ interface NotificationPageProps {
     onRetry?: () => void;
     unreadCount?: number;
     onMarkAllRead?: () => void;
+    onNavigateToDashboard?: () => void;
 }
 
 // Shows only the document-type prefix + current year + "XXXX" — the real
@@ -30,9 +31,23 @@ export function NotificationPage({
     onRetry,
     unreadCount = 0,
     onMarkAllRead,
+    onNavigateToDashboard,
 }: NotificationPageProps) {
     return (
         <div className="page-transition" style={{ padding: '20px' }}>
+            {/* Breadcrumb — Dashboard > Notification Center */}
+            <nav className="notif-breadcrumb" aria-label="Breadcrumb" style={{ marginBottom: 12 }}>
+                <button
+                    type="button"
+                    className="notif-breadcrumb-item--link"
+                    onClick={onNavigateToDashboard}
+                >
+                    Dashboard
+                </button>
+                <span className="notif-breadcrumb-sep">&gt;</span>
+                <span className="notif-breadcrumb-item--current">Notification Center</span>
+            </nav>
+
             <div className="notif-page-header">
                 <div>
                     <h2 className="notif-page-title">Notification Center</h2>
