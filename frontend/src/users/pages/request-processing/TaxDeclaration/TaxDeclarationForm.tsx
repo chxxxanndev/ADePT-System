@@ -51,30 +51,31 @@ function calcAssessedValue(marketValue: number, assessmentLevel: number): number
 
 // ── Total Area (document-level, single field, not addable) ──
 //
-// The backend currently stores this as ONE combined free-text string on
-// the tax declaration row, e.g. "1234 HECTARE" (confirmed from a raw
-// Supabase response). The form's internal `areaUnit` uses the same
-// 'has.' | 'sqm.' literal values as AssessmentRow.areaUnit elsewhere in
-// this codebase, so AREA_UNIT_LABELS below only exists to translate
-// between that internal value and the backend's combined-string format.
+// IMPORTANT (FIX): the "Total Land Area" the user types here CANNOT be
+// persisted on the tax declaration row — encoded_tax_declarations has no
+// `area` column in the schema (verified against the live Supabase DB:
+// selecting `area` returns HTTP 400 "column not found"). The only place
+// an area can be stored is per-assessment-row (encoded_assessment_rows.
+// area / area_unit), and the preview/generation read path
+// (taxDeclarationService.getTaxDeclaration) derives the printed area from
+// the SUM of the per-row areas.
 //
-// NOTE: double-check the 'sqm.' → "SQ.M." mapping against whatever your
-// PDF template / the earlier "area unit display" fix expects — "SQ.M."
-// is a best guess based on the "HECTARE" convention seen in the raw
-// response. If the PDF renderer expects a different literal (e.g.
-// "SQUARE METER", "sq. m."), update the map here to match.
+// So on save (handleSave) the total is pushed onto the FIRST assessment
+// row; on load (hydrateFromBackend) the form's field is re-derived from
+// the rows. Without this round-trip the value typed here was silently
+// dropped, which is why the area never appeared in the Initial Document
+// Preview or the Document Generation & Release PDF (and only showed up
+// after typing it again per-row in the Full Document Edit modal).
 const AREA_UNIT_LABELS: Record<'has.' | 'sqm.', string> = {
     'has.': 'HECTARE',
     'sqm.': 'SQ.M.',
 };
 
-function parseAreaString(raw: string | null | undefined): { value: string; unit: 'has.' | 'sqm.' } {
-    if (!raw) return { value: '', unit: 'has.' };
-    const match = String(raw).trim().match(/^([\d.,]+)\s*(.*)$/);
-    if (!match) return { value: String(raw).trim(), unit: 'has.' };
-    const [, numPart, unitPart] = match;
-    const unitNormalized: 'has.' | 'sqm.' = /sq/i.test(unitPart) ? 'sqm.' : 'has.';
-    return { value: numPart.replace(/,/g, ''), unit: unitNormalized };
+// Maps whatever unit string came back from the database ('HECTARE' /
+// 'SQM' enum values, or 'has.' / 'sqm.') back to the form's internal
+// 'has.' | 'sqm.' literal.
+function dbUnitToFormUnit(raw: string | null | undefined): 'has.' | 'sqm.' {
+    return /sq/i.test(String(raw || '')) ? 'sqm.' : 'has.';
 }
 
 function formatAreaString(value: string, unit: 'has.' | 'sqm.'): string {
@@ -359,7 +360,25 @@ export function TaxDeclarationForm({
             const dbData = await taxDeclarationService.getRawForEdit(entryData.requestId);
             if (!isMounted || !dbData) return;
 
-            const parsedArea = parseAreaString(dbData.area);
+            // FIX: the backend (getTaxDeclarationByRequestId) attaches the
+            // child rows under the key `assessments` — the old
+            // `encoded_assessment_rows` key never exists on the response, so
+            // Amend always fell back to the (empty) draft rows. Read both
+            // keys, preferring whichever actually carries data.
+            const rawRows = dbData.assessments || dbData.encoded_assessment_rows || [];
+
+            // FIX: the declaration row has no `area` column — the total
+            // area is stored on the first assessment row (see handleSave's
+            // row distribution). Re-derive the form's "Total Land Area"
+            // fields from the rows so the value typed on first encode
+            // survives the round-trip back into this form.
+            const rowsAreaTotal = rawRows.reduce(
+                (sum: number, r: any) => sum + (parseFloat(r.area) || 0), 0
+            );
+            const firstAreaRow = rawRows.find((r: any) => r.area);
+            const parsedArea = firstAreaRow
+                ? { value: String(rowsAreaTotal), unit: dbUnitToFormUnit(firstAreaRow.area_unit) }
+                : null;
 
             setForm((prev) => ({
                 ...prev,
@@ -383,11 +402,12 @@ export function TaxDeclarationForm({
                 memoranda: dbData.memoranda || prev.memoranda,
                 assessorName: dbData.assessor_name || prev.assessorName,
                 assessorTitle: dbData.assessor_title || prev.assessorTitle,
-                // Document-level total area (see parseAreaString/formatAreaString above)
-                area: dbData.area != null ? parsedArea.value : prev.area,
-                areaUnit: dbData.area != null ? parsedArea.unit : prev.areaUnit,
-                assessmentRows: dbData.encoded_assessment_rows?.length
-                    ? dbData.encoded_assessment_rows
+                // Document-level total area — derived from the assessment
+                // rows (see dbUnitToFormUnit / handleSave distribution).
+                area: parsedArea ? parsedArea.value : prev.area,
+                areaUnit: parsedArea ? parsedArea.unit : prev.areaUnit,
+                assessmentRows: rawRows.length
+                    ? rawRows
                           .slice()
                           .sort((a: any, b: any) => (a.row_order || 0) - (b.row_order || 0))
                           .map((r: any) => {
@@ -400,9 +420,13 @@ export function TaxDeclarationForm({
                               // codes until the user re-picks a value.
                               const rawCode = (r.classification_id || '').trim();
                               const normalizedCode = rawCode.toUpperCase();
-                              const matched = classificationOptions.find(
-                                  (o) => o.code === normalizedCode
-                              );
+                              // FIX: rows saved by older versions of this
+                              // form stored the lookup_values.id (a number)
+                              // instead of the code — match those by id too
+                              // so the label shows instead of the number.
+                              const matched =
+                                  classificationOptions.find((o) => o.code === normalizedCode) ||
+                                  classificationOptions.find((o) => o.id === rawCode);
                               return {
                                   id: r.id,
                                   kindOfProperty: r.kind_of_property || '',
@@ -493,9 +517,30 @@ export function TaxDeclarationForm({
         setSaveError('');
         setSaving(true);
         try {
+            // FIX: the document-level "Total Land Area" cannot be stored on
+            // the declaration row (encoded_tax_declarations has no `area`
+            // column), and the preview/generation read path
+            // (taxDeclarationService.getTaxDeclaration) derives the printed
+            // area from the SUM of the per-assessment-row areas. So push
+            // the total onto the FIRST assessment row on save — otherwise
+            // the value typed here never reaches the Initial Document
+            // Preview or the Document Generation & Release PDF (and only
+            // appeared after typing it again per-row in the Full Document
+            // Edit modal).
+            const totalAreaValue = parseFloat(form.area);
+            const hasTotalArea = !isNaN(totalAreaValue) && totalAreaValue > 0;
+            const assessmentRows = form.assessmentRows.map((row, idx) =>
+                hasTotalArea && idx === 0
+                    ? { ...row, area: String(totalAreaValue), areaUnit: form.areaUnit }
+                    : row
+            );
             // Recombine the split value/unit back into the single combined
             // string the backend column expects (see formatAreaString above).
-            const payload = { ...form, area: formatAreaString(form.area, form.areaUnit) };
+            const payload = {
+                ...form,
+                assessmentRows,
+                area: formatAreaString(form.area, form.areaUnit),
+            };
             await taxDeclarationService.save(payload, entryData.requestId, user.id);
             localStorage.removeItem(LS_KEY);
 

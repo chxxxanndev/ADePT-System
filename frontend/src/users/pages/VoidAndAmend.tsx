@@ -609,49 +609,49 @@ export default function VoidAndAmend({
                   paginatedRecords.map((record) => {
                     const meta = getRefPillMeta(record.reference);
                     return (
-                    <tr key={record.id} className="tr-row">
-                      <td>
-                        <span className={`tr-doc-pill ${meta.className}`}>
-                          <meta.Icon />
-                          {record.reference}
-                        </span>
-                      </td>
-                      <td><span className="tr-declarant"><ExpandableText text={record.declarantName} /></span></td>
-                      <td><ExpandableText text={record.documentType} /></td>
-                      <td><ExpandableText text={record.detail} /></td>
-                      <td>{record.actionedBy}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        {record.actionedAt ? formatDateTime(record.actionedAt) : "—"}
-                      </td>
-                      <td>
-                        <div className="tr-actions">
-                          <ActionBadge />
-                          <button
-                            type="button"
-                            className="tr-action-btn"
-                            title={
-                              record.hasBeenAmended
-                                ? `${record.reference} has already been amended`
-                                : `Amend ${record.reference}`
-                            }
-                            aria-label={`Amend ${record.reference}`}
-                            onClick={() => handleAmendClick(record)}
-                            disabled={amendingId === record.id || record.hasBeenAmended}
-                            style={
-                              record.hasBeenAmended
-                                ? { opacity: 0.4, cursor: "not-allowed" }
-                                : undefined
-                            }
-                          >
-                            {amendingId === record.id ? (
-                              <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-                            ) : (
-                              <PencilLine size={14} />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                      <tr key={record.id} className="tr-row">
+                        <td>
+                          <span className={`tr-doc-pill ${meta.className}`}>
+                            <meta.Icon />
+                            {record.reference}
+                          </span>
+                        </td>
+                        <td><span className="tr-declarant"><ExpandableText text={record.declarantName} /></span></td>
+                        <td><ExpandableText text={record.documentType} /></td>
+                        <td><ExpandableText text={record.detail} /></td>
+                        <td>{record.actionedBy}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          {record.actionedAt ? formatDateTime(record.actionedAt) : "—"}
+                        </td>
+                        <td>
+                          <div className="tr-actions">
+                            <ActionBadge />
+                            <button
+                              type="button"
+                              className="tr-action-btn"
+                              title={
+                                record.hasBeenAmended
+                                  ? `${record.reference} has already been amended`
+                                  : `Amend ${record.reference}`
+                              }
+                              aria-label={`Amend ${record.reference}`}
+                              onClick={() => handleAmendClick(record)}
+                              disabled={amendingId === record.id || record.hasBeenAmended}
+                              style={
+                                record.hasBeenAmended
+                                  ? { opacity: 0.4, cursor: "not-allowed" }
+                                  : undefined
+                              }
+                            >
+                              {amendingId === record.id ? (
+                                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                              ) : (
+                                <PencilLine size={14} />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
                     );
                   })
                 )}

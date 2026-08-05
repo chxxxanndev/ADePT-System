@@ -42,6 +42,12 @@ export interface TaxDeclarationFormData {
     propertyStreet: string;
     barangayId: string;                // free text (until barangay lookup connected)
     municipalityId: string;            // free text
+    // Resolved display names — present on the quick-edit modal's payload
+    // (getTaxDeclaration translates the FK to `barangay` / `municipality`
+    // name strings, which taxDeclarationService.save sends back so the
+    // backend can re-resolve them to ids).
+    barangay?: string;
+    municipality?: string;
     province: string;                // fixed: Zamboanga del Norte
 
     // — Land Reference —

@@ -226,7 +226,7 @@ export function TransactionSummary({ entryData, onBackToForms, onProceedToQueue 
                                                     <td style={{ padding: '16px 32px' }}>
                                                         <RefBadge refNumber={item.referenceNumber} />
                                                     </td>
-                                                    <td style={{ padding: '16px 32px', fontWeight: 700, color: '#334155', lineHeight: '1.4' }}>
+                                                    <td style={{ padding: '16px 32px', fontWeight: 700, color: '#334155', lineHeight: '1.4', wordBreak: 'break-word' }}>
                                                         {item.declarantName || 'N/A'}
                                                     </td>
                                                     <td style={{ padding: '16px 32px', color: '#059669', fontWeight: 800, textAlign: 'right', fontSize: '1.1rem' }}>

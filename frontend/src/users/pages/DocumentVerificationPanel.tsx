@@ -101,7 +101,7 @@ export const DocumentVerificationPanel: React.FC<DocumentVerificationPanelProps>
                                         </span>
                                     </td>
                                     <td className="pd-doc-type">{docTypeLabel(doc)}</td>
-                                    <td className="pd-doc-declarant">{doc.declarantName || doc.declarant_name}</td>
+                                    <td className="pd-doc-declarant" title={doc.declarantName || doc.declarant_name}>{doc.declarantName || doc.declarant_name}</td>
                                     <td className="pd-col-action">
                                         <div className="pd-action-btns">
                                             <button

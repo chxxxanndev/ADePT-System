@@ -75,7 +75,7 @@ export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
                                     const meta = getDocPillMeta(doc?.documentType ?? '', t.referenceNumber);
                                     return (
                                         <div className="tr-stack-line" key={doc?.id ?? i}>
-                                            <span className={`tr-doc-pill ${meta.className}`}>
+                                            <span className={`tr-doc-pill ${meta.className}`} title={t.referenceNumber}>
                                                 <meta.Icon />
                                                 {t.referenceNumber}
                                             </span>
@@ -88,7 +88,7 @@ export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
                         {/* Declarant varies per transaction within the group
                             (e.g. Arsenio Noel Jr. vs Spouses Arsenio Noel),
                             so it repeats per row — not rowSpan'd. */}
-                        <td><span className="tr-declarant"><ExpandableText text={t.client.declarantName} /></span></td>
+                        <td><span className="tr-declarant" title={t.client.declarantName}>{t.client.declarantName}</span></td>
 
                         <td><ExpandableText text={t.client.requestedBy} /></td>
 

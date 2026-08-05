@@ -51,6 +51,20 @@ function resolveDocTypeName(req: any): string {
     return 'Certified True Tax Declaration';
 }
 
+// Splits a queue timestamp (timestamptz from the DB) into a date part and
+// a time part ("Aug 5, 2026" / "2:35 PM") so the UI can render the time
+// on its own line below the date. Falls back to the plain request date
+// when the timestamp is missing (older records) or unparseable.
+function splitQueueDateTime(raw: string | null | undefined, fallback: string): { date: string; time: string } {
+    if (!raw) return { date: fallback, time: '' };
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return { date: fallback, time: '' };
+    return {
+        date: d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }),
+        time: d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true }),
+    };
+}
+
 export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }: any) {
     const [groupedPayments, setGroupedPayments] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -78,12 +92,17 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
 
                 const grouped = pending.reduce((acc: any, req: any) => {
                     const requester = req.requested_by_name || req.requestedByName || 'Unknown Client';
+                    const queueDt = splitQueueDateTime(req.pending_payment_at, req.request_date || 'N/A');
 
                     if (!acc[requester]) {
                         acc[requester] = {
                             groupId: req.id,
                             requesterName: requester,
-                            dateRequested: req.request_date || 'N/A',
+                            // Show the time the request entered this queue
+                            // (pending_payment_at is a timestamptz), not just
+                            // the request date.
+                            dateRequested: queueDt.date,
+                            timeRequested: queueDt.time,
                             totalAmountDue: 0,
                             documents: []
                         };
@@ -376,12 +395,12 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                                     </th>
                                 )}
                                 <th style={{ width: '15%' }}>Reference No.</th>
-                                <th style={{ width: '19%' }}>Declarant(s)</th>
+                                <th style={{ width: '14%' }}>Declarant(s)</th>
                                 <th style={{ width: '15%' }}>Requested By</th>
                                 <th style={{ width: '15%' }}>Encoded By Staff</th>
                                 <th style={{ width: '10%', textAlign: 'right' }}>Total Fee</th>
-                                <th style={{ width: '10%', textAlign: 'center' }}>Date</th>
-                                <th style={{ width: '16%', textAlign: 'right', paddingRight: '32px' }}>Actions</th>
+                                <th style={{ width: '16%', textAlign: 'center' }}>Date &amp; Time</th>
+                                <th style={{ width: '15%', textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -489,8 +508,11 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                                                     )}
 
                                                     {docIndex === 0 && (
-                                                        <td className="pp-cell pp-cell-top" data-label="Date" style={{ textAlign: 'center' }} rowSpan={docCount}>
-                                                            <span className="pp-date">{group.dateRequested}</span>
+                                                        <td className="pp-cell pp-cell-top" data-label="Date &amp; Time" style={{ textAlign: 'center' }} rowSpan={docCount}>
+                                                            <span className="pp-date">
+                                                                <span className="pp-date-day">{group.dateRequested}</span>
+                                                                {group.timeRequested && <span className="pp-date-time">{group.timeRequested}</span>}
+                                                            </span>
                                                         </td>
                                                     )}
 

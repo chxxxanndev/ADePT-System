@@ -57,12 +57,21 @@ class TaxDeclarationService {
     // PostgREST filter-syntax character would make the old .or() string
     // malformed and throw. With the old delete-then-insert ordering,
     // that throw arrived *after* existing rows were already wiped.
+    // FIX: `.limit(1)` is added before `.maybeSingle()`. The ilike lookup
+    // does partial, case-insensitive matching, so a label like "Residential"
+    // can match MULTIPLE lookup_values rows ("Residential", "Residential
+    // Land", ...). Without the limit, maybeSingle() throws on >1 match, and
+    // since saveTaxDeclaration previously deleted old assessment rows before
+    // inserting new ones, that throw wiped the whole assessment section.
+    // With .limit(1) the query returns at most one row, so it can never
+    // throw on multiple matches. Each lookup's error is also only raised
+    // when BOTH lookups fail, so a spurious error on one never aborts a
+    // save when the other already resolved the classification.
     const [byCode, byValue] = await Promise.all([
-        supabase.from('lookup_values').select('code').eq('category', 'CLASSIFICATION').eq('code', candidateCode).maybeSingle(),
-        supabase.from('lookup_values').select('code').eq('category', 'CLASSIFICATION').ilike('value', trimmed).maybeSingle(),
+        supabase.from('lookup_values').select('code').eq('category', 'CLASSIFICATION').eq('code', candidateCode).limit(1).maybeSingle(),
+        supabase.from('lookup_values').select('code').eq('category', 'CLASSIFICATION').ilike('value', trimmed).limit(1).maybeSingle(),
     ]);
-    if (byCode.error) throw byCode.error;
-    if (byValue.error) throw byValue.error;
+    if (byCode.error && byValue.error) throw byCode.error;
 
     const existing = byCode.data || byValue.data;
     if (existing?.code) return existing.code;
@@ -77,6 +86,36 @@ class TaxDeclarationService {
     return created?.code || candidateCode;
 }
 
+
+    /**
+     * Normalize a row's classification reference to a lookup_values CODE.
+     *
+     * FIX: the full encoding form (TaxDeclarationForm.tsx) sends the
+     * classification dropdown's VALUE, which is the lookup_values.id (a
+     * number) — while the quick-edit modal sends either a code or a
+     * free-text label. The classification_id column is consumed everywhere
+     * as a CODE (see getTaxDeclaration's classificationMap lookup), so
+     * writing a raw id into it made the PDF/modal show the number instead
+     * of the classification label. This resolves whichever shape arrived:
+     *   1. id matches an existing lookup_values row  -> its code
+     *   2. the string is already a code              -> used as-is
+     *   3. otherwise (sentinel / unknown)            -> resolved via label
+     */
+    async _resolveClassificationCode(row) {
+        const rawRef = String(row.classificationId ?? '').trim();
+        if (rawRef) {
+            const [byId, byCode] = await Promise.all([
+                supabase.from('lookup_values').select('code').eq('category', 'CLASSIFICATION').eq('id', rawRef).limit(1).maybeSingle(),
+                supabase.from('lookup_values').select('code').eq('category', 'CLASSIFICATION').eq('code', rawRef).limit(1).maybeSingle(),
+            ]);
+            // Either lookup failing (e.g. 'RESIDENTIAL' is not a valid
+            // integer id, or the code no longer exists) is fine — only use
+            // it when it actually resolved something.
+            if (!byId.error && byId.data?.code) return byId.data.code;
+            if (!byCode.error && byCode.data?.code) return byCode.data.code;
+        }
+        return this._resolveClassificationLabel(row.classificationLabel);
+    }
 
     /**
      * Creates or updates the single Tax Declaration for a request. Business
@@ -98,10 +137,33 @@ class TaxDeclarationService {
 
         if (staffErr || !staff) throw new Error('Staff profile not found.');
 
+        // 1. Find existing TD for this request (one per request, per the
+        // one-declarant-per-request business rule). Fetched BEFORE the
+        // payload is built so its location FKs can act as a fallback.
+        const { data: existing, error: existingErr } = await supabase
+            .from('encoded_tax_declarations')
+            .select('id, barangay_id, municipality_id')
+            .eq('request_id', data.requestId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (existingErr) throw existingErr;
+
+        // FIX: never overwrite a stored location with NULL. The quick-edit
+        // modal submits barangay/municipality as free-text names (there is
+        // no `barangayId` key on its data), and _resolveLocationIds returns
+        // nulls whenever the text doesn't match the reference tables — so
+        // before this fix every modal save silently nulled barangay_id and
+        // municipality_id. Falling back to the previously stored FK keeps a
+        // successful edit from wiping the property location. The FKs are
+        // only written when the caller actually supplied matching names.
         const { barangay_id, municipality_id } = await this._resolveLocationIds(
             data.barangay,
             data.municipality
         );
+        const finalBarangayId = barangay_id ?? (existing?.barangay_id ?? null);
+        const finalMunicipalityId = municipality_id ?? (existing?.municipality_id ?? null);
 
         const tdPayload = {
             request_id: data.requestId,
@@ -121,8 +183,8 @@ class TaxDeclarationService {
             administrator_tin: data.administratorTin ?? null,
             administrator_telephone: data.administratorTelephone ?? null,
             property_street: data.propertyStreet ?? null,
-            barangay_id,
-            municipality_id,
+            barangay_id: finalBarangayId,
+            municipality_id: finalMunicipalityId,
             boundary_north: data.boundaryNorth ?? null,
             boundary_south: data.boundarySouth ?? null,
             boundary_east: data.boundaryEast ?? null,
@@ -139,18 +201,6 @@ class TaxDeclarationService {
             notes: data.notes ?? null,
         };
 
-        // 1. Find existing TD for this request (one per request, per the
-        // one-declarant-per-request business rule).
-        const { data: existing, error: existingErr } = await supabase
-            .from('encoded_tax_declarations')
-            .select('id')
-            .eq('request_id', data.requestId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-        if (existingErr) throw existingErr;
-
         let td;
         if (existing) {
             const { data: updated, error: updErr } = await supabase
@@ -161,21 +211,6 @@ class TaxDeclarationService {
                 .single();
             if (updErr) throw updErr;
             td = updated;
-
-            // Replace child rows entirely rather than diffing — the form
-            // always submits its full current state, so this is simpler
-            // and safe.
-            const { error: delRowsErr } = await supabase
-                .from('encoded_assessment_rows')
-                .delete()
-                .eq('encoded_tax_declaration_id', td.id);
-            if (delRowsErr) throw delRowsErr;
-
-            const { error: delTypesErr } = await supabase
-                .from('encoded_property_types')
-                .delete()
-                .eq('encoded_tax_declaration_id', td.id);
-            if (delTypesErr) throw delTypesErr;
         } else {
             const { data: inserted, error: insErr } = await supabase
                 .from('encoded_tax_declarations')
@@ -185,6 +220,34 @@ class TaxDeclarationService {
             if (insErr) throw insErr;
             td = inserted;
         }
+
+        // Capture the OLD child row ids BEFORE touching them. We then
+        // insert the replacement rows FIRST and only delete the old ids
+        // once every insert has succeeded.
+        //
+        // FIX (delete-after-insert): this used to delete all existing
+        // assessment rows and property types up front, then insert the
+        // replacements in separate, non-transactional calls. Any failure
+        // between the delete and the insert (bad classification lookup, a
+        // transient error, a row with an odd value) left the DB with the
+        // deletes already committed and the inserts never done — silently
+        // wiping the whole assessment section. Symptom: "add a row in the
+        // assessment section, save, close, reopen — the assessment section
+        // shows nothing in the PDF". If the insert throws now, nothing has
+        // been deleted yet and the old rows stay intact.
+        const { data: oldRows, error: oldRowsErr } = await supabase
+            .from('encoded_assessment_rows')
+            .select('id')
+            .eq('encoded_tax_declaration_id', td.id);
+        if (oldRowsErr) throw oldRowsErr;
+        const oldRowIds = (oldRows ?? []).map((r) => r.id);
+
+        const { data: oldTypes, error: oldTypesErr } = await supabase
+            .from('encoded_property_types')
+            .select('id')
+            .eq('encoded_tax_declaration_id', td.id);
+        if (oldTypesErr) throw oldTypesErr;
+        const oldTypeIds = (oldTypes ?? []).map((r) => r.id);
 
         // 2. Reinsert assessment rows
         // NOTE: kind_of_property is now stored per row (matches the pattern
@@ -200,8 +263,7 @@ class TaxDeclarationService {
             // only ever sends a free-text classificationLabel, which gets
             // resolved to a code here so it's never silently dropped.
             const rows = await Promise.all(data.assessmentRows.map(async (row, idx) => {
-                const classificationCode = row.classificationId
-                    || await this._resolveClassificationLabel(row.classificationLabel);
+                const classificationCode = await this._resolveClassificationCode(row);
                 return {
                     encoded_tax_declaration_id: td.id,
                     row_order: idx,
@@ -223,12 +285,6 @@ class TaxDeclarationService {
 
             if (rowErr) throw rowErr;
         }
-
-        // 3. Resolve kindOfProperty codes to real lookup_values ids, then
-        // reinsert encoded_property_types (deduped — one row per distinct
-        // kind of property used across all assessment rows). This stays as
-        // a declaration-level summary/reporting list; it is NOT what the
-        // PDF template reads per row (see step 2 above for that).
         const kindCodes = [
             ...new Set((data.assessmentRows ?? []).map((r) => r.kindOfProperty).filter(Boolean)),
         ];
@@ -257,6 +313,28 @@ class TaxDeclarationService {
                     .insert(ptRows);
                 if (ptInsertErr) throw ptInsertErr;
             }
+        }
+
+        // 3. Both insert batches have succeeded — only now remove the old
+        // child rows. If this step fails you get duplicates (recoverable),
+        // never an empty assessment section. Note: when the caller submits
+        // an empty assessment list, the inserts above are skipped entirely
+        // and the old rows are removed here — that is the explicit
+        // "delete all rows" case, and nothing can fail between the two.
+        if (oldRowIds.length > 0) {
+            const { error: delRowsErr } = await supabase
+                .from('encoded_assessment_rows')
+                .delete()
+                .in('id', oldRowIds);
+            if (delRowsErr) throw delRowsErr;
+        }
+
+        if (oldTypeIds.length > 0) {
+            const { error: delTypesErr } = await supabase
+                .from('encoded_property_types')
+                .delete()
+                .in('id', oldTypeIds);
+            if (delTypesErr) throw delTypesErr;
         }
 
         // 4. Link every request_documents row under this request that
@@ -302,7 +380,12 @@ class TaxDeclarationService {
     async getTaxDeclarationByRequestId(requestId) {
         if (useMock) {
             const record = [...mockStore.values()].find((r) => r.request_id === requestId);
-            return record ?? null;
+            if (!record) return null;
+            // FIX: _mockSave stores rows under `_assessmentRows`; expose
+            // them under `assessments` too, the key the read side (and the
+            // frontend translation) actually consumes — otherwise mock mode
+            // always reported an empty assessment section.
+            return { ...record, assessments: record._assessmentRows ?? [] };
         }
 
         const { data, error } = await supabase
@@ -311,6 +394,7 @@ class TaxDeclarationService {
                 *,
                 request:requests (
                     requested_by_name,
+                    property_location,
                     or_number,
                     payment_date,
                     authorized_signatory

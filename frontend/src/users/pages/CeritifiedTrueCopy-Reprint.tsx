@@ -378,31 +378,31 @@ export default function CertifiedTrueCopy({
                     paginatedRecords.map((record) => {
                       const meta = getRefPillMeta(record.reference);
                       return (
-                      <tr key={record.id} className="tr-row">
-                        <td>
-                          <span className={`tr-doc-pill ${meta.className}`}>
-                            <meta.Icon />
-                            {record.reference}
-                          </span>
-                        </td>
-                        <td><span className="tr-declarant"><ExpandableText text={record.declarantName} /></span></td>
-                        <td>{record.originalDocument}</td>
-                        <td><span className="tr-or-number">{record.orNumber}</span></td>
-                        <td>
-                          <ExpandableText
-                            text={record.orJustification}
-                            className={`tr-or-justification${record.orJustification === '—' ? ' tr-or-justification--none' : ''}`}
-                          />
-                        </td>
-                        <td>{record.dateRequested}</td>
-                        <td>{record.dateReleased}</td>
-                        <td>{record.releasedBy}</td>
-                        <td>
-                          <span className={`tr-badge tr-badge--${record.status.toLowerCase()}`}>
-                            {record.status}
-                          </span>
-                        </td>
-                      </tr>
+                        <tr key={record.id} className="tr-row">
+                          <td>
+                            <span className={`tr-doc-pill ${meta.className}`}>
+                              <meta.Icon />
+                              {record.reference}
+                            </span>
+                          </td>
+                          <td><span className="tr-declarant"><ExpandableText text={record.declarantName} /></span></td>
+                          <td>{record.originalDocument}</td>
+                          <td><span className="tr-or-number">{record.orNumber}</span></td>
+                          <td>
+                            <ExpandableText
+                              text={record.orJustification}
+                              className={`tr-or-justification${record.orJustification === '—' ? ' tr-or-justification--none' : ''}`}
+                            />
+                          </td>
+                          <td>{record.dateRequested}</td>
+                          <td>{record.dateReleased}</td>
+                          <td>{record.releasedBy}</td>
+                          <td>
+                            <span className={`tr-badge tr-badge--${record.status.toLowerCase()}`}>
+                              {record.status}
+                            </span>
+                          </td>
+                        </tr>
                       );
                     })
                   )}

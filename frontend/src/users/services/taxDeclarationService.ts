@@ -31,8 +31,15 @@ export const taxDeclarationService = {
             administratorTin: formData.administratorTin,
             administratorTelephone: formData.administratorTelephone,
             propertyStreet: formData.propertyStreet,
-            barangay: formData.barangayId,
-            municipality: formData.municipalityId,
+            // FIX: the quick-edit modal's data only carries the resolved
+            // NAME strings (`barangay`, `municipality` — from
+            // getTaxDeclaration's translation), never `barangayId` /
+            // `municipalityId`. Sending only the Id keys meant every modal
+            // save submitted undefined here, and the backend
+            // (_resolveLocationIds) then wrote NULL into barangay_id /
+            // municipality_id — silently wiping the property location.
+            barangay: formData.barangay || formData.barangayId,
+            municipality: formData.municipality || formData.municipalityId,
             octTctNumber: formData.octTctNumber,
             surveyNumber: formData.surveyNumber,
             lotNumber: formData.lotNumber,
@@ -129,11 +136,21 @@ export const taxDeclarationService = {
                 // through to showing the raw code (or "N/A" when null)
                 // instead of the pretty label.
                 classificationMap[c.code] = c.label;
+                // FIX: rows saved by the full encoding form
+                // (TaxDeclarationForm.tsx) store the lookup_values.id (a
+                // number) in classification_id — its dropdown sends
+                // `value={opt.id}`. Map the id to the label too, so those
+                // rows render the classification name instead of the raw
+                // number. (The backend now converts ids to codes on save;
+                // this covers rows written before that fix.)
+                classificationMap[c.id] = c.label;
             });
 
             const propertyTypeMap: Record<string, string> = {};
             (meta?.propertyTypes || []).forEach((p: any) => {
                 propertyTypeMap[p.code] = p.label;
+                // Same defensive id→label mapping as classifications above.
+                propertyTypeMap[p.id] = p.label;
             });
 
             // FIX: the backend (encoded_tax_declarations service,
@@ -155,7 +172,12 @@ export const taxDeclarationService = {
                 const rawClassification = (row.classification_id || '').trim();
                 const normalizedKey = rawClassification.toUpperCase();
                 return {
-                    classificationLabel: classificationMap[normalizedKey] || rawClassification || 'N/A',
+                    // FIX: was `|| 'N/A'` — an empty classification became
+                    // "N/A", which then showed in the PDF, sat in the edit
+                    // modal's input, and on the next save got resolved into
+                    // a bogus 'N/A' lookup_values row and persisted as the
+                    // row's classification code. Empty stays empty now.
+                    classificationLabel: classificationMap[normalizedKey] || rawClassification || '',
                     kindOfProperty: propertyTypeMap[row.kind_of_property] || row.kind_of_property || '',
                     area: row.area,
                     areaUnit: row.area_unit,

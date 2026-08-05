@@ -20,16 +20,16 @@ interface ColumnDef {
 }
 
 const COLUMNS: ColumnDef[] = [
-    { label: 'Reference Number', width: '12%' },
+    { label: 'Reference Number', width: '15%' },
     { label: 'Declarant', width: '14%' },
-    { label: 'Requested By', width: '11%' },
-    { label: 'Date Requested', width: '7%' },
-    { label: 'Date Released', width: '7%' },
-    { label: 'Assigned Staff', width: '9%' },
-    { label: 'Releasing Staff', width: '9%' },
-    { label: 'OR Number', width: '8%' },
-    { label: 'OR Justification', width: '9%' },
-    { label: 'Current Status', width: '8%' },
+    { label: 'Requested By', width: '10%' },
+    { label: 'Date Requested', width: '9%' },
+    { label: 'Date Released', width: '9%' },
+    { label: 'Assigned Staff', width: '8%' },
+    { label: 'Releasing Staff', width: '8%' },
+    { label: 'OR Number', width: '7%' },
+    { label: 'OR Justification', width: '7%' },
+    { label: 'Current Status', width: '7%' },
     { label: 'Actions', width: '6%', align: 'center' },
 ];
 
@@ -57,7 +57,7 @@ export function TransactionTable({ groups, onViewDetails, toolbar }: Transaction
             {toolbar && <div className="tr-table-toolbar">{toolbar}</div>}
 
             <div className="tr-table-scroll">
-                <table className="tr-table">
+                <table className="tr-table tr-table--registry">
                     <thead>
                         <tr>
                             {COLUMNS.map((col) => (
