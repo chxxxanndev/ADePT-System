@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 // REMOVED the conflicting UserProfile import from here
 import { MenuIcon, CalendarIcon, UserIcon, PeriodToggleIcon, RefreshIcon } from './icons';
+import type { PeriodRange } from '../types/dashboard';
 
 /**
  * Updated interface to support the connected database fields
@@ -124,6 +125,58 @@ const PERIOD_OPTIONS = [
     'This Year',
     'Custom Range...',
 ];
+
+export function resolvePeriodRange(label: string): PeriodRange | null {
+    const now = new Date();
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const endOfDay = (d: Date) => { const e = new Date(d); e.setHours(23, 59, 59, 999); return e; };
+    const startOfWeek = (d: Date) => {
+        const date = startOfDay(d);
+        const day = date.getDay();
+        const diff = (day === 0 ? -6 : 1) - day; // Monday start
+        date.setDate(date.getDate() + diff);
+        return date;
+    };
+
+    switch (label) {
+        case 'Today':
+            return { from: startOfDay(now), to: endOfDay(now) };
+        case 'Yesterday': {
+            const y = new Date(now); y.setDate(y.getDate() - 1);
+            return { from: startOfDay(y), to: endOfDay(y) };
+        }
+        case 'This Week':
+            return { from: startOfWeek(now), to: endOfDay(now) };
+        case 'Last Week': {
+            const thisWeekStart = startOfWeek(now);
+            const lastWeekStart = new Date(thisWeekStart);
+            lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+            const lastWeekEnd = new Date(thisWeekStart.getTime() - 1);
+            return { from: lastWeekStart, to: endOfDay(lastWeekEnd) };
+        }
+        case 'This Month':
+            return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: endOfDay(now) };
+        case 'Last Month': {
+            const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const end = new Date(now.getFullYear(), now.getMonth(), 0);
+            return { from: start, to: endOfDay(end) };
+        }
+        case 'This Quarter': {
+            const q = Math.floor(now.getMonth() / 3);
+            return { from: new Date(now.getFullYear(), q * 3, 1), to: endOfDay(now) };
+        }
+        case 'Last Quarter': {
+            const q = Math.floor(now.getMonth() / 3);
+            const start = new Date(now.getFullYear(), (q - 1) * 3, 1);
+            const end = new Date(now.getFullYear(), q * 3, 0);
+            return { from: start, to: endOfDay(end) };
+        }
+        case 'This Year':
+            return { from: new Date(now.getFullYear(), 0, 1), to: endOfDay(now) };
+        default:
+            return null; // 'Custom Range...' is handled separately via handleApplyRange
+    }
+}
 
 function isSameDay(a: Date | null, b: Date | null) {
     return !!a && !!b &&
@@ -251,7 +304,7 @@ function CalendarPicker({ onApply, onCancel }: CalendarPickerProps) {
  */
 interface WelcomeBannerProps {
     initialPeriod?: string;
-    onPeriodChange?: (period: string) => void;
+    onPeriodChange?: (period: string, range: PeriodRange | null) => void;
     onRefresh?: () => void | Promise<void>;
 }
 
@@ -284,7 +337,7 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange, onRefre
             return;
         }
         setPeriod(value);
-        onPeriodChange?.(value);
+        onPeriodChange?.(value, resolvePeriodRange(value));
         closeDropdown();
     };
 
@@ -292,7 +345,9 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange, onRefre
         const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         const label = `${fmt(start)} – ${fmt(end)}`;
         setPeriod(label);
-        onPeriodChange?.(label);
+        const endOfDay = new Date(end);
+        endOfDay.setHours(23, 59, 59, 999);
+        onPeriodChange?.(label, { from: start, to: endOfDay });
         closeDropdown();
     };
 

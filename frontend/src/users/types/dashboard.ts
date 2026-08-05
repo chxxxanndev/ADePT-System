@@ -37,6 +37,16 @@ export interface WeeklyTrendPoint {
     value: number;
 }
 
+// ── NEW: dual-series trend point (real processed + real released counts),
+// used by AnalyticsOverview once it became period-selector-aware. Unlike
+// WeeklyTrendPoint (fixed weekly buckets, single value), a TrendPoint's
+// bucket width and count vary based on the active Dashboard Period range.
+export interface TrendPoint {
+    label: string;
+    processed: number;
+    released: number;
+}
+
 export interface DocumentDistributionSlice {
     label: string;
     count: number;
@@ -77,4 +87,10 @@ export interface UserProfile {
     role: string;
     lastLogin: string;
     avatarUrl?: string;
+}
+
+// Date range produced by the Dashboard Period selector
+export interface PeriodRange {
+    from: Date;
+    to: Date;
 }

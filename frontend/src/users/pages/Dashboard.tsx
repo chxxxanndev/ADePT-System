@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import '../styles/dashboard.css';
 import { Sidebar } from '../components/Sidebar';
-import { DashboardHeader, WelcomeBanner } from '../components/DashboardHeader';
+import { DashboardHeader, WelcomeBanner, resolvePeriodRange } from '../components/DashboardHeader';
 import { DashboardFooter } from '../components/DashboardFooter';
 import { RequestFormEntry } from './RequestFormEntry';
 import { AccountSettings } from './accountSettings';
@@ -41,13 +41,13 @@ import { useOnlinePresence } from '../../admin/services/useOnlinePresence';
 // the numbers on the Reports page never drift apart.
 import { useReportsAnalytics } from '../hooks/useReportsAnalytics';
 import type { Transaction } from '../types/transaction';
-import type { TransactionRow } from '../types/dashboard';
+import type { TransactionRow, PeriodRange } from '../types/dashboard';
 
 
 import {
     navSections,
-    operationalSummary,
-    administrativeSummary,
+    // operationalSummary,
+    // administrativeSummary,
     quickActions,
 } from '../data/dashboardMockData';
 import VoidAndAmend from './VoidAndAmend';
@@ -194,10 +194,115 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         | null
     >(null);
 
+    // --- Dashboard Period selector state ---
+    // Defaults to "Today" so the stat cards show something sensible before
+    // the user ever opens the picker. WelcomeBanner's own `period` label
+    // state stays in sync via `initialPeriod` below.
+    const [periodLabel, setPeriodLabel] = useState('Today');
+    const [selectedRange, setSelectedRange] = useState<PeriodRange | null>(
+        () => resolvePeriodRange('Today')
+    );
+
     // --- Live registry analytics (weekly trend, document distribution, recent transactions) ---
     // Called unconditionally (rules-of-hooks) even though it's only rendered
     // for the 'dashboard' view, mirroring how useNotifications is used below.
-    const analytics = useReportsAnalytics();
+    // Passing `selectedRange` makes every `selected*` field on `analytics`
+    // track whatever the Dashboard Period dropdown currently has selected.
+    const analytics = useReportsAnalytics(selectedRange);
+
+    // Live replacement for the old dashboardMockData.operationalSummary /
+    // administrativeSummary — same StatCardData[] shape, real numbers,
+    // now tracking the Dashboard Period selector via analytics.selected*.
+    const operationalSummary = useMemo(() => {
+        const trend = analytics.totalRequestsTrend.daily;
+        return [
+            {
+                id: 'total-requests',
+                label: 'Total Requests',
+                value: analytics.selectedTotalRequests,
+                sublabel: periodLabel,
+                accent: 'teal' as const,
+                icon: 'requests' as const,
+                trend: trend.direction,
+            },
+            {
+                id: 'released-today',
+                label: 'Released',
+                value: analytics.selectedDocumentsReleased,
+                sublabel: periodLabel,
+                accent: 'gold' as const,
+                icon: 'released' as const,
+            },
+            {
+                id: 'monthly-issued',
+                label: 'Monthly Issued Docs',
+                // Unchanged regardless of the picker — this card is
+                // deliberately always "this calendar month", matching its
+                // own fixed label rather than the selected period.
+                value: analytics.documentsReleased.monthly,
+                sublabel: 'Current month',
+                accent: 'green' as const,
+                icon: 'issued' as const,
+            },
+            {
+                id: 'active-requests',
+                label: 'Active Requests',
+                value: analytics.selectedPendingCount,
+                sublabel: 'Awaiting Completion',
+                accent: 'red' as const,
+                icon: 'active' as const,
+            },
+        ];
+    }, [
+        analytics.selectedTotalRequests,
+        analytics.selectedDocumentsReleased,
+        analytics.documentsReleased,
+        analytics.selectedPendingCount,
+        analytics.totalRequestsTrend,
+        periodLabel,
+    ]);
+
+    const administrativeSummary = useMemo(() => [
+        {
+            id: 'archived',
+            label: 'Archived',
+            value: analytics.selectedArchivedCount,
+            sublabel: periodLabel,
+            accent: 'teal' as const,
+            icon: 'archived' as const,
+        },
+        {
+            id: 'voided',
+            label: 'Voided',
+            value: analytics.selectedVoidedCount,
+            sublabel: periodLabel,
+            accent: 'gold' as const,
+            icon: 'voided' as const,
+        },
+        {
+            id: 'reprinted',
+            label: 'Reprinted',
+            value: analytics.selectedReprintedCount,
+            sublabel: periodLabel,
+            accent: 'green' as const,
+            icon: 'reprinted' as const,
+        },
+        {
+            id: 'cancelled',
+            label: 'Cancelled',
+            value: analytics.selectedCancelledCount,
+            sublabel: periodLabel,
+            accent: 'red' as const,
+            icon: 'cancelled' as const,
+        },
+    ], [
+        analytics.selectedArchivedCount,
+        analytics.selectedVoidedCount,
+        analytics.selectedReprintedCount,
+        analytics.selectedCancelledCount,
+        periodLabel,
+    ]);
+
     const { items: cartItems } = useCart();
 
     const guardedSetActiveView = (view: string) => {
@@ -239,24 +344,23 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     };
 
     // Recent transactions is just the 5 most-recently-requested Released
-    // transactions out of the same registry fetch the rest of this hook
-    // already pulled — no second network call needed.
+    // transactions, now scoped to the Dashboard Period selector via
+    // analytics.selectedTransactions.
     const recentTransactionsData: TransactionRow[] = useMemo(() => {
-        return analytics.transactions
+        return analytics.selectedTransactions
             .filter((t) => t.status === 'Released')
             .sort((a, b) => new Date(b.dateRequested).getTime() - new Date(a.dateRequested).getTime())
             .slice(0, 5)
             .map(mapTransactionToRow);
-    }, [analytics.transactions]);
+    }, [analytics.selectedTransactions]);
 
-    // The FULL mapped transaction list — this is what actually connects
-    // the Recent Transaction search box to the whole registry dataset
-    // instead of only the 5 rows visible by default.
+    // The FULL mapped transaction list for the search box, also scoped to
+    // the selected period.
     const allTransactionsData: TransactionRow[] = useMemo(() => {
-        return [...analytics.transactions]
+        return [...analytics.selectedTransactions]
             .sort((a, b) => new Date(b.dateRequested).getTime() - new Date(a.dateRequested).getTime())
             .map(mapTransactionToRow);
-    }, [analytics.transactions]);
+    }, [analytics.selectedTransactions]);
 
     // Single shared notifications state + realtime subscription
     const {
@@ -475,29 +579,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
     });
 
-    // const handleAddAnother = () => {
-    //     if (completedEntryData) {
-    //         setPrefilledRequestData({
-    //             declarantName: completedEntryData.declarantName,
-    //             requestedByName: completedEntryData.requestedByName,
-    //             requestDate: new Date().toISOString().split('T')[0],
-    //             purposeId: completedEntryData.purposeId,
-    //             authRequired: completedEntryData.authRequired,
-    //             actionTaken: completedEntryData.actionTaken || 'PENDING',
-    //             propertyLocation: completedEntryData.propertyLocation,
-    //             id: undefined,
-    //             requestId: undefined,
-    //             documentTypeIds: [],
-    //             lockedDocType: false,
-    //             referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
-    //         });
-    //         const base = completedEntryData || cartItems[0];
-    //         setPrefilledRequestData(buildAddAnotherPrefill(base || {}));
-    //         setCompletedEntryData(null);
-    //         setActiveView('new-request');
-    //     }
-    // };
-
     const handleAddAnother = () => {
         if (completedEntryData) {
             setPrefilledRequestData({
@@ -666,25 +747,26 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 <div className="dashboard-content">
                     {activeView === 'dashboard' ? (
                         <>
-                            <WelcomeBanner onRefresh={analytics.refetch} />
-                            {/*
-                              TODO: operationalSummary / administrativeSummary are still mock
-                              data (data/dashboardMockData.ts). The live counts they should
-                              show are already available above via `analytics` —
-                              e.g. analytics.totalRequests.daily, analytics.documentsReleased.daily,
-                              analytics.pendingCount, analytics.voidedCount, analytics.archivedCount,
-                              analytics.reprintedCount — but wiring them safely requires knowing
-                              the exact item shape components/StatCard.tsx (DashboardSummary)
-                              expects. Share that file (and dashboardMockData.ts) and this can be
-                              swapped from mock arrays to `analytics`-derived ones directly.
-                            */}
-                            <DashboardSummary title="Operational Summary" items={operationalSummary} iconType="operational" />
-                            <DashboardSummary title="Administrative Summary" items={administrativeSummary} iconType="admin" />
+                            <WelcomeBanner
+                                initialPeriod={periodLabel}
+                                onRefresh={analytics.refetch}
+                                onPeriodChange={(label, range) => {
+                                    setPeriodLabel(label);
+                                    setSelectedRange(range);
+                                }}
+                            />
+                            <DashboardSummary title="Operational Summary" items={operationalSummary} iconType="operational" isLoading={analytics.loading} />
+                            <DashboardSummary title="Administrative Summary" items={administrativeSummary} iconType="admin" isLoading={analytics.loading} />
                             <div className="dashboard-row">
-                                <AnalyticsOverview data={analytics.weeklyTrend} lastUpdated="Today • 2:45 PM" />
+                                <AnalyticsOverview
+                                    data={analytics.selectedTrend}
+                                    periodLabel={periodLabel}
+                                    totalProcessed={analytics.selectedTotalRequests}
+                                    totalReleased={analytics.selectedDocumentsReleased}
+                                />
                                 <DocumentDistribution
-                                    slices={analytics.documentDistribution}
-                                    totalDocuments={analytics.totalDocuments}
+                                    slices={analytics.selectedDocumentDistribution}
+                                    totalDocuments={analytics.selectedTotalDocuments}
                                 />
                             </div>
                             <div className="dashboard-row">
