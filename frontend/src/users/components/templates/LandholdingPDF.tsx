@@ -343,7 +343,6 @@ export const CertOfLandholdingPDF = (props: CertOfLandholdingPDFProps) => {
   <Text>{INDENT}</Text>
   <Text style={{ fontWeight: 'bold' }}>THIS IS TO CERTIFY</Text>
   <Text> that </Text>
-  {/* Added \u00A0 (non-breaking space) before and after the name */}
   <Text style={styles.underlineText}>
     {`\u00A0${String(displayName)}\u00A0`}
   </Text>

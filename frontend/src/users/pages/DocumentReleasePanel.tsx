@@ -918,26 +918,31 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                                         step={5}
                                         onChange={(v) => onNLHSpacingChange?.(activeDoc.id, 'sigBlockGap', v)}
                                     />
+                                </div>
+
+                                <div className="pd-sig-selectors" style={{ marginTop: 10 }}>
                                     <Stepper
-                                        label="Signatory Block Width (pt)"
-                                        value={activeNLHSpacing.sigBlockWidth}
-                                        step={10}
-                                        min={100}
-                                        onChange={(v) => onNLHSpacingChange?.(activeDoc.id, 'sigBlockWidth', v)}
-                                    />
-                                    <Stepper
-                                        label="Name Text Size (pt)"
+                                        label="Signatory Name Text Size (pt)"
                                         value={activeNLHSpacing.nameFontSize}
                                         step={1}
                                         min={6}
                                         onChange={(v) => onNLHSpacingChange?.(activeDoc.id, 'nameFontSize', v)}
                                     />
                                     <Stepper
-                                        label="Title Text Size (pt)"
+                                        label="Signatory Title Text Size (pt)"
                                         value={activeNLHSpacing.titleFontSize}
                                         step={1}
                                         min={6}
                                         onChange={(v) => onNLHSpacingChange?.(activeDoc.id, 'titleFontSize', v)}
+                                    />
+                                </div>
+                                <div className="pd-form-group" style={{ marginTop: 10 }}>
+                                    <Stepper
+                                        label="Signatory Block Width (pt)"
+                                        value={activeNLHSpacing.sigBlockWidth}
+                                        step={10}
+                                        min={100}
+                                        onChange={(v) => onNLHSpacingChange?.(activeDoc.id, 'sigBlockWidth', v)}
                                     />
                                 </div>
 

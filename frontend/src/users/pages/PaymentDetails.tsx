@@ -488,7 +488,7 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
 
             if (doc.referenceNumber.startsWith('NLH')) {
                 PDFComponent = <CertOfNoLandholdingPDF
-                    paperSize={doc.paperSize || 'LETTER'} // 👈 'LEGAL' or 'LETTER'
+                    paperSize={doc.paperSize} // optional override — auto-switches to LEGAL when content no longer fits LETTER
                     ownerName={doc.declarantName || doc.declarant_name}
                     day={day} monthYear={monthYear} orNumber={orNumber} datePaid={datePaid}
                     signatory1Name={sigs?.primary?.name} signatory1Title={sigs?.primary?.title}
