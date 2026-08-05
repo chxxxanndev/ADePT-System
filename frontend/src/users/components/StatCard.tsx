@@ -22,17 +22,14 @@ const SUB_ICON_MAP: Record<string, any> = {
     'cancelled': Icons.SettingsIcon,
 };
 
-// Matches the accent colors already defined in TransactionRegistry.css
-// (.skeleton-accent-purple/gold/blue/green/navy/red) — used as placeholder
-// count while the real items haven't loaded yet.
-const SKELETON_ACCENTS = ['purple', 'gold', 'blue', 'green', 'navy', 'red'];
-
 interface DashboardSummaryProps {
     title: string;
     items: any[];
     iconType: 'operational' | 'admin';
-    /** While true, renders skeleton placeholders instead of stat cards
-     *  (avoids the flash of an empty/blank card before data arrives). */
+    /** While true, renders skeleton placeholders instead of stat cards.
+     *  The skeletons use the same .stat-card box (dimensions, padding,
+     *  radius, grid placement) as the real cards, so the layout never
+     *  jumps when the data arrives. */
     isLoading?: boolean;
 }
 
@@ -45,10 +42,14 @@ export function DashboardSummary({ title, items, iconType, isLoading = false }: 
             </div>
             <div className="stat-grid">
                 {isLoading ? (
-                    SKELETON_ACCENTS.map((accent) => (
-                        <div key={accent} className={`skeleton-card-accent skeleton-accent-${accent}`}>
-                            <div className="skeleton-item" style={{ width: '55%', height: 10 }} />
-                            <div className="skeleton-item" style={{ width: '35%', height: 20 }} />
+                    items.map((item) => (
+                        <div key={item.id} className="stat-card stat-card--skeleton">
+                            <div className="stat-card-top">
+                                <span className="skeleton-item" style={{ width: '55%', height: 10 }} />
+                                <span className="skeleton-item" style={{ width: 38, height: 38, borderRadius: '50%' }} />
+                            </div>
+                            <span className="skeleton-item" style={{ width: '35%', height: 26, margin: '0 auto' }} />
+                            <span className="skeleton-item" style={{ width: '50%', height: 10 }} />
                         </div>
                     ))
                 ) : (

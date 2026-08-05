@@ -41,13 +41,12 @@ import { useOnlinePresence } from '../../admin/services/useOnlinePresence';
 // the numbers on the Reports page never drift apart.
 import { useReportsAnalytics } from '../hooks/useReportsAnalytics';
 import type { Transaction } from '../types/transaction';
-import type { TransactionRow } from '../types/dashboard';
+import type { TransactionRow, StatCardData, BadgeStatus } from '../types/dashboard';
+import { getDocumentTypeFromReference } from '../../utils/documentType';
 
 
 import {
     navSections,
-    operationalSummary,
-    administrativeSummary,
     quickActions,
 } from '../data/dashboardMockData';
 import VoidAndAmend from './VoidAndAmend';
@@ -69,16 +68,27 @@ const formatTransactionDateTime = (dateStr: string): string => {
     }
 };
 
+// YYYY-MM-DD (local) for the Dashboard Period date-range state. Defaults to
+// today, mirroring the old period selector's "Today" default.
+const toISODate = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const TODAY_ISO = toISODate(new Date());
+
 // Map a Transaction (from registry) to TransactionRow (for RecentTransactions)
 const mapTransactionToRow = (t: Transaction): TransactionRow => {
-    const docTypes = t.requestedDocuments?.map((d) => d.documentType).join(', ') || 'N/A';
+    const docTypes =
+        t.requestedDocuments?.map((d) => d.documentType).join(', ') ||
+        getDocumentTypeFromReference(t.referenceNumber) ||
+        'N/A';
     return {
         id: t.id,
         controlNumber: t.referenceNumber,
         declarant: t.client.declarantName,
         document: docTypes,
-        // Cast status to match expected BadgeStatus in TransactionRow
-        status: t.status as unknown as any,
+        // The registry emits exactly the statuses in BadgeStatus — see
+        // STATUS_MAP in request.service.js.
+        status: t.status as BadgeStatus,
         dateTime: formatTransactionDateTime(t.dateRequested),
     };
 };
@@ -199,6 +209,60 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     // for the 'dashboard' view, mirroring how useNotifications is used below.
     const analytics = useReportsAnalytics();
     const { items: cartItems } = useCart();
+
+    // ── Dashboard Period (drives the 8 summary stat cards) ──────────────
+    // Selected via the shared DateRangePicker in the WelcomeBanner. Defaults
+    // to today; every preset (This Week / This Month / Custom Range…) re-runs
+    // the filters below against the same registry fetch `analytics` already
+    // pulled — no extra network calls.
+    const [dateFrom, setDateFrom] = useState(TODAY_ISO);
+    const [dateTo, setDateTo] = useState(TODAY_ISO);
+
+    const handleDateRangeChange = (from: string, to: string) => {
+        setDateFrom(from);
+        setDateTo(to);
+    };
+
+    // The Operational + Administrative Summary cards, computed live from the
+    // registry transactions that fall inside the selected date range.
+    const { operationalSummaryItems, administrativeSummaryItems } = useMemo(() => {
+        const start = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : -Infinity;
+        const end = dateTo ? new Date(dateTo + 'T23:59:59.999').getTime() : Infinity;
+
+        const inRange = (iso: string) => {
+            const t = new Date(iso).getTime();
+            return Number.isFinite(t) && t >= start && t <= end;
+        };
+
+        const inPeriod = analytics.transactions.filter((t) => inRange(t.dateRequested));
+        const released = inPeriod.filter((t) => t.status === 'Released');
+        const pending = inPeriod.filter((t) =>
+            t.status === 'Pending' || t.status === 'For Payment' ||
+            t.status === 'Payment Verified' || t.status === 'Processing' ||
+            t.status === 'Ready for Release'
+        );
+        const issuedDocuments = released.reduce((sum, t) => sum + t.requestedDocuments.length, 0);
+        const reprinted = inPeriod.reduce(
+            (sum, t) => sum + t.requestedDocuments.reduce((s, d) => s + (d.reprintCount || 0), 0),
+            0
+        );
+
+        const operationalSummaryItems: StatCardData[] = [
+            { id: 'total-requests', label: 'Total Requests', value: inPeriod.length, sublabel: 'In selected period', accent: 'teal', icon: 'requests', trend: 'up' },
+            { id: 'released-today', label: 'Released Today', value: released.length, sublabel: 'Successfully Issued', accent: 'gold', icon: 'released' },
+            { id: 'monthly-issued', label: 'Monthly Issued Docs', value: issuedDocuments, sublabel: 'In selected period', accent: 'green', icon: 'issued' },
+            { id: 'active-requests', label: 'Active Requests', value: pending.length, sublabel: 'Awaiting Completion', accent: 'red', icon: 'active' },
+        ];
+
+        const administrativeSummaryItems: StatCardData[] = [
+            { id: 'archived', label: 'Archived', value: inPeriod.filter((t) => t.status === 'Archived').length, sublabel: 'Inactive Requests', accent: 'teal', icon: 'archived' },
+            { id: 'voided', label: 'Voided', value: inPeriod.filter((t) => t.status === 'Void').length, sublabel: 'Amended records', accent: 'gold', icon: 'voided' },
+            { id: 'reprinted', label: 'Reprinted', value: reprinted, sublabel: 'CTCs Issued', accent: 'green', icon: 'reprinted' },
+            { id: 'cancelled', label: 'Cancelled', value: inPeriod.filter((t) => t.status === 'Cancelled').length, sublabel: 'Processing discontinued', accent: 'red', icon: 'cancelled' },
+        ];
+
+        return { operationalSummaryItems, administrativeSummaryItems };
+    }, [analytics.transactions, dateFrom, dateTo]);
 
     const guardedSetActiveView = (view: string) => {
         if (cartItems.length > 0 && view !== 'transaction-summary') {
@@ -666,20 +730,24 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                 <div className="dashboard-content">
                     {activeView === 'dashboard' ? (
                         <>
-                            <WelcomeBanner onRefresh={analytics.refetch} />
-                            {/*
-                              TODO: operationalSummary / administrativeSummary are still mock
-                              data (data/dashboardMockData.ts). The live counts they should
-                              show are already available above via `analytics` —
-                              e.g. analytics.totalRequests.daily, analytics.documentsReleased.daily,
-                              analytics.pendingCount, analytics.voidedCount, analytics.archivedCount,
-                              analytics.reprintedCount — but wiring them safely requires knowing
-                              the exact item shape components/StatCard.tsx (DashboardSummary)
-                              expects. Share that file (and dashboardMockData.ts) and this can be
-                              swapped from mock arrays to `analytics`-derived ones directly.
-                            */}
-                            <DashboardSummary title="Operational Summary" items={operationalSummary} iconType="operational" />
-                            <DashboardSummary title="Administrative Summary" items={administrativeSummary} iconType="admin" />
+                            <WelcomeBanner
+                                dateFrom={dateFrom}
+                                dateTo={dateTo}
+                                onDateRangeChange={handleDateRangeChange}
+                                onRefresh={analytics.refetch}
+                            />
+                            <DashboardSummary
+                                title="Operational Summary"
+                                items={operationalSummaryItems}
+                                iconType="operational"
+                                isLoading={analytics.loading}
+                            />
+                            <DashboardSummary
+                                title="Administrative Summary"
+                                items={administrativeSummaryItems}
+                                iconType="admin"
+                                isLoading={analytics.loading}
+                            />
                             <div className="dashboard-row">
                                 <AnalyticsOverview data={analytics.weeklyTrend} lastUpdated="Today • 2:45 PM" />
                                 <DocumentDistribution

@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { supabase } from '../../config/supabase.js';
 
 class RequestService {
@@ -13,23 +14,63 @@ class RequestService {
         }
     }
 
-    // Generates Prefix-Year-Random (e.g., NLH-2026-1234)
+    // Generates Prefix-Year-Random (e.g., NLH-2026-000123), zero-padded to
+    // six digits to match the DB's generate_control_number() format, with a
+    // uniqueness retry so two requests in the same prefix-year can never
+    // collide on the same reference number.
     async _generateReferenceNumber(documentTypeIds) {
         let prefix = 'REF';
         if (documentTypeIds && documentTypeIds.length > 0) {
             const fetchedPrefix = await this._getPrefixForDocType(documentTypeIds[0]);
             if (fetchedPrefix) prefix = fetchedPrefix;
         }
-        return `${prefix}-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        const year = new Date().getFullYear();
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const ref = `${prefix}-${year}-${String(randomInt(0, 1_000_000)).padStart(6, '0')}`;
+            const { data: existing, error } = await supabase
+                .from('requests')
+                .select('id')
+                .eq('reference_number', ref)
+                .maybeSingle();
+            if (error) throw error;
+            if (!existing) return ref;
+        }
+        throw new Error('Could not generate a unique reference number. Please try again.');
     }
 
     // Helper to sync many-to-many relationship for document types
     async _syncRequestDocuments(requestId, documentTypeIds) {
-        await supabase.from('request_documents').delete().eq('request_id', requestId);
-        if (documentTypeIds && documentTypeIds.length) {
-            const links = documentTypeIds.map(docId => ({ request_id: requestId, document_type_id: docId }));
-            const { error } = await supabase.from('request_documents').insert(links);
-            if (error) throw error;
+        const docTypeIds = documentTypeIds || [];
+        if (!docTypeIds.length) {
+            await supabase.from('request_documents').delete().eq('request_id', requestId);
+            return;
+        }
+
+        // FIX: upsert instead of delete-and-reinsert. Deleting every link on
+        // each update regenerated the trigger-assigned document_number and
+        // dropped the encoded_tax_declaration_id linkage set by the tax
+        // declaration form — silently corrupting reprints and edits.
+        const { data: existing, error: fetchErr } = await supabase
+            .from('request_documents')
+            .select('id, document_type_id')
+            .eq('request_id', requestId);
+        if (fetchErr) throw fetchErr;
+
+        const existingById = new Map((existing || []).map((row) => [row.document_type_id, row.id]));
+        const desired = new Set(docTypeIds);
+
+        const toDelete = (existing || []).filter((row) => !desired.has(row.document_type_id)).map((row) => row.id);
+        const toInsert = docTypeIds.filter((docId) => !existingById.has(docId));
+
+        if (toDelete.length) {
+            const { error: delErr } = await supabase.from('request_documents').delete().in('id', toDelete);
+            if (delErr) throw delErr;
+        }
+        if (toInsert.length) {
+            const links = toInsert.map((docId) => ({ request_id: requestId, document_type_id: docId }));
+            const { error: insErr } = await supabase.from('request_documents').insert(links);
+            if (insErr) throw insErr;
         }
     }
 
@@ -127,9 +168,10 @@ class RequestService {
 
             if (reqErr) throw reqErr;
 
-            const { data: docLinks } = await supabase
+            const { data: docLinks, error: docErr } = await supabase
                 .from('request_documents')
                 .select('request_id, document_type_id, document_types(name)');
+            if (docErr) throw docErr;
 
             return (requests || []).map(r => ({
                 ...r,
@@ -137,12 +179,19 @@ class RequestService {
                 documentTypeIds: (docLinks || []).filter(d => d.request_id === r.id).map(d => d.document_type_id),
                 request_documents: (docLinks || []).filter(d => d.request_id === r.id)
             }));
-        } catch (err) { return []; }
+        } catch (err) {
+            // Surface DB failures instead of silently returning an empty
+            // list — an empty list hides outages as "no requests".
+            throw err;
+        }
     }
 
     async getRequestById(id) {
         const { data: request, error: reqError } = await supabase.from('requests').select('*').eq('id', id).single();
-        if (reqError) throw reqError;
+        if (reqError) {
+            if (reqError.code === 'PGRST116') throw new Error('Request not found');
+            throw reqError;
+        }
 
         const { data: docLinks } = await supabase
             .from('request_documents')
@@ -160,7 +209,16 @@ class RequestService {
      * Returns requests shaped to match the frontend's Transaction type.
      * Combines logic from Code 1 with additional schema safety.
      */
-    async getTransactionRegistry() {
+    async getTransactionRegistry(from, to) {
+        // Optional date-range filtering (from/to as YYYY-MM-DD), honored
+        // when the frontend sends them via GET /api/requests/registry.
+        let requestsQuery = supabase
+            .from('requests')
+            .select('*, staff:encoded_by(first_name, last_name)');
+        if (from) requestsQuery = requestsQuery.gte('request_date', from);
+        if (to) requestsQuery = requestsQuery.lte('request_date', to);
+        requestsQuery = requestsQuery.order('created_at', { ascending: false });
+
         const [
             { data: requests, error: reqErr },
             { data: docLinks },
@@ -174,7 +232,7 @@ class RequestService {
             { data: noLandholdingCerts },
             { data: staffRows },
         ] = await Promise.all([
-            supabase.from('requests').select('*, staff:encoded_by(first_name, last_name)').order('created_at', { ascending: false }),
+            requestsQuery,
             supabase.from('request_documents').select('id, request_id, document_type_id, encoded_tax_declaration_id, document_types(id, name, prefix, requires_tax_declaration)'),
             supabase.from('barangays').select('id, name, municipality_id'),
             supabase.from('municipalities').select('id, name'),
@@ -288,7 +346,8 @@ class RequestService {
             DRAFT: 'Pending',
             PENDING_PAYMENT: 'Pending',
             IN_PROGRESS: 'Processing',
-            PAID: 'Released',
+            FORWARDED: 'Processing',
+            PAID: 'Payment Verified',
             RELEASED: 'Released',
             RELEASED_PENDING_VERIFICATION: 'Released',
             VOID: 'Void',
@@ -476,6 +535,7 @@ class RequestService {
                 referenceNumber: r.reference_number,
                 requestType: r.request_type,
                 hasBeenAmended: amendedOriginalIds.has(r.id),
+                amendedFromId: r.amended_from_id || null,
                 client: {
                     declarantName: r.declarant_name,
                     requestedBy: r.requested_by_name,
@@ -493,7 +553,7 @@ class RequestService {
                 dateReleased: r.released_at ? r.released_at.split('T')[0] : null,
                 releasedBy: resolvedReleasedBy || null,
                 assignedStaff: r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : 'Unassigned',
-                status: STATUS_MAP[r.status] || 'Released',
+                status: STATUS_MAP[r.status] || 'Pending',
                 payment: {
                     orNumber: r.or_number || null,
                     amountDue,
@@ -725,13 +785,20 @@ class RequestService {
         // 5. Link the specific document being reprinted
         await this._syncRequestDocuments(reprint.id, [link.document_type_id]);
 
-        // 6. Copy underlying data based on prefix
+        // 6. Copy underlying data based on prefix. Document-type prefixes
+        // come from the document_types table; accept both the legacy
+        // (LH/NLH) and current schema (CLH/CNL) spellings so reprints of
+        // landholding / no-landholding certificates never silently skip
+        // the deep-copy (which left the reprint with no data to print).
         const docPrefix = link.document_types?.prefix;
-        if (docPrefix === 'LH') {
+        const isLandholding = docPrefix === 'LH' || docPrefix === 'CLH';
+        const isTaxDeclaration = docPrefix === 'TD' || docPrefix === 'CTC';
+        const isNoLandholding = docPrefix === 'NLH' || docPrefix === 'CNL';
+        if (isLandholding) {
             await this._copyLandholdingCertificate(originalRequestId, reprint.id);
-        } else if (docPrefix === 'TD') {
+        } else if (isTaxDeclaration) {
             await this._copyTaxDeclaration(originalRequestId, reprint.id);
-        } else if (docPrefix === 'NLH') {
+        } else if (isNoLandholding) {
             // Use the updated fix for NLH from previous step
             await this._copyNoLandholdingCertificate(originalRequestId, reprint.id);
         }
@@ -912,10 +979,13 @@ class RequestService {
         if (insErr) throw insErr;
 
         const prefix = docLink.document_types?.prefix;
+        const isLandholding = prefix === 'LH' || prefix === 'CLH';
+        const isTaxDeclaration = prefix === 'TD' || prefix === 'CTC';
+        const isNoLandholding = prefix === 'NLH' || prefix === 'CNL';
         const copyPromise =
-            prefix === 'LH' ? this._copyLandholdingCertificate(originalRequestId, amended.id)
-                : prefix === 'TD' ? this._copyTaxDeclaration(originalRequestId, amended.id)
-                    : prefix === 'NLH' ? this._copyNoLandholdingCertificate(originalRequestId, amended.id)
+            isLandholding ? this._copyLandholdingCertificate(originalRequestId, amended.id)
+                : isTaxDeclaration ? this._copyTaxDeclaration(originalRequestId, amended.id)
+                    : isNoLandholding ? this._copyNoLandholdingCertificate(originalRequestId, amended.id)
                         : Promise.resolve();
 
         await Promise.all([
@@ -923,11 +993,11 @@ class RequestService {
             copyPromise,
         ]);
 
-        if (prefix === 'LH') {
+        if (isLandholding) {
             await supabase.from('encoded_landholding_certificates').update({ encoded_by: staffId }).eq('request_id', amended.id);
-        } else if (prefix === 'TD') {
+        } else if (isTaxDeclaration) {
             await supabase.from('encoded_tax_declarations').update({ encoded_by: staffId }).eq('request_id', amended.id);
-        } else if (prefix === 'NLH') {
+        } else if (isNoLandholding) {
             await supabase.from('encoded_no_landholding_certificates').update({ encoded_by: staffId }).eq('request_id', amended.id);
         }
 

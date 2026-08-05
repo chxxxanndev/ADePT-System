@@ -392,12 +392,6 @@
     border-color: #bfe3fb;
 }
 
-.arc-ref-pill.arc-doc-pill--gen {
-    background-color: #ede9fd;
-    color: #7c6fe8;
-    border-color: #ddd6fb;
-}
-
 .arc-declarant {
     font-weight: 600;
     color: var(--db-slate);
@@ -472,12 +466,6 @@
     border-color: #bfe3fb;
 }
 
-.arc-doc-pill--gen {
-    background-color: #ede9fd;
-    color: #7c6fe8;
-    border-color: #ddd6fb;
-}
-
 /* ---- Actions ---- */
 
 .arc-actions {
@@ -504,6 +492,11 @@
 
 .arc-restore-btn:hover {
     background: rgba(41, 35, 122, 0.12);
+}
+
+.arc-restore-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 /* ---- Pagination footer (mirrors TransactionRegistry's tr-pagination-*) ---- */

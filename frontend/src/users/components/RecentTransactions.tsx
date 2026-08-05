@@ -2,18 +2,17 @@ import { useMemo, useState } from 'react';
 import type { BadgeStatus, TransactionRow } from '../types/dashboard';
 import { SearchIcon } from './icons';
 
-// Maps every status defined in the official design system's badge table
-// to its exact bg/text color pairing.
+// Maps every status the registry emits to its badge bg/text pairing.
 const STATUS_STYLE: Record<BadgeStatus, string> = {
+    'Pending': 'status-gold',
+    'For Payment': 'status-gold',
+    'Payment Verified': 'status-green',
+    'Processing': 'status-blue',
+    'Ready for Release': 'status-green',
     'Released': 'status-green',
-    'Paid': 'status-green',
-    'Verified': 'status-green',
-    'Pending Payment': 'status-gold',
-    'Pending Verification': 'status-gold',
+    'Void': 'status-red',
     'Cancelled': 'status-red',
-    'Voided': 'status-red',
     'Archived': 'status-gray',
-    'Certified True Copy': 'status-blue',
 };
 
 interface RecentTransactionsProps {
@@ -118,7 +117,7 @@ export function RecentTransactions({ rows, allRows, onViewAll }: RecentTransacti
             )}
 
             <div className="view-all-link">
-                <a onClick={onViewAll}>View All Transactions →</a>
+                <button type="button" onClick={onViewAll}>View All Transactions →</button>
             </div>
         </div>
     );

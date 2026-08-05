@@ -179,6 +179,21 @@ function toDisplayRecord(t: Transaction, metadata: VoidMetadataEntry | undefined
 
 const VA_COLUMNS = ["Reference No.", "Declarant", "Document Type", "Reason / Change", "Actioned By", "Date & Time", "Action"];
 
+/* --- Summary skeleton (two compact cards — mirrors RegistrySummarySkeleton
+   and uses the same tr-summary-grid--multi sizing as the loaded cards) --- */
+function VoidAmendSummarySkeleton() {
+  return (
+    <div className="tr-summary-grid tr-summary-grid--multi">
+      {[0, 1].map((i) => (
+        <div key={i} className="skeleton-card-ghost tr-summary-skeleton-card">
+          <div className="skeleton-item" style={{ width: '60%', height: 10 }} />
+          <div className="skeleton-item" style={{ width: '30%', height: 20 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* --- Skeleton (mirrors TransactionRegistry / CertifiedTrueCopy's shimmer pattern) --- */
 function VoidAmendTableSkeleton({ rows = 8 }: { rows?: number }) {
   return (
@@ -226,6 +241,7 @@ export default function VoidAndAmend({
   const [pageSize, setPageSize] = useState(10);
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [metadataStore, setMetadataStore] = useState<VoidMetadataStore>(() => loadMetadataStore());
@@ -239,10 +255,12 @@ export default function VoidAndAmend({
     setLoadError(null);
     try {
       const all = await fetchTransactionRegistry();
+      setAllTransactions(all);
       setTransactions(all.filter((t) => t.status === "Void"));
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "Failed to load voided records.");
       setTransactions([]);
+      setAllTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -279,6 +297,14 @@ export default function VoidAndAmend({
     () => transactions.map((t) => toDisplayRecord(t, metadataStore[t.id])),
     [transactions, metadataStore]
   );
+
+  // ─── Summary counts ───────────────────────────────────────
+  // Voided: every request whose status is Void (same rule this table and
+  // the registry use). Amended: every request that is the amended copy of
+  // a voided original (requests.amended_from_id set — the same identifier
+  // the backend's getReportsData amendedCount uses).
+  const amendedCount = allTransactions.filter((t) => t.amendedFromId).length;
+  const voidedCount = transactions.length;
 
   // ─── Filtering & Sorting ─────────────────────────────────
   // Sorted newest void first — records.actionedAt is now backend-sourced
@@ -438,6 +464,38 @@ export default function VoidAndAmend({
             Void &amp; Amend
           </button>
         </div>
+
+        {/* Summary cards — same position inside tr-header as TransactionRegistry's
+            SummaryCards (right after the tabs), so the pill → card spacing matches
+            the registry exactly (tr-tabs margin-bottom 10px + tr-summary-grid
+            margin-top 18px). tr-summary-grid--multi applies the same compact
+            card sizing as tr-summary-grid--single (flex: 0 0 auto, 220–320px),
+            so the two cards sit side-by-side at Transaction Registry's card width
+            instead of stretching across the page. */}
+        {loading ? (
+          <VoidAmendSummarySkeleton />
+        ) : (
+          <div className="tr-summary-grid tr-summary-grid--multi">
+            <div className="tr-summary-card">
+              <div className="tr-summary-icon-wrap tr-summary-icon-wrap--total">
+                <PencilLine size={20} strokeWidth={2.3} />
+              </div>
+              <div className="tr-summary-card-text">
+                <span className="tr-summary-card-value">{amendedCount}</span>
+                <span className="tr-summary-card-label">Total Amended Documents</span>
+              </div>
+            </div>
+            <div className="tr-summary-card">
+              <div className="tr-summary-icon-wrap tr-summary-icon-wrap--total">
+                <Ban size={20} strokeWidth={2.3} />
+              </div>
+              <div className="tr-summary-card-text">
+                <span className="tr-summary-card-value">{voidedCount}</span>
+                <span className="tr-summary-card-label">Total Voided Documents</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {amendError && (
@@ -515,7 +573,7 @@ export default function VoidAndAmend({
                 ) : (
                   paginatedRecords.map((record) => (
                     <tr key={record.id} className="tr-row">
-                      <td><span className="tr-ref">#{record.reference}</span></td>
+                      <td><span className="tr-ref">{record.reference}</span></td>
                       <td><span className="tr-declarant" title={record.declarantName}>{record.declarantName}</span></td>
                       <td>{record.documentType}</td>
                       <td>{record.detail}</td>

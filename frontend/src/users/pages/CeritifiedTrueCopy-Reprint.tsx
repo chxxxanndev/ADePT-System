@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Printer } from "lucide-react";
 import "../styles/TransactionRegistry.css";
 import type { CertifiedCopyRecord, CTCStatus } from "../types/transaction";
 import { fetchCertifiedTrueCopies } from "../services/transactionService";
+import { RegistrySummarySkeleton } from "../components/common/Skeleton";
 
 const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
@@ -220,6 +221,28 @@ export default function CertifiedTrueCopy({
             Void &amp; Amend
           </button>
         </div>
+
+        {/* Summary card — same position inside tr-header as TransactionRegistry's
+            SummaryCards (right after the tabs), so the pill → card spacing matches
+            the registry exactly (tr-tabs margin-bottom 10px + tr-summary-grid
+            margin-top 18px). Every reprint row in this registry is a successfully
+            created reprint request (request_type = REPRINT), so the count is
+            simply the number of records shown here. */}
+        {isLoading ? (
+          <RegistrySummarySkeleton />
+        ) : (
+          <div className="tr-summary-grid tr-summary-grid--single">
+            <div className="tr-summary-card">
+              <div className="tr-summary-icon-wrap tr-summary-icon-wrap--total">
+                <Printer size={20} strokeWidth={2.3} />
+              </div>
+              <div className="tr-summary-card-text">
+                <span className="tr-summary-card-value">{records.length}</span>
+                <span className="tr-summary-card-label">Total Reprinted Documents</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Search + status filter toolbar, styled identically to

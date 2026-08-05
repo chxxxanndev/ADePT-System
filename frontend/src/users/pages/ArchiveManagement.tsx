@@ -1,4 +1,4 @@
-﻿import { useMemo, useState, useEffect } from "react";
+﻿import { useMemo, useState, useEffect, useRef } from "react";
 import type { ReactElement } from "react";
 import {
   Search,
@@ -8,9 +8,12 @@ import {
   Loader2,
   RefreshCw,
   X,
+  Check,
 } from "lucide-react";
 import { requestService } from "../services/requestService";
 import { fetchTransactionRegistry } from "../services/transactionService";
+import { getDocumentTypeFromReference } from "../../utils/documentType";
+import { RestoreConfirmModal } from "../components/RestoreConfirmModal";
 import type { Transaction, RequestedDocumentItem } from "../types/transaction";
 import "../styles/ArchiveManagement.css";
 
@@ -21,17 +24,14 @@ import "../styles/ArchiveManagement.css";
 const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="21" x2="21" y2="21"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 3 21 9 3 9"></polygon></svg>;
 const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
 const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>;
-const GenericDocIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h8l4 4v14H7z" /></svg>;
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
-type DocumentType =
-  | "Tax Declaration"
-  | "Certificate of Land Holding"
-  | "No-Landholding Certificate"
-  | "Certified True Copy"
-  | "General Document";
+// The system supports exactly three document types (see the shared
+// documentType.tsx prefix map: TD / NLH / LH). The archive filter list
+// and row labels must only ever surface these three.
+type DocumentType = "Tax Declaration" | "No Land Holding" | "Landholding";
 
 type ArchiveReason = "Auto" | "Manual";
 
@@ -52,18 +52,14 @@ type ReasonFilter = "All reasons" | ArchiveReason;
 
 const DOC_TYPE_CLASS: Record<DocumentType, string> = {
   "Tax Declaration": "arc-doc-pill--td",
-  "Certificate of Land Holding": "arc-doc-pill--lh",
-  "No-Landholding Certificate": "arc-doc-pill--nlh",
-  "Certified True Copy": "arc-doc-pill--tc",
-  "General Document": "arc-doc-pill--gen",
+  "No Land Holding": "arc-doc-pill--nlh",
+  Landholding: "arc-doc-pill--lh",
 };
 
 const DOC_TYPE_ICON: Record<DocumentType, () => ReactElement> = {
   "Tax Declaration": TaxDeclarationIcon,
-  "Certificate of Land Holding": LandholdingIcon,
-  "No-Landholding Certificate": NoLandholdingIcon,
-  "Certified True Copy": GenericDocIcon,
-  "General Document": GenericDocIcon,
+  "No Land Holding": NoLandholdingIcon,
+  Landholding: LandholdingIcon,
 };
 
 /* ------------------------------------------------------------------ */
@@ -71,19 +67,28 @@ const DOC_TYPE_ICON: Record<DocumentType, () => ReactElement> = {
 /* ------------------------------------------------------------------ */
 
 /**
- * Maps the normalized `documentType` string(s) coming from the shared
- * Transaction Registry (Title Case, e.g. "Certificate of No Landholding")
- * onto this page's own display labels.
+ * Maps a transaction onto one of the three canonical document types.
+ * The reference-number prefix (TD / NLH / LH — via the shared
+ * documentType.tsx util) is the most reliable signal; the registry
+ * document name is used as a fallback (it also covers the CTC variant
+ * of Tax Declarations, which shares the TD prefix family).
  */
-function resolveArchiveDocName(docs: RequestedDocumentItem[]): DocumentType {
+function resolveArchiveDocName(docs: RequestedDocumentItem[], referenceNumber: string): DocumentType {
+  const fromReference = getDocumentTypeFromReference(referenceNumber);
+  if (fromReference) return fromReference as DocumentType;
+
   const name = docs[0]?.documentType ?? "";
-
   if (name.includes("Tax Declaration")) return "Tax Declaration";
-  if (name.includes("No Landholding") || name.includes("No-Landholding")) return "No-Landholding Certificate";
-  if (name.includes("Landholding") || name.includes("Land Holding")) return "Certificate of Land Holding";
-  if (name.includes("True Copy")) return "Certified True Copy";
+  if (
+    name.includes("No Landholding") ||
+    name.includes("No-Landholding") ||
+    name.includes("No Land Holding")
+  ) {
+    return "No Land Holding";
+  }
+  if (name.includes("Landholding") || name.includes("Land Holding")) return "Landholding";
 
-  return "General Document";
+  return "Tax Declaration";
 }
 
 function DocTypeTag({ type }: { type: DocumentType }) {
@@ -120,7 +125,7 @@ function toArchivedRecord(t: Transaction): ArchivedRecord {
     id: t.id,
     reference: t.referenceNumber,
     declarantName: t.client.declarantName,
-    documentType: resolveArchiveDocName(t.requestedDocuments),
+    documentType: resolveArchiveDocName(t.requestedDocuments, t.referenceNumber),
     archivedDate: requested.toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "short",
@@ -152,6 +157,20 @@ export default function ArchiveManagement() {
   const [reasonFilter, setReasonFilter] = useState<ReasonFilter>("All reasons");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  // Restore confirmation modal target (replaces the native window.confirm).
+  const [restoreTarget, setRestoreTarget] = useState<{ id: string; reference: string } | null>(null);
+  // Restore feedback — reuses the system's existing .as-toast design
+  // (accountSettings.css): bottom-center, dark pill, 2500ms auto-dismiss.
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const toastTimer = useRef<number | null>(null);
+  // Prevents duplicate restore requests while one is in flight.
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+
+  const showToast = (type: "success" | "error", message: string) => {
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    setToast({ type, message });
+    toastTimer.current = window.setTimeout(() => setToast(null), 2500);
+  };
 
   const fetchArchivedData = async (isManualRefresh = false) => {
     try {
@@ -181,13 +200,17 @@ export default function ArchiveManagement() {
   }, []);
 
   const handleRestore = async (id: string, ref: string) => {
-    if (confirm(`Restore Reference #${ref} to the Pending Payments queue?`)) {
-      try {
-        await requestService.updateRequest(id, { status: "PENDING_PAYMENT" });
-        setRecords((prev) => prev.filter((r) => r.id !== id));
-      } catch (err) {
-        alert("Failed to restore document.");
-      }
+    if (restoringId) return; // don't fire a second restore while one is in flight
+    setRestoringId(id);
+    try {
+      await requestService.updateRequest(id, { status: "PENDING_PAYMENT" });
+      setRecords((prev) => prev.filter((r) => r.id !== id));
+      // Only claim success after the backend confirms the restore.
+      showToast("success", `Document ${ref} restored successfully.`);
+    } catch {
+      showToast("error", "Failed to restore document. Please try again.");
+    } finally {
+      setRestoringId(null);
     }
   };
 
@@ -317,9 +340,8 @@ export default function ArchiveManagement() {
             >
               <option value="All types">All types</option>
               <option value="Tax Declaration">Tax Declaration</option>
-              <option value="Certificate of Land Holding">Certificate of Land Holding</option>
-              <option value="No-Landholding Certificate">No-Landholding Certificate</option>
-              <option value="Certified True Copy">Certified True Copy</option>
+              <option value="No Land Holding">No Land Holding</option>
+              <option value="Landholding">Landholding</option>
             </select>
             <ChevronDown size={14} className="arc-select-chevron" />
           </div>
@@ -410,10 +432,15 @@ export default function ArchiveManagement() {
                       <div className="arc-actions">
                         <button
                           className="arc-restore-btn"
-                          onClick={() => handleRestore(record.id, record.reference)}
+                          onClick={() => setRestoreTarget({ id: record.id, reference: record.reference })}
+                          disabled={restoringId === record.id}
                         >
-                          <RotateCcw size={14} />
-                          Restore
+                          {restoringId === record.id ? (
+                            <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                          ) : (
+                            <RotateCcw size={14} />
+                          )}
+                          {restoringId === record.id ? "Restoring..." : "Restore"}
                         </button>
                       </div>
                     </td>
@@ -465,6 +492,35 @@ export default function ArchiveManagement() {
           </div>
         </div>
       </div>
+
+      {/* Restore confirmation modal — system rc-modal design (same as the
+          logout confirm), replacing the old native window.confirm(). */}
+      <RestoreConfirmModal
+        open={!!restoreTarget}
+        reference={restoreTarget?.reference ?? ""}
+        onCancel={() => setRestoreTarget(null)}
+        onConfirm={() => {
+          if (!restoreTarget) return;
+          const { id, reference } = restoreTarget;
+          setRestoreTarget(null);
+          void handleRestore(id, reference);
+        }}
+      />
+
+      {/* Restore feedback toast — same .as-toast design as the rest of ADePT
+          (bottom-center, dark pill, 2500ms auto-dismiss), with a success/error
+          icon variant. */}
+      {toast && (
+        <div
+          className={`as-toast as-toast--${toast.type}`}
+          role={toast.type === "error" ? "alert" : "status"}
+        >
+          {toast.type === "success"
+            ? <Check size={16} strokeWidth={2.5} aria-hidden="true" />
+            : <X size={16} strokeWidth={2.5} aria-hidden="true" />}
+          <span>{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 }

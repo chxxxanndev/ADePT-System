@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import type { WeeklyTrendPoint } from '../types/dashboard';
-import { BarChartIcon, RefreshIcon } from './icons';
+import { BarChartIcon } from './icons';
 
 interface AnalyticsOverviewProps {
     data: WeeklyTrendPoint[];
     lastUpdated: string;
-    onRefresh?: () => void;
 }
 
-export function AnalyticsOverview({ data, lastUpdated, onRefresh }: AnalyticsOverviewProps) {
+export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps) {
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
     const totalProcessed = data.reduce((sum, d) => sum + d.value, 0);
@@ -29,9 +28,6 @@ export function AnalyticsOverview({ data, lastUpdated, onRefresh }: AnalyticsOve
                     </div>
                     <span className="dashboard-card-subtext">Last Updated: {lastUpdated}</span>
                 </div>
-                <button className="icon-btn" onClick={onRefresh} aria-label="Refresh analytics">
-                    <RefreshIcon size={14} />
-                </button>
             </div>
 
             {/* Custom chart legend */}

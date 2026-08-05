@@ -22,11 +22,12 @@
  * endpoint later without touching any UI component.
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { fetchTransactionRegistry } from '../services/transactionService';
 import type { Transaction } from '../types/transaction';
 import type { WeeklyTrendPoint, DocumentDistributionSlice } from '../types/dashboard';
 import type { DeclarantRecord } from '../data/reportsMockData';
+import { getDocumentTypeFromReference } from '../../utils/documentType';
 
 // ─── Period-bucketed metric ────────────────────────────────────────────────
 export interface PeriodMetric {
@@ -94,6 +95,10 @@ export interface ReportsAnalyticsData {
     declarantRows: DeclarantRecord[];
 
     loading: boolean;
+    /** True while a refresh re-fetches data that is already on screen —
+     *  consumers keep showing the loaded data instead of skeletons,
+     *  mirroring TransactionRegistry's isRefreshing behavior. */
+    isRefreshing: boolean;
     error: string | null;
     /** Re-run the registry fetch (e.g. after an error, or a "Retry" click) */
     refetch: () => void;
@@ -221,24 +226,41 @@ function buildWeeklyTrend(released: Transaction[]): WeeklyTrendPoint[] {
 export function useReportsAnalytics(): ReportsAnalyticsData {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [refetchToken, setRefetchToken] = useState(0);
+    // Mirrors TransactionRegistry: the first fetch shows skeletons; a
+    // re-fetch while data is already on screen keeps the data visible.
+    const hasLoadedRef = useRef(false);
 
     const refetch = useCallback(() => setRefetchToken(n => n + 1), []);
 
     useEffect(() => {
         let cancelled = false;
-        setLoading(true);
         setError(null);
+        if (hasLoadedRef.current) setIsRefreshing(true);
+        else setLoading(true);
         fetchTransactionRegistry()
-            .then(data => { if (!cancelled) setTransactions(data); })
-            .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load data.'); })
-            .finally(() => { if (!cancelled) setLoading(false); });
+            .then(data => {
+                if (cancelled) return;
+                setTransactions(data);
+                hasLoadedRef.current = true;
+            })
+            .catch(err => {
+                if (cancelled) return;
+                setError(err instanceof Error ? err.message : 'Failed to load data.');
+                setTransactions([]);
+            })
+            .finally(() => {
+                if (cancelled) return;
+                setLoading(false);
+                setIsRefreshing(false);
+            });
         return () => { cancelled = true; };
     }, [refetchToken]);
 
     // ── Derived analytics ────────────────────────────────────────────────
-    const data = useMemo((): Omit<ReportsAnalyticsData, 'loading' | 'error' | 'refetch'> => {
+    const data = useMemo((): Omit<ReportsAnalyticsData, 'loading' | 'isRefreshing' | 'error' | 'refetch'> => {
         const released = transactions.filter(t => t.status === 'Released');
         const voided = transactions.filter(t => t.status === 'Void');
         const archived = transactions.filter(t => t.status === 'Archived');
@@ -276,9 +298,18 @@ export function useReportsAnalytics(): ReportsAnalyticsData {
         const weeklyTrend = buildWeeklyTrend(released);
 
         // ── Document distribution ──────────────────────────────────────
-        const tdCount = released.filter(t => t.requestedDocuments.some(d => d.documentType === 'Tax Declaration')).length;
-        const lhCount = released.filter(t => t.requestedDocuments.some(d => d.documentType === 'Certificate of Land Holding')).length;
-        const nlhCount = released.filter(t => t.requestedDocuments.some(d => d.documentType === 'Certificate of No Landholding')).length;
+        // The registry passes document_types.name through verbatim, so the
+        // "Certificate of Landholding" spelling (no space) is the live value;
+        // accept the spaced variant too so a future rename can't silently
+        // zero out the distribution slices.
+        const isDocType = (d: { documentType: string }, name: string) => d.documentType === name;
+        const tdCount = released.filter(t => t.requestedDocuments.some(d => isDocType(d, 'Tax Declaration'))).length;
+        const lhCount = released.filter(t => t.requestedDocuments.some(d =>
+            isDocType(d, 'Certificate of Landholding') || isDocType(d, 'Certificate of Land Holding')
+        )).length;
+        const nlhCount = released.filter(t => t.requestedDocuments.some(d =>
+            isDocType(d, 'Certificate of No Landholding') || isDocType(d, 'Certificate of No Land Holding')
+        )).length;
         const totalDocs = tdCount + lhCount + nlhCount || 1; // avoid /0
 
         const documentDistribution: DocumentDistributionSlice[] = [
@@ -297,7 +328,10 @@ export function useReportsAnalytics(): ReportsAnalyticsData {
 
         // ── Declarant rows for the Reports table ───────────────────────
         const declarantRows: DeclarantRecord[] = transactions.map(t => {
-            const docTypes = t.requestedDocuments.map(d => d.documentType).join(', ') || 'N/A';
+            const docTypes =
+                t.requestedDocuments.map(d => d.documentType).join(', ') ||
+                getDocumentTypeFromReference(t.referenceNumber) ||
+                'N/A';
             const initials = t.client.declarantName
                 .split(' ')
                 .filter(Boolean)
@@ -353,5 +387,5 @@ export function useReportsAnalytics(): ReportsAnalyticsData {
         };
     }, [transactions]);
 
-    return { ...data, loading, error, refetch };
+    return { ...data, loading, isRefreshing, error, refetch };
 }
