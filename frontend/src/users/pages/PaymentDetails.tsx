@@ -8,7 +8,7 @@ import { pdf } from '@react-pdf/renderer';
 
 import { CertOfNoLandholdingPDF, DEFAULT_NLH_SPACING, type NLHSpacing } from '../components/templates/NoLandholdingPDF';
 import { CertOfLandholdingPDF } from '../components/templates/LandholdingPDF';
-import { TaxDeclarationPDF } from '../components/templates/TaxDeclarationPDF';
+import { TaxDeclarationPDF, DEFAULT_TD_TEMPLATE_SPACING, type TDTemplateSpacing } from '../components/templates/TaxDeclarationPDF';
 import { landholdingService } from '../services/landholdingService';
 import { noLandholdingService } from '../services/noLandholdingService';
 import { taxDeclarationService } from '../services/taxDeclarationService';
@@ -116,6 +116,11 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
     // Per-document NLH Spacing state
     const [docNLHSpacing, setDocNLHSpacing] = useState<Record<string, NLHSpacing>>({});
 
+    // Per-document Tax Declaration layout state (base text sizes + auto-fit
+    // floor + Certified Copy block) — same seed-then-live-nudge pattern as
+    // the LH/NLH spacing above.
+    const [docTDSpacing, setDocTDSpacing] = useState<Record<string, TDTemplateSpacing>>({});
+
     const [activePreview, setActivePreview] = useState<{ docId: string; url: string; label: string } | null>(null);
     const [releaseStaff, setReleaseStaff] = useState<{ id: string; name: string }[]>([]);
     const [activeSignatories, setActiveSignatories] = useState(DEFAULT_SIGNATORIES);
@@ -138,6 +143,29 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
             const doc = documents.find(d => d.id === docId);
             if (doc && activePreview?.docId === docId) {
                 setTimeout(() => handlePrintDocument(doc, undefined, undefined, undefined, undefined, undefined, updated), 0);
+            }
+            return updated;
+        });
+    };
+
+    // --- TD Spacing Handlers (Tax Declaration layout adjustments) ---
+    const handleTDSpacingChange = (docId: string, field: keyof TDTemplateSpacing, value: number) => {
+        setDocTDSpacing(prev => {
+            const updated = { ...prev, [docId]: { ...(prev[docId] || DEFAULT_TD_TEMPLATE_SPACING), [field]: value } as TDTemplateSpacing };
+            const doc = documents.find(d => d.id === docId);
+            if (doc && activePreview?.docId === docId) {
+                setTimeout(() => handlePrintDocument(doc, undefined, undefined, undefined, undefined, undefined, undefined, updated), 0);
+            }
+            return updated;
+        });
+    };
+
+    const handleResetTDSpacing = (docId: string) => {
+        setDocTDSpacing(prev => {
+            const updated = { ...prev, [docId]: DEFAULT_TD_TEMPLATE_SPACING };
+            const doc = documents.find(d => d.id === docId);
+            if (doc && activePreview?.docId === docId) {
+                setTimeout(() => handlePrintDocument(doc, undefined, undefined, undefined, undefined, undefined, undefined, updated), 0);
             }
             return updated;
         });
@@ -473,7 +501,8 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
         receiptSpacingOverride?: Record<string, { bottom: number; left: number; rowGap: number }>,
         tableSpacingOverride?: Record<string, TableSpacing>,
         signatoryStyleOverride?: Record<string, SignatoryStyle>,
-        nlhSpacingOverride?: Record<string, NLHSpacing>
+        nlhSpacingOverride?: Record<string, NLHSpacing>,
+        tdSpacingOverride?: Record<string, TDTemplateSpacing>
     ) => {
         setIsGeneratingPdf(doc.id);
         try {
@@ -484,6 +513,7 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
             const liveTableSpacing = (tableSpacingOverride || docTableSpacing)[doc.id];
             const liveSignatoryStyle = (signatoryStyleOverride || docSignatoryStyle)[doc.id];
             const liveNLHSpacing = (nlhSpacingOverride || docNLHSpacing)[doc.id] || DEFAULT_NLH_SPACING;
+            const liveTDSpacing = (tdSpacingOverride || docTDSpacing)[doc.id] || DEFAULT_TD_TEMPLATE_SPACING;
 
             let PDFComponent;
 
@@ -661,10 +691,19 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
                 // (marketValue, assessmentLevel, classificationLabel, ...).
                 let tdData;
                 try {
-                    tdData = await taxDeclarationService.getTaxDeclaration(doc.id);
+                    // The payment document's id IS the request id (built from
+                    // req.id in PendingPayment), which is the key the TD data
+                    // is stored under.
+                    const requestId = doc.requestId || doc.request_id || doc.id;
+                    tdData = await taxDeclarationService.getTaxDeclaration(requestId);
+                    if (!tdData) {
+                        console.warn('[PaymentDetails] getTaxDeclaration returned null for', requestId);
+                    }
                 } catch (err) {
                     console.error('Failed to fetch tax declaration:', err);
-                    tdData = {};
+                    setBanner({ type: 'error', text: 'Failed to load Tax Declaration data. Try reloading.' });
+                    setIsGeneratingPdf(null);
+                    return;
                 }
 
                 PDFComponent = <TaxDeclarationPDF
@@ -672,6 +711,7 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
                     orNumber={orNumber} datePaid={datePaid}
                     certifiedByName={sigs?.primary?.name}
                     certifiedByTitle={sigs?.primary?.title}
+                    spacing={liveTDSpacing}
                 />;
             } else {
                 alert("Unknown document type for printing.");
@@ -832,6 +872,9 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
                             docNLHSpacing={docNLHSpacing}
                             onNLHSpacingChange={handleNLHSpacingChange}
                             onResetNLHSpacing={handleResetNLHSpacing}
+                            docTDSpacing={docTDSpacing}
+                            onTDSpacingChange={handleTDSpacingChange}
+                            onResetTDSpacing={handleResetTDSpacing}
                             releaseStaffOptions={releaseStaff}
                             onMarkAsReleased={handleMarkAsReleased}
                             onReleased={() => {

@@ -28,7 +28,7 @@
     border-radius: 16px;
     box-shadow: 0 6px 30px rgba(41, 35, 122, 0.10);
     border: 1px solid rgba(41, 35, 122, 0.09);
-    overflow: hidden;
+    overflow: visible;  /* was: hidden */
     display: flex;
     flex-direction: column;
 }
@@ -125,13 +125,14 @@
 }
 
 /* ── Form body ────────────────────────────────────────────── */
+/* Remove overflow-y: auto */
 .td-form-body {
     padding: 28px 32px;
     display: flex;
     flex-direction: column;
     gap: 0;
-    overflow-y: auto;
     flex: 1;
+    /* removed: overflow-y: auto */
 }
 
 /* ── Sections ─────────────────────────────────────────────── */

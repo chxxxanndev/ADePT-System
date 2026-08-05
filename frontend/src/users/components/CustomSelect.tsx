@@ -17,6 +17,7 @@ interface CustomSelectProps {
     noneLabel?: string;
     searchable?: boolean;
     searchPlaceholder?: string;
+    inlineSearch?: boolean;
 }
 
 export const CustomSelect: React.FC<CustomSelectProps> = ({
@@ -29,6 +30,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
     noneLabel = '-- None --',
     searchable,
     searchPlaceholder = 'Search...',
+    inlineSearch,
 }) => {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
@@ -62,6 +64,9 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         if (next && searchable) {
             setQuery('');
             searchRef.current?.focus();
+        }
+        if (next && inlineSearch) {
+            setQuery('');
         }
     };
 
@@ -101,18 +106,38 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                 </div>
             )}
 
-            <button
-                type="button"
-                className={`cs-trigger${open ? ' cs-trigger--open' : ''}`}
-                onClick={handleTriggerClick}
-                disabled={disabled}
-                title={selected?.sublabel ? `${selected.label} — ${selected.sublabel}` : triggerText}
-            >
-                <span className="cs-trigger-text">{triggerText}</span>
-                <svg className="cs-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
+            {/* Inline search: trigger becomes a text input when open */}
+            {inlineSearch && open && !disabled ? (
+                <input
+                    ref={searchRef}
+                    type="text"
+                    className={`cs-trigger cs-trigger--open`}
+                    placeholder="Type to search..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') { setOpen(false); setQuery(''); }
+                        if (e.key === 'Enter') {
+                            const first = filteredOptions[0];
+                            if (first) handleSelect(first.id);
+                        }
+                    }}
+                    autoFocus
+                />
+            ) : (
+                <button
+                    type="button"
+                    className={`cs-trigger${open ? ' cs-trigger--open' : ''}`}
+                    onClick={handleTriggerClick}
+                    disabled={disabled}
+                    title={selected?.sublabel ? `${selected.label} — ${selected.sublabel}` : triggerText}
+                >
+                    <span className="cs-trigger-text">{triggerText}</span>
+                    <svg className="cs-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+            )}
 
             {open && (
                 <div className="cs-menu" role="listbox">

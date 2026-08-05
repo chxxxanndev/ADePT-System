@@ -1,4 +1,5 @@
 import { Font, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import { fitFontSizeToWidth, fitFontSizeToLines, measureTextWidth, estimateWidth, useTextMeasureReady } from './textFit';
 
 // REGISTER THE CASTELLAR FONT
 Font.register({
@@ -39,7 +40,7 @@ const styles = StyleSheet.create({
   // NEW: header image style (same pattern as CertOfLandholdingPDF's headerImage)
   headerImage: {
     width: '100%',
-    height: 'auto',
+    objectFit: 'contain',
   },
   formNoTag: { position: 'absolute', top: 15, left: 36, fontSize: 8 },
   content: { paddingHorizontal: 38, paddingTop: 15, paddingBottom: 15 },
@@ -68,14 +69,15 @@ const styles = StyleSheet.create({
     fontSize: 10.5, 
     fontFamily: 'BookmanOldStyle', 
     fontWeight: 'bold', 
-    minHeight: 14, 
+    height: 14, 
+    overflow: 'hidden',
     justify: 'flex-end',
     textAlign: 'center',
   },
   
   locationContainer: { flex: 1, flexDirection: 'row', justifyContent: 'space-between' },
   locationColumn: { width: '32%', alignItems: 'center' },
-  locationLine: { borderBottomWidth: 1, width: '100%', textAlign: 'center', fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10, minHeight: 14 },
+  locationLine: { borderBottomWidth: 1, width: '100%', textAlign: 'center', fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10, height: 14, overflow: 'hidden' },
   locationSubLabel: { fontSize: 10, marginTop: 2 },
   
   gridItem: { flexDirection: 'row', alignItems: 'flex-end' },
@@ -96,13 +98,81 @@ const styles = StyleSheet.create({
 
 const peso = (n: any) => (n ? Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '');
 
+// ---------------------------------------------------------------------------
+// Tax Declaration layout adjustments (released from DocumentReleasePanel).
+// All values are "base" font sizes: auto-fit still shrinks from them (down to
+// autoFitFloor) when a long value would otherwise wrap and push the fixed
+// one-page LETTER form out of alignment.
+// ---------------------------------------------------------------------------
+export interface TDTemplateSpacing {
+    autoFitEnabled: 0 | 1;   // master switch for the auto-shrink behaviour
+    autoFitFloor: number;    // smallest size long text may shrink to (pt)
+    ownerFontSize: number;      // Owner/Administrator name + address
+    locationFontSize: number;   // Barangay / Municipality / Province
+    boundaryNorthFontSize: number;   // North boundary
+    boundarySouthFontSize: number;   // South boundary
+    boundaryEastFontSize: number;    // East boundary
+    boundaryWestFontSize: number;    // West boundary
+    tableFontSize: number;      // Kind of Property / Classification cells
+    amountWordsFontSize: number;// Total Assessed Value (amount in words)
+    memorandaFontSize: number;  // Memoranda block
+    assessorFontSize: number;   // Verified-by / Assessor signature names
+    assessorMarginLeft: number; // horizontal nudge of the Assessor name (pt)
+    certNameFontSize: number;   // Certified Copy signatory name
+    certTitleFontSize: number;  // Certified Copy signatory title
+    certOffsetX: number;        // horizontal nudge of the signatory block (pt)
+    certOffsetY: number;        // vertical nudge of the signatory block (pt)
+    certRowGap: number;         // spacing between Cert. Fee / O.R. / Date rows
+}
+
+export const DEFAULT_TD_TEMPLATE_SPACING: TDTemplateSpacing = {
+    autoFitEnabled: 1,
+    autoFitFloor: 5,
+    ownerFontSize: 10,
+    locationFontSize: 10,
+    boundaryNorthFontSize: 8,
+    boundarySouthFontSize: 8,
+    boundaryEastFontSize: 8,
+    boundaryWestFontSize: 8,
+    tableFontSize: 10,
+    amountWordsFontSize: 10.5,
+    memorandaFontSize: 9,
+    assessorFontSize: 10,
+    assessorMarginLeft: 0,
+    certNameFontSize: 11,
+    certTitleFontSize: 11,
+    certOffsetX: 0,
+    certOffsetY: 0,
+    certRowGap: 3,
+};
+
+// LETTER content width (612pt page minus 2 × 38pt content padding).
+const CONTENT_WIDTH = 612 - 38 * 2;
+
+// Letter page height — used by the page clamp. Kept 2pt under the nominal
+// 792pt so a fractional rounding can never leave a blank second page.
+const PAGE_HEIGHT = 790;
+
+// Hard floor for auto-fit. When a value still can't fit at autoFitFloor it
+// keeps shrinking down to this instead of wrapping and growing its fixed box.
+const HARD_MIN = 3;
+
+// Lowest the accordion's floor/auto-fit base is ever allowed to render at —
+// matches the floor stepper's own UI minimum (4pt). Stops a stale or typed-in
+// absurd value (e.g. 1pt from the earlier 2nd-page experiments) from blanking
+// a field: the auto-fit *degrade* path for very long text may still dip below
+// this down to HARD_MIN, but normal text never renders smaller than this.
+const RENDER_FLOOR = 4;
+
 export const TaxDeclarationPDF = ({
   data = {},
   orNumber = '',
   datePaid = '',
   certifiedByName = '',
-  certifiedByTitle = ''
+  certifiedByTitle = '',
+  spacing = {} as Partial<TDTemplateSpacing>,
 }: any) => {
+  const s: TDTemplateSpacing = { ...DEFAULT_TD_TEMPLATE_SPACING, ...spacing };
   const rows = data.assessmentRows || data.assessments || [];
   // Guaranteed 4 blank/underline rows
   const tableRows = [...rows, ...Array(Math.max(0, 4 - rows.length)).fill({})];
@@ -110,17 +180,99 @@ export const TaxDeclarationPDF = ({
   const totalMarketValue = rows.reduce((sum: any, r: any) => sum + (Number(r.marketValue) || 0), 0);
   const totalAssessedValue = rows.reduce((sum: any, r: any) => sum + (Number(r.assessedValue) || 0), 0);
 
+  // --- AUTO-FIT ----------------------------------------------------------
+  // Fitted sizes are computed once fonts are ready; until then base sizes are
+  // used so the first paint is never worse than today's output.
+  const measureReady = useTextMeasureReady();
+  const measure = (text: string, size: number, family = 'Times-Roman') =>
+    measureReady ? measureTextWidth(text, family, size) : estimateWidth(text, size);
+
+  // NOTE: the base size is clamped to the auto-fit floor (itself bounded by
+  // RENDER_FLOOR). The floor is the smallest size the accordion is willing to
+  // render at; setting a base below it (e.g. 1pt) would otherwise render
+  // invisible text.
+  const fitWidth = (text: string, maxWidth: number, family: string, base: number, weight: any = 'normal', style: any = 'normal') => {
+    const floorEff = Math.max(s.autoFitFloor, RENDER_FLOOR);
+    const effBase = Math.max(base, floorEff);
+    return s.autoFitEnabled && measureReady
+      ? fitFontSizeToWidth(text, maxWidth, family, { base: effBase, min: floorEff, absMin: HARD_MIN, weight, style })
+      : effBase;
+  };
+
+  // Owner / Administrator + addresses — rendered at the user's chosen size and
+  // allowed to WRAP to a second line when longer than the underline (no auto
+  // shrink-to-fit, which is what shrank long values into the clipped "..." look);
+  // the user adjusts the size manually. Guarded by RENDER_FLOOR so a stale tiny
+  // value can never blank a field.
+  const fontPt = (size: number) => Math.max(size, RENDER_FLOOR);
+
+  const ownerNameSize = fontPt(s.ownerFontSize);
+  const ownerAddressSize = fontPt(s.ownerFontSize);
+  const adminNameSize = fontPt(s.ownerFontSize);
+  const adminAddressSize = fontPt(s.ownerFontSize);
+
+  // Location of property — three columns sharing the space after the label.
+  const locationLabelW = Math.max(measure('Location of', 11), measure('Property:', 11));
+  const locationColumnW = (CONTENT_WIDTH - locationLabelW - 4 - 30) / 3;
+
+  const barangaySize = fitWidth(data.barangay || '', locationColumnW, 'BookmanOldStyle', s.locationFontSize, 'bold');
+  const municipalitySize = fitWidth(data.municipality || '', locationColumnW, 'BookmanOldStyle', s.locationFontSize, 'bold');
+  const provinceSize = fitWidth('ZAMBOANGA DEL NORTE', locationColumnW, 'Times-Bold', s.locationFontSize, 'bold');
+
+  // Boundaries — each direction has its own size so the user can adjust them
+  // independently; long values wrap instead of being shrunk or clipped.
+  const boundaryNorthSize = fontPt(s.boundaryNorthFontSize);
+  const boundarySouthSize = fontPt(s.boundarySouthFontSize);
+  const boundaryEastSize = fontPt(s.boundaryEastFontSize);
+  const boundaryWestSize = fontPt(s.boundaryWestFontSize);
+
+  // Property table — Kind of Property (16%) and Classification (18%) cells.
+  const kindCellW = CONTENT_WIDTH * 0.16 - 4;
+  const classificationCellW = CONTENT_WIDTH * 0.18 - 4;
+
+  // Amount in words — full flex underline after the label.
+  const wordsW = CONTENT_WIDTH - measure('Total Assessed Value: ', 11) - 2;
+
+  // Verified by / Assessor (each sits in a 32% column).
+  const verifiedByW = CONTENT_WIDTH * 0.40 - 2;
+  const assessorText = data.assessorName ? `(SGD.) ${data.assessorName}` : '';
+
+  const verifiedByNameSize = fitWidth(data.verifiedByName || '', verifiedByW, 'BookmanOldStyle', s.assessorFontSize, 'bold');
+  const assessorNameSize = fitWidth(assessorText, verifiedByW, 'BookmanOldStyle', s.assessorFontSize, 'bold');
+
+  // Certified Copy block — signatory block is the 55% column minus the
+  // "Certified copy:" label (85pt) and its right padding (10pt).
+  const certSignatoryW = CONTENT_WIDTH * 0.65 - 60 - 10 - 2;
+
+  const wordsSize = fitWidth(String(data.totalAssessedValueWords || ''), wordsW, 'BookmanOldStyle', s.amountWordsFontSize, 'bold', 'italic');
+  const floorEff = Math.max(s.autoFitFloor, RENDER_FLOOR);
+  const memorandaSize = s.autoFitEnabled && measureReady
+    ? fitFontSizeToLines(
+        data.memoranda || '',
+        CONTENT_WIDTH - 65,
+        3,
+        'BookmanOldStyle',
+        { base: Math.max(s.memorandaFontSize, floorEff), min: floorEff, absMin: HARD_MIN, weight: 'bold', style: 'italic' },
+      )
+    : Math.max(s.memorandaFontSize, floorEff);
+  const certifiedNameSize = fitWidth(certifiedByName || '', certSignatoryW, 'BookmanOldStyle', s.certNameFontSize, 'bold');
+  const certifiedTitleSize = fitWidth(certifiedByTitle || '', certSignatoryW, 'Times-Roman', s.certTitleFontSize);
+
   return (
     <Document>
       <Page size="LETTER" style={styles.page}>
         <Image fixed src={window.location.origin + '/images/official_bg.png'} style={styles.background} />
 
-        {/* HEADER IMAGE (replaces hardcoded Republic/Province/Office text header) */}
-        <Image src={window.location.origin + '/images/landholding_header.png'} style={styles.headerImage} />
-
         <Text style={styles.formNoTag}>RPA FORM NO. 1A</Text>
 
-        <View style={styles.content}>
+        {/* PAGE CLAMP: header + content sit inside a fixed-height, clipped
+            container so the LETTER form can never spill onto a second page —
+            any residual overflow is cut at the page edge instead. */}
+        <View style={{ height: PAGE_HEIGHT, overflow: 'hidden' }}>
+          {/* HEADER IMAGE (replaces hardcoded Republic/Province/Office text header) */}
+          <Image src={window.location.origin + '/images/landholding_header.png'} style={styles.headerImage} />
+
+          <View style={styles.content}>
           {/* ASSESSMENT OF REAL PROPERTY NO. LINE */}
           <View style={styles.refRow}>
             <View style={[styles.refItem, { marginRight: 15 }]}>
@@ -151,20 +303,20 @@ export const TaxDeclarationPDF = ({
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
               
               {/* Left: Owner */}
-              <View style={{ width: '58%', flexDirection: 'row', alignItems: 'flex-end' }}>
+              <View style={{ width: '55%', flexDirection: 'row', alignItems: 'flex-end' }}>
                 <Text style={{ fontSize: 10 }}>Owner: </Text>
-                <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 12 }}>
-                  <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>
+                <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 14 }}>
+                  <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: ownerNameSize, textAlign: 'center' }} hyphenationCallback={(word) => [word]}>
                     {data.ownerName || ''}
                   </Text>
                 </View>
               </View>
 
               {/* Right: Owner Address */}
-              <View style={{ width: '38%', flexDirection: 'row', alignItems: 'flex-end' }}>
+              <View style={{ width: '44%', flexDirection: 'row', alignItems: 'flex-end' }}>
                 <Text style={{ fontSize: 10 }}>Address: </Text>
-                <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 12 }}>
-                  <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10, textAlign: 'left' }}>
+                <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 14 }}>
+                  <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: ownerAddressSize, textAlign: 'left' }} hyphenationCallback={(word) => [word]}>
                     {data.ownerAddress || ''}
                   </Text>
                 </View>
@@ -176,20 +328,20 @@ export const TaxDeclarationPDF = ({
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               
               {/* Left: Administrator */}
-              <View style={{ width: '58%', flexDirection: 'row', alignItems: 'flex-end' }}>
+              <View style={{ width: '55%', flexDirection: 'row', alignItems: 'flex-end' }}>
                 <Text style={{ fontSize: 10 }}>Administrator: </Text>
-                <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 12 }}>
-                  <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>
+                <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 14 }}>
+                  <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: adminNameSize, textAlign: 'center' }} hyphenationCallback={(word) => [word]}>
                     {data.administratorName || data.administrator_name || ''}
                   </Text>
                 </View>
               </View>
 
               {/* Right: Admin Address */}
-              <View style={{ width: '38%', flexDirection: 'row', alignItems: 'flex-end' }}>
+              <View style={{ width: '44%', flexDirection: 'row', alignItems: 'flex-end' }}>
                 <Text style={{ fontSize: 10 }}>Address: </Text>
-                <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 12 }}>
-                  <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10, textAlign: 'left' }}>
+                <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 14 }}>
+                  <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: adminAddressSize, textAlign: 'left' }} hyphenationCallback={(word) => [word]}>
                     {data.administratorAddress || data.administrator_address || ''}
                   </Text>
                 </View>
@@ -215,19 +367,19 @@ export const TaxDeclarationPDF = ({
               <View style={[styles.locationContainer, { flex: 1, paddingTop: 8, flexDirection: 'row' }]}>
                 {/* Barangay */}
                 <View style={[styles.locationColumn, { marginRight: 15 }]}>
-                  <Text style={styles.locationLine}>{data.barangay}</Text>
+                  <Text style={[styles.locationLine, { fontSize: barangaySize }]}>{data.barangay}</Text>
                   <Text style={styles.locationSubLabel}>(Barangay)</Text>
                 </View>
 
                 {/* Municipality */}
                 <View style={[styles.locationColumn, { marginRight: 15 }]}>
-                  <Text style={styles.locationLine}>{data.municipality}</Text>
+                  <Text style={[styles.locationLine, { fontSize: municipalitySize }]}>{data.municipality}</Text>
                   <Text style={styles.locationSubLabel}>(Municipality)</Text>
                 </View>
 
                 {/* Province */}
                 <View style={styles.locationColumn}>
-                  <Text style={[styles.locationLine, { fontFamily: 'Times-Bold' }]}>ZAMBOANGA DEL NORTE</Text>
+                  <Text style={[styles.locationLine, { fontFamily: 'Times-Bold', fontSize: provinceSize }]}>ZAMBOANGA DEL NORTE</Text>
                   <Text style={styles.locationSubLabel}>(Province)</Text>
                 </View>
               </View>
@@ -255,23 +407,23 @@ export const TaxDeclarationPDF = ({
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
                 
                 {/* Left Column: Boundaries: North */}
-                <View style={{ width: '58%', flexDirection: 'row', alignItems: 'flex-end' }}>
+                <View style={{ width: '49%', flexDirection: 'row', alignItems: 'flex-end' }}>
                   <Text style={{ fontSize: 11 }}>Boundaries: </Text>
                   <Text style={{ fontSize: 11, width: 45, textAlign: 'right' }}>North: </Text>
                   
-                  <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 12 }}>
-                    <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 8, textAlign: 'left' }}>
+                  <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 14 }}>
+                    <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: boundaryNorthSize, textAlign: 'left' }} hyphenationCallback={(word) => [word]}>
                       {data.boundaryNorth}
                     </Text>
                   </View>
                 </View>
 
                 {/* Right Column: South */}
-                <View style={{ width: '38%', flexDirection: 'row', alignItems: 'flex-end' }}>
+                <View style={{ width: '49%', flexDirection: 'row', alignItems: 'flex-end' }}>
                   <Text style={{ fontSize: 11, width: 45, textAlign: 'right' }}>South: </Text>
                   
-                  <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 12 }}>
-                    <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 8, textAlign: 'left' }}>
+                  <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 14 }}>
+                    <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: boundarySouthSize, textAlign: 'left' }} hyphenationCallback={(word) => [word]}>
                       {data.boundarySouth}
                     </Text>
                   </View>
@@ -283,23 +435,23 @@ export const TaxDeclarationPDF = ({
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 
                 {/* Left Column: East (Blank space spacer matching 'Boundaries: ') */}
-                <View style={{ width: '58%', flexDirection: 'row', alignItems: 'flex-end' }}>
+                <View style={{ width: '49%', flexDirection: 'row', alignItems: 'flex-end' }}>
                   <Text style={{ fontSize: 11, color: 'transparent' }}>Boundaries: </Text>
                   <Text style={{ fontSize: 11, width: 45, textAlign: 'right' }}>East: </Text>
                   
-                  <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 12 }}>
-                    <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 8, textAlign: 'left' }}>
+                  <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 14 }}>
+                    <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: boundaryEastSize, textAlign: 'left' }} hyphenationCallback={(word) => [word]}>
                       {data.boundaryEast}
                     </Text>
                   </View>
                 </View>
 
                 {/* Right Column: West */}
-                <View style={{ width: '38%', flexDirection: 'row', alignItems: 'flex-end' }}>
+                <View style={{ width: '49%', flexDirection: 'row', alignItems: 'flex-end' }}>
                   <Text style={{ fontSize: 11, width: 45, textAlign: 'right' }}>West: </Text>
                   
-                  <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 12 }}>
-                    <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 8, textAlign: 'left' }}>
+                  <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 14 }}>
+                    <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: boundaryWestSize, textAlign: 'left' }} hyphenationCallback={(word) => [word]}>
                       {data.boundaryWest}
                     </Text>
                   </View>
@@ -345,14 +497,17 @@ export const TaxDeclarationPDF = ({
             const classification = row.classificationLabel || row.classification_label || '';
             const aLevel = row.assessmentLevel || row.assessment_level;
 
+            const kindSize = fitWidth(kind, kindCellW, 'BookmanOldStyle', s.tableFontSize, 'bold');
+            const classSize = fitWidth(classification, classificationCellW, 'BookmanOldStyle', s.tableFontSize, 'bold');
+
             return (
-              <View key={i} style={{ flexDirection: 'row', height: 16, alignItems: 'flex-end', justifyContent: 'flex-start', paddingLeft: 2, marginBottom: -4 }}>
+              <View key={i} style={{ flexDirection: 'row', height: 18, alignItems: 'flex-end', justifyContent: 'flex-start', paddingLeft: 2, marginBottom: 0 }}>
                 <View style={{ width: '16%', borderBottomWidth: 1, borderBottomColor: '#000', height: '100%', justifyContent: 'flex-end', paddingBottom: 2 }}>
-                  <Text style={{ textAlign: 'center', fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10 }}>{kind}</Text>
+                  <Text style={{ textAlign: 'center', fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: kindSize }}>{kind}</Text>
                 </View>
 
                 <View style={{ width: '18%', marginLeft: '1%', borderBottomWidth: 1, borderBottomColor: '#000', height: '100%', justifyContent: 'flex-end', paddingBottom: 2 }}>
-                  <Text style={{ textAlign: 'center', fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 9 }}>{classification}</Text>
+                  <Text style={{ textAlign: 'center', fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: classSize }}>{classification}</Text>
                 </View>
 
                 <View style={{ width: '20%', marginLeft: '4%', borderBottomWidth: 1, borderBottomColor: '#000', height: '100%', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2, paddingBottom: 2 }}>
@@ -397,7 +552,7 @@ export const TaxDeclarationPDF = ({
           {/* TOTAL ASSESSED VALUE & AMOUNT IN WORDS (No gap between them) */}
           <View style={styles.fieldRow}>
             <Text style={styles.label10}>Total Assessed Value: </Text>
-            <View style={[styles.underlineData, { textAlign: 'left' }]}><Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontStyle: 'italic' }}>{String(data.totalAssessedValueWords || '')}</Text></View>
+            <View style={[styles.underlineData, { textAlign: 'left' }]}><Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontStyle: 'italic', fontSize: wordsSize }}>{String(data.totalAssessedValueWords || '')}</Text></View>
           </View>
           <Text style={{ fontSize: 10, textAlign: 'center' }}>(Amount in Words)</Text>
 
@@ -405,14 +560,14 @@ export const TaxDeclarationPDF = ({
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', width: '25%' }}>
               <Text style={{ fontSize: 11 }}>Area: </Text>
-              <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', textAlign: 'center', minHeight: 14 }}>
+              <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', textAlign: 'center', height: 14, overflow: 'hidden' }}>
                 <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 11 }}>{data.area}</Text>
               </View>
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', width: '30%' }}>
               <Text style={{ fontSize: 11 }}>Tax Effectivity: </Text>
-              <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', textAlign: 'center', minHeight: 14 }}>
+              <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', textAlign: 'center', height: 14, overflow: 'hidden' }}>
                 <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 11 }}>{data.taxEffectivity}</Text>
               </View>
             </View>
@@ -433,22 +588,22 @@ export const TaxDeclarationPDF = ({
               <Text style={{ fontSize: 11, marginBottom: 2 }}>Verified by:</Text>
 
               {/* Signature Lines Row */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'flex-start' }}>
                 
                 {/* Left Column: Verified By Line */}
-                <View style={{ width: '32%', marginLeft: 50 }}>
+                <View style={{ width: '40%', marginLeft: 50 }}>
                   <View style={{ borderBottomWidth: 1, borderBottomColor: '#000', width: '100%', minHeight: 14, justifyContent: 'flex-end' }}>
-                    <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>
+                    <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: verifiedByNameSize, textAlign: 'center' }}>
                       {data.verifiedByName || ''}
                     </Text>
                   </View>
                 </View>
 
                 {/* Right Column: Municipal Assessor Line & Title */}
-                <View style={{ width: '32%', alignItems: 'center' }}>
+                <View style={{ width: '40%', alignItems: 'center', marginLeft: 60 }}>
                   <View style={{ borderBottomWidth: 1, borderBottomColor: '#000', width: '100%', minHeight: 14, justifyContent: 'flex-end' }}>
-                    <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>
-                      {data.assessorName ? `(SGD.) ${data.assessorName}` : ''}
+                    <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: assessorNameSize, textAlign: 'center', marginLeft: s.assessorMarginLeft }}>
+                      {assessorText}
                     </Text>
                   </View>
                   <Text style={{ fontSize: 9, textAlign: 'center', marginTop: 2 }}>
@@ -462,7 +617,7 @@ export const TaxDeclarationPDF = ({
           {/* THIS DECLARATION CANCELS ARP NO. (No gap) */}
           <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
             <Text style={{ fontSize: 11 }}>This declaration cancels ARP No. </Text>
-            <View style={{ width: 100, borderBottomWidth: 1, borderBottomColor: '#000', textAlign: 'left', minHeight: 14 }}>
+            <View style={{ width: 100, borderBottomWidth: 1, borderBottomColor: '#000', textAlign: 'left', height: 14, overflow: 'hidden' }}>
               <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10 }}>{data.cancelsArpNo || ''}</Text>
             </View>
           </View>
@@ -480,14 +635,14 @@ export const TaxDeclarationPDF = ({
 
             <View style={{ flexDirection: 'row' }}>
               <Text style={{ fontSize: 11, width: 65 }}>Memoranda: </Text>
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, height: 45, maxHeight: 45, overflow: 'hidden' }}>
                 <Text 
                   hyphenationCallback={(word) => [word]} 
                   style={{ 
                     fontFamily: 'BookmanOldStyle', 
                     fontWeight: 'bold', 
                     fontStyle: 'italic', 
-                    fontSize: 9,
+                    fontSize: memorandaSize,
                     lineHeight: 1.58,
                     paddingTop: 1.6
                   }}
@@ -499,20 +654,20 @@ export const TaxDeclarationPDF = ({
           </View>
           
           {/* CERTIFIED TRUE COPY BOX */}
-            <View style={{ height: 20 }} />
+            <View style={{ height: 18 }} />
 
             <View style={styles.certifiedBox}>
               {/* LEFT COLUMN: Certified copy & Signatory */}
-              <View style={{ width: '55%', flexDirection: 'row' }}>
+              <View style={{ width: '65%', flexDirection: 'row' }}>
                 {/* Top-aligned label */}
                 <Text style={{ width: 85, fontSize: 11 }}>Certified copy:</Text>
 
                 {/* Signatory block pushed down to line up with O.R. No. */}
-                <View style={{ flex: 1, alignItems: 'center', paddingRight: 10, marginTop: 12 }}>
-                  <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 11 }}>
+                <View style={{ flex: 1, alignItems: 'center', paddingRight: 10, marginTop: 12 + s.certOffsetY, transform: `translate(${s.certOffsetX}pt, 0pt)` }}>
+                  <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: certifiedNameSize }}>
                     {certifiedByName}
                   </Text>
-                  <Text style={{ fontSize: 11, textAlign: 'center' }}>
+                  <Text style={{ fontSize: certifiedTitleSize, textAlign: 'center' }}>
                     {certifiedByTitle}
                   </Text>
 
@@ -525,7 +680,7 @@ export const TaxDeclarationPDF = ({
               {/* RIGHT COLUMN: Stacked Fee, O.R. No., and Date Paid */}
               <View style={{ width: '42%', alignItems: 'flex-end' }}>
                 {/* Certification Fee Row */}
-                <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 3 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: s.certRowGap }}>
                   <Text style={{ fontSize: 11 }}>Certification Fee: </Text>
                   <View style={{ borderBottomWidth: 1, borderBottomColor: '#000', width: 75 }}>
                     <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 11, textAlign: 'left' }}>
@@ -535,7 +690,7 @@ export const TaxDeclarationPDF = ({
                 </View>
 
                 {/* O.R. No. Row */}
-                <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 3 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: s.certRowGap }}>
                   <Text style={{ fontSize: 11 }}>O.R. No.: </Text>
                   <View style={{ borderBottomWidth: 1, borderBottomColor: '#000', width: 105 }}>
                     <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 11, textAlign: 'left' }}>
@@ -566,6 +721,7 @@ export const TaxDeclarationPDF = ({
 
           {/* [1 space - End] */}
           <View style={{ height: 11 }} />
+          </View>
         </View>
       </Page>
     </Document>

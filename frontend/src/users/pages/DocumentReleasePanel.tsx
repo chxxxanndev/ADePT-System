@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../styles/DocumentReleasePanel.css';
 import { CustomSelect } from '../components/CustomSelect';
+import { DEFAULT_TD_TEMPLATE_SPACING, type TDTemplateSpacing } from '../components/templates/TaxDeclarationPDF';
 
 interface Signatory {
     id: string;
@@ -140,6 +141,12 @@ interface DocumentReleasePanelProps {
     docNLHSpacing?: Record<string, NLHSpacing>;
     onNLHSpacingChange?: (docId: string, field: keyof NLHSpacing, value: number) => void;
     onResetNLHSpacing?: (docId: string) => void;
+
+    // Tax Declaration layout adjustments (base text sizes + auto-fit floor +
+    // Certified Copy block) — the TD equivalent of the LH/NLH accordions.
+    docTDSpacing?: Record<string, TDTemplateSpacing>;
+    onTDSpacingChange?: (docId: string, field: keyof TDTemplateSpacing, value: number) => void;
+    onResetTDSpacing?: (docId: string) => void;
 
     releaseStaffOptions: { id: string; name: string }[];
     onMarkAsReleased: (releasedBy: string) => Promise<void> | void;
@@ -460,6 +467,9 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
     docNLHSpacing,
     onNLHSpacingChange,
     onResetNLHSpacing,
+    docTDSpacing,
+    onTDSpacingChange,
+    onResetTDSpacing,
     releaseStaffOptions,
     onMarkAsReleased,
     onReleased,
@@ -493,6 +503,7 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
     // --- Per-doc-type guards — all derived from activeDoc inside the component
     const isLandholdingDoc = !!activeDoc?.referenceNumber?.startsWith('LH');
     const isNLHDoc = !!activeDoc?.referenceNumber?.startsWith('NLH');
+    const isTaxDecDoc = !!activeDoc?.referenceNumber?.startsWith('TD');
 
     // --- Active spacing values (fall back to defaults when not yet customised)
     const activeSpacing = activeDoc
@@ -514,6 +525,10 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
     const activeNLHSpacing = activeDoc
     ? ((docNLHSpacing ?? {})[activeDoc.id] || DEFAULT_NLH_SPACING)
     : DEFAULT_NLH_SPACING;
+
+    const activeTDSpacing = activeDoc
+        ? ((docTDSpacing ?? {})[activeDoc.id] || DEFAULT_TD_TEMPLATE_SPACING)
+        : DEFAULT_TD_TEMPLATE_SPACING;
 
     // Reset the "loaded" flag every time a new preview URL comes in.
     useEffect(() => {
@@ -760,6 +775,168 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                                 </div>
                             )}
                         </div>
+
+                        {/* ── TD ACCORDIONS ─────────────────────────────────── */}
+                        {isTaxDecDoc && (
+                            <AccordionSection title="Field Text Size (Auto-fit)" onReset={() => onResetTDSpacing?.(activeDoc.id)}>
+                                <div className="pd-sig-selectors">
+                                    <Stepper
+                                        label="Owner & Administrator Text Size (pt)"
+                                        value={activeTDSpacing.ownerFontSize}
+                                        step={0.5}
+                                        min={6}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'ownerFontSize', v)}
+                                    />
+                                    <Stepper
+                                        label="Location Text Size (pt)"
+                                        value={activeTDSpacing.locationFontSize}
+                                        step={0.5}
+                                        min={6}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'locationFontSize', v)}
+                                    />
+                                    <Stepper
+                                        label="Boundary North Text Size (pt)"
+                                        value={activeTDSpacing.boundaryNorthFontSize}
+                                        step={0.5}
+                                        min={6}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'boundaryNorthFontSize', v)}
+                                    />
+                                    <Stepper
+                                        label="Boundary South Text Size (pt)"
+                                        value={activeTDSpacing.boundarySouthFontSize}
+                                        step={0.5}
+                                        min={6}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'boundarySouthFontSize', v)}
+                                    />
+                                    <Stepper
+                                        label="Boundary East Text Size (pt)"
+                                        value={activeTDSpacing.boundaryEastFontSize}
+                                        step={0.5}
+                                        min={6}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'boundaryEastFontSize', v)}
+                                    />
+                                    <Stepper
+                                        label="Boundary West Text Size (pt)"
+                                        value={activeTDSpacing.boundaryWestFontSize}
+                                        step={0.5}
+                                        min={6}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'boundaryWestFontSize', v)}
+                                    />
+                                    <Stepper
+                                        label="Property Table Text Size (pt)"
+                                        value={activeTDSpacing.tableFontSize}
+                                        step={0.5}
+                                        min={6}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'tableFontSize', v)}
+                                    />
+                                    <Stepper
+                                        label="Amount in Words Text Size (pt)"
+                                        value={activeTDSpacing.amountWordsFontSize}
+                                        step={0.5}
+                                        min={6}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'amountWordsFontSize', v)}
+                                    />
+                                    <Stepper
+                                        label="Memoranda Text Size (pt)"
+                                        value={activeTDSpacing.memorandaFontSize}
+                                        step={0.5}
+                                        min={6}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'memorandaFontSize', v)}
+                                    />
+                                    <Stepper
+                                        label="Verified-by / Assessor Text Size (pt)"
+                                        value={activeTDSpacing.assessorFontSize}
+                                        step={0.5}
+                                        min={6}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'assessorFontSize', v)}
+                                    />
+                                </div>
+
+                                <div className="pd-sig-selectors" style={{ marginTop: 10 }}>
+                                    <Stepper
+                                        label="Auto-fit Minimum Text Size (pt)"
+                                        value={activeTDSpacing.autoFitFloor}
+                                        step={0.5}
+                                        min={4}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'autoFitFloor', v)}
+                                    />
+                                    <Stepper
+                                        label="Assessor Name Left Margin (pt)"
+                                        value={activeTDSpacing.assessorMarginLeft}
+                                        step={5}
+                                        min={-60}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'assessorMarginLeft', v)}
+                                    />
+                                </div>
+                                <div className="pd-form-group" style={{ marginTop: 10 }}>
+                                    <label className="pd-field-label" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={activeTDSpacing.autoFitEnabled === 1}
+                                            onChange={(e) => onTDSpacingChange?.(activeDoc.id, 'autoFitEnabled', e.target.checked ? 1 : 0)}
+                                        />
+                                        Automatically shrink long text to fit its box
+                                    </label>
+                                </div>
+                                <span className="pd-queue-hint">
+                                    Long values auto-shrink to stay on one line inside their fixed boxes — the form never
+                                    reflows or spills to a second page. Set a base size here and auto-fit shrinks from it;
+                                    the floor is the preferred minimum, and text that still can't fit keeps shrinking
+                                    further (down to 3pt) rather than wrapping. Base sizes below the floor are clamped up
+                                    to it, so a value of 1pt can never blank a field. Use the Assessor Name Left Margin
+                                    (negative moves left) to keep long typed assessor names clear of the Verified-by
+                                    underline.
+                                </span>
+                            </AccordionSection>
+                        )}
+
+                        {isTaxDecDoc && (
+                            <AccordionSection title="Certified Copy Block" onReset={() => onResetTDSpacing?.(activeDoc.id)}>
+                                <div className="pd-sig-selectors">
+                                    <Stepper
+                                        label="Signatory Name Text Size (pt)"
+                                        value={activeTDSpacing.certNameFontSize}
+                                        step={0.5}
+                                        min={6}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'certNameFontSize', v)}
+                                    />
+                                    <Stepper
+                                        label="Signatory Title Text Size (pt)"
+                                        value={activeTDSpacing.certTitleFontSize}
+                                        step={0.5}
+                                        min={6}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'certTitleFontSize', v)}
+                                    />
+                                </div>
+                                <div className="pd-sig-selectors" style={{ marginTop: 10 }}>
+                                    <Stepper
+                                        label="Signatory Horizontal Position (pt)"
+                                        value={activeTDSpacing.certOffsetX}
+                                        step={5}
+                                        min={-200}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'certOffsetX', v)}
+                                    />
+                                    <Stepper
+                                        label="Signatory Vertical Position (pt)"
+                                        value={activeTDSpacing.certOffsetY}
+                                        step={5}
+                                        min={-100}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'certOffsetY', v)}
+                                    />
+                                    <Stepper
+                                        label="Receipt Row Spacing (pt)"
+                                        value={activeTDSpacing.certRowGap}
+                                        step={1}
+                                        onChange={(v) => onTDSpacingChange?.(activeDoc.id, 'certRowGap', v)}
+                                    />
+                                </div>
+                                <span className="pd-queue-hint">
+                                    Nudge the Certified Copy signatory block (name + title) with the horizontal/vertical
+                                    position steppers — negative moves it left/up, positive right/down. Receipt Row Spacing
+                                    adjusts the gap between the Cert. Fee / O.R. No. / Date paid lines.
+                                </span>
+                            </AccordionSection>
+                        )}
 
                         {/* ── LH ACCORDIONS ─────────────────────────────────── */}
                         {isLandholdingDoc && (

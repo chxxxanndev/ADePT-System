@@ -157,8 +157,7 @@ function AssessmentRowItem({
                         }}
                         options={kindOptions}
                         placeholder="-- Select Kind --"
-                        searchable
-                        searchPlaceholder="Search kind..."
+                        inlineSearch={true} 
                     />
                 )}
             </td>
@@ -201,8 +200,7 @@ function AssessmentRowItem({
                         }}
                         options={classOptions}
                         placeholder="-- Select Classification --"
-                        searchable
-                        searchPlaceholder="Search classification..."
+                        inlineSearch={true}
                     />
                 )}
             </td>
@@ -519,6 +517,7 @@ export function TaxDeclarationForm({
 
     const handleSave = async (action: 'draft' | 'review' | 'add_another') => {
         if (!form.taxDeclarationNumber.trim()) return setSaveError('Assessment of Real Property No. is required.');
+        document.getElementById('td-arp-no')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setSaveError('');
         setSaving(true);
         try {
@@ -730,7 +729,7 @@ export function TaxDeclarationForm({
                                 <span>Kind of Property &amp; Valuation</span>
                                 <button type="button" className="td-add-row-btn" onClick={addRow}>+ Add Row</button>
                             </div>
-                            <div style={{ overflowX: 'auto' }}>
+                            <div style={{ overflow: 'visible' }}>
                                 <table className="td-assessment-table">
                                     <thead>
                                         <tr>
@@ -800,9 +799,6 @@ export function TaxDeclarationForm({
                                             { id: 'has.', label: 'has.' },
                                             { id: 'sqm.', label: 'sq.m.' },
                                         ]}
-                                        placeholder="Select unit"
-                                        searchable
-                                        searchPlaceholder="Search unit..."
                                     />
                                 </div>
                             </div>
