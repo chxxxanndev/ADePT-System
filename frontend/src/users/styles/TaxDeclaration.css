@@ -278,6 +278,43 @@ textarea.td-input {
     box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
 }
 
+/* ── Searchable dropdowns (CustomSelect) in the Tax Declaration form are
+   styled to match the native .td-select field look (padding, 1.5px border,
+   radius, font) so they blend in as the same control family. ── */
+.td-form-body .cs-trigger {
+    padding: 11px 14px;
+    font-size: 0.98rem;
+    border-width: 1.5px;
+    border-color: #e2e8f0;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    color: #1e293b;
+}
+
+.td-form-body .cs-trigger:hover {
+    border-color: #29237a;
+    background-color: #ffffff;
+}
+
+.td-form-body .cs-trigger--open {
+    border-color: #29237a;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
+}
+
+.td-form-body .cs-searchbar {
+    border-width: 1.5px;
+    border-color: #e2e8f0;
+    border-radius: 8px;
+    background-color: #f8fafc;
+}
+
+.td-form-body .cs-searchbar:focus-within {
+    border-color: #29237a;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
+}
+
 /* ── Location strip (Barangay / Municipality / Province) ──── */
 .td-location-strip {
     display: grid;
@@ -357,7 +394,11 @@ textarea.td-input {
     background: #fafbff;
     border: 1.5px solid #e2e8f0;
     border-radius: 12px;
-    overflow: hidden;
+    /* FIX: was `overflow: hidden`, which hard-clipped the searchable
+       dropdown menus (CustomSelect) inside the assessment table rows.
+       The header bar below now carries its own top-corner radius, so the
+       rounded look is preserved without clipping the menus. */
+    overflow: visible;
     margin-bottom: 28px;
 }
 
@@ -367,6 +408,7 @@ textarea.td-input {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    border-radius: 12px 12px 0 0;
 }
 
 .td-table-header-bar span {

@@ -84,8 +84,12 @@ interface DateRangePickerProps {
 export function DateRangePicker({ dateFrom, dateTo, onChange }: DateRangePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [activePreset, setActivePreset] = useState<PresetKey | null>(null);
+    // Two-page layout: the popover opens as a single-column preset list;
+    // choosing "Custom Range..." expands it into a two-pane spread
+    // (preset list on the left, calendar on the right).
     const [showCalendar, setShowCalendar] = useState(false);
     const [viewDate, setViewDate] = useState(() => (dateFrom ? fromISO(dateFrom) : new Date()));
+    const [hoverDate, setHoverDate] = useState<Date | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -100,6 +104,22 @@ export function DateRangePicker({ dateFrom, dateTo, onChange }: DateRangePickerP
 
     const today = useMemo(() => new Date(), []);
     const todayISO = toISO(today);
+
+    // Hover range preview — same interaction as the dashboard's
+    // CalendarPicker: once the start date is picked, hovering a day
+    // previews the range tint before the second click commits it.
+    const startDate = dateFrom ? fromISO(dateFrom) : null;
+    const endDate = dateTo ? fromISO(dateTo) : null;
+
+    const isInRange = (iso: string) => {
+        if (!startDate) return false;
+        const end = endDate || hoverDate;
+        if (!end) return false;
+        const d = fromISO(iso);
+        const lo = startDate <= end ? startDate : end;
+        const hi = startDate <= end ? end : startDate;
+        return d > lo && d < hi;
+    };
 
     const days = useMemo(() => {
         const year = viewDate.getFullYear();
@@ -209,7 +229,7 @@ export function DateRangePicker({ dateFrom, dateTo, onChange }: DateRangePickerP
                                     const iso = toISO(day);
                                     const isFrom = iso === dateFrom;
                                     const isTo = iso === dateTo;
-                                    const inRange = !!dateFrom && !!dateTo && iso > dateFrom && iso < dateTo;
+                                    const inRange = isInRange(iso);
                                     const isToday = iso === todayISO;
 
                                     return (
@@ -222,6 +242,7 @@ export function DateRangePicker({ dateFrom, dateTo, onChange }: DateRangePickerP
                                                 inRange && 'tr-cal-day--in-range',
                                                 isToday && !isFrom && !isTo && 'tr-cal-day--today',
                                             ].filter(Boolean).join(' ')}
+                                            onMouseEnter={() => setHoverDate(day)}
                                             onClick={() => handleDayClick(day)}
                                         >
                                             {day.getDate()}

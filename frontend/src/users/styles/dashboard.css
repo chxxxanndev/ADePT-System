@@ -652,37 +652,38 @@
     background: transparent;
 }
 
-/* ── Dropdown now anchors from the LEFT edge of its trigger ──────────
-   The period selector used to live on the far right of the header, so
-   `right: 0` made sense. It's since moved to the left side of the
-   welcome row, so anchoring from the right pushed the dropdown off the
-   left edge of the viewport/sidebar. Anchoring from `left: 0` instead
-   opens it into the open space to the right, where it fits. */
+/* ── Dashboard Period dropdown — restyled to mirror the Transaction
+   Registry's DateRangePicker: a white popover with the preset list on
+   the left and (for Custom Range...) the calendar panel beside it.
+   It still anchors from `left: 0` because it sits on the left side of
+   the welcome row (see note below). ── */
 .period-dropdown {
     position: absolute;
     top: calc(100% + 8px);
     left: 0;
     z-index: 100;
-    min-width: 220px;
-    max-height: 340px;
-    overflow-y: auto;
+    display: flex;
+    width: 190px;
+    max-width: calc(100vw - 64px);
+    padding: 0;
     margin: 0;
-    padding: 8px;
-    list-style: none;
-    background-color: var(--db-glass-card-bg);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--db-glass-border);
-    border-radius: var(--db-radius-md);
-    box-shadow: 0 12px 32px rgba(41, 35, 122, 0.12);
-    animation: dropdown-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    transform-origin: top left;
+    background-color: #ffffff;
+    border: 1px solid #eef0f6;
+    border-radius: 16px;
+    box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+    overflow: hidden;
+    /* Same entrance animation as the registry's date range popover. */
+    animation: pp-modal-in 0.15s ease;
 }
 
-@keyframes dropdown-in {
+.period-dropdown--wide {
+    width: 500px;
+}
+
+@keyframes pp-modal-in {
     from {
         opacity: 0;
-        transform: translateY(-6px) scale(0.98);
+        transform: translateY(8px) scale(0.98);
     }
 
     to {
@@ -691,204 +692,183 @@
     }
 }
 
-.period-dropdown::-webkit-scrollbar {
-    width: 5px;
+/* ---- Preset list (left column) — mirrors .tr-preset-list ---- */
+.dash-preset-list {
+    width: 190px;
+    flex: 0 0 190px;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    list-style: none;
+    margin: 0;
+    border-right: 1px solid #eef0f6;
 }
 
-.period-dropdown::-webkit-scrollbar-thumb {
-    background: rgba(41, 35, 122, 0.15);
-    border-radius: 10px;
-}
-
-.period-dropdown-item {
-    padding: 9px 12px;
+.dash-preset-item {
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 10px 12px;
     border-radius: 8px;
-    font-size: 12.5px;
+    font-size: 0.85rem;
     font-weight: 600;
     color: var(--db-slate);
     cursor: pointer;
+    font-family: inherit;
     white-space: nowrap;
-    transition: background-color 0.15s, color 0.15s;
+    transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-.period-dropdown-item:hover {
-    background-color: var(--db-hover-highlight);
-    color: var(--db-primary);
+.dash-preset-item:hover {
+    background-color: #f1f5f9;
 }
 
-.period-dropdown-item.active {
+.dash-preset-item--active {
     background-color: rgba(41, 35, 122, 0.08);
     color: var(--db-primary);
-    font-weight: 700;
 }
 
-.period-dropdown-calendar {
-    min-width: 280px;
-    max-width: calc(100vw - 64px);
-    padding: 14px;
+.dash-preset-item--divider {
+    margin-top: 8px;
+    padding-top: 14px;
+    border-top: 1px solid #eef0f6;
 }
 
-.calendar-picker {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+/* ---- Calendar panel (right column) — values copied from the
+   Transaction Registry's .tr-cal-* styles for an exact match ---- */
+.dash-cal-panel {
+    padding: 18px 20px;
+    width: 310px;
+    flex: 0 0 310px;
 }
 
-.calendar-picker-header {
+.dash-cal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    margin-bottom: 14px;
 }
 
-.calendar-month-label {
-    font-size: 13px;
-    font-weight: 700;
+.dash-cal-title {
+    font-size: 1rem;
+    font-weight: 800;
     color: var(--db-primary);
 }
 
-.calendar-nav-btn {
-    display: flex;
+.dash-cal-nav-btn {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     border-radius: 8px;
     border: none;
-    background: none;
+    background: transparent;
     color: var(--db-primary);
-    font-size: 16px;
-    line-height: 1;
     cursor: pointer;
-    transition: background-color 0.15s;
+    transition: background-color 0.15s ease;
 }
 
-.calendar-nav-btn:hover {
-    background-color: var(--db-hover-highlight);
+.dash-cal-nav-btn:hover {
+    background-color: rgba(41, 35, 122, 0.08);
 }
 
-.calendar-weekdays {
+.dash-cal-weekdays {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 4px;
 }
 
-.calendar-weekday {
+.dash-cal-weekday {
     text-align: center;
     font-size: 10.5px;
     font-weight: 700;
-    color: var(--db-text-muted);
-    text-transform: uppercase;
+    color: #94a3b8;
+    padding: 6px 0;
 }
 
-.calendar-grid {
+.dash-cal-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
+    row-gap: 2px;
 }
 
-.calendar-cell {
+.dash-cal-day {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    aspect-ratio: 1 / 1;
+    height: 36px;
     border: none;
-    background: none;
-    border-radius: 999px;
-    font-size: 12px;
+    background: transparent;
+    font-size: 0.85rem;
     font-weight: 600;
     color: var(--db-slate);
     cursor: pointer;
+    border-radius: 999px;
+    font-family: inherit;
+    transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-.calendar-cell.empty {
+.dash-cal-day--empty {
     cursor: default;
 }
 
-.calendar-cell:not(.empty):hover {
-    background-color: var(--db-hover-highlight);
-}
-
-.calendar-cell.is-today {
+.dash-cal-day--today {
+    border: 1px solid var(--db-secondary);
     color: var(--db-secondary);
-    font-weight: 800;
 }
 
-.calendar-cell.in-range {
-    background-color: rgba(0, 188, 212, 0.12);
+.dash-cal-day--in-range {
+    background-color: rgba(0, 188, 212, 0.14);
     border-radius: 0;
 }
 
-.calendar-cell.range-start,
-.calendar-cell.range-end {
+.dash-cal-day--selected {
     background-color: var(--db-primary);
     color: #ffffff;
-    font-weight: 800;
 }
 
-.calendar-cell.range-start {
-    border-radius: 999px 0 0 999px;
+.dash-cal-day:hover:not(.dash-cal-day--empty):not(.dash-cal-day--selected) {
+    background-color: rgba(41, 35, 122, 0.08);
 }
 
-.calendar-cell.range-end {
-    border-radius: 0 999px 999px 0;
-}
-
-.calendar-cell.range-start.range-end {
-    border-radius: 999px;
-}
-
-.calendar-picker-footer {
+.dash-cal-footer {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    gap: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--db-glass-border-alt);
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #eef0f6;
 }
 
-.calendar-range-preview {
-    font-size: 11.5px;
-    font-weight: 600;
-    color: var(--db-text-muted);
-}
-
-.calendar-picker-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.calendar-btn {
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 700;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.15s, opacity 0.15s;
-}
-
-.calendar-btn-ghost {
+.dash-cal-clear-btn {
     background: none;
+    border: none;
+    font-size: 0.82rem;
+    font-weight: 700;
     color: var(--db-text-muted);
+    cursor: pointer;
+    font-family: inherit;
 }
 
-.calendar-btn-ghost:hover {
-    background-color: var(--db-hover-highlight);
-    color: var(--db-slate);
+.dash-cal-clear-btn:hover {
+    color: var(--db-error);
 }
 
-.calendar-btn-primary {
+.dash-cal-done-btn {
     background-color: var(--db-primary);
     color: #ffffff;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
 }
 
-.calendar-btn-primary:hover {
+.dash-cal-done-btn:hover {
     background-color: var(--db-primary-hover);
-}
-
-.calendar-btn-primary:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
 }
 
 /* =========================================================
@@ -1092,6 +1072,77 @@
 
 .stat-card-sublabel.trend-up {
     color: var(--db-success);
+}
+
+/* ── Lazy-load skeletons for the stat boxes ──────────────
+   Self-contained in dashboard.css — the dashboard only imports this
+   stylesheet, so it can't rely on TransactionRegistry.css's .skeleton-*
+   classes (those are plain unstyled divs here). Each placeholder mirrors
+   the real .stat-card boxes 1:1 (same grid slot, same 120px height, same
+   accent tint + icon well) so the loading state looks like the actual
+   boxes, just shimmering — no layout jump when the numbers arrive. */
+.db-skeleton {
+    background: #eef2f7;
+    background-image: linear-gradient(90deg, #eef2f7 0%, #f8fafc 50%, #eef2f7 100%);
+    background-size: 200% 100%;
+    animation: db-skeleton-shimmer 1.5s infinite linear;
+    border-radius: 6px;
+}
+
+@keyframes db-skeleton-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+}
+
+.db-skeleton-stat-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 18px 20px;
+    min-height: 120px;
+    border-radius: var(--db-radius-lg);
+    background-color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(41, 35, 122, 0.10);
+    box-shadow: 0 8px 20px rgba(41, 35, 122, 0.06);
+    overflow: hidden;
+}
+
+.db-skeleton-stat-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.db-skeleton-stat-label {
+    width: 55%;
+    height: 11px;
+    margin-top: 4px;
+}
+
+.db-skeleton-stat-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background-color: #e2e8f0;
+}
+
+/* Accent tint mirrors the real card icon wells (accent-teal/gold/green/red). */
+.db-skeleton-accent-teal .db-skeleton-stat-icon { background-color: rgba(0, 122, 138, 0.12); }
+.db-skeleton-accent-gold .db-skeleton-stat-icon { background-color: rgba(180, 83, 9, 0.12); }
+.db-skeleton-accent-green .db-skeleton-stat-icon { background-color: rgba(22, 163, 74, 0.12); }
+.db-skeleton-accent-red .db-skeleton-stat-icon { background-color: rgba(211, 47, 47, 0.12); }
+
+.db-skeleton-stat-value {
+    width: 40%;
+    height: 30px;
+    margin: 6px auto;
+}
+
+.db-skeleton-stat-sublabel {
+    width: 60%;
+    height: 11px;
 }
 
 /* Two-column analytics row */
@@ -1574,6 +1625,10 @@
     background-color: var(--db-hover-highlight);
 }
 
+.transactions-table-row--clickable {
+    cursor: pointer;
+}
+
 .status-badge {
     display: inline-flex;
     align-items: center;
@@ -1632,6 +1687,10 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    /* Stretch the action rows across the full card height so the section
+       occupies the whole box (the card is a flex column that stretches to
+       match the taller Recent Transactions card in the same row). */
+    flex: 1;
 }
 
 .quick-action-item {
@@ -1647,6 +1706,9 @@
     text-align: left;
     font-family: inherit;
     width: 100%;
+    /* Equal-height rows: each action takes an equal share of the leftover
+       vertical space so the list fills the card edge to edge. */
+    flex: 1;
 }
 
 .quick-action-item:hover {

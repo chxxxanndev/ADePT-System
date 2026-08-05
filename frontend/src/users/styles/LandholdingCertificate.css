@@ -234,6 +234,44 @@
     box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
 }
 
+/* ── Searchable dropdowns (CustomSelect) in the Landholding / No
+   Landholding forms are styled to match the native .lh-select field look
+   (padding, 1.5px border, radius, font) so they read as the same control
+   family. Both forms share the .lh-* classes. ── */
+.lh-card .cs-trigger {
+    padding: 11px 14px;
+    font-size: 0.98rem;
+    border-width: 1.5px;
+    border-color: #e2e8f0;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    color: #1e293b;
+}
+
+.lh-card .cs-trigger:hover {
+    border-color: #29237a;
+    background-color: #ffffff;
+}
+
+.lh-card .cs-trigger--open {
+    border-color: #29237a;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
+}
+
+.lh-card .cs-searchbar {
+    border-width: 1.5px;
+    border-color: #e2e8f0;
+    border-radius: 8px;
+    background-color: #f8fafc;
+}
+
+.lh-card .cs-searchbar:focus-within {
+    border-color: #29237a;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
+}
+
 /* ── Preview card — simulates official certificate layout ────── */
 .lh-preview-card {
     background: #fafbff;

@@ -16,6 +16,7 @@ import {
     SquareIcon,
 } from '../../../components/icons';
 import { TransactionProgressPanel } from '../../../components/TransactionProgressPanel';
+import { CustomSelect } from '../../../components/CustomSelect';
 
 // 1. HELPER FUNCTIONS
 function numberToWords(num: number): string {
@@ -118,6 +119,18 @@ function AssessmentRowItem({
     const classSelectValue = isClassOthers ? OTHERS_SENTINEL : (row.classificationId || '');
     const kindOtherText = row.kindOfProperty === OTHERS_SENTINEL ? '' : (isKindOthers ? row.kindOfProperty : '');
 
+    // Searchable dropdown options — same values the native selects used
+    // (kind = code, classification = id), plus the "Others (specify)"
+    // sentinel that swaps the dropdown for the free-text input.
+    const kindOptions = [
+        ...propertyTypeOptions.map((o) => ({ id: o.code, label: o.label })),
+        { id: OTHERS_SENTINEL, label: 'Others (specify)' },
+    ];
+    const classOptions = [
+        ...classificationOptions.map((o) => ({ id: o.id, label: o.label })),
+        { id: OTHERS_SENTINEL, label: 'Others (specify)' },
+    ];
+
     return (
         <tr>
             {/* ── Kind of Property: swaps to text input when Others is active ── */}
@@ -136,20 +149,16 @@ function AssessmentRowItem({
                         }}
                     />
                 ) : (
-                    <select
-                        className="td-select"
+                    <CustomSelect
                         value={kindSelectValue}
-                        onChange={(e) => {
-                            const val = e.target.value;
+                        onChange={(val) => {
                             onUpdate(row.id, 'kindOfProperty', val === OTHERS_SENTINEL ? OTHERS_SENTINEL : val);
                         }}
-                    >
-                        <option value="">-- Select Kind --</option>
-                        {propertyTypeOptions.map((opt) => (
-                            <option key={opt.id} value={opt.code}>{opt.label}</option>
-                        ))}
-                        <option value={OTHERS_SENTINEL}>Others (specify)</option>
-                    </select>
+                        options={kindOptions}
+                        placeholder="-- Select Kind --"
+                        searchable
+                        searchPlaceholder="Search kind..."
+                    />
                 )}
             </td>
 
@@ -175,11 +184,9 @@ function AssessmentRowItem({
                         }}
                     />
                 ) : (
-                    <select
-                        className="td-select"
+                    <CustomSelect
                         value={classSelectValue}
-                        onChange={(e) => {
-                            const val = e.target.value;
+                        onChange={(val) => {
                             if (val === OTHERS_SENTINEL) {
                                 onUpdate(row.id, 'classificationId', OTHERS_SENTINEL);
                                 onUpdate(row.id, 'classificationLabel', '');
@@ -191,13 +198,11 @@ function AssessmentRowItem({
                                 }
                             }
                         }}
-                    >
-                        <option value="">-- Select Classification --</option>
-                        {classificationOptions.map((opt) => (
-                            <option key={opt.id} value={opt.id}>{opt.label}</option>
-                        ))}
-                        <option value={OTHERS_SENTINEL}>Others (specify)</option>
-                    </select>
+                        options={classOptions}
+                        placeholder="-- Select Classification --"
+                        searchable
+                        searchPlaceholder="Search classification..."
+                    />
                 )}
             </td>
 
@@ -747,15 +752,17 @@ export function TaxDeclarationForm({
                                 </div>
                                 <div className="td-field">
                                     <label className="td-label">Unit</label>
-                                    <select
-                                        id="td-total-area-unit"
-                                        className="td-select"
+                                    <CustomSelect
                                         value={form.areaUnit || 'has.'}
-                                        onChange={(e) => set('areaUnit', e.target.value)}
-                                    >
-                                        <option value="has.">has.</option>
-                                        <option value="sqm.">sq.m.</option>
-                                    </select>
+                                        onChange={(id) => set('areaUnit', id)}
+                                        options={[
+                                            { id: 'has.', label: 'has.' },
+                                            { id: 'sqm.', label: 'sq.m.' },
+                                        ]}
+                                        placeholder="Select unit"
+                                        searchable
+                                        searchPlaceholder="Search unit..."
+                                    />
                                 </div>
                             </div>
                         </div>

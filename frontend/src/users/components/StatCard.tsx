@@ -22,10 +22,9 @@ const SUB_ICON_MAP: Record<string, any> = {
     'cancelled': Icons.SettingsIcon,
 };
 
-// Matches the accent colors already defined in TransactionRegistry.css
-// (.skeleton-accent-purple/gold/blue/green/navy/red) — used as placeholder
-// count while the real items haven't loaded yet.
-const SKELETON_ACCENTS = ['purple', 'gold', 'blue', 'green', 'navy', 'red'];
+// Fallback cadence when the items array isn't available yet — the same
+// accent order the real stat cards render in (teal/gold/green/red).
+const SKELETON_ACCENTS = ['teal', 'gold', 'green', 'red'];
 
 interface DashboardSummaryProps {
     title: string;
@@ -37,6 +36,8 @@ interface DashboardSummaryProps {
 }
 
 export function DashboardSummary({ title, items, iconType, isLoading = false }: DashboardSummaryProps) {
+    const skeletonItems = items.length > 0 ? items : SKELETON_ACCENTS.map((accent) => ({ id: accent, accent }));
+
     return (
         <div className="summary-container">
             <div className="section-heading">
@@ -45,10 +46,20 @@ export function DashboardSummary({ title, items, iconType, isLoading = false }: 
             </div>
             <div className="stat-grid">
                 {isLoading ? (
-                    SKELETON_ACCENTS.map((accent) => (
-                        <div key={accent} className={`skeleton-card-accent skeleton-accent-${accent}`}>
-                            <div className="skeleton-item" style={{ width: '55%', height: 10 }} />
-                            <div className="skeleton-item" style={{ width: '35%', height: 20 }} />
+                    skeletonItems.map((item) => (
+                        // Mirrors the real .stat-card structure 1:1 (top label
+                        // row + icon well, big value, sublabel) so the lazy-load
+                        // state looks like the actual dashboard boxes.
+                        <div
+                            key={item.id}
+                            className={`db-skeleton-stat-card db-skeleton-accent-${item.accent}`}
+                        >
+                            <div className="db-skeleton-stat-top">
+                                <div className="db-skeleton db-skeleton-stat-label" />
+                                <div className="db-skeleton-stat-icon" />
+                            </div>
+                            <div className="db-skeleton db-skeleton-stat-value" />
+                            <div className="db-skeleton db-skeleton-stat-sublabel" />
                         </div>
                     ))
                 ) : (

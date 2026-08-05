@@ -15,6 +15,8 @@ interface CustomSelectProps {
     disabled?: boolean;
     allowNone?: boolean;
     noneLabel?: string;
+    searchable?: boolean;
+    searchPlaceholder?: string;
 }
 
 export const CustomSelect: React.FC<CustomSelectProps> = ({
@@ -25,9 +27,13 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
     disabled,
     allowNone,
     noneLabel = '-- None --',
+    searchable,
+    searchPlaceholder = 'Search...',
 }) => {
     const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
+    const searchRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -42,12 +48,63 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
     const selected = options.find(o => o.id === value);
     const triggerText = selected ? selected.label : (value === '' && allowNone ? noneLabel : placeholder);
 
+    const normalizedQuery = query.trim().toLowerCase();
+    const filteredOptions = normalizedQuery
+        ? options.filter(o =>
+            o.label.toLowerCase().includes(normalizedQuery) ||
+            (o.sublabel ?? '').toLowerCase().includes(normalizedQuery))
+        : options;
+
+    const handleTriggerClick = () => {
+        if (disabled) return;
+        const next = !open;
+        setOpen(next);
+        if (next && searchable) {
+            setQuery('');
+            searchRef.current?.focus();
+        }
+    };
+
+    const handleSelect = (id: string) => {
+        onChange(id);
+        setOpen(false);
+        setQuery('');
+    };
+
     return (
-        <div className={`cs-container${disabled ? ' cs-disabled' : ''}`} ref={containerRef}>
+        <div className={`cs-container${disabled ? ' cs-disabled' : ''}${searchable ? ' cs-searchable' : ''}`} ref={containerRef}>
+            {/* Always-visible search bar — sits above the dropdown trigger so
+                the search function is immediately obvious. Typing filters the
+                list below and auto-opens the menu. */}
+            {searchable && !disabled && (
+                <div className="cs-searchbar">
+                    <svg className="cs-searchbar-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="11" cy="11" r="7" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
+                    </svg>
+                    <input
+                        ref={searchRef}
+                        type="text"
+                        className="cs-searchbar-input"
+                        placeholder={searchPlaceholder}
+                        value={query}
+                        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+                        onFocus={() => setOpen(true)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Escape') setOpen(false);
+                            if (e.key === 'Enter') {
+                                const first = filteredOptions[0];
+                                if (first) handleSelect(first.id);
+                            }
+                        }}
+                    />
+                </div>
+            )}
+
             <button
                 type="button"
                 className={`cs-trigger${open ? ' cs-trigger--open' : ''}`}
-                onClick={() => !disabled && setOpen(prev => !prev)}
+                onClick={handleTriggerClick}
                 disabled={disabled}
                 title={selected?.sublabel ? `${selected.label} — ${selected.sublabel}` : triggerText}
             >
@@ -59,24 +116,29 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 
             {open && (
                 <div className="cs-menu" role="listbox">
-                    {allowNone && (
-                        <div
-                            className={`cs-option${value === '' ? ' cs-option--selected' : ''}`}
-                            onClick={() => { onChange(''); setOpen(false); }}
-                        >
-                            <span className="cs-option-main">{noneLabel}</span>
-                        </div>
-                    )}
-                    {options.map(opt => (
-                        <div
-                            key={opt.id}
-                            className={`cs-option${opt.id === value ? ' cs-option--selected' : ''}`}
-                            onClick={() => { onChange(opt.id); setOpen(false); }}
-                        >
-                            <span className="cs-option-main">{opt.label}</span>
-                            {opt.sublabel && <span className="cs-option-sub">{opt.sublabel}</span>}
-                        </div>
-                    ))}
+                    <div className="cs-options">
+                        {allowNone && (
+                            <div
+                                className={`cs-option${value === '' ? ' cs-option--selected' : ''}`}
+                                onClick={() => handleSelect('')}
+                            >
+                                <span className="cs-option-main">{noneLabel}</span>
+                            </div>
+                        )}
+                        {filteredOptions.map(opt => (
+                            <div
+                                key={opt.id}
+                                className={`cs-option${opt.id === value ? ' cs-option--selected' : ''}`}
+                                onClick={() => handleSelect(opt.id)}
+                            >
+                                <span className="cs-option-main">{opt.label}</span>
+                                {opt.sublabel && <span className="cs-option-sub">{opt.sublabel}</span>}
+                            </div>
+                        ))}
+                        {filteredOptions.length === 0 && (
+                            <div className="cs-empty">No results found</div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

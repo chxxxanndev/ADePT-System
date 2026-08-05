@@ -25,11 +25,17 @@ interface RecentTransactionsProps {
     // filter over a handful of rows.
     allRows: TransactionRow[];
     onViewAll?: () => void;
+    // Deep-link into the Transaction Registry: clicking a row opens the
+    // registry pre-filtered to that control number.
+    onRowClick?: (controlNumber: string) => void;
+    // Pressing Enter in the search box (or clicking the hint line) opens
+    // the registry with the current query applied.
+    onSearchSubmit?: (query: string) => void;
 }
 
 const SEARCH_RESULTS_LIMIT = 8;
 
-export function RecentTransactions({ rows, allRows, onViewAll }: RecentTransactionsProps) {
+export function RecentTransactions({ rows, allRows, onViewAll, onRowClick, onSearchSubmit }: RecentTransactionsProps) {
     const [search, setSearch] = useState('');
 
     const query = search.trim().toLowerCase();
@@ -73,6 +79,9 @@ export function RecentTransactions({ rows, allRows, onViewAll }: RecentTransacti
                         placeholder="Search all transactions..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && isSearching) onSearchSubmit?.(search);
+                        }}
                     />
                 </div>
             </div>
@@ -90,7 +99,12 @@ export function RecentTransactions({ rows, allRows, onViewAll }: RecentTransacti
                     </thead>
                     <tbody>
                         {filteredRows.map((row) => (
-                            <tr key={row.id}>
+                            <tr
+                                key={row.id}
+                                onClick={() => onRowClick?.(row.controlNumber)}
+                                title="Open in Transaction Registry"
+                                className={onRowClick ? 'transactions-table-row--clickable' : undefined}
+                            >
                                 <td>{row.controlNumber}</td>
                                 <td>{row.declarant}</td>
                                 <td>{row.document}</td>
@@ -113,7 +127,17 @@ export function RecentTransactions({ rows, allRows, onViewAll }: RecentTransacti
 
             {isSearching && totalMatches > SEARCH_RESULTS_LIMIT && (
                 <p style={{ fontSize: '11px', color: 'var(--db-text-muted)', margin: '8px 0 0', textAlign: 'center' }}>
-                    Showing {SEARCH_RESULTS_LIMIT} of {totalMatches} matches — open the full registry to see all results.
+                    Showing {SEARCH_RESULTS_LIMIT} of {totalMatches} matches —{' '}
+                    {onSearchSubmit ? (
+                        <a
+                            onClick={() => onSearchSubmit(search)}
+                            style={{ color: 'var(--db-secondary)', cursor: 'pointer', fontWeight: 700 }}
+                        >
+                            open the full registry
+                        </a>
+                    ) : (
+                        <span>open the full registry to see all results.</span>
+                    )}
                 </p>
             )}
 

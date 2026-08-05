@@ -3,6 +3,11 @@ import { useState, useEffect, useRef } from 'react';
 import { MenuIcon, CalendarIcon, UserIcon, PeriodToggleIcon, RefreshIcon } from './icons';
 import type { PeriodRange } from '../types/dashboard';
 
+// Calendar navigation chevrons — same SVG shapes as the Transaction
+// Registry's DateRangePicker so the dashboard calendar matches it exactly.
+const ChevronLeft = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>;
+const ChevronRight = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>;
+
 /**
  * Updated interface to support the connected database fields
  * Defining it here locally fixes the "conflict" error.
@@ -188,9 +193,10 @@ function isSameDay(a: Date | null, b: Date | null) {
 interface CalendarPickerProps {
     onApply: (start: Date, end: Date) => void;
     onCancel: () => void;
+    onClear?: () => void;
 }
 
-function CalendarPicker({ onApply, onCancel }: CalendarPickerProps) {
+function CalendarPicker({ onApply, onCancel, onClear }: CalendarPickerProps) {
     const today = new Date();
     const [viewMonth, setViewMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
     const [rangeStart, setRangeStart] = useState<Date | null>(null);
@@ -225,34 +231,41 @@ function CalendarPicker({ onApply, onCancel }: CalendarPickerProps) {
         }
     };
 
+    // Mirror the registry's Range Picker: "Done" applies a complete range
+    // and closes; an incomplete selection just closes (like the registry).
+    const handleDone = () => {
+        if (rangeStart && rangeEnd) onApply(rangeStart, rangeEnd);
+        else onCancel();
+    };
+
+    const weekdays = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
     const monthLabel = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
     return (
-        <div className="calendar-picker">
-            <div className="calendar-picker-header">
+        <div className="dash-cal-panel">
+            <div className="dash-cal-header">
                 <button
                     type="button"
-                    className="calendar-nav-btn"
+                    className="dash-cal-nav-btn"
                     onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
-                >‹</button>
-                <span className="calendar-month-label">{monthLabel}</span>
+                    aria-label="Previous month"
+                ><ChevronLeft /></button>
+                <span className="dash-cal-title">{monthLabel}</span>
                 <button
                     type="button"
-                    className="calendar-nav-btn"
+                    className="dash-cal-nav-btn"
                     onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
-                >›</button>
+                    aria-label="Next month"
+                ><ChevronRight /></button>
             </div>
 
-            <div className="calendar-weekdays">
-                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((w) => (
-                    <span key={w} className="calendar-weekday">{w}</span>
-                ))}
+            <div className="dash-cal-weekdays">
+                {weekdays.map((w) => <span key={w} className="dash-cal-weekday">{w}</span>)}
             </div>
 
-            <div className="calendar-grid">
+            <div className="dash-cal-grid">
                 {days.map((d, i) => {
-                    if (!d) return <span key={`empty-${i}`} className="calendar-cell empty" />;
+                    if (!d) return <span key={`empty-${i}`} className="dash-cal-day dash-cal-day--empty" />;
                     const isStart = isSameDay(d, rangeStart);
                     const isEnd = isSameDay(d, rangeEnd);
                     return (
@@ -260,11 +273,10 @@ function CalendarPicker({ onApply, onCancel }: CalendarPickerProps) {
                             type="button"
                             key={d.toISOString()}
                             className={[
-                                'calendar-cell',
-                                isStart ? 'range-start' : '',
-                                isEnd ? 'range-end' : '',
-                                isInRange(d) ? 'in-range' : '',
-                                isSameDay(d, today) ? 'is-today' : '',
+                                'dash-cal-day',
+                                (isStart || isEnd) ? 'dash-cal-day--selected' : '',
+                                isInRange(d) ? 'dash-cal-day--in-range' : '',
+                                isSameDay(d, today) && !isStart && !isEnd ? 'dash-cal-day--today' : '',
                             ].filter(Boolean).join(' ')}
                             onMouseEnter={() => setHoverDate(d)}
                             onClick={() => handleDayClick(d)}
@@ -275,23 +287,13 @@ function CalendarPicker({ onApply, onCancel }: CalendarPickerProps) {
                 })}
             </div>
 
-            <div className="calendar-picker-footer">
-                <span className="calendar-range-preview">
-                    {rangeStart ? fmt(rangeStart) : 'Start'} – {rangeEnd ? fmt(rangeEnd) : 'End'}
-                </span>
-                <div className="calendar-picker-actions">
-                    <button type="button" className="calendar-btn calendar-btn-ghost" onClick={onCancel}>
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        className="calendar-btn calendar-btn-primary"
-                        disabled={!rangeStart || !rangeEnd}
-                        onClick={() => rangeStart && rangeEnd && onApply(rangeStart, rangeEnd)}
-                    >
-                        Apply
-                    </button>
-                </div>
+            <div className="dash-cal-footer">
+                <button type="button" className="dash-cal-clear-btn" onClick={() => { setRangeStart(null); setRangeEnd(null); onClear?.(); }}>
+                    Clear
+                </button>
+                <button type="button" className="dash-cal-done-btn" onClick={handleDone}>
+                    Done
+                </button>
             </div>
         </div>
     );
@@ -311,7 +313,11 @@ interface WelcomeBannerProps {
 export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange, onRefresh }: WelcomeBannerProps) {
     const [period, setPeriod] = useState(initialPeriod);
     const [open, setOpen] = useState(false);
-    const [view, setView] = useState<'list' | 'calendar'>('list');
+    // Two-page layout (mirrors the registry's DateRangePicker): the
+    // popover opens as a single-column preset list; choosing "Custom
+    // Range..." expands it into a two-pane spread — preset list on the
+    // left, calendar on the right.
+    const [showCalendar, setShowCalendar] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -319,7 +325,6 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange, onRefre
         function handleClickOutside(event: MouseEvent) {
             if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) {
                 setOpen(false);
-                setView('list');
             }
         }
         document.addEventListener('mousedown', handleClickOutside);
@@ -328,18 +333,23 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange, onRefre
 
     const closeDropdown = () => {
         setOpen(false);
-        setView('list');
+        setShowCalendar(false);
     };
 
     const handleSelect = (value: string) => {
         if (value === 'Custom Range...') {
-            setView('calendar');
+            setShowCalendar(true);
             return;
         }
         setPeriod(value);
         onPeriodChange?.(value, resolvePeriodRange(value));
         closeDropdown();
     };
+
+    // Highlight the preset whose label matches the applied period; any
+    // applied custom range (e.g. "Aug 1 – Aug 5") lights up the divider's
+    // "Custom Range..." item, same as the registry's active-preset state.
+    const activePreset = PERIOD_OPTIONS.includes(period) ? period : 'Custom Range...';
 
     const handleApplyRange = (start: Date, end: Date) => {
         const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -348,7 +358,9 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange, onRefre
         const endOfDay = new Date(end);
         endOfDay.setHours(23, 59, 59, 999);
         onPeriodChange?.(label, { from: start, to: endOfDay });
-        closeDropdown();
+        // Mirror the registry's Done: close without collapsing the layout
+        // (the calendar stays open next time, matching the registry).
+        setOpen(false);
     };
 
     const handleRefreshClick = async () => {
@@ -378,25 +390,34 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange, onRefre
                     <PeriodToggleIcon size={16} className={`period-selector-toggle${open ? ' open' : ''}`} />
                 </button>
 
-                {open && view === 'list' && (
-                    <ul className="period-dropdown" role="listbox">
-                        {PERIOD_OPTIONS.map((opt) => (
-                            <li
-                                key={opt}
-                                role="option"
-                                aria-selected={opt === period}
-                                className={`period-dropdown-item${opt === period ? ' active' : ''}`}
-                                onClick={() => handleSelect(opt)}
-                            >
-                                {opt}
-                            </li>
-                        ))}
-                    </ul>
-                )}
+                {open && (
+                    <div className={`period-dropdown${showCalendar ? ' period-dropdown--wide' : ''}`}>
+                        <div className="dash-preset-list" role="listbox">
+                            {PERIOD_OPTIONS.map((opt) => (
+                                <button
+                                    key={opt}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={activePreset === opt}
+                                    className={[
+                                        'dash-preset-item',
+                                        activePreset === opt ? 'dash-preset-item--active' : '',
+                                        opt === 'Custom Range...' ? 'dash-preset-item--divider' : '',
+                                    ].filter(Boolean).join(' ')}
+                                    onClick={() => handleSelect(opt)}
+                                >
+                                    {opt}
+                                </button>
+                            ))}
+                        </div>
 
-                {open && view === 'calendar' && (
-                    <div className="period-dropdown period-dropdown-calendar">
-                        <CalendarPicker onApply={handleApplyRange} onCancel={() => setView('list')} />
+                        {showCalendar && (
+                            <CalendarPicker
+                                onApply={handleApplyRange}
+                                onCancel={() => setOpen(false)}
+                                onClear={() => setShowCalendar(false)}
+                            />
+                        )}
                     </div>
                 )}
             </div>

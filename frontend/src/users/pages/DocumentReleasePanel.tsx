@@ -740,6 +740,8 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                                     onChange={(id) => onSignatoryChange(activeDoc.id, 'primary', id)}
                                     options={signatoryOptions}
                                     placeholder="-- Select signatory --"
+                                    searchable
+                                    searchPlaceholder="Search signatory..."
                                 />
                             </div>
 
@@ -752,6 +754,8 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                                         options={signatoryOptions}
                                         placeholder="-- Select signatory --"
                                         allowNone
+                                        searchable
+                                        searchPlaceholder="Search signatory..."
                                     />
                                 </div>
                             )}
@@ -999,6 +1003,8 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                             onChange={(id) => { setReleasedBy(id); setReleasedByError(''); }}
                             options={staffOptions}
                             placeholder="-- Select releasing staff --"
+                            searchable
+                            searchPlaceholder="Search staff..."
                             disabled={isSubmitting}
                         />
                         {releasedByError && <span className="pd-field-error" style={{ marginTop: '6px', display: 'block' }}>{releasedByError}</span>}

@@ -15,6 +15,7 @@ import {
     ClipboardListIcon,
 } from '../../../components/icons';
 import { TransactionProgressPanel } from '../../../components/TransactionProgressPanel';
+import { CustomSelect } from '../../../components/CustomSelect';
 
 function ordinal(n: number): string {
     const s = ['th', 'st', 'nd', 'rd'];
@@ -264,10 +265,17 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
                                 </div>
                                 <div className="lh-field">
                                     <label className="lh-label">Ownership</label>
-                                    <select id="lh-ownership-type" className="lh-select" value={form.ownershipType} onChange={(e) => set('ownershipType', e.target.value as any)}>
-                                        <option value="single">Single owner — is / owner / property</option>
-                                        <option value="multiple">Multiple owners — are / owners / properties</option>
-                                    </select>
+                                    <CustomSelect
+                                        value={form.ownershipType}
+                                        onChange={(id) => set('ownershipType', id as any)}
+                                        options={[
+                                            { id: 'single', label: 'Single owner — is / owner / property' },
+                                            { id: 'multiple', label: 'Multiple owners — are / owners / properties' },
+                                        ]}
+                                        placeholder="Select ownership"
+                                        searchable
+                                        searchPlaceholder="Search ownership..."
+                                    />
                                 </div>
                             </div>
                         </div>

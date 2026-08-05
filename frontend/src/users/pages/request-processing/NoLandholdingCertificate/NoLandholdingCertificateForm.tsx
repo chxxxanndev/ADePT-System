@@ -13,6 +13,7 @@ import {
     ClipboardListIcon,
 } from '../../../components/icons';
 import { TransactionProgressPanel } from '../../../components/TransactionProgressPanel';
+import { CustomSelect } from '../../../components/CustomSelect';
 
 function ordinal(n: number): string {
     const s = ['th', 'st', 'nd', 'rd'];
@@ -191,18 +192,32 @@ export function NoLandholdingCertificateForm({ user, entryData, onDiscard, onDis
                             <div className="lh-row lh-row-2">
                                 <div className="lh-field">
                                     <label className="lh-label">Pronoun</label>
-                                    <select id="nlh-pronoun" className="lh-select" value={form.pronoun} onChange={(e) => set('pronoun', e.target.value as PronounType)}>
-                                        <option value="His">His</option>
-                                        <option value="Her">Her</option>
-                                        <option value="Their">Their</option>
-                                    </select>
+                                    <CustomSelect
+                                        value={form.pronoun}
+                                        onChange={(id) => set('pronoun', id as PronounType)}
+                                        options={[
+                                            { id: 'His', label: 'His' },
+                                            { id: 'Her', label: 'Her' },
+                                            { id: 'Their', label: 'Their' },
+                                        ]}
+                                        placeholder="Select pronoun"
+                                        searchable
+                                        searchPlaceholder="Search pronoun..."
+                                    />
                                 </div>
                                 <div className="lh-field">
                                     <label className="lh-label">Property / Name Count</label>
-                                    <select id="nlh-property-count" className="lh-select" value={form.propertyCount} onChange={(e) => set('propertyCount', e.target.value as PropertyCountType)}>
-                                        <option value="singular">Singular — has / property / name</option>
-                                        <option value="plural">Plural — have / properties / names</option>
-                                    </select>
+                                    <CustomSelect
+                                        value={form.propertyCount}
+                                        onChange={(id) => set('propertyCount', id as PropertyCountType)}
+                                        options={[
+                                            { id: 'singular', label: 'Singular — has / property / name' },
+                                            { id: 'plural', label: 'Plural — have / properties / names' },
+                                        ]}
+                                        placeholder="Select count"
+                                        searchable
+                                        searchPlaceholder="Search..."
+                                    />
                                 </div>
                             </div>
                         </div>

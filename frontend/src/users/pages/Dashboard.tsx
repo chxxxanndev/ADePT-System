@@ -187,6 +187,14 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
     const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
     const [pendingVoidItems, setPendingVoidItems] = useState<VoidAmendRecord[]>([]);
+    // Deep-link query passed to the Transaction Registry when the user
+    // clicks a recent-transactions row or submits a search from that card.
+    const [registryInitialQuery, setRegistryInitialQuery] = useState('');
+
+    const openRegistry = (query: string) => {
+        setRegistryInitialQuery(query);
+        guardedSetActiveView('transaction-registry');
+    };
     const [navigationWarning, setNavigationWarning] = useState<
         | { type: 'cart' }
         | { type: 'entry-form' }
@@ -773,7 +781,9 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                                 <RecentTransactions
                                     rows={recentTransactionsData}
                                     allRows={allTransactionsData}
-                                    onViewAll={() => guardedSetActiveView('transaction-registry')}
+                                    onViewAll={() => openRegistry('')}
+                                    onRowClick={(controlNumber) => openRegistry(controlNumber)}
+                                    onSearchSubmit={(query) => openRegistry(query)}
                                 />
                                 <QuickActions actions={quickActions} onSelect={guardedSetActiveView} />
                             </div>
@@ -931,6 +941,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                     ) : activeView === 'transaction-registry' ? (
                         <TransactionRegistry
                             user={user}
+                            initialSearchQuery={registryInitialQuery}
                             onNavigateToVoidAmend={handleNavigateToVoidAmend}
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
                             onNavigateToReprint={() => setActiveView('certified-true-copy')}
