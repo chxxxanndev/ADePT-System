@@ -164,7 +164,11 @@ function CustomBarTooltip({ active, payload }: any) {
 /* ------------------------------------------------------------------ */
 /*  Page component                                                    */
 /* ------------------------------------------------------------------ */
-export default function Reports() {
+interface ReportsProps {
+  onNavigateToDashboard?: () => void;
+}
+
+export default function Reports({ onNavigateToDashboard }: ReportsProps) {
   const analytics = useReportsAnalytics();
   const [period, setPeriod] = useState<Period>("monthly");
   const [search, setSearch] = useState("");
@@ -212,6 +216,17 @@ export default function Reports() {
     return (
       <div className="reports-page">
         <div className="reports-container">
+          <nav className="reports-breadcrumb" aria-label="Breadcrumb">
+            <button
+              type="button"
+              className="reports-breadcrumb-item--link"
+              onClick={onNavigateToDashboard}
+            >
+              Dashboard
+            </button>
+            <span className="reports-breadcrumb-sep">&gt;</span>
+            <span className="reports-breadcrumb-item--current">Reports &amp; Analytics</span>
+          </nav>
           <div
             className="table-card"
             style={{ padding: "64px 32px", textAlign: "center", color: "#8b8fa3" }}
@@ -228,6 +243,17 @@ export default function Reports() {
     return (
       <div className="reports-page">
         <div className="reports-container">
+          <nav className="reports-breadcrumb" aria-label="Breadcrumb">
+            <button
+              type="button"
+              className="reports-breadcrumb-item--link"
+              onClick={onNavigateToDashboard}
+            >
+              Dashboard
+            </button>
+            <span className="reports-breadcrumb-sep">&gt;</span>
+            <span className="reports-breadcrumb-item--current">Reports &amp; Analytics</span>
+          </nav>
           <div
             className="table-card"
             style={{ padding: "48px 32px", textAlign: "center", color: "#B0281C" }}
@@ -245,6 +271,19 @@ export default function Reports() {
   return (
     <div className="reports-page">
       <div className="reports-container">
+        {/* Breadcrumb — Dashboard > Reports & Analytics */}
+        <nav className="reports-breadcrumb" aria-label="Breadcrumb">
+          <button
+            type="button"
+            className="reports-breadcrumb-item--link"
+            onClick={onNavigateToDashboard}
+          >
+            Dashboard
+          </button>
+          <span className="reports-breadcrumb-sep">&gt;</span>
+          <span className="reports-breadcrumb-item--current">Reports &amp; Analytics</span>
+        </nav>
+
         {/* Header */}
         <div className="reports-header">
           <div>

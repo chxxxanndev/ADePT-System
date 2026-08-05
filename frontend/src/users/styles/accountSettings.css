@@ -13,6 +13,45 @@
     padding: 4px 0 20px;
 }
 
+/* ── Breadcrumb (matches tr-breadcrumb exactly) ─────────────────── */
+.as-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--db-text-muted);
+    margin-bottom: -6px;
+}
+
+.as-breadcrumb-item--link {
+    cursor: pointer;
+    transition: color 0.15s ease;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+}
+
+.as-breadcrumb-item--link:hover,
+.as-breadcrumb-item--link:active,
+.as-breadcrumb-item--link:focus-visible {
+    color: var(--db-secondary);
+    outline: none;
+}
+
+.as-breadcrumb-sep {
+    color: #cbd5e1;
+    font-size: 0.9rem;
+}
+
+.as-breadcrumb-item--current {
+    color: var(--db-primary);
+    font-weight: 800;
+}
+
 /* ── Page heading ─────────────────────────────────────────── */
 .as-page-header {
     display: flex;

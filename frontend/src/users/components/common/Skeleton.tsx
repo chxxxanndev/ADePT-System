@@ -4,16 +4,18 @@ export const SkeletonBox = ({ width = '100%', height = '20px', borderRadius = '4
     <div className="skeleton-item" style={{ width, height, borderRadius, margin }} />
 );
 
-// 1. CARDS: mirrors the real SummaryCards — a single Total card now,
-// reusing .tr-summary-grid--single so it sizes/positions exactly like
-// the loaded card does.
+// 1. CARDS: mirrors the registry's five summary chips (Total, Released Today,
+// Tax Declaration, Landholding, No Landholding) — one ghost card each, sized
+// like the loaded .tr-summary-card.
 export const RegistrySummarySkeleton = () => {
     return (
-        <div className="tr-summary-grid tr-summary-grid--single">
-            <div className="skeleton-card-ghost tr-summary-skeleton-card">
-                <SkeletonBox width="65%" height="11px" margin="0 0 10px 0" />
-                <SkeletonBox width="45%" height="26px" />
-            </div>
+        <div className="tr-summary-grid">
+            {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="skeleton-card-ghost tr-summary-skeleton-card" style={{ flex: 1 }}>
+                    <SkeletonBox width="65%" height="11px" margin="0 0 10px 0" />
+                    <SkeletonBox width="45%" height="26px" />
+                </div>
+            ))}
         </div>
     );
 };

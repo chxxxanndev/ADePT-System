@@ -2,6 +2,45 @@
    NotificationsPage.css
    ============================ */
 
+/* ---- Breadcrumb (matches tr-breadcrumb exactly) ---- */
+.notif-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--db-text-muted);
+    margin-bottom: -6px;
+}
+
+.notif-breadcrumb-item--link {
+    cursor: pointer;
+    transition: color 0.15s ease;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+}
+
+.notif-breadcrumb-item--link:hover,
+.notif-breadcrumb-item--link:active,
+.notif-breadcrumb-item--link:focus-visible {
+    color: var(--db-secondary);
+    outline: none;
+}
+
+.notif-breadcrumb-sep {
+    color: #cbd5e1;
+    font-size: 0.9rem;
+}
+
+.notif-breadcrumb-item--current {
+    color: var(--db-primary);
+    font-weight: 800;
+}
+
 .notif-page-header {
     margin-bottom: 24px;
     display: flex;

@@ -43,7 +43,45 @@
     flex-direction: column;
     gap: var(--space-lg);
     position: relative;
-    z-index: 1;
+}
+
+/* ---- Breadcrumb (matches tr-breadcrumb exactly: size, weight, teal hover) ---- */
+.doc-req-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--db-text-muted);
+    margin-bottom: -6px;
+}
+
+.doc-req-breadcrumb-item--link {
+    cursor: pointer;
+    transition: color 0.15s ease;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+}
+
+.doc-req-breadcrumb-item--link:hover,
+.doc-req-breadcrumb-item--link:active,
+.doc-req-breadcrumb-item--link:focus-visible {
+    color: var(--db-secondary);
+    outline: none;
+}
+
+.doc-req-breadcrumb-sep {
+    color: #cbd5e1;
+    font-size: 0.9rem;
+}
+
+.doc-req-breadcrumb-item--current {
+    color: var(--db-primary);
+    font-weight: 800;
 }
 
 /* Header Section */

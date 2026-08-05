@@ -18,6 +18,45 @@
     font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
 }
 
+/* --- Breadcrumb (matches tr-breadcrumb exactly) --- */
+.aa-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--db-text-muted);
+    margin-bottom: -6px;
+}
+
+.aa-breadcrumb-item--link {
+    cursor: pointer;
+    transition: color 0.15s ease;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+}
+
+.aa-breadcrumb-item--link:hover,
+.aa-breadcrumb-item--link:active,
+.aa-breadcrumb-item--link:focus-visible {
+    color: var(--db-secondary);
+    outline: none;
+}
+
+.aa-breadcrumb-sep {
+    color: #cbd5e1;
+    font-size: 0.9rem;
+}
+
+.aa-breadcrumb-item--current {
+    color: var(--db-primary);
+    font-weight: 800;
+}
+
 /* --- Hero --- */
 .aa-hero {
     background: linear-gradient(135deg, var(--db-primary) 0%, #3b3498 100%);
