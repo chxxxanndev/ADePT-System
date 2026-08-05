@@ -400,9 +400,13 @@ export function TaxDeclarationForm({
                               // codes until the user re-picks a value.
                               const rawCode = (r.classification_id || '').trim();
                               const normalizedCode = rawCode.toUpperCase();
-                              const matched = classificationOptions.find(
-                                  (o) => o.code === normalizedCode
-                              );
+                              // FIX: rows saved by older versions of this
+                              // form stored the lookup_values.id (a number)
+                              // instead of the code — match those by id too
+                              // so the label shows instead of the number.
+                              const matched =
+                                  classificationOptions.find((o) => o.code === normalizedCode) ||
+                                  classificationOptions.find((o) => o.id === rawCode);
                               return {
                                   id: r.id,
                                   kindOfProperty: r.kind_of_property || '',

@@ -1560,6 +1560,16 @@
     white-space: nowrap;
 }
 
+/* FIX: the Declarant column used the same `white-space: nowrap` as every
+   other cell, so a long declarant name stretched the whole table past its
+   card (horizontal scroll on every row). Let this one column wrap its
+   long names instead, keeping the table at 100% width. */
+.transactions-table td:nth-child(2) {
+    white-space: normal;
+    overflow-wrap: break-word;
+    max-width: 280px;
+}
+
 .transactions-table tbody tr:hover td {
     background-color: var(--db-hover-highlight);
 }

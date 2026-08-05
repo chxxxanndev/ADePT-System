@@ -338,6 +338,14 @@
 
 .tr-table-scroll {
     width: 100%;
+    overflow-x: auto;
+}
+
+/* 11 columns can't stay readable when the card crushes below ~1000px —
+   let the table keep its width and scroll horizontally instead of
+   squishing every column into unreadable slivers. */
+.tr-table--registry {
+    min-width: 1000px;
 }
 
 .tr-table {
@@ -352,12 +360,12 @@
 }
 
 .tr-table thead th {
-    padding: 14px 20px;
-    font-size: 0.7rem;
+    padding: 13px 16px;
+    font-size: 0.66rem;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--db-primary);
+    letter-spacing: 0.07em;
+    color: #64748B;
     white-space: normal;
     word-break: keep-all;
     overflow-wrap: normal;
@@ -365,13 +373,50 @@
 }
 
 .tr-table tbody td {
-    padding: 16px 20px;
-    font-size: 13.5px;
+    padding: 14px 16px;
+    font-size: 13px;
     color: #2B2A34;
-    border-bottom: 1px solid var(--db-glass-border-alt);
+    border-bottom: 1px solid #EDF0F6;
     vertical-align: middle;
     white-space: normal;
     overflow-wrap: break-word;
+}
+
+/* ---- Registry table column polish ----
+   Scoped under .tr-table--registry so the Void & Amend and Certified True
+   Copy tables (which reuse .tr-table with different column sets) are
+   untouched. Date/staff/OR cells are metadata: smaller and muted so the
+   Declarant, Reference and Status columns carry the visual weight. Every
+   nowrap cell also gets overflow + ellipsis so a long value clips with "…"
+   instead of spilling into the neighboring column. */
+.tr-table--registry tbody td:nth-child(2) {
+    overflow: hidden;
+}
+.tr-table--registry tbody td:nth-child(4),
+.tr-table--registry tbody td:nth-child(5) {
+    font-size: 12.5px;
+    color: #64748B;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tr-table--registry tbody td:nth-child(6),
+.tr-table--registry tbody td:nth-child(7) {
+    font-size: 12.5px;
+    color: #64748B;
+}
+
+.tr-table--registry tbody td:nth-child(8) {
+    font-size: 12.5px;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tr-table--registry tbody td:nth-child(10) {
+    text-align: center;
 }
 
 .tr-table tbody tr:last-child td {
@@ -380,6 +425,16 @@
 
 .tr-row {
     transition: background-color 0.15s ease;
+}
+
+/* The registry had no row hover at all — without it the eye loses the row
+   being read the moment it looks away. Soft indigo tint, brand-consistent. */
+.tr-table tbody tr.tr-row:hover td {
+    background-color: rgba(41, 35, 122, 0.035);
+}
+
+.tr-table tbody tr.tr-row:hover td:nth-child(1) {
+    background-color: rgba(41, 35, 122, 0.045);
 }
 
 /* ---- Stacked per-document columns ---- */
@@ -422,14 +477,17 @@
     align-items: center;
     gap: 5px;
     font-family: inherit;
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     font-weight: 600;
     background-color: #f1f5f9;
     color: var(--db-text-muted);
-    padding: 4px 10px;
+    padding: 5px 10px;
     border-radius: 5px;
     border: 1px solid #e2e8f0;
     white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .tr-doc-pill svg {
@@ -492,6 +550,12 @@
     color: var(--db-slate);
     font-size: 0.86rem;
     text-wrap: pretty;
+    display: block;
+    width: 100%;
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .tr-declarant-sub {
@@ -571,45 +635,58 @@
 .tr-badge {
     display: inline-block;
     padding: 5px 10px;
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 700;
     white-space: normal;
+    line-height: 1.4;
+    border-radius: 999px;
 }
 
+/* Status pills: soft tinted backgrounds make the current state scannable
+   at a glance instead of floating colored text. */
 .tr-badge--pending {
     color: #8A6A00;
+    background-color: #FEF9C3;
 }
 
 .tr-badge--forpayment {
     color: #C2410C;
+    background-color: #FFEDD5;
 }
 
 .tr-badge--paymentverified {
     color: #0369A1;
+    background-color: #E0F2FE;
 }
 
 .tr-badge--processing {
     color: #1D4ED8;
+    background-color: #DBEAFE;
 }
 
 .tr-badge--readyforrelease {
     color: #0D9488;
+    background-color: #CCFBF1;
 }
 
 .tr-badge--released {
     color: #1E7A46;
+    background-color: #DCFCE7;
 }
 
 .tr-badge--void {
     color: #B0281C;
+    background-color: #FEE2E2;
 }
 
 .tr-badge--archived {
     color: #475569;
+    background-color: #E2E8F0;
 }
 
 .tr-badge--reprinted {
     color: #7C3AED;
+    background-color: #EDE9FE;
     margin-left: 6px;
 }
 
@@ -886,6 +963,12 @@
     font-size: 1.05rem;
     font-weight: 800;
     letter-spacing: 0.02em;
+    /* FIX: long declarant names could overflow this flex item and run
+       underneath/behind the sticky close + void buttons. min-width:0 lets
+       the text div shrink inside the flex header; break-word wraps long
+       names onto extra lines instead of overflowing. */
+    min-width: 0;
+    overflow-wrap: break-word;
 }
 
 .td-header-sub {
@@ -1003,6 +1086,9 @@
     font-size: 0.9rem;
     color: #1e293b;
     font-weight: 600;
+    /* FIX: same long-name protection as .td-header-ref — an unbroken
+       name could overflow its grid cell. */
+    overflow-wrap: break-word;
 }
 
 .td-doclist {
@@ -1660,14 +1746,14 @@
    at full body size instead of the small "1 DOCUMENT" label PendingPayment
    uses. This selector is (0,2,3) — high enough to always win. */
 .tr-table tbody tr.tr-group-header-row td {
-    padding: 8px 20px;
-    background-color: rgba(41, 35, 122, 0.03);
-    border-bottom: none;
+    padding: 10px 20px;
+    background-color: #F8FAFC;
+    border-bottom: 1px solid #E2E8F0;
     font-size: 10.5px;
-    font-weight: 700;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: #9CA3AF;
+    letter-spacing: 0.08em;
+    color: #64748B;
 }
 
 .tr-table tbody tr.tr-row-group-mid td {

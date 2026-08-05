@@ -516,7 +516,7 @@ export default function VoidAndAmend({
                   paginatedRecords.map((record) => (
                     <tr key={record.id} className="tr-row">
                       <td><span className="tr-ref">#{record.reference}</span></td>
-                      <td><span className="tr-declarant">{record.declarantName}</span></td>
+                      <td><span className="tr-declarant" title={record.declarantName}>{record.declarantName}</span></td>
                       <td>{record.documentType}</td>
                       <td>{record.detail}</td>
                       <td>{record.actionedBy}</td>

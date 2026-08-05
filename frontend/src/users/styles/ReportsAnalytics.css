@@ -517,6 +517,10 @@
   font-weight: 600;
   font-size: 0.86rem;
   color: var(--color-text);
+  /* FIX: long declarant names wrap inside the cell instead of stretching
+     the auto-layout table (the .table-scroll overflow-x:auto stays as the
+     fallback). */
+  overflow-wrap: break-word;
 }
 
 .cell-muted {
