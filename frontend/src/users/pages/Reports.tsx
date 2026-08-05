@@ -24,6 +24,7 @@ import {
 import "../styles/ReportsAnalytics.css";
 import { useReportsAnalytics } from "../hooks/useReportsAnalytics";
 import type { DeclarantRecord } from "../data/reportsMockData";
+import { ExpandableText } from '../components/common/ExpandableText';
 
 type Period = "daily" | "weekly" | "monthly";
 
@@ -41,7 +42,7 @@ const STATUS_OPTIONS: DeclarantStatus[] = [
   "Pending Verification",
   "Voided",
   "Archived",
-   "Flagged",
+  "Flagged",
 ];
 
 const STATUS_CLASS: Record<DeclarantStatus, string> = {
@@ -50,7 +51,7 @@ const STATUS_CLASS: Record<DeclarantStatus, string> = {
   Voided: "status-badge--voided",
   "Pending Payment": "status-badge--pending-payment",
   "Pending Verification": "status-badge--pending-verification",
-   Flagged: "status-badge--flagged",
+  Flagged: "status-badge--flagged",
 };
 
 // FIX: pagination options for the Declarant Records table, mirroring
@@ -386,7 +387,7 @@ export default function Reports() {
                 {pageItems.map((d, idx) => (
                   <tr key={d.reference} className={idx % 2 !== 0 ? "row-alt" : ""}>
                     <td className="cell-reference">#{d.reference}</td>
-                    <td className="cell-name">{d.declarantName}</td>
+                    <td className="cell-name"><ExpandableText text={d.declarantName} /></td>
                     <td>{d.documentRequested}</td>
                     <td className="cell-muted">{d.dateReleased}</td>
                     <td className="cell-muted">{d.staffReleased}</td>

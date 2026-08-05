@@ -1,6 +1,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { requestService } from '../services/requestService';
 import '../styles/PendingPayment.css';
+import { ExpandableText } from '../components/common/ExpandableText';
 
 const RELEASE_QUEUE_STATUS = 'PAID';
 
@@ -283,17 +284,18 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                                     </td>
 
                                                     <td className="pp-cell" data-label="Declarant(s)">
-                                                        <span className="pp-doc-declarant" title={d.declarantName}>
-                                                            <UserIcon />{d.declarantName}
+                                                        <span className="pp-doc-declarant">
+                                                            <UserIcon />
+                                                            <ExpandableText text={d.declarantName} />
                                                         </span>
                                                     </td>
 
                                                     {/* Requested By repeats per row, same as Encoded By Staff, so
                                                         each row reads as a complete, self-contained line */}
                                                     <td className="pp-cell" data-label="Requested By">
-                                                        <div className="pp-client-info">
-                                                            <span className="pp-client-name" title={group.requesterName}>{group.requesterName}</span>
-                                                        </div>
+                                                        <span className="pp-client-name">
+                                                            <ExpandableText text={group.requesterName} />
+                                                        </span>
                                                     </td>
 
                                                     <td className="pp-cell" data-label="Encoded By Staff">

@@ -13,6 +13,7 @@ import { requestService } from "../services/requestService";
 import { fetchTransactionRegistry } from "../services/transactionService";
 import type { Transaction, RequestedDocumentItem } from "../types/transaction";
 import "../styles/ArchiveManagement.css";
+import { ExpandableText } from '../components/common/ExpandableText';
 
 /* ------------------------------------------------------------------ */
 /*  Reference-number icons — same SVG shapes as TransactionRegistry's  */
@@ -391,7 +392,7 @@ export default function ArchiveManagement() {
                     <td>
                       <ReferenceBadge reference={record.reference} type={record.documentType} />
                     </td>
-                    <td className="arc-declarant">{record.declarantName}</td>
+                    <td className="arc-declarant"><ExpandableText text={record.declarantName} /></td>
                     <td>
                       <DocTypeTag type={record.documentType} />
                     </td>

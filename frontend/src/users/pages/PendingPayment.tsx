@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, Fragment } from 'react';
 import { requestService } from '../services/requestService';
 import { addAdminAuditEntry } from '../../admin/services/auditLogService';
 import '../styles/PendingPayment.css';
+import { ExpandableText } from '../components/common/ExpandableText';
 
 // --- ICONS ---
 const SearchIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
@@ -459,9 +460,9 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                                                     </td>
 
                                                     <td className="pp-cell" data-label="Declarant(s)">
-                                                        <span className="pp-doc-declarant" title={d.declarantName}>
+                                                        <span className="pp-doc-declarant">
                                                             <UserIcon />
-                                                            {d.declarantName}
+                                                            <ExpandableText text={d.declarantName} />
                                                         </span>
                                                     </td>
 
@@ -470,9 +471,9 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                                                         (Reference No. → Declarant → Requested By → Staff) without
                                                         needing to look up/down to a merged cell. */}
                                                     <td className="pp-cell" data-label="Requested By">
-                                                        <div className="pp-client-info">
-                                                            <span className="pp-client-name" title={group.requesterName}>{group.requesterName}</span>
-                                                        </div>
+                                                        <span className="pp-client-name">
+                                                            <ExpandableText text={group.requesterName} />
+                                                        </span>
                                                     </td>
 
                                                     <td className="pp-cell" data-label="Encoded By Staff">

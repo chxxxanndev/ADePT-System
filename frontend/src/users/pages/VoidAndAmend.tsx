@@ -4,6 +4,7 @@ import { fetchTransactionRegistry } from "../services/transactionService";
 import { requestService } from "../services/requestService";
 import type { Transaction } from "../types/transaction";
 import "../styles/TransactionRegistry.css";
+import { ExpandableText } from '../components/common/ExpandableText';
 
 export type ActionType = "void";
 
@@ -516,7 +517,7 @@ export default function VoidAndAmend({
                   paginatedRecords.map((record) => (
                     <tr key={record.id} className="tr-row">
                       <td><span className="tr-ref">#{record.reference}</span></td>
-                      <td><span className="tr-declarant">{record.declarantName}</span></td>
+                      <td><span className="tr-declarant"><ExpandableText text={record.declarantName} /></span></td>
                       <td>{record.documentType}</td>
                       <td>{record.detail}</td>
                       <td>{record.actionedBy}</td>

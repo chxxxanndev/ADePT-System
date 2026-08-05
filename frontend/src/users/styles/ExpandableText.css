@@ -1,0 +1,31 @@
+.expandable-text {
+    display: inline;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.expandable-text-toggle {
+    display: inline;
+    background: none;
+    border: none;
+    padding: 0;
+    margin-left: 6px;
+    font: inherit;
+    font-size: 0.78em;
+    font-weight: 700;
+    color: var(--db-secondary, #00bcd4);
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.expandable-text-toggle:hover {
+    color: var(--db-primary, #29237a);
+}
+
+.expandable-text-toggle:focus-visible {
+    outline: 2px solid var(--db-secondary, #00bcd4);
+    outline-offset: 2px;
+    border-radius: 3px;
+}
