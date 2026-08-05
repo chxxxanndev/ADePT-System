@@ -39,6 +39,8 @@ export interface NLHSpacing {
     receiptBottom: number;     // absolute bottom position of receipt box (was 95)
     receiptLeft: number;       // absolute left position of receipt box (was 70)
     receiptRowGap: number;     // marginBottom between Cert Fee / O.R. No. / Dated rows (was 3)
+     declarantPadding: number;  // Number of spaces to add on each side of the name
+    declarantLetterSpacing: number; // Spacing between letters
 }
 
 export const DEFAULT_NLH_SPACING: NLHSpacing = {
@@ -52,6 +54,8 @@ export const DEFAULT_NLH_SPACING: NLHSpacing = {
     receiptBottom: 95,
     receiptLeft: 70,
     receiptRowGap: 3,
+     declarantPadding: 1, // Default to 1 space on each side
+    declarantLetterSpacing: 0.3,
 };
 
 // -------------------
@@ -126,6 +130,7 @@ const styles = StyleSheet.create({
     underlineText: {
         fontWeight: 'bold',
         textDecoration: 'underline',
+  
     },
     // Base signatory styles — marginTop / marginBottom / width / fontSize are
     // overridden inline from sp so they can be nudged without a PDF rebuild.
@@ -325,19 +330,25 @@ export const CertOfNoLandholdingPDF = (props: CertOfNoLandholdingPDFProps) => {
     // exactly like the landholding certificate (closing block on last page).
     const needsSecondPage = totalHeight + FIT_BUFFER > pageHeight;
 
-    const renderParagraph1 = () => (
+   const renderParagraph1 = () => {
+    // Create the padding string based on the "nudge" value
+    const sidePadding = '\u00A0'.repeat(sp.declarantPadding || 1);
+
+    return (
         <Text style={styles.officialParagraph}>
             <Text>{INDENT}</Text>
             <Text style={{ fontWeight: 'bold' }}>THIS IS TO CERTIFY</Text>
             <Text> that </Text>
-            <Text style={styles.underlineText}>
-    {`\u00A0${String(displayName)}\u00A0`}
-  </Text>
-            <Text style={styles.underlineText}>{String(displayName)}</Text>
+            <Text style={[
+                styles.underlineText, 
+                { letterSpacing: sp.declarantLetterSpacing || 0 }
+            ]}>
+                {`${sidePadding}${String(displayName)}${sidePadding}`}
+            </Text>
             <Text> has/have no {propertyTerm} declared in {possessivePronoun} name/s either singly or collectively within the taxing jurisdiction of this province per office records.</Text>
         </Text>
     );
-
+};
     const renderParagraph2 = () => (
         <Text style={styles.officialParagraph}>
             <Text>{INDENT}</Text>

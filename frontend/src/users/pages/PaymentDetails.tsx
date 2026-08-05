@@ -10,6 +10,7 @@ import { CertOfNoLandholdingPDF, DEFAULT_NLH_SPACING, type NLHSpacing } from '..
 import { CertOfLandholdingPDF } from '../components/templates/LandholdingPDF';
 import { TaxDeclarationPDF } from '../components/templates/TaxDeclarationPDF';
 import { landholdingService } from '../services/landholdingService';
+import { noLandholdingService } from '../services/noLandholdingService';
 import { taxDeclarationService } from '../services/taxDeclarationService';
 
 import { fetchAllStaff, fetchSignatories, type StaffMember } from '../../admin/services/userManagementService';
@@ -487,9 +488,21 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
             let PDFComponent;
 
             if (doc.referenceNumber.startsWith('NLH')) {
+                // The doc object only carries minimal fields — fetch the encoded
+                // certificate so the pronoun and property/name count reflect what
+                // was chosen during the request (same source the entry form uses).
+                let nlhCert: any = null;
+                try {
+                    nlhCert = await noLandholdingService.getByRequestId(doc.id);
+                } catch (err) {
+                    console.error('Failed to fetch no landholding certificate:', err);
+                }
+
                 PDFComponent = <CertOfNoLandholdingPDF
                     paperSize={doc.paperSize} // optional override — auto-switches to LEGAL when content no longer fits LETTER
-                    ownerName={doc.declarantName || doc.declarant_name}
+                    ownerName={doc.declarantName || doc.declarant_name || nlhCert?.declarant_name}
+                    pronoun={nlhCert?.pronoun}
+                    property_count={nlhCert?.property_count}
                     day={day} monthYear={monthYear} orNumber={orNumber} datePaid={datePaid}
                     signatory1Name={sigs?.primary?.name} signatory1Title={sigs?.primary?.title}
                     signatory2Name={sigs?.secondary?.name} signatory2Title={sigs?.secondary?.title}
