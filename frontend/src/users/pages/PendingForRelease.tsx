@@ -48,6 +48,20 @@ function resolveDocTypeName(req: any): string {
     return 'Certified True Tax Declaration';
 }
 
+// Splits a queue timestamp (timestamptz from the DB) into a date part and
+// a time part ("Aug 5, 2026" / "2:35 PM") so the UI can render the time
+// on its own line below the date. Falls back to the plain request date
+// when the timestamp is missing (older records) or unparseable.
+function splitQueueDateTime(raw: string | null | undefined, fallback: string): { date: string; time: string } {
+    if (!raw) return { date: fallback, time: '' };
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return { date: fallback, time: '' };
+    return {
+        date: d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }),
+        time: d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true }),
+    };
+}
+
 export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchView }: any) {
     const [groupedReleases, setGroupedReleases] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -78,10 +92,18 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                         : `${requester}__${req.request_date || 'N/A'}__${req.id}`;
 
                     if (!acc[groupKey]) {
+                        const queueDt = splitQueueDateTime(
+                            req.payment_date || req.pending_payment_at,
+                            req.request_date || 'N/A'
+                        );
                         acc[groupKey] = {
                             groupId: req.id,
                             requesterName: requester,
-                            dateRequested: req.request_date || 'N/A',
+                            // Show the time the payment was verified and the
+                            // documents entered this queue (payment_date is a
+                            // timestamptz set on PAID), not just the request date.
+                            dateRequested: queueDt.date,
+                            timeRequested: queueDt.time,
                             orNumber: orNumber,
                             documents: []
                         };
@@ -219,12 +241,12 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                         <thead>
                             <tr>
                                 <th style={{ width: '16%' }}>Reference No.</th>
-                                <th style={{ width: '20%' }}>Declarant(s)</th>
+                                <th style={{ width: '16%' }}>Declarant(s)</th>
                                 <th style={{ width: '15%' }}>Requested By</th>
                                 <th style={{ width: '14%' }}>Encoded By Staff</th>
                                 <th style={{ width: '13%', textAlign: 'center' }}>O.R. Number</th>
-                                <th style={{ width: '10%', textAlign: 'center' }}>Date</th>
-                                <th style={{ width: '12%', textAlign: 'right', paddingRight: '32px' }}>Actions</th>
+                                <th style={{ width: '14%', textAlign: 'center' }}>Date &amp; Time</th>
+                                <th style={{ width: '12%', textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -314,8 +336,11 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                                     )}
 
                                                     {docIndex === 0 && (
-                                                        <td className="pp-cell pp-cell-top" data-label="Date" style={{ textAlign: 'center' }} rowSpan={docCount}>
-                                                            <span className="pp-date">{group.dateRequested}</span>
+                                                        <td className="pp-cell pp-cell-top" data-label="Date &amp; Time" style={{ textAlign: 'center' }} rowSpan={docCount}>
+                                                            <span className="pp-date">
+                                                                <span className="pp-date-day">{group.dateRequested}</span>
+                                                                {group.timeRequested && <span className="pp-date-time">{group.timeRequested}</span>}
+                                                            </span>
                                                         </td>
                                                     )}
 

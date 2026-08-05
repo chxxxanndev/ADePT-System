@@ -633,7 +633,19 @@
     font-size: 0.86rem;
     color: var(--db-slate);
     font-weight: 600;
-    white-space: nowrap;
+    line-height: 1.35;
+}
+
+/* Time always renders on its own line below the date */
+.pp-date-day,
+.pp-date-time {
+    display: block;
+}
+
+.pp-date-time {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--db-text-muted);
 }
 
 /* Actions */
