@@ -103,7 +103,7 @@ export const TaxDeclarationPDF = ({
   certifiedByName = '',
   certifiedByTitle = ''
 }: any) => {
-  const rows = data.assessmentRows || [];
+  const rows = data.assessmentRows || data.assessments || [];
   // Guaranteed 4 blank/underline rows
   const tableRows = [...rows, ...Array(Math.max(0, 4 - rows.length)).fill({})];
 
@@ -180,7 +180,7 @@ export const TaxDeclarationPDF = ({
                 <Text style={{ fontSize: 10 }}>Administrator: </Text>
                 <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 12 }}>
                   <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>
-                    {data.adminName || ''}
+                    {data.administratorName || data.administrator_name || ''}
                   </Text>
                 </View>
               </View>
@@ -190,7 +190,7 @@ export const TaxDeclarationPDF = ({
                 <Text style={{ fontSize: 10 }}>Address: </Text>
                 <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 12 }}>
                   <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10, textAlign: 'left' }}>
-                    {data.adminAddress || ''}
+                    {data.administratorAddress || data.administrator_address || ''}
                   </Text>
                 </View>
               </View>

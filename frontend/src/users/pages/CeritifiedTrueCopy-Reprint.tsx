@@ -3,7 +3,6 @@ import { Search } from "lucide-react";
 import "../styles/TransactionRegistry.css";
 import type { CertifiedCopyRecord, CTCStatus } from "../types/transaction";
 import { fetchCertifiedTrueCopies } from "../services/transactionService";
-import { ExpandableText } from '../components/common/ExpandableText';
 
 const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
@@ -286,7 +285,7 @@ export default function CertifiedTrueCopy({
                     paginatedRecords.map((record) => (
                       <tr key={record.id} className="tr-row">
                         <td><span className="tr-ref">{record.reference}</span></td>
-                        <td><span className="tr-declarant"><ExpandableText text={record.declarantName} /></span></td>
+                        <td><span className="tr-declarant" title={record.declarantName}>{record.declarantName}</span></td>
                         <td>{record.originalDocument}</td>
                         <td><span className="tr-or-number">{record.orNumber}</span></td>
                         <td>

@@ -294,6 +294,11 @@
     flex: 1;
     color: #1e293b;
     font-weight: 500;
+    /* FIX: flex:1 without min-width:0 let a long declarant name overflow
+       the row and shove the "Done" chip / relative time off-screen.
+       min-width:0 lets the item shrink, break-word wraps the name instead. */
+    min-width: 0;
+    overflow-wrap: break-word;
 }
 
 .txp-declarant-time {

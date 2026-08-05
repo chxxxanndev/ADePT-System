@@ -121,7 +121,12 @@
 .pd-doc-table-wrap {
     border: 1px solid var(--db-glass-border-alt);
     border-radius: var(--db-radius-md);
-    overflow: hidden;
+    /* FIX: was `overflow: hidden` — a long declarant name stretched the
+       auto-layout table past the container and the right side (the Action
+       column with the View & Edit / Cancel buttons) was silently clipped
+       off-screen. auto keeps the wrap scrollable as a safety net; the
+       declarant cell clamp below prevents the overflow from happening. */
+    overflow-x: auto;
 }
 
 .pd-doc-table {
@@ -198,6 +203,15 @@
 .pd-doc-declarant {
     font-weight: 600;
     color: var(--db-slate);
+    /* FIX: long declarant names used to stretch the auto-layout table past
+       the container, pushing the Action column (View & Edit / Cancel
+       buttons) off-screen where it was clipped. Clamp the cell to a
+       fixed max width and ellipsize overflow — the full name is still
+       available via the cell's title tooltip. */
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Smaller variant used under a document reference in compact cards */
