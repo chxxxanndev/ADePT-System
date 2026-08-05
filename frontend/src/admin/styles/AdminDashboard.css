@@ -2,17 +2,17 @@
 
 /* Root styling variables mapping to the color palette */
 :root {
-    --admin-primary: #252175;
+    --admin-primary: #29237A;
     /* Deep Indigo */
-    --admin-primary-hover: #1c185a;
+    --admin-primary-hover: #201C61;
     --admin-secondary: #00BCD4;
     /* Marine Teal */
     --admin-secondary-hover: #00ACC1;
-    --admin-bg-base: #F4F5FA;
+    --admin-bg-base: #ffffff;
     /* Light neutral base for main content area */
     --admin-text-primary: #2C3338;
     /* Slate Gray */
-    --admin-text-muted: #64748B;
+    --admin-text-muted: #6B7280;
 
     /* Status Badge Colors */
     --admin-success: #4CAF50;
@@ -36,14 +36,14 @@
     --admin-sidebar-active-bg: rgba(255, 255, 255, 0.14);
     --admin-sidebar-hover-bg: rgba(255, 255, 255, 0.08);
 
-    /* Solid pastel stat-card colors */
-    --stat-blue-bg: #CFEFF7;
-    --stat-blue-icon: #0FA3C4;
-    --stat-gold-bg: #FDECB0;
-    --stat-gold-icon: #D6A200;
-    --stat-green-bg: #D3EFD5;
+    /* Stat card accent tints — match user dashboard icon-well tints */
+    --stat-blue-bg: rgba(0, 122, 138, 0.10);
+    --stat-blue-icon: #007A8A;
+    --stat-gold-bg: rgba(180, 83, 9, 0.10);
+    --stat-gold-icon: #b45309;
+    --stat-green-bg: rgba(22, 163, 74, 0.10);
     --stat-green-icon: #43A047;
-    --stat-red-bg: #F9D2D2;
+    --stat-red-bg: rgba(211, 47, 47, 0.10);
     --stat-red-icon: #E53935;
 
     /* Card surface (opaque, light) used for table/list cards */
@@ -65,7 +65,7 @@
     background-color: var(--admin-bg-base);
     color: var(--admin-text-primary);
     overflow: hidden;
-    font-family: inherit;
+    font-family: var(--font-family, 'Poppins', sans-serif);
 }
 
 /* Background Gradients Orbs (kept subtle, main area is light/flat now) */
@@ -522,13 +522,13 @@
     display: flex;
     gap: 2px;
     background: linear-gradient(90deg,
-            #EF4444 0%,
-            #F97316 16%,
-            #FACC15 32%,
-            #EC4899 48%,
-            #A855F7 64%,
-            #6366F1 82%,
-            #252175 100%);
+            #E8453C 0%,
+            #F0752A 20%,
+            #F7B733 38%,
+            #C9A9A6 52%,
+            #8B85B0 62%,
+            #4F46C4 78%,
+            #2E2AA8 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -1012,25 +1012,27 @@
     gap: 12px;
 }
 
-/* Stat card element - now solid pastel fills instead of glass */
+/* Stat card element - now white glass card with tinted circular icon well,
+   matching the user dashboard's stat card treatment */
 .admin-stat-card {
-    background: #ECEFF1;
-    border: none;
-    box-shadow: 0 4px 14px rgba(41, 35, 122, 0.04);
-    border-radius: 14px;
-    padding: 14px 18px;
+    background: var(--admin-card-bg);
+    border: 1px solid rgba(41, 35, 122, 0.12);
+    box-shadow: 0 8px 20px rgba(41, 35, 122, 0.10);
+    border-radius: 16px;
+    padding: 18px 20px;
+    min-height: 120px;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .admin-stat-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-2px);
     box-shadow: 0 12px 28px rgba(41, 35, 122, 0.14);
-    filter: saturate(1.06);
+    border-color: rgba(41, 35, 122, 0.25);
 }
 
 .admin-stat-card-left {
@@ -1040,65 +1042,52 @@
 }
 
 .admin-stat-card-label {
-    font-size: 13.5px;
+    font-size: 11.5px;
     font-weight: 700;
-    color: var(--admin-text-primary);
-    opacity: 0.75;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--admin-text-muted);
+    opacity: 1;
+    padding-top: 4px;
 }
 
 .admin-stat-card-value {
     font-size: 32px;
-    font-weight: 850;
-    color: var(--admin-text-primary);
+    font-weight: 800;
+    color: var(--admin-primary);
     line-height: 1.1;
 }
 
 .admin-stat-card-icon-container {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+    box-shadow: none;
     align-self: flex-end;
 }
 
-/* Stat card accent variants - solid pastel background per card */
-.admin-stat-card.teal {
-    background-color: var(--stat-blue-bg);
-}
-
+/* Stat card accent variants - tinted circular icon well per card */
 .admin-stat-card.teal .admin-stat-card-icon-container {
-    background-color: #ffffff;
+    background-color: var(--stat-blue-bg);
     color: var(--stat-blue-icon);
 }
 
-.admin-stat-card.gold {
-    background-color: var(--stat-gold-bg);
-}
-
 .admin-stat-card.gold .admin-stat-card-icon-container {
-    background-color: #ffffff;
+    background-color: var(--stat-gold-bg);
     color: var(--stat-gold-icon);
 }
 
-.admin-stat-card.green {
-    background-color: var(--stat-green-bg);
-}
-
 .admin-stat-card.green .admin-stat-card-icon-container {
-    background-color: #ffffff;
-    color: var(--stat-green-icon);
-}
-
-.admin-stat-card.red {
-    background-color: var(--stat-red-bg);
+    background-color: var(--stat-green-bg);
+    color: var(--admin-success);
 }
 
 .admin-stat-card.red .admin-stat-card-icon-container {
-    background-color: #ffffff;
-    color: var(--stat-red-icon);
+    background-color: var(--stat-red-bg);
+    color: var(--admin-error);
 }
 
 /* --- RECENT TRANSACTION TABLE CARD (and other content cards) --- */
