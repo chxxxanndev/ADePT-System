@@ -11,7 +11,6 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    Cell,
     Legend,
 } from 'recharts';
 import { FileStack, FileCheck2, XCircle, FileText, Copy, Edit3, Ban, Clock } from 'lucide-react';
@@ -126,8 +125,9 @@ const PENDING_STATUSES = ['Pending', 'Processing', 'Payment Verified'];
 
 interface MonthlyRequest {
     month: string;
-    count: number;
-    color: string;
+    taxDeclaration: number;
+    landholding: number;
+    noLandholding: number;
 }
 
 interface ReportRow {
@@ -152,17 +152,42 @@ interface DistributionSlice {
     color: string;
 }
 
-const MONTH_COLORS = ['#29237a', '#00bcd4'];
+const DOC_TYPE_COLORS = {
+    taxDeclaration: '#252175',
+    landholding: '#00BCD4',
+    noLandholding: '#4CAF50',
+} as const;
+
+const DOC_TYPE_SERIES = [
+    { key: 'taxDeclaration', label: 'Tax Declaration', color: DOC_TYPE_COLORS.taxDeclaration },
+    { key: 'landholding', label: 'Certificate of Landholding', color: DOC_TYPE_COLORS.landholding },
+    { key: 'noLandholding', label: 'Certificate of No Landholding', color: DOC_TYPE_COLORS.noLandholding },
+] as const;
+
+// A request can carry several document types (the backend joins them with
+// ", "). Each recognized type counts toward its own series segment.
+function countDocumentTypes(documentType: string): { taxDeclaration: number; landholding: number; noLandholding: number } {
+    const counts = { taxDeclaration: 0, landholding: 0, noLandholding: 0 };
+    for (const part of documentType.split(',')) {
+        const t = part.trim();
+        if (/no[- ]landhold/i.test(t)) counts.noLandholding += 1;
+        else if (/landhold/i.test(t)) counts.landholding += 1;
+        else if (/tax declaration/i.test(t)) counts.taxDeclaration += 1;
+    }
+    return counts;
+}
 
 function buildMonthlyBuckets(rows: ReportRow[]): MonthlyRequest[] {
     const now = new Date();
-    const buckets: { key: string; label: string; count: number }[] = [];
+    const buckets: { key: string; label: string; taxDeclaration: number; landholding: number; noLandholding: number }[] = [];
     for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         buckets.push({
             key: `${d.getFullYear()}-${d.getMonth()}`,
             label: d.toLocaleDateString('en-US', { month: 'short' }),
-            count: 0,
+            taxDeclaration: 0,
+            landholding: 0,
+            noLandholding: 0,
         });
     }
     const bucketByKey = new Map(buckets.map((b) => [b.key, b]));
@@ -170,23 +195,34 @@ function buildMonthlyBuckets(rows: ReportRow[]): MonthlyRequest[] {
     rows.forEach((row) => {
         const d = new Date(row.submittedRaw);
         if (Number.isNaN(d.getTime())) return;
-        const key = `${d.getFullYear()}-${d.getMonth()}`;
-        const bucket = bucketByKey.get(key);
-        if (bucket) bucket.count += 1;
+        const bucket = bucketByKey.get(`${d.getFullYear()}-${d.getMonth()}`);
+        if (!bucket) return;
+        const counts = countDocumentTypes(row.documentType || '');
+        bucket.taxDeclaration += counts.taxDeclaration;
+        bucket.landholding += counts.landholding;
+        bucket.noLandholding += counts.noLandholding;
     });
 
-    return buckets.map((b, i) => ({ month: b.label, count: b.count, color: MONTH_COLORS[i % 2] }));
+    return buckets.map((b) => ({
+        month: b.label,
+        taxDeclaration: b.taxDeclaration,
+        landholding: b.landholding,
+        noLandholding: b.noLandholding,
+    }));
 }
 
 function AdminBarTooltip({ active, payload }: any) {
     if (!active || !payload || !payload.length) return null;
-    const item = payload[0];
+    const entry = payload[0].payload as MonthlyRequest;
+    const items = DOC_TYPE_SERIES.filter((s) => entry[s.key] > 0);
     return (
         <div className="ar-chart-tooltip">
-            <div className="ar-chart-tooltip-label">{item.payload.month}</div>
-            <div style={{ color: item.payload.color }}>
-                {item.value.toLocaleString()} requests
-            </div>
+            <div className="ar-chart-tooltip-label">{entry.month}</div>
+            {items.map((s) => (
+                <div key={s.key} style={{ color: s.color }}>
+                    {entry[s.key].toLocaleString()} {s.label}
+                </div>
+            ))}
         </div>
     );
 }
@@ -727,7 +763,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                         <h2 className="admin-card-title">Requests by month</h2>
                     </div>
                     <p className="ar-chart-description">
-                        Document requests submitted per month (last 6 months)
+                        Document requests per month by type (last 6 months)
                     </p>
 
                     <div className="ar-chart-canvas">
@@ -757,25 +793,21 @@ export function AdminReports({ user }: AdminReportsProps) {
                                         content={<AdminBarTooltip />}
                                         cursor={{ fill: 'rgba(41,35,122,0.04)' }}
                                     />
-                                    <Bar dataKey="count" radius={[8, 8, 0, 0]} maxBarSize={56}>
-                                        {monthlyRequests.map((entry, i) => (
-                                            <Cell key={i} fill={entry.color} />
-                                        ))}
-                                    </Bar>
+                                    <Bar dataKey="taxDeclaration" fill={DOC_TYPE_COLORS.taxDeclaration} radius={[4, 4, 0, 0]} barSize={10} />
+                                    <Bar dataKey="landholding" fill={DOC_TYPE_COLORS.landholding} radius={[4, 4, 0, 0]} barSize={10} />
+                                    <Bar dataKey="noLandholding" fill={DOC_TYPE_COLORS.noLandholding} radius={[4, 4, 0, 0]} barSize={10} />
                                 </BarChart>
                             </ResponsiveContainer>
                         )}
                     </div>
 
                     <div className="ar-chart-legend">
-                        <div className="ar-legend-item">
-                            <span className="ar-legend-dot" style={{ backgroundColor: '#29237a' }} />
-                            Older months
-                        </div>
-                        <div className="ar-legend-item">
-                            <span className="ar-legend-dot" style={{ backgroundColor: '#00bcd4' }} />
-                            Recent months
-                        </div>
+                        {DOC_TYPE_SERIES.map((s) => (
+                            <div className="ar-legend-item" key={s.key}>
+                                <span className="ar-legend-dot" style={{ backgroundColor: s.color }} />
+                                {s.label}
+                            </div>
+                        ))}
                     </div>
                 </div>
 
