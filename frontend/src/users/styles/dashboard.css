@@ -594,50 +594,6 @@
     border-bottom: 1px solid var(--db-glass-border-alt);
 }
 
-.period-selector {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border-radius: 99px;
-    background-color: rgba(41, 35, 122, 0.05);
-    border: 1px solid var(--db-glass-border-alt);
-    font-size: 12.5px;
-    font-weight: 700;
-    color: var(--db-primary);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 2px 8px rgba(41, 35, 122, 0.03);
-}
-
-.period-selector:hover {
-    background-color: rgba(41, 35, 122, 0.1);
-    border-color: var(--db-primary);
-    transform: translateY(-0.5px);
-}
-
-.period-selector-label {
-    font-weight: 800;
-    color: var(--db-primary);
-}
-
-.period-selector-value {
-    font-weight: 600;
-    color: var(--db-text);
-}
-
-.period-selector-toggle {
-    color: var(--db-text-muted);
-    margin-left: 4px;
-    flex-shrink: 0;
-    transition: transform 0.2s ease;
-}
-
-.period-selector-toggle.open {
-    transform: rotate(180deg);
-}
-
 .period-selector-wrap {
     position: relative;
     display: inline-flex;
@@ -645,230 +601,15 @@
     isolation: isolate;
 }
 
-.period-dropdown-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 90;
-    background: transparent;
-}
-
-/* ── Dashboard Period dropdown — restyled to mirror the Transaction
-   Registry's DateRangePicker: a white popover with the preset list on
-   the left and (for Custom Range...) the calendar panel beside it.
-   It still anchors from `left: 0` because it sits on the left side of
-   the welcome row (see note below). ── */
-.period-dropdown {
-    position: absolute;
-    top: calc(100% + 8px);
+/* The Dashboard Period control is the shared Transaction Registry
+   DateRangePicker. The picker's popover normally anchors to the right
+   edge of its trigger (correct for the registry filter bar, which sits
+   on the right side); on the dashboard the trigger sits at the LEFT of
+   the welcome row, so anchor the popover left so it opens into open
+   space instead of off-screen. */
+.period-selector-wrap .tr-daterange-popover {
     left: 0;
-    z-index: 100;
-    display: flex;
-    width: 190px;
-    max-width: calc(100vw - 64px);
-    padding: 0;
-    margin: 0;
-    background-color: #ffffff;
-    border: 1px solid #eef0f6;
-    border-radius: 16px;
-    box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
-    overflow: hidden;
-    /* Same entrance animation as the registry's date range popover. */
-    animation: pp-modal-in 0.15s ease;
-}
-
-.period-dropdown--wide {
-    width: 500px;
-}
-
-@keyframes pp-modal-in {
-    from {
-        opacity: 0;
-        transform: translateY(8px) scale(0.98);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-/* ---- Preset list (left column) — mirrors .tr-preset-list ---- */
-.dash-preset-list {
-    width: 190px;
-    flex: 0 0 190px;
-    display: flex;
-    flex-direction: column;
-    padding: 8px;
-    list-style: none;
-    margin: 0;
-    border-right: 1px solid #eef0f6;
-}
-
-.dash-preset-item {
-    text-align: left;
-    background: transparent;
-    border: none;
-    padding: 10px 12px;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--db-slate);
-    cursor: pointer;
-    font-family: inherit;
-    white-space: nowrap;
-    transition: background-color 0.12s ease, color 0.12s ease;
-}
-
-.dash-preset-item:hover {
-    background-color: #f1f5f9;
-}
-
-.dash-preset-item--active {
-    background-color: rgba(41, 35, 122, 0.08);
-    color: var(--db-primary);
-}
-
-.dash-preset-item--divider {
-    margin-top: 8px;
-    padding-top: 14px;
-    border-top: 1px solid #eef0f6;
-}
-
-/* ---- Calendar panel (right column) — values copied from the
-   Transaction Registry's .tr-cal-* styles for an exact match ---- */
-.dash-cal-panel {
-    padding: 18px 20px;
-    width: 310px;
-    flex: 0 0 310px;
-}
-
-.dash-cal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 14px;
-}
-
-.dash-cal-title {
-    font-size: 1rem;
-    font-weight: 800;
-    color: var(--db-primary);
-}
-
-.dash-cal-nav-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    border: none;
-    background: transparent;
-    color: var(--db-primary);
-    cursor: pointer;
-    transition: background-color 0.15s ease;
-}
-
-.dash-cal-nav-btn:hover {
-    background-color: rgba(41, 35, 122, 0.08);
-}
-
-.dash-cal-weekdays {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    margin-bottom: 4px;
-}
-
-.dash-cal-weekday {
-    text-align: center;
-    font-size: 10.5px;
-    font-weight: 700;
-    color: #94a3b8;
-    padding: 6px 0;
-}
-
-.dash-cal-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    row-gap: 2px;
-}
-
-.dash-cal-day {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 36px;
-    border: none;
-    background: transparent;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--db-slate);
-    cursor: pointer;
-    border-radius: 999px;
-    font-family: inherit;
-    transition: background-color 0.12s ease, color 0.12s ease;
-}
-
-.dash-cal-day--empty {
-    cursor: default;
-}
-
-.dash-cal-day--today {
-    border: 1px solid var(--db-secondary);
-    color: var(--db-secondary);
-}
-
-.dash-cal-day--in-range {
-    background-color: rgba(0, 188, 212, 0.14);
-    border-radius: 0;
-}
-
-.dash-cal-day--selected {
-    background-color: var(--db-primary);
-    color: #ffffff;
-}
-
-.dash-cal-day:hover:not(.dash-cal-day--empty):not(.dash-cal-day--selected) {
-    background-color: rgba(41, 35, 122, 0.08);
-}
-
-.dash-cal-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 14px;
-    padding-top: 12px;
-    border-top: 1px solid #eef0f6;
-}
-
-.dash-cal-clear-btn {
-    background: none;
-    border: none;
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--db-text-muted);
-    cursor: pointer;
-    font-family: inherit;
-}
-
-.dash-cal-clear-btn:hover {
-    color: var(--db-error);
-}
-
-.dash-cal-done-btn {
-    background-color: var(--db-primary);
-    color: #ffffff;
-    border: none;
-    padding: 8px 18px;
-    border-radius: 8px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: inherit;
-}
-
-.dash-cal-done-btn:hover {
-    background-color: var(--db-primary-hover);
+    right: auto;
 }
 
 /* =========================================================
@@ -1006,6 +747,14 @@
     border-color: rgba(41, 35, 122, 0.25) !important;
 }
 
+/* Loading placeholder: same .stat-card box (padding, min-height, radius,
+   grid cell) as the real cards, so the summary grid doesn't shift when
+   the skeleton is replaced by the loaded card. */
+.stat-card--skeleton {
+    justify-content: center;
+    gap: 12px;
+}
+
 .stat-card-top {
     display: flex;
     align-items: flex-start;
@@ -1072,77 +821,6 @@
 
 .stat-card-sublabel.trend-up {
     color: var(--db-success);
-}
-
-/* ── Lazy-load skeletons for the stat boxes ──────────────
-   Self-contained in dashboard.css — the dashboard only imports this
-   stylesheet, so it can't rely on TransactionRegistry.css's .skeleton-*
-   classes (those are plain unstyled divs here). Each placeholder mirrors
-   the real .stat-card boxes 1:1 (same grid slot, same 120px height, same
-   accent tint + icon well) so the loading state looks like the actual
-   boxes, just shimmering — no layout jump when the numbers arrive. */
-.db-skeleton {
-    background: #eef2f7;
-    background-image: linear-gradient(90deg, #eef2f7 0%, #f8fafc 50%, #eef2f7 100%);
-    background-size: 200% 100%;
-    animation: db-skeleton-shimmer 1.5s infinite linear;
-    border-radius: 6px;
-}
-
-@keyframes db-skeleton-shimmer {
-    from { background-position: 200% 0; }
-    to { background-position: -200% 0; }
-}
-
-.db-skeleton-stat-card {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: 18px 20px;
-    min-height: 120px;
-    border-radius: var(--db-radius-lg);
-    background-color: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(41, 35, 122, 0.10);
-    box-shadow: 0 8px 20px rgba(41, 35, 122, 0.06);
-    overflow: hidden;
-}
-
-.db-skeleton-stat-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
-}
-
-.db-skeleton-stat-label {
-    width: 55%;
-    height: 11px;
-    margin-top: 4px;
-}
-
-.db-skeleton-stat-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    background-color: #e2e8f0;
-}
-
-/* Accent tint mirrors the real card icon wells (accent-teal/gold/green/red). */
-.db-skeleton-accent-teal .db-skeleton-stat-icon { background-color: rgba(0, 122, 138, 0.12); }
-.db-skeleton-accent-gold .db-skeleton-stat-icon { background-color: rgba(180, 83, 9, 0.12); }
-.db-skeleton-accent-green .db-skeleton-stat-icon { background-color: rgba(22, 163, 74, 0.12); }
-.db-skeleton-accent-red .db-skeleton-stat-icon { background-color: rgba(211, 47, 47, 0.12); }
-
-.db-skeleton-stat-value {
-    width: 40%;
-    height: 30px;
-    margin: 6px auto;
-}
-
-.db-skeleton-stat-sublabel {
-    width: 60%;
-    height: 11px;
 }
 
 /* Two-column analytics row */
@@ -1625,10 +1303,6 @@
     background-color: var(--db-hover-highlight);
 }
 
-.transactions-table-row--clickable {
-    cursor: pointer;
-}
-
 .status-badge {
     display: inline-flex;
     align-items: center;
@@ -1669,7 +1343,10 @@
     margin-top: 12px;
 }
 
-.view-all-link a {
+.view-all-link button {
+    background: none;
+    border: none;
+    padding: 0;
     font-size: 12px;
     font-weight: 700;
     color: var(--db-secondary);
@@ -1677,7 +1354,7 @@
     cursor: pointer;
 }
 
-.view-all-link a:hover {
+.view-all-link button:hover {
     color: var(--db-secondary-hover);
     text-decoration: underline;
 }
@@ -1687,10 +1364,6 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    /* Stretch the action rows across the full card height so the section
-       occupies the whole box (the card is a flex column that stretches to
-       match the taller Recent Transactions card in the same row). */
-    flex: 1;
 }
 
 .quick-action-item {
@@ -1706,9 +1379,6 @@
     text-align: left;
     font-family: inherit;
     width: 100%;
-    /* Equal-height rows: each action takes an equal share of the leftover
-       vertical space so the list fills the card edge to edge. */
-    flex: 1;
 }
 
 .quick-action-item:hover {

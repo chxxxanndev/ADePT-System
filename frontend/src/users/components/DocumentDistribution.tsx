@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import type { DocumentDistributionSlice } from '../types/dashboard';
-import { RefreshIcon } from './icons';
 
 interface DocumentDistributionProps {
     slices: DocumentDistributionSlice[];
     totalDocuments: number;
-    onRefresh?: () => void;
 }
 
 const COLOR_MAP: Record<DocumentDistributionSlice['color'], { fill: string; dot: string }> = {
@@ -46,7 +44,7 @@ function getThickDonutPath(
     return `M ${xOuter1} ${yOuter1} A ${rOuter} ${rOuter} 0 ${largeArcFlag} 1 ${xOuter2} ${yOuter2} L ${xInner2} ${yInner2} A ${rInner} ${rInner} 0 ${largeArcFlag} 0 ${xInner1} ${yInner1} Z`;
 }
 
-export function DocumentDistribution({ slices, totalDocuments, onRefresh }: DocumentDistributionProps) {
+export function DocumentDistribution({ slices, totalDocuments }: DocumentDistributionProps) {
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
     const rInner = 28;
@@ -82,9 +80,6 @@ export function DocumentDistribution({ slices, totalDocuments, onRefresh }: Docu
         <div className="dashboard-card donut-card-enhanced">
             <div className="dashboard-card-header">
                 <div className="dashboard-card-title">Document Distribution</div>
-                <button className="icon-btn" onClick={onRefresh} aria-label="Refresh distribution">
-                    <RefreshIcon size={14} />
-                </button>
             </div>
 
             <div className="donut-wrapper">

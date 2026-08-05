@@ -1,12 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 // REMOVED the conflicting UserProfile import from here
-import { MenuIcon, CalendarIcon, UserIcon, PeriodToggleIcon, RefreshIcon } from './icons';
-import type { PeriodRange } from '../types/dashboard';
-
-// Calendar navigation chevrons — same SVG shapes as the Transaction
-// Registry's DateRangePicker so the dashboard calendar matches it exactly.
-const ChevronLeft = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>;
-const ChevronRight = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>;
+import { MenuIcon, UserIcon, RefreshIcon } from './icons';
+import { DateRangePicker } from './DateRangePicker';
 
 /**
  * Updated interface to support the connected database fields
@@ -118,250 +113,22 @@ export function DashboardHeader({
     );
 }
 
-const PERIOD_OPTIONS = [
-    'Today',
-    'Yesterday',
-    'This Week',
-    'Last Week',
-    'This Month',
-    'Last Month',
-    'This Quarter',
-    'Last Quarter',
-    'This Year',
-    'Custom Range...',
-];
-
-export function resolvePeriodRange(label: string): PeriodRange | null {
-    const now = new Date();
-    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const endOfDay = (d: Date) => { const e = new Date(d); e.setHours(23, 59, 59, 999); return e; };
-    const startOfWeek = (d: Date) => {
-        const date = startOfDay(d);
-        const day = date.getDay();
-        const diff = (day === 0 ? -6 : 1) - day; // Monday start
-        date.setDate(date.getDate() + diff);
-        return date;
-    };
-
-    switch (label) {
-        case 'Today':
-            return { from: startOfDay(now), to: endOfDay(now) };
-        case 'Yesterday': {
-            const y = new Date(now); y.setDate(y.getDate() - 1);
-            return { from: startOfDay(y), to: endOfDay(y) };
-        }
-        case 'This Week':
-            return { from: startOfWeek(now), to: endOfDay(now) };
-        case 'Last Week': {
-            const thisWeekStart = startOfWeek(now);
-            const lastWeekStart = new Date(thisWeekStart);
-            lastWeekStart.setDate(lastWeekStart.getDate() - 7);
-            const lastWeekEnd = new Date(thisWeekStart.getTime() - 1);
-            return { from: lastWeekStart, to: endOfDay(lastWeekEnd) };
-        }
-        case 'This Month':
-            return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: endOfDay(now) };
-        case 'Last Month': {
-            const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            const end = new Date(now.getFullYear(), now.getMonth(), 0);
-            return { from: start, to: endOfDay(end) };
-        }
-        case 'This Quarter': {
-            const q = Math.floor(now.getMonth() / 3);
-            return { from: new Date(now.getFullYear(), q * 3, 1), to: endOfDay(now) };
-        }
-        case 'Last Quarter': {
-            const q = Math.floor(now.getMonth() / 3);
-            const start = new Date(now.getFullYear(), (q - 1) * 3, 1);
-            const end = new Date(now.getFullYear(), q * 3, 0);
-            return { from: start, to: endOfDay(end) };
-        }
-        case 'This Year':
-            return { from: new Date(now.getFullYear(), 0, 1), to: endOfDay(now) };
-        default:
-            return null; // 'Custom Range...' is handled separately via handleApplyRange
-    }
-}
-
-function isSameDay(a: Date | null, b: Date | null) {
-    return !!a && !!b &&
-        a.getFullYear() === b.getFullYear() &&
-        a.getMonth() === b.getMonth() &&
-        a.getDate() === b.getDate();
-}
-
-interface CalendarPickerProps {
-    onApply: (start: Date, end: Date) => void;
-    onCancel: () => void;
-    onClear?: () => void;
-}
-
-function CalendarPicker({ onApply, onCancel, onClear }: CalendarPickerProps) {
-    const today = new Date();
-    const [viewMonth, setViewMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
-    const [rangeStart, setRangeStart] = useState<Date | null>(null);
-    const [rangeEnd, setRangeEnd] = useState<Date | null>(null);
-    const [hoverDate, setHoverDate] = useState<Date | null>(null);
-
-    const daysInMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getDate();
-    const leading = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1).getDay();
-
-    const days: (Date | null)[] = [];
-    for (let i = 0; i < leading; i++) days.push(null);
-    for (let d = 1; d <= daysInMonth; d++) days.push(new Date(viewMonth.getFullYear(), viewMonth.getMonth(), d));
-
-    const isInRange = (d: Date) => {
-        if (!rangeStart) return false;
-        const end = rangeEnd || hoverDate;
-        if (!end) return false;
-        const lo = rangeStart <= end ? rangeStart : end;
-        const hi = rangeStart <= end ? end : rangeStart;
-        return d > lo && d < hi;
-    };
-
-    const handleDayClick = (d: Date) => {
-        if (!rangeStart || (rangeStart && rangeEnd)) {
-            setRangeStart(d);
-            setRangeEnd(null);
-        } else if (d < rangeStart) {
-            setRangeEnd(rangeStart);
-            setRangeStart(d);
-        } else {
-            setRangeEnd(d);
-        }
-    };
-
-    // Mirror the registry's Range Picker: "Done" applies a complete range
-    // and closes; an incomplete selection just closes (like the registry).
-    const handleDone = () => {
-        if (rangeStart && rangeEnd) onApply(rangeStart, rangeEnd);
-        else onCancel();
-    };
-
-    const weekdays = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-    const monthLabel = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-    return (
-        <div className="dash-cal-panel">
-            <div className="dash-cal-header">
-                <button
-                    type="button"
-                    className="dash-cal-nav-btn"
-                    onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
-                    aria-label="Previous month"
-                ><ChevronLeft /></button>
-                <span className="dash-cal-title">{monthLabel}</span>
-                <button
-                    type="button"
-                    className="dash-cal-nav-btn"
-                    onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
-                    aria-label="Next month"
-                ><ChevronRight /></button>
-            </div>
-
-            <div className="dash-cal-weekdays">
-                {weekdays.map((w) => <span key={w} className="dash-cal-weekday">{w}</span>)}
-            </div>
-
-            <div className="dash-cal-grid">
-                {days.map((d, i) => {
-                    if (!d) return <span key={`empty-${i}`} className="dash-cal-day dash-cal-day--empty" />;
-                    const isStart = isSameDay(d, rangeStart);
-                    const isEnd = isSameDay(d, rangeEnd);
-                    return (
-                        <button
-                            type="button"
-                            key={d.toISOString()}
-                            className={[
-                                'dash-cal-day',
-                                (isStart || isEnd) ? 'dash-cal-day--selected' : '',
-                                isInRange(d) ? 'dash-cal-day--in-range' : '',
-                                isSameDay(d, today) && !isStart && !isEnd ? 'dash-cal-day--today' : '',
-                            ].filter(Boolean).join(' ')}
-                            onMouseEnter={() => setHoverDate(d)}
-                            onClick={() => handleDayClick(d)}
-                        >
-                            {d.getDate()}
-                        </button>
-                    );
-                })}
-            </div>
-
-            <div className="dash-cal-footer">
-                <button type="button" className="dash-cal-clear-btn" onClick={() => { setRangeStart(null); setRangeEnd(null); onClear?.(); }}>
-                    Clear
-                </button>
-                <button type="button" className="dash-cal-done-btn" onClick={handleDone}>
-                    Done
-                </button>
-            </div>
-        </div>
-    );
-}
-
 /**
- * FIXED: Defined WelcomeBannerProps to solve the "Cannot find name" error.
- * Added onRefresh so the parent (Dashboard.tsx) can wire this to
- * analytics.refetch() / refetchNotifications() / etc.
+ * Welcome banner for the dashboard home view. The "Dashboard Period"
+ * selector reuses the same DateRangePicker the Transaction Registry uses,
+ * so the calendar UX matches across screens. The selected range flows up
+ * to Dashboard.tsx via onDateRangeChange, which filters the summary stat
+ * cards to the chosen period.
  */
 interface WelcomeBannerProps {
-    initialPeriod?: string;
-    onPeriodChange?: (period: string, range: PeriodRange | null) => void;
+    dateFrom?: string;
+    dateTo?: string;
+    onDateRangeChange?: (dateFrom: string, dateTo: string) => void;
     onRefresh?: () => void | Promise<void>;
 }
 
-export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange, onRefresh }: WelcomeBannerProps) {
-    const [period, setPeriod] = useState(initialPeriod);
-    const [open, setOpen] = useState(false);
-    // Two-page layout (mirrors the registry's DateRangePicker): the
-    // popover opens as a single-column preset list; choosing "Custom
-    // Range..." expands it into a two-pane spread — preset list on the
-    // left, calendar on the right.
-    const [showCalendar, setShowCalendar] = useState(false);
+export function WelcomeBanner({ dateFrom, dateTo, onDateRangeChange, onRefresh }: WelcomeBannerProps) {
     const [refreshing, setRefreshing] = useState(false);
-    const wrapRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) {
-                setOpen(false);
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const closeDropdown = () => {
-        setOpen(false);
-        setShowCalendar(false);
-    };
-
-    const handleSelect = (value: string) => {
-        if (value === 'Custom Range...') {
-            setShowCalendar(true);
-            return;
-        }
-        setPeriod(value);
-        onPeriodChange?.(value, resolvePeriodRange(value));
-        closeDropdown();
-    };
-
-    // Highlight the preset whose label matches the applied period; any
-    // applied custom range (e.g. "Aug 1 – Aug 5") lights up the divider's
-    // "Custom Range..." item, same as the registry's active-preset state.
-    const activePreset = PERIOD_OPTIONS.includes(period) ? period : 'Custom Range...';
-
-    const handleApplyRange = (start: Date, end: Date) => {
-        const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const label = `${fmt(start)} – ${fmt(end)}`;
-        setPeriod(label);
-        const endOfDay = new Date(end);
-        endOfDay.setHours(23, 59, 59, 999);
-        onPeriodChange?.(label, { from: start, to: endOfDay });
-        // Mirror the registry's Done: close without collapsing the layout
-        // (the calendar stays open next time, matching the registry).
-        setOpen(false);
-    };
 
     const handleRefreshClick = async () => {
         if (refreshing) return;
@@ -376,50 +143,12 @@ export function WelcomeBanner({ initialPeriod = 'Today', onPeriodChange, onRefre
 
     return (
         <div className="dashboard-welcome">
-            <div className="period-selector-wrap" ref={wrapRef}>
-                <button
-                    type="button"
-                    className="period-selector"
-                    onClick={() => setOpen((prev) => !prev)}
-                    aria-haspopup="listbox"
-                    aria-expanded={open}
-                >
-                    <CalendarIcon size={14} />
-                    <span className="period-selector-label">Dashboard Period :</span>
-                    <span className="period-selector-value">{period}</span>
-                    <PeriodToggleIcon size={16} className={`period-selector-toggle${open ? ' open' : ''}`} />
-                </button>
-
-                {open && (
-                    <div className={`period-dropdown${showCalendar ? ' period-dropdown--wide' : ''}`}>
-                        <div className="dash-preset-list" role="listbox">
-                            {PERIOD_OPTIONS.map((opt) => (
-                                <button
-                                    key={opt}
-                                    type="button"
-                                    role="option"
-                                    aria-selected={activePreset === opt}
-                                    className={[
-                                        'dash-preset-item',
-                                        activePreset === opt ? 'dash-preset-item--active' : '',
-                                        opt === 'Custom Range...' ? 'dash-preset-item--divider' : '',
-                                    ].filter(Boolean).join(' ')}
-                                    onClick={() => handleSelect(opt)}
-                                >
-                                    {opt}
-                                </button>
-                            ))}
-                        </div>
-
-                        {showCalendar && (
-                            <CalendarPicker
-                                onApply={handleApplyRange}
-                                onCancel={() => setOpen(false)}
-                                onClear={() => setShowCalendar(false)}
-                            />
-                        )}
-                    </div>
-                )}
+            <div className="period-selector-wrap">
+                <DateRangePicker
+                    dateFrom={dateFrom}
+                    dateTo={dateTo}
+                    onChange={(from, to) => onDateRangeChange?.(from, to)}
+                />
             </div>
 
             <button

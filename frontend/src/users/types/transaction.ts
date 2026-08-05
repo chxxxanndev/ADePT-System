@@ -158,6 +158,10 @@ export interface Transaction {
     voidedAt?: string;
     cancelledAt?: string;
     hasBeenAmended?: boolean;
+    /** Set when this request is the amended copy of a voided original
+     *  (requests.amended_from_id) — the identifier used to count amended
+     *  documents. */
+    amendedFromId?: string | null;
 }
 
 /**

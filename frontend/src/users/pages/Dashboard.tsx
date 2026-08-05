@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import '../styles/dashboard.css';
 import { Sidebar } from '../components/Sidebar';
-import { DashboardHeader, WelcomeBanner, resolvePeriodRange } from '../components/DashboardHeader';
+import { DashboardHeader, WelcomeBanner } from '../components/DashboardHeader';
 import { DashboardFooter } from '../components/DashboardFooter';
 import { RequestFormEntry } from './RequestFormEntry';
 import { AccountSettings } from './accountSettings';
@@ -41,13 +41,12 @@ import { useOnlinePresence } from '../../admin/services/useOnlinePresence';
 // the numbers on the Reports page never drift apart.
 import { useReportsAnalytics } from '../hooks/useReportsAnalytics';
 import type { Transaction } from '../types/transaction';
-import type { TransactionRow, PeriodRange } from '../types/dashboard';
+import type { TransactionRow, StatCardData, BadgeStatus } from '../types/dashboard';
+import { getDocumentTypeFromReference } from '../../utils/documentType';
 
 
 import {
     navSections,
-    // operationalSummary,
-    // administrativeSummary,
     quickActions,
 } from '../data/dashboardMockData';
 import VoidAndAmend from './VoidAndAmend';
@@ -69,16 +68,27 @@ const formatTransactionDateTime = (dateStr: string): string => {
     }
 };
 
+// YYYY-MM-DD (local) for the Dashboard Period date-range state. Defaults to
+// today, mirroring the old period selector's "Today" default.
+const toISODate = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const TODAY_ISO = toISODate(new Date());
+
 // Map a Transaction (from registry) to TransactionRow (for RecentTransactions)
 const mapTransactionToRow = (t: Transaction): TransactionRow => {
-    const docTypes = t.requestedDocuments?.map((d) => d.documentType).join(', ') || 'N/A';
+    const docTypes =
+        t.requestedDocuments?.map((d) => d.documentType).join(', ') ||
+        getDocumentTypeFromReference(t.referenceNumber) ||
+        'N/A';
     return {
         id: t.id,
         controlNumber: t.referenceNumber,
         declarant: t.client.declarantName,
         document: docTypes,
-        // Cast status to match expected BadgeStatus in TransactionRow
-        status: t.status as unknown as any,
+        // The registry emits exactly the statuses in BadgeStatus — see
+        // STATUS_MAP in request.service.js.
+        status: t.status as BadgeStatus,
         dateTime: formatTransactionDateTime(t.dateRequested),
     };
 };
@@ -187,14 +197,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
     const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
     const [pendingVoidItems, setPendingVoidItems] = useState<VoidAmendRecord[]>([]);
-    // Deep-link query passed to the Transaction Registry when the user
-    // clicks a recent-transactions row or submits a search from that card.
-    const [registryInitialQuery, setRegistryInitialQuery] = useState('');
-
-    const openRegistry = (query: string) => {
-        setRegistryInitialQuery(query);
-        guardedSetActiveView('transaction-registry');
-    };
     const [navigationWarning, setNavigationWarning] = useState<
         | { type: 'cart' }
         | { type: 'entry-form' }
@@ -202,116 +204,65 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         | null
     >(null);
 
-    // --- Dashboard Period selector state ---
-    // Defaults to "Today" so the stat cards show something sensible before
-    // the user ever opens the picker. WelcomeBanner's own `period` label
-    // state stays in sync via `initialPeriod` below.
-    const [periodLabel, setPeriodLabel] = useState('Today');
-    const [selectedRange, setSelectedRange] = useState<PeriodRange | null>(
-        () => resolvePeriodRange('Today')
-    );
-
     // --- Live registry analytics (weekly trend, document distribution, recent transactions) ---
     // Called unconditionally (rules-of-hooks) even though it's only rendered
     // for the 'dashboard' view, mirroring how useNotifications is used below.
-    // Passing `selectedRange` makes every `selected*` field on `analytics`
-    // track whatever the Dashboard Period dropdown currently has selected.
-    const analytics = useReportsAnalytics(selectedRange);
-
-    // Live replacement for the old dashboardMockData.operationalSummary /
-    // administrativeSummary — same StatCardData[] shape, real numbers,
-    // now tracking the Dashboard Period selector via analytics.selected*.
-    const operationalSummary = useMemo(() => {
-        const trend = analytics.totalRequestsTrend.daily;
-        return [
-            {
-                id: 'total-requests',
-                label: 'Total Requests',
-                value: analytics.selectedTotalRequests,
-                sublabel: periodLabel,
-                accent: 'teal' as const,
-                icon: 'requests' as const,
-                trend: trend.direction,
-            },
-            {
-                id: 'released-today',
-                label: 'Released',
-                value: analytics.selectedDocumentsReleased,
-                sublabel: periodLabel,
-                accent: 'gold' as const,
-                icon: 'released' as const,
-            },
-            {
-                id: 'monthly-issued',
-                label: 'Monthly Issued Docs',
-                // Unchanged regardless of the picker — this card is
-                // deliberately always "this calendar month", matching its
-                // own fixed label rather than the selected period.
-                value: analytics.documentsReleased.monthly,
-                sublabel: 'Current month',
-                accent: 'green' as const,
-                icon: 'issued' as const,
-            },
-            {
-                id: 'active-requests',
-                label: 'Active Requests',
-                value: analytics.selectedPendingCount,
-                sublabel: 'Awaiting Completion',
-                accent: 'red' as const,
-                icon: 'active' as const,
-            },
-        ];
-    }, [
-        analytics.selectedTotalRequests,
-        analytics.selectedDocumentsReleased,
-        analytics.documentsReleased,
-        analytics.selectedPendingCount,
-        analytics.totalRequestsTrend,
-        periodLabel,
-    ]);
-
-    const administrativeSummary = useMemo(() => [
-        {
-            id: 'archived',
-            label: 'Archived',
-            value: analytics.selectedArchivedCount,
-            sublabel: periodLabel,
-            accent: 'teal' as const,
-            icon: 'archived' as const,
-        },
-        {
-            id: 'voided',
-            label: 'Voided',
-            value: analytics.selectedVoidedCount,
-            sublabel: periodLabel,
-            accent: 'gold' as const,
-            icon: 'voided' as const,
-        },
-        {
-            id: 'reprinted',
-            label: 'Reprinted',
-            value: analytics.selectedReprintedCount,
-            sublabel: periodLabel,
-            accent: 'green' as const,
-            icon: 'reprinted' as const,
-        },
-        {
-            id: 'cancelled',
-            label: 'Cancelled',
-            value: analytics.selectedCancelledCount,
-            sublabel: periodLabel,
-            accent: 'red' as const,
-            icon: 'cancelled' as const,
-        },
-    ], [
-        analytics.selectedArchivedCount,
-        analytics.selectedVoidedCount,
-        analytics.selectedReprintedCount,
-        analytics.selectedCancelledCount,
-        periodLabel,
-    ]);
-
+    const analytics = useReportsAnalytics();
     const { items: cartItems } = useCart();
+
+    // ── Dashboard Period (drives the 8 summary stat cards) ──────────────
+    // Selected via the shared DateRangePicker in the WelcomeBanner. Defaults
+    // to today; every preset (This Week / This Month / Custom Range…) re-runs
+    // the filters below against the same registry fetch `analytics` already
+    // pulled — no extra network calls.
+    const [dateFrom, setDateFrom] = useState(TODAY_ISO);
+    const [dateTo, setDateTo] = useState(TODAY_ISO);
+
+    const handleDateRangeChange = (from: string, to: string) => {
+        setDateFrom(from);
+        setDateTo(to);
+    };
+
+    // The Operational + Administrative Summary cards, computed live from the
+    // registry transactions that fall inside the selected date range.
+    const { operationalSummaryItems, administrativeSummaryItems } = useMemo(() => {
+        const start = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : -Infinity;
+        const end = dateTo ? new Date(dateTo + 'T23:59:59.999').getTime() : Infinity;
+
+        const inRange = (iso: string) => {
+            const t = new Date(iso).getTime();
+            return Number.isFinite(t) && t >= start && t <= end;
+        };
+
+        const inPeriod = analytics.transactions.filter((t) => inRange(t.dateRequested));
+        const released = inPeriod.filter((t) => t.status === 'Released');
+        const pending = inPeriod.filter((t) =>
+            t.status === 'Pending' || t.status === 'For Payment' ||
+            t.status === 'Payment Verified' || t.status === 'Processing' ||
+            t.status === 'Ready for Release'
+        );
+        const issuedDocuments = released.reduce((sum, t) => sum + t.requestedDocuments.length, 0);
+        const reprinted = inPeriod.reduce(
+            (sum, t) => sum + t.requestedDocuments.reduce((s, d) => s + (d.reprintCount || 0), 0),
+            0
+        );
+
+        const operationalSummaryItems: StatCardData[] = [
+            { id: 'total-requests', label: 'Total Requests', value: inPeriod.length, sublabel: 'In selected period', accent: 'teal', icon: 'requests', trend: 'up' },
+            { id: 'released-today', label: 'Released Today', value: released.length, sublabel: 'Successfully Issued', accent: 'gold', icon: 'released' },
+            { id: 'monthly-issued', label: 'Monthly Issued Docs', value: issuedDocuments, sublabel: 'In selected period', accent: 'green', icon: 'issued' },
+            { id: 'active-requests', label: 'Active Requests', value: pending.length, sublabel: 'Awaiting Completion', accent: 'red', icon: 'active' },
+        ];
+
+        const administrativeSummaryItems: StatCardData[] = [
+            { id: 'archived', label: 'Archived', value: inPeriod.filter((t) => t.status === 'Archived').length, sublabel: 'Inactive Requests', accent: 'teal', icon: 'archived' },
+            { id: 'voided', label: 'Voided', value: inPeriod.filter((t) => t.status === 'Void').length, sublabel: 'Amended records', accent: 'gold', icon: 'voided' },
+            { id: 'reprinted', label: 'Reprinted', value: reprinted, sublabel: 'CTCs Issued', accent: 'green', icon: 'reprinted' },
+            { id: 'cancelled', label: 'Cancelled', value: inPeriod.filter((t) => t.status === 'Cancelled').length, sublabel: 'Processing discontinued', accent: 'red', icon: 'cancelled' },
+        ];
+
+        return { operationalSummaryItems, administrativeSummaryItems };
+    }, [analytics.transactions, dateFrom, dateTo]);
 
     const guardedSetActiveView = (view: string) => {
         if (cartItems.length > 0 && view !== 'transaction-summary') {
@@ -352,23 +303,24 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     };
 
     // Recent transactions is just the 5 most-recently-requested Released
-    // transactions, now scoped to the Dashboard Period selector via
-    // analytics.selectedTransactions.
+    // transactions out of the same registry fetch the rest of this hook
+    // already pulled — no second network call needed.
     const recentTransactionsData: TransactionRow[] = useMemo(() => {
-        return analytics.selectedTransactions
+        return analytics.transactions
             .filter((t) => t.status === 'Released')
             .sort((a, b) => new Date(b.dateRequested).getTime() - new Date(a.dateRequested).getTime())
             .slice(0, 5)
             .map(mapTransactionToRow);
-    }, [analytics.selectedTransactions]);
+    }, [analytics.transactions]);
 
-    // The FULL mapped transaction list for the search box, also scoped to
-    // the selected period.
+    // The FULL mapped transaction list — this is what actually connects
+    // the Recent Transaction search box to the whole registry dataset
+    // instead of only the 5 rows visible by default.
     const allTransactionsData: TransactionRow[] = useMemo(() => {
-        return [...analytics.selectedTransactions]
+        return [...analytics.transactions]
             .sort((a, b) => new Date(b.dateRequested).getTime() - new Date(a.dateRequested).getTime())
             .map(mapTransactionToRow);
-    }, [analytics.selectedTransactions]);
+    }, [analytics.transactions]);
 
     // Single shared notifications state + realtime subscription
     const {
@@ -587,6 +539,29 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
     });
 
+    // const handleAddAnother = () => {
+    //     if (completedEntryData) {
+    //         setPrefilledRequestData({
+    //             declarantName: completedEntryData.declarantName,
+    //             requestedByName: completedEntryData.requestedByName,
+    //             requestDate: new Date().toISOString().split('T')[0],
+    //             purposeId: completedEntryData.purposeId,
+    //             authRequired: completedEntryData.authRequired,
+    //             actionTaken: completedEntryData.actionTaken || 'PENDING',
+    //             propertyLocation: completedEntryData.propertyLocation,
+    //             id: undefined,
+    //             requestId: undefined,
+    //             documentTypeIds: [],
+    //             lockedDocType: false,
+    //             referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
+    //         });
+    //         const base = completedEntryData || cartItems[0];
+    //         setPrefilledRequestData(buildAddAnotherPrefill(base || {}));
+    //         setCompletedEntryData(null);
+    //         setActiveView('new-request');
+    //     }
+    // };
+
     const handleAddAnother = () => {
         if (completedEntryData) {
             setPrefilledRequestData({
@@ -756,40 +731,41 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                     {activeView === 'dashboard' ? (
                         <>
                             <WelcomeBanner
-                                initialPeriod={periodLabel}
+                                dateFrom={dateFrom}
+                                dateTo={dateTo}
+                                onDateRangeChange={handleDateRangeChange}
                                 onRefresh={analytics.refetch}
-                                onPeriodChange={(label, range) => {
-                                    setPeriodLabel(label);
-                                    setSelectedRange(range);
-                                }}
                             />
-                            <DashboardSummary title="Operational Summary" items={operationalSummary} iconType="operational" isLoading={analytics.loading} />
-                            <DashboardSummary title="Administrative Summary" items={administrativeSummary} iconType="admin" isLoading={analytics.loading} />
+                            <DashboardSummary
+                                title="Operational Summary"
+                                items={operationalSummaryItems}
+                                iconType="operational"
+                                isLoading={analytics.loading}
+                            />
+                            <DashboardSummary
+                                title="Administrative Summary"
+                                items={administrativeSummaryItems}
+                                iconType="admin"
+                                isLoading={analytics.loading}
+                            />
                             <div className="dashboard-row">
-                                <AnalyticsOverview
-                                    data={analytics.selectedTrend}
-                                    periodLabel={periodLabel}
-                                    totalProcessed={analytics.selectedTotalRequests}
-                                    totalReleased={analytics.selectedDocumentsReleased}
-                                />
+                                <AnalyticsOverview data={analytics.weeklyTrend} lastUpdated="Today • 2:45 PM" />
                                 <DocumentDistribution
-                                    slices={analytics.selectedDocumentDistribution}
-                                    totalDocuments={analytics.selectedTotalDocuments}
+                                    slices={analytics.documentDistribution}
+                                    totalDocuments={analytics.totalDocuments}
                                 />
                             </div>
                             <div className="dashboard-row">
                                 <RecentTransactions
                                     rows={recentTransactionsData}
                                     allRows={allTransactionsData}
-                                    onViewAll={() => openRegistry('')}
-                                    onRowClick={(controlNumber) => openRegistry(controlNumber)}
-                                    onSearchSubmit={(query) => openRegistry(query)}
+                                    onViewAll={() => guardedSetActiveView('transaction-registry')}
                                 />
                                 <QuickActions actions={quickActions} onSelect={guardedSetActiveView} />
                             </div>
                         </>
                     ) : activeView === 'reports' ? (
-                        <Reports onNavigateToDashboard={() => setActiveView('dashboard')} />
+                        <Reports />
                     ) : activeView === 'certified-true-copy' ? (
                         <CertifiedTrueCopy
                             onNavigateToRegistry={() => setActiveView('transaction-registry')}
@@ -798,9 +774,9 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
                         />
                     ) : activeView === 'archive-management' ? (
-                        <ArchiveManagement onNavigateToDashboard={() => setActiveView('dashboard')} />
+                        <ArchiveManagement />
                     ) : activeView === 'about-adept' ? (
-                        <AboutADePT onNavigateToDashboard={() => setActiveView('dashboard')} />
+                        <AboutADePT />
                     ) : activeView === 'notifications' ? (
                         <NotificationPage
                             notifications={notifications}
@@ -810,7 +786,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onRetry={refetchNotifications}
                             unreadCount={unreadCount}
                             onMarkAllRead={markAllAsRead}
-                            onNavigateToDashboard={() => setActiveView('dashboard')}
                         />
                     ) : isRequestFormView ? (
                         <RequestFormEntry
@@ -883,7 +858,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onSelectNewRequest={handleSelectNewRequest}
                             onSelectDraft={handleSelectDraft}
                             onSelectDocumentView={(view) => setActiveView(view)}
-                            onNavigateToDashboard={() => setActiveView('dashboard')}
                         />
                     ) : activeView === 'transaction-summary' ? (
                         (completedEntryData || cartItems.length > 0) ? (
@@ -910,7 +884,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onChangePassword={handleChangePassword}
                             onChangePhoto={handleChangePhoto}
                             onDisableAccount={handleDisableAccount}
-                            onNavigateToDashboard={() => setActiveView('dashboard')}
                         />
                     ) : activeView === 'pending-payment' ? (
                         <PendingPayment
@@ -944,7 +917,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                     ) : activeView === 'transaction-registry' ? (
                         <TransactionRegistry
                             user={user}
-                            initialSearchQuery={registryInitialQuery}
                             onNavigateToVoidAmend={handleNavigateToVoidAmend}
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
                             onNavigateToReprint={() => setActiveView('certified-true-copy')}

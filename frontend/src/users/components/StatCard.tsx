@@ -22,22 +22,18 @@ const SUB_ICON_MAP: Record<string, any> = {
     'cancelled': Icons.SettingsIcon,
 };
 
-// Fallback cadence when the items array isn't available yet — the same
-// accent order the real stat cards render in (teal/gold/green/red).
-const SKELETON_ACCENTS = ['teal', 'gold', 'green', 'red'];
-
 interface DashboardSummaryProps {
     title: string;
     items: any[];
     iconType: 'operational' | 'admin';
-    /** While true, renders skeleton placeholders instead of stat cards
-     *  (avoids the flash of an empty/blank card before data arrives). */
+    /** While true, renders skeleton placeholders instead of stat cards.
+     *  The skeletons use the same .stat-card box (dimensions, padding,
+     *  radius, grid placement) as the real cards, so the layout never
+     *  jumps when the data arrives. */
     isLoading?: boolean;
 }
 
 export function DashboardSummary({ title, items, iconType, isLoading = false }: DashboardSummaryProps) {
-    const skeletonItems = items.length > 0 ? items : SKELETON_ACCENTS.map((accent) => ({ id: accent, accent }));
-
     return (
         <div className="summary-container">
             <div className="section-heading">
@@ -46,20 +42,14 @@ export function DashboardSummary({ title, items, iconType, isLoading = false }: 
             </div>
             <div className="stat-grid">
                 {isLoading ? (
-                    skeletonItems.map((item) => (
-                        // Mirrors the real .stat-card structure 1:1 (top label
-                        // row + icon well, big value, sublabel) so the lazy-load
-                        // state looks like the actual dashboard boxes.
-                        <div
-                            key={item.id}
-                            className={`db-skeleton-stat-card db-skeleton-accent-${item.accent}`}
-                        >
-                            <div className="db-skeleton-stat-top">
-                                <div className="db-skeleton db-skeleton-stat-label" />
-                                <div className="db-skeleton-stat-icon" />
+                    items.map((item) => (
+                        <div key={item.id} className="stat-card stat-card--skeleton">
+                            <div className="stat-card-top">
+                                <span className="skeleton-item" style={{ width: '55%', height: 10 }} />
+                                <span className="skeleton-item" style={{ width: 38, height: 38, borderRadius: '50%' }} />
                             </div>
-                            <div className="db-skeleton db-skeleton-stat-value" />
-                            <div className="db-skeleton db-skeleton-stat-sublabel" />
+                            <span className="skeleton-item" style={{ width: '35%', height: 26, margin: '0 auto' }} />
+                            <span className="skeleton-item" style={{ width: '50%', height: 10 }} />
                         </div>
                     ))
                 ) : (

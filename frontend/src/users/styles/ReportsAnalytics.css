@@ -116,7 +116,9 @@
 }
 
 .reports-title {
-  font-size: 1.5rem;
+  /* Matches TransactionRegistry's .tr-header-titles h2 (28px / 800 /
+     -0.02em / navy) so the two pages' headers read identically. */
+  font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--color-primary);
@@ -223,6 +225,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  /* Same height as the fixed 36px icon box, so the number row below
+     starts at the exact same Y position in every card. */
+  min-height: 36px;
 }
 
 .stat-label {
@@ -256,7 +261,21 @@
 .stat-value {
   font-size: 30px;
   font-weight: 800;
+  /* Fixed line box so every card's number occupies the same height and
+     sits on the same baseline — uniform across all four stat cards. */
+  line-height: 1;
   color: var(--color-text);
+}
+
+/* Bottom slot rendered by every card (see StatCard in Reports.tsx): it is
+   as tall as the trend tag so cards WITHOUT a trend line (Tax Declarations,
+   Total Pending) reserve exactly the same space — the number row above it
+   stays at the same vertical level and every card's bottom boundary
+   matches, with no per-card margin hacks. */
+.stat-card-footer {
+  min-height: 18px;
+  display: flex;
+  align-items: flex-start;
 }
 
 .stat-sublabel {
@@ -546,13 +565,6 @@
   vertical-align: middle;
 }
 
-.cell-reference {
-  font-family: inherit;
-  font-weight: 600;
-  color: var(--color-secondary);
-  white-space: nowrap;
-}
-
 .cell-name {
   font-weight: 600;
   font-size: 0.86rem;
@@ -577,8 +589,10 @@
 }
 
 /* ---------- Status badge ---------- */
+/* Namespaced (.reports-status-badge) so the base rule can never collide
+   with dashboard.css's own .status-badge used by Recent Transactions. */
 
-.status-badge {
+.reports-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -752,4 +766,17 @@
   .stats-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---------- Loading skeletons (mirrors TransactionRegistry's kit) ---------- */
+
+/* Occupies the exact same box as the real .stat-card so the stats grid
+   doesn't shift when data replaces the skeleton. */
+.stat-card--skeleton {
+  justify-content: center;
+  gap: 14px;
+}
+
+.reports-chart-skeleton-body {
+  margin-top: 16px;
 }

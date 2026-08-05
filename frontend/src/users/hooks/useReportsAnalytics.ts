@@ -20,19 +20,14 @@
  * because the current backend exposes individual transactions, not
  * pre-aggregated counts.  Swap the internals for a dedicated analytics
  * endpoint later without touching any UI component.
- *
- * `range` (optional) is the Dashboard Period selector's resolved date
- * range — when provided, all `selected*` fields below are filtered to it;
- * when omitted, `selected*` falls back to the full transaction set, so
- * every existing caller (Reports.tsx, VoidAndAmend.tsx, ArchiveManagement.tsx)
- * that calls useReportsAnalytics() with no argument is unaffected.
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { fetchTransactionRegistry } from '../services/transactionService';
 import type { Transaction } from '../types/transaction';
-import type { WeeklyTrendPoint, DocumentDistributionSlice, PeriodRange, TrendPoint } from '../types/dashboard';
+import type { WeeklyTrendPoint, DocumentDistributionSlice } from '../types/dashboard';
 import type { DeclarantRecord } from '../data/reportsMockData';
+import { getDocumentTypeFromReference } from '../../utils/documentType';
 
 // ─── Period-bucketed metric ────────────────────────────────────────────────
 export interface PeriodMetric {
@@ -85,43 +80,25 @@ export interface ReportsAnalyticsData {
     /** Reprinted document count (sum of reprintCount across all docs) */
     reprintedCount: number;
 
-    /** Fixed "last 5 calendar weeks" release counts — kept for any other
-     *  consumer that still wants the old, picker-independent view. */
+    /** Weekly bucketed release counts for the Analytics Overview bar chart */
     weeklyTrend: WeeklyTrendPoint[];
 
-    /** Document-type breakdown for the donut chart (all-time) */
+    /** Document-type breakdown for the donut chart */
     documentDistribution: DocumentDistributionSlice[];
-    /** Sum of all distribution counts (all-time) */
+    /** Sum of all distribution counts */
     totalDocuments: number;
 
-    /** Status distribution bars for the Reports bar chart (all-time) */
+    /** Status distribution bars for the Reports bar chart */
     statusChart: StatusChartBar[];
 
     /** Per-transaction rows for the Reports declarant table */
     declarantRows: DeclarantRecord[];
 
-    // ── Period-selector-aware fields (Dashboard Period picker) ──
-    /** Non-null only when a Dashboard Period range is active. */
-    selectedRange: PeriodRange | null;
-    /** Transactions falling inside `range` (or all transactions if no range given). */
-    selectedTransactions: Transaction[];
-    selectedTotalRequests: number;
-    selectedDocumentsReleased: number;
-    selectedPendingCount: number;
-    selectedVoidedCount: number;
-    selectedArchivedCount: number;
-    selectedCancelledCount: number;
-    selectedReprintedCount: number;
-    selectedDocumentDistribution: DocumentDistributionSlice[];
-    selectedTotalDocuments: number;
-    selectedStatusChart: StatusChartBar[];
-    /** Real processed/released counts, bucketed to fit the selected range
-     *  (hourly for a single day, daily for ~2 weeks, weekly for ~1-2
-     *  months, monthly beyond that). Falls back to a 5-week window
-     *  bucketed by week when no range is active. */
-    selectedTrend: TrendPoint[];
-
     loading: boolean;
+    /** True while a refresh re-fetches data that is already on screen —
+     *  consumers keep showing the loaded data instead of skeletons,
+     *  mirroring TransactionRegistry's isRefreshing behavior. */
+    isRefreshing: boolean;
     error: string | null;
     /** Re-run the registry fetch (e.g. after an error, or a "Retry" click) */
     refetch: () => void;
@@ -220,9 +197,10 @@ function computeTrend(current: number, previous: number, comparedTo: string): Tr
 
 /**
  * Bucket Released transactions into weekly groups (last 5 weeks)
- * for the old, picker-independent weeklyTrend field.
+ * for the Analytics Overview bar chart.
  */
 function buildWeeklyTrend(released: Transaction[]): WeeklyTrendPoint[] {
+    // Build 5 weekly buckets ending today
     const buckets: { label: string; start: Date; end: Date }[] = [];
     for (let i = 4; i >= 0; i--) {
         const end = new Date(NOW);
@@ -243,116 +221,46 @@ function buildWeeklyTrend(released: Transaction[]): WeeklyTrendPoint[] {
     }));
 }
 
-type BucketUnit = 'hour' | 'day' | 'week' | 'month';
-
-/** Formats a bucket's label based on its granularity. */
-function formatBucketLabel(start: Date, end: Date, unit: BucketUnit): string {
-    switch (unit) {
-        case 'hour':
-            return start.toLocaleTimeString('en-US', { hour: 'numeric' });
-        case 'day':
-            return start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        case 'week': {
-            const s = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            const e = new Date(end.getTime() - 1).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            return `${s}–${e}`;
-        }
-        case 'month':
-            return start.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-    }
-}
-
-/**
- * Builds a real processed/released trend series shaped to fit whatever
- * span is currently selected in the Dashboard Period picker:
- *   - <= ~1.5 days  → 6 buckets, ~4 hours each (hourly granularity)
- *   - <= ~16 days   → 1 bucket per day
- *   - <= ~70 days   → 1 bucket per week
- *   - beyond that   → 1 bucket per month
- * Bucket count is capped at 12 so the chart never gets overcrowded.
- * When no range is active, falls back to the same 5-calendar-week window
- * the old fixed chart used, so the chart still shows something sensible
- * before the user ever touches the picker.
- */
-function buildRangeTrend(rangeTransactions: Transaction[], range: PeriodRange | null | undefined): TrendPoint[] {
-    const to = range?.to ?? NOW;
-    const from = range?.from ?? (() => {
-        const d = new Date(NOW);
-        d.setDate(d.getDate() - 34); // 5 weeks back, matches buildWeeklyTrend's window
-        d.setHours(0, 0, 0, 0);
-        return d;
-    })();
-
-    const spanMs = Math.max(to.getTime() - from.getTime(), 1);
-    const spanDays = spanMs / (1000 * 60 * 60 * 24);
-
-    let unit: BucketUnit;
-    let bucketCount: number;
-
-    if (spanDays <= 1.5) {
-        unit = 'hour';
-        bucketCount = 6; // ~4-hour blocks across the day
-    } else if (spanDays <= 16) {
-        unit = 'day';
-        bucketCount = Math.max(1, Math.ceil(spanDays));
-    } else if (spanDays <= 70) {
-        unit = 'week';
-        bucketCount = Math.max(1, Math.ceil(spanDays / 7));
-    } else {
-        unit = 'month';
-        bucketCount = Math.max(1, Math.ceil(spanDays / 30));
-    }
-
-    bucketCount = Math.min(bucketCount, 12);
-
-    const bucketMs = spanMs / bucketCount;
-    const buckets: { start: Date; end: Date }[] = [];
-    for (let i = 0; i < bucketCount; i++) {
-        buckets.push({
-            start: new Date(from.getTime() + i * bucketMs),
-            end: new Date(from.getTime() + (i + 1) * bucketMs),
-        });
-    }
-
-    return buckets.map((b, i) => {
-        const isLastBucket = i === buckets.length - 1;
-        const inBucket = rangeTransactions.filter(t => {
-            const d = new Date(t.dateRequested);
-            // Last bucket is inclusive of `to` so nothing at the exact
-            // range boundary gets dropped.
-            return d >= b.start && (isLastBucket ? d <= b.end : d < b.end);
-        });
-        return {
-            label: formatBucketLabel(b.start, b.end, unit),
-            processed: inBucket.length,
-            released: inBucket.filter(t => t.status === 'Released').length,
-        };
-    });
-}
-
 // ─── Hook ─────────────────────────────────────────────────────────────────
 
-export function useReportsAnalytics(range?: PeriodRange | null): ReportsAnalyticsData {
+export function useReportsAnalytics(): ReportsAnalyticsData {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [refetchToken, setRefetchToken] = useState(0);
+    // Mirrors TransactionRegistry: the first fetch shows skeletons; a
+    // re-fetch while data is already on screen keeps the data visible.
+    const hasLoadedRef = useRef(false);
 
     const refetch = useCallback(() => setRefetchToken(n => n + 1), []);
 
     useEffect(() => {
         let cancelled = false;
-        setLoading(true);
         setError(null);
+        if (hasLoadedRef.current) setIsRefreshing(true);
+        else setLoading(true);
         fetchTransactionRegistry()
-            .then(data => { if (!cancelled) setTransactions(data); })
-            .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load data.'); })
-            .finally(() => { if (!cancelled) setLoading(false); });
+            .then(data => {
+                if (cancelled) return;
+                setTransactions(data);
+                hasLoadedRef.current = true;
+            })
+            .catch(err => {
+                if (cancelled) return;
+                setError(err instanceof Error ? err.message : 'Failed to load data.');
+                setTransactions([]);
+            })
+            .finally(() => {
+                if (cancelled) return;
+                setLoading(false);
+                setIsRefreshing(false);
+            });
         return () => { cancelled = true; };
     }, [refetchToken]);
 
     // ── Derived analytics ────────────────────────────────────────────────
-    const data = useMemo((): Omit<ReportsAnalyticsData, 'loading' | 'error' | 'refetch'> => {
+    const data = useMemo((): Omit<ReportsAnalyticsData, 'loading' | 'isRefreshing' | 'error' | 'refetch'> => {
         const released = transactions.filter(t => t.status === 'Released');
         const voided = transactions.filter(t => t.status === 'Void');
         const archived = transactions.filter(t => t.status === 'Archived');
@@ -362,7 +270,7 @@ export function useReportsAnalytics(range?: PeriodRange | null): ReportsAnalytic
             t.status === 'Ready for Release'
         );
 
-        // ── Period metrics (all-time, calendar-relative) ───────────────
+        // ── Period metrics ────────────────────────────────────────────
         const releasedToday = released.filter(t => isToday(t.dateRequested)).length;
         const releasedYesterday = released.filter(t => isYesterday(t.dateRequested)).length;
         const releasedWeek = released.filter(t => isThisWeek(t.dateRequested)).length;
@@ -381,24 +289,27 @@ export function useReportsAnalytics(range?: PeriodRange | null): ReportsAnalytic
         const tdWeek = countByDocType(released, 'Tax Declaration', t => isThisWeek(t.dateRequested));
         const tdMonth = countByDocType(released, 'Tax Declaration', t => isThisMonth(t.dateRequested));
 
-        // Reprinted documents (all-time): sum all reprintCounts
+        // Reprinted documents: sum all reprintCounts
         const reprintedCount = transactions.reduce((sum, t) =>
             sum + t.requestedDocuments.reduce((s, d) => s + (d.reprintCount || 0), 0), 0
         );
 
-        // ── Fixed 5-week trend (kept for any consumer wanting the old view) ──
+        // ── Weekly trend ──────────────────────────────────────────────
         const weeklyTrend = buildWeeklyTrend(released);
 
-        // ── Document distribution (all-time, unaffected by the period picker) ──
-        const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, '');
-        const hasDocType = (t: Transaction, needle: string) =>
-            t.requestedDocuments.some(d => normalize(d.documentType).includes(normalize(needle)));
-
-        const tdCount = released.filter(t => hasDocType(t, 'Tax Declaration')).length;
-        const nlhCount = released.filter(t => hasDocType(t, 'No Landholding')).length;
-        const lhCount = released.filter(t =>
-            hasDocType(t, 'Landholding') && !hasDocType(t, 'No Landholding')
-        ).length;
+        // ── Document distribution ──────────────────────────────────────
+        // The registry passes document_types.name through verbatim, so the
+        // "Certificate of Landholding" spelling (no space) is the live value;
+        // accept the spaced variant too so a future rename can't silently
+        // zero out the distribution slices.
+        const isDocType = (d: { documentType: string }, name: string) => d.documentType === name;
+        const tdCount = released.filter(t => t.requestedDocuments.some(d => isDocType(d, 'Tax Declaration'))).length;
+        const lhCount = released.filter(t => t.requestedDocuments.some(d =>
+            isDocType(d, 'Certificate of Landholding') || isDocType(d, 'Certificate of Land Holding')
+        )).length;
+        const nlhCount = released.filter(t => t.requestedDocuments.some(d =>
+            isDocType(d, 'Certificate of No Landholding') || isDocType(d, 'Certificate of No Land Holding')
+        )).length;
         const totalDocs = tdCount + lhCount + nlhCount || 1; // avoid /0
 
         const documentDistribution: DocumentDistributionSlice[] = [
@@ -407,7 +318,7 @@ export function useReportsAnalytics(range?: PeriodRange | null): ReportsAnalytic
             { label: 'Certificate of No Landholding', count: nlhCount, percentage: Math.round((nlhCount / totalDocs) * 100), color: 'red' },
         ];
 
-        // ── Status bar chart (all-time) ─────────────────────────────────
+        // ── Status bar chart ──────────────────────────────────────────
         const statusChart: StatusChartBar[] = [
             { label: 'RELEASED', count: released.length, color: '#4f46e5' },
             { label: 'ARCHIVED', count: archived.length, color: '#64748b' },
@@ -415,9 +326,12 @@ export function useReportsAnalytics(range?: PeriodRange | null): ReportsAnalytic
             { label: 'REPRINTED', count: reprintedCount, color: '#06b6d4' },
         ];
 
-        // ── Declarant rows for the Reports table (all-time) ─────────────
+        // ── Declarant rows for the Reports table ───────────────────────
         const declarantRows: DeclarantRecord[] = transactions.map(t => {
-            const docTypes = t.requestedDocuments.map(d => d.documentType).join(', ') || 'N/A';
+            const docTypes =
+                t.requestedDocuments.map(d => d.documentType).join(', ') ||
+                getDocumentTypeFromReference(t.referenceNumber) ||
+                'N/A';
             const initials = t.client.declarantName
                 .split(' ')
                 .filter(Boolean)
@@ -425,6 +339,7 @@ export function useReportsAnalytics(range?: PeriodRange | null): ReportsAnalytic
                 .map(w => w[0].toUpperCase())
                 .join('');
 
+            // Map TransactionStatus → DeclarantStatus
             let status: DeclarantRecord['status'] = 'Released';
             const s = t.status;
             if (s === 'Void') status = 'Voided';
@@ -444,54 +359,6 @@ export function useReportsAnalytics(range?: PeriodRange | null): ReportsAnalytic
                 status,
             };
         });
-
-        // ── Range-filtered subset for the Dashboard Period selector ──────
-        // Falls back to the full transaction list when no range is passed,
-        // so every existing caller of useReportsAnalytics() (no args) sees
-        // selected* === the all-time values.
-        const rangeTransactions = range
-            ? transactions.filter(t => {
-                const d = new Date(t.dateRequested);
-                return d >= range.from && d <= range.to;
-            })
-            : transactions;
-
-        const rangeReleased = rangeTransactions.filter(t => t.status === 'Released');
-        const rangeVoided = rangeTransactions.filter(t => t.status === 'Void');
-        const rangeArchived = rangeTransactions.filter(t => t.status === 'Archived');
-        const rangeCancelled = rangeTransactions.filter(t => t.status === 'Cancelled');
-        const rangePending = rangeTransactions.filter(t =>
-            t.status === 'Pending' || t.status === 'For Payment' ||
-            t.status === 'Payment Verified' || t.status === 'Processing' ||
-            t.status === 'Ready for Release'
-        );
-
-        const selTd = rangeReleased.filter(t => hasDocType(t, 'Tax Declaration')).length;
-        const selNlh = rangeReleased.filter(t => hasDocType(t, 'No Landholding')).length;
-        const selLh = rangeReleased.filter(t =>
-            hasDocType(t, 'Landholding') && !hasDocType(t, 'No Landholding')
-        ).length;
-        const selTotalDocs = selTd + selLh + selNlh || 1;
-
-        const selectedDocumentDistribution: DocumentDistributionSlice[] = [
-            { label: 'Tax Declaration', count: selTd, percentage: Math.round((selTd / selTotalDocs) * 100), color: 'primary' },
-            { label: 'Certificate of Land Holding', count: selLh, percentage: Math.round((selLh / selTotalDocs) * 100), color: 'gold' },
-            { label: 'Certificate of No Landholding', count: selNlh, percentage: Math.round((selNlh / selTotalDocs) * 100), color: 'red' },
-        ];
-
-        const selectedReprintedCount = rangeTransactions.reduce(
-            (sum, t) => sum + t.requestedDocuments.reduce((s, d) => s + (d.reprintCount || 0), 0), 0
-        );
-
-        const selectedStatusChart: StatusChartBar[] = [
-            { label: 'RELEASED', count: rangeReleased.length, color: '#4f46e5' },
-            { label: 'ARCHIVED', count: rangeArchived.length, color: '#64748b' },
-            { label: 'VOIDED', count: rangeVoided.length, color: '#ef4444' },
-            { label: 'REPRINTED', count: selectedReprintedCount, color: '#06b6d4' },
-        ];
-
-        // ── NEW: real, range-aware processed/released trend ─────────────
-        const selectedTrend = buildRangeTrend(rangeTransactions, range);
 
         return {
             transactions,
@@ -517,23 +384,8 @@ export function useReportsAnalytics(range?: PeriodRange | null): ReportsAnalytic
             totalDocuments: tdCount + lhCount + nlhCount,
             statusChart,
             declarantRows,
-
-            // ── Period-selector-aware ──
-            selectedRange: range ?? null,
-            selectedTransactions: rangeTransactions,
-            selectedTotalRequests: rangeTransactions.length,
-            selectedDocumentsReleased: rangeReleased.length,
-            selectedPendingCount: rangePending.length,
-            selectedVoidedCount: rangeVoided.length,
-            selectedArchivedCount: rangeArchived.length,
-            selectedCancelledCount: rangeCancelled.length,
-            selectedReprintedCount,
-            selectedDocumentDistribution,
-            selectedTotalDocuments: selTd + selLh + selNlh,
-            selectedStatusChart,
-            selectedTrend,
         };
-    }, [transactions, range]);
+    }, [transactions]);
 
-    return { ...data, loading, error, refetch };
+    return { ...data, loading, isRefreshing, error, refetch };
 }

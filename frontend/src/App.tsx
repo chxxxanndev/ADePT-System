@@ -11,10 +11,12 @@ import { Dashboard } from './users/pages/Dashboard';
 import { AdminDashboard } from './admin/pages/AdminDashboard';
 import { CartProvider } from './users/hooks/TransactionCartContext';
 import { SessionInterruptionBanner } from '../src/users/components/SessionInterruptionBanner';
+import { LogoutConfirmModal } from './users/components/LogoutConfirmModal';
 
 function App() {
   const [view, setView] = useState<View>('login');
   const [prefilledUsername, setPrefilledUsername] = useState('');
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   const {
     currentUser,
@@ -72,6 +74,18 @@ function App() {
 
   const navigateTo = (newView: View) => setView(newView);
 
+  // Routine logout (sidebar buttons on both dashboards) is gated behind a
+  // confirmation modal; the actual logout logic in useAuth is untouched and
+  // only runs when the staff member confirms. Emergency flows (session
+  // interruption banner, role-notice "Got it", account-disabled forced
+  // logout) call `logout` directly and are not gated.
+  const handleLogoutRequest = () => setConfirmingLogout(true);
+  const handleLogoutCancel = () => setConfirmingLogout(false);
+  const handleLogoutConfirm = () => {
+    setConfirmingLogout(false);
+    void logout();
+  };
+
   useEffect(() => {
     if (window.location.pathname === '/reset-password') {
       setView('resetPassword');
@@ -94,15 +108,20 @@ function App() {
         <CartProvider>
           <SessionInterruptionBanner onLogout={logout} />
           {isAdminOrAbove ? (
-            <AdminDashboard user={currentUser} onLogout={logout} />
+            <AdminDashboard user={currentUser} onLogout={handleLogoutRequest} />
           ) : (
             <Dashboard
               user={currentUser}
               backendHealthy={backendHealthy}
-              onLogout={logout}
+              onLogout={handleLogoutRequest}
               onUserUpdate={updateCurrentUser}
             />
           )}
+          <LogoutConfirmModal
+            open={confirmingLogout}
+            onCancel={handleLogoutCancel}
+            onConfirm={handleLogoutConfirm}
+          />
           {roleNotice && (
             <div className="role-notice-overlay" role="presentation" onClick={dismissRoleNotice}>
               <div className="role-notice-modal" role="alertdialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>

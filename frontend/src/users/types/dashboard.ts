@@ -12,16 +12,18 @@ export interface StatCardData {
     trend?: 'up' | 'down';
 }
 
+// The exact status vocabulary the /api/requests/registry endpoint emits
+// (STATUS_MAP in request.service.js) — keep in sync with it.
 export type BadgeStatus =
+    | 'Pending'
+    | 'For Payment'
+    | 'Payment Verified'
+    | 'Processing'
+    | 'Ready for Release'
     | 'Released'
-    | 'Pending Payment'
-    | 'Pending Verification'
-    | 'Paid'
-    | 'Verified'
+    | 'Void'
     | 'Cancelled'
-    | 'Voided'
-    | 'Archived'
-    | 'Certified True Copy';
+    | 'Archived';
 
 export interface TransactionRow {
     id: string;

@@ -1,28 +1,20 @@
 import { useState } from 'react';
-import type { TrendPoint } from '../types/dashboard';
-import { BarChartIcon, RefreshIcon } from './icons';
+import type { WeeklyTrendPoint } from '../types/dashboard';
+import { BarChartIcon } from './icons';
 
 interface AnalyticsOverviewProps {
-    /** Real processed/released counts, already bucketed to fit whatever
-     *  span the Dashboard Period picker currently has selected. */
-    data: TrendPoint[];
-    /** The active Dashboard Period label (e.g. "This Month", "Last Week"),
-     *  shown under the title so this card visibly tracks the same
-     *  selector as the stat cards and donut chart. */
-    periodLabel: string;
-    /** Totals sourced from the same analytics.selected* fields the stat
-     *  cards use, so the footer here never drifts from the rest of the
-     *  dashboard even if bucket-boundary rounding differs slightly. */
-    totalProcessed: number;
-    totalReleased: number;
-    onRefresh?: () => void;
+    data: WeeklyTrendPoint[];
+    lastUpdated: string;
 }
 
-export function AnalyticsOverview({ data, periodLabel, totalProcessed, totalReleased, onRefresh }: AnalyticsOverviewProps) {
+export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps) {
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-    // Compute max for Y-axis scaling across both series
-    const maxVal = Math.max(...data.flatMap((d) => [d.processed, d.released]), 10);
+    const totalProcessed = data.reduce((sum, d) => sum + d.value, 0);
+    const totalReleased = data.reduce((sum, d) => sum + Math.round(d.value * 0.75), 0);
+
+    // Compute max for Y-axis scaling
+    const maxVal = Math.max(...data.map((d) => d.value), 10);
     const yAxisMax = Math.ceil(maxVal / 10) * 10;
     const gridTicks = [yAxisMax, Math.round(yAxisMax * 0.75), Math.round(yAxisMax * 0.5), Math.round(yAxisMax * 0.25), 0];
 
@@ -34,11 +26,8 @@ export function AnalyticsOverview({ data, periodLabel, totalProcessed, totalRele
                         <span className="dashboard-card-title-icon"><BarChartIcon size={16} /></span>
                         Analytics Overview
                     </div>
-                    <span className="dashboard-card-subtext">Showing: {periodLabel}</span>
+                    <span className="dashboard-card-subtext">Last Updated: {lastUpdated}</span>
                 </div>
-                <button className="icon-btn" onClick={onRefresh} aria-label="Refresh analytics">
-                    <RefreshIcon size={14} />
-                </button>
             </div>
 
             {/* Custom chart legend */}
@@ -68,14 +57,16 @@ export function AnalyticsOverview({ data, periodLabel, totalProcessed, totalRele
                 {/* Columns Container */}
                 <div className="bar-chart-cols">
                     {data.map((point, index) => {
+                        const processed = point.value;
+                        const released = Math.max(1, Math.round(point.value * 0.75));
                         const isHovered = hoveredIndex === index;
 
-                        const heightPctPrimary = (point.processed / yAxisMax) * 100;
-                        const heightPctSecondary = (point.released / yAxisMax) * 100;
+                        const heightPctPrimary = (processed / yAxisMax) * 100;
+                        const heightPctSecondary = (released / yAxisMax) * 100;
 
                         return (
                             <div
-                                key={`${point.label}-${index}`}
+                                key={point.label}
                                 className={`bar-col-group ${isHovered ? 'is-hovered' : ''}`}
                                 onMouseEnter={() => setHoveredIndex(index)}
                                 onMouseLeave={() => setHoveredIndex(null)}
@@ -85,11 +76,11 @@ export function AnalyticsOverview({ data, periodLabel, totalProcessed, totalRele
                                     <div className="bar-tooltip">
                                         <div className="tooltip-row">
                                             <span className="tooltip-swatch primary" />
-                                            <span>Processed: {point.processed}</span>
+                                            <span>Processed: {processed}</span>
                                         </div>
                                         <div className="tooltip-row">
                                             <span className="tooltip-swatch secondary" />
-                                            <span>Released: {point.released}</span>
+                                            <span>Released: {released}</span>
                                         </div>
                                     </div>
                                 )}
@@ -108,7 +99,7 @@ export function AnalyticsOverview({ data, periodLabel, totalProcessed, totalRele
 
                                 {/* X-Axis Label */}
                                 <span className="bar-col-label">
-                                    {point.label}
+                                    {point.label.replace('Week ', 'W')}
                                 </span>
                             </div>
                         );
@@ -116,7 +107,7 @@ export function AnalyticsOverview({ data, periodLabel, totalProcessed, totalRele
                 </div>
             </div>
 
-            {/* Summary Footer — sourced from analytics.selected*, same as the stat cards */}
+            {/* Summary Footer */}
             <div className="analytics-footer">
                 <div className="analytics-footer-summary">
                     <span className="analytics-footer-total">{totalProcessed.toLocaleString()} Processed</span>
@@ -126,3 +117,4 @@ export function AnalyticsOverview({ data, periodLabel, totalProcessed, totalRele
         </div>
     );
 }
+

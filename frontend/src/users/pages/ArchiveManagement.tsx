@@ -1,4 +1,4 @@
-﻿import { useMemo, useState, useEffect } from "react";
+﻿import { useMemo, useState, useEffect, useRef } from "react";
 import type { ReactElement } from "react";
 import {
   Search,
@@ -8,13 +8,14 @@ import {
   Loader2,
   RefreshCw,
   X,
-  XCircle,
+  Check,
 } from "lucide-react";
 import { requestService } from "../services/requestService";
 import { fetchTransactionRegistry } from "../services/transactionService";
+import { getDocumentTypeFromReference } from "../../utils/documentType";
+import { RestoreConfirmModal } from "../components/RestoreConfirmModal";
 import type { Transaction, RequestedDocumentItem } from "../types/transaction";
 import "../styles/ArchiveManagement.css";
-import { ExpandableText } from '../components/common/ExpandableText';
 
 /* ------------------------------------------------------------------ */
 /*  Reference-number icons — same SVG shapes as TransactionRegistry's  */
@@ -23,27 +24,22 @@ import { ExpandableText } from '../components/common/ExpandableText';
 const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="21" x2="21" y2="21"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 3 21 9 3 9"></polygon></svg>;
 const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
 const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>;
-const GenericDocIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h8l4 4v14H7z" /></svg>;
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
-type DocumentType =
-  | "Tax Declaration"
-  | "Certificate of Land Holding"
-  | "No-Landholding Certificate"
-  | "Certified True Copy"
-  | "General Document";
+// The system supports exactly three document types (see the shared
+// documentType.tsx prefix map: TD / NLH / LH). The archive filter list
+// and row labels must only ever surface these three.
+type DocumentType = "Tax Declaration" | "No Land Holding" | "Landholding";
 
 type ArchiveReason = "Auto" | "Manual";
-type ArchiveStatus = "Cancelled" | "Archived";
 
 interface ArchivedRecord {
   id: string;
   reference: string;
   declarantName: string;
   documentType: DocumentType;
-  status: ArchiveStatus;
   archivedDate: string;
   archivedTime: string;
   archivedBy: string;
@@ -53,74 +49,60 @@ interface ArchivedRecord {
 
 type DocTypeFilter = "All types" | DocumentType;
 type ReasonFilter = "All reasons" | ArchiveReason;
-type StatusFilter = "All statuses" | ArchiveStatus;
+
+const DOC_TYPE_CLASS: Record<DocumentType, string> = {
+  "Tax Declaration": "arc-doc-pill--td",
+  "No Land Holding": "arc-doc-pill--nlh",
+  Landholding: "arc-doc-pill--lh",
+};
+
+const DOC_TYPE_ICON: Record<DocumentType, () => ReactElement> = {
+  "Tax Declaration": TaxDeclarationIcon,
+  "No Land Holding": NoLandholdingIcon,
+  Landholding: LandholdingIcon,
+};
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
 /**
- * Maps the normalized `documentType` string(s) coming from the shared
- * Transaction Registry (Title Case, e.g. "Certificate of No Landholding")
- * onto this page's own display labels.
+ * Maps a transaction onto one of the three canonical document types.
+ * The reference-number prefix (TD / NLH / LH — via the shared
+ * documentType.tsx util) is the most reliable signal; the registry
+ * document name is used as a fallback (it also covers the CTC variant
+ * of Tax Declarations, which shares the TD prefix family).
  */
-function resolveArchiveDocName(docs: RequestedDocumentItem[]): DocumentType {
+function resolveArchiveDocName(docs: RequestedDocumentItem[], referenceNumber: string): DocumentType {
+  const fromReference = getDocumentTypeFromReference(referenceNumber);
+  if (fromReference) return fromReference as DocumentType;
+
   const name = docs[0]?.documentType ?? "";
-
   if (name.includes("Tax Declaration")) return "Tax Declaration";
-  if (name.includes("No Landholding") || name.includes("No-Landholding")) return "No-Landholding Certificate";
-  if (name.includes("Landholding") || name.includes("Land Holding")) return "Certificate of Land Holding";
-  if (name.includes("True Copy")) return "Certified True Copy";
+  if (
+    name.includes("No Landholding") ||
+    name.includes("No-Landholding") ||
+    name.includes("No Land Holding")
+  ) {
+    return "No Land Holding";
+  }
+  if (name.includes("Landholding") || name.includes("Land Holding")) return "Landholding";
 
-  return "General Document";
+  return "Tax Declaration";
 }
 
-function DocTypeText({ type }: { type: DocumentType }) {
-  return <span className="arc-doc-type">{type}</span>;
-}
-
-/**
- * Resolves which reference-pill class + icon a row renders with — mirrors the
- * logic in TransactionRegistry's TransactionRow.getDocPillMeta and PendingPayment's
- * getRefChipClass exactly: the reference prefix (NLH-/LH-/TD-) is matched first so
- * NLH-xxxx stays red no matter how the backend spells the document name, with a
- * case-insensitive document-name fallback for any odd reference formats.
- */
-function getRefPillMeta(reference: string, type: DocumentType): { className: string; Icon: () => ReactElement } {
-  const ref = (reference || "").toUpperCase();
-  const docType = type.toLowerCase();
-
-  if (ref.startsWith("NLH") || docType.includes("no landholding")) {
-    return { className: "arc-ref-pill--nlh", Icon: NoLandholdingIcon };
-  }
-  if (ref.startsWith("LH") || docType.includes("landholding")) {
-    return { className: "arc-ref-pill--lh", Icon: LandholdingIcon };
-  }
-  if (ref.startsWith("TD") || docType.includes("tax declaration")) {
-    return { className: "arc-ref-pill--td", Icon: TaxDeclarationIcon };
-  }
-  return { className: "", Icon: GenericDocIcon };
+function DocTypeTag({ type }: { type: DocumentType }) {
+  return <span className={`arc-doc-pill ${DOC_TYPE_CLASS[type]}`}>{type}</span>;
 }
 
 function ReferenceBadge({ reference, type }: { reference: string; type: DocumentType }) {
-  const { className, Icon } = getRefPillMeta(reference, type);
+  const Icon = DOC_TYPE_ICON[type];
   return (
-    <span className={`arc-ref-pill ${className}`} title={type}>
+    <span className={`arc-ref-pill ${DOC_TYPE_CLASS[type]}`}>
       <Icon />
       {reference}
     </span>
   );
-}
-
-/** Status pill — "Cancelled" (red, user bailed mid-transaction) vs
- *  "Archived" (grey, manually moved out of the queue or auto-flagged). */
-const STATUS_PILL_CLASS: Record<ArchiveStatus, string> = {
-  Cancelled: "arc-status-pill--cancelled",
-  Archived: "arc-status-pill--archived",
-};
-
-function StatusPill({ status }: { status: ArchiveStatus }) {
-  return <span className={`arc-status-pill ${STATUS_PILL_CLASS[status]}`}>{status}</span>;
 }
 
 /**
@@ -143,8 +125,7 @@ function toArchivedRecord(t: Transaction): ArchivedRecord {
     id: t.id,
     reference: t.referenceNumber,
     declarantName: t.client.declarantName,
-    documentType: resolveArchiveDocName(t.requestedDocuments),
-    status: isCancelled ? "Cancelled" : "Archived",
+    documentType: resolveArchiveDocName(t.requestedDocuments, t.referenceNumber),
     archivedDate: requested.toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "short",
@@ -157,7 +138,7 @@ function toArchivedRecord(t: Transaction): ArchivedRecord {
     }),
     archivedBy: t.assignedStaff || "Staff",
     // No archive-reason field exists on the backend yet — every archived
-    // transaction that isn't cancelled is reported as "Manual" until one is added.
+    // transaction is reported as "Manual" until one is added.
     reasonType: "Manual",
     reasonDetail: isCancelled ? "Cancelled from pending payment." : "Manually moved from queue.",
   };
@@ -166,21 +147,30 @@ function toArchivedRecord(t: Transaction): ArchivedRecord {
 /* ------------------------------------------------------------------ */
 /*  Page component                                                    */
 /* ------------------------------------------------------------------ */
-interface ArchiveManagementProps {
-  onNavigateToDashboard?: () => void;
-}
-
-export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveManagementProps) {
+export default function ArchiveManagement() {
   const [records, setRecords] = useState<ArchivedRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [docTypeFilter, setDocTypeFilter] = useState<DocTypeFilter>("All types");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All statuses");
   const [reasonFilter, setReasonFilter] = useState<ReasonFilter>("All reasons");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  // Restore confirmation modal target (replaces the native window.confirm).
+  const [restoreTarget, setRestoreTarget] = useState<{ id: string; reference: string } | null>(null);
+  // Restore feedback — reuses the system's existing .as-toast design
+  // (accountSettings.css): bottom-center, dark pill, 2500ms auto-dismiss.
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const toastTimer = useRef<number | null>(null);
+  // Prevents duplicate restore requests while one is in flight.
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+
+  const showToast = (type: "success" | "error", message: string) => {
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    setToast({ type, message });
+    toastTimer.current = window.setTimeout(() => setToast(null), 2500);
+  };
 
   const fetchArchivedData = async (isManualRefresh = false) => {
     try {
@@ -210,20 +200,23 @@ export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveMana
   }, []);
 
   const handleRestore = async (id: string, ref: string) => {
-    if (confirm(`Restore Reference #${ref} to the Pending Payments queue?`)) {
-      try {
-        await requestService.updateRequest(id, { status: "PENDING_PAYMENT" });
-        setRecords((prev) => prev.filter((r) => r.id !== id));
-      } catch (err) {
-        alert("Failed to restore document.");
-      }
+    if (restoringId) return; // don't fire a second restore while one is in flight
+    setRestoringId(id);
+    try {
+      await requestService.updateRequest(id, { status: "PENDING_PAYMENT" });
+      setRecords((prev) => prev.filter((r) => r.id !== id));
+      // Only claim success after the backend confirms the restore.
+      showToast("success", `Document ${ref} restored successfully.`);
+    } catch {
+      showToast("error", "Failed to restore document. Please try again.");
+    } finally {
+      setRestoringId(null);
     }
   };
 
   const filteredRecords = useMemo(() => {
     return records.filter((record) => {
       const matchesType = docTypeFilter === "All types" || record.documentType === docTypeFilter;
-      const matchesStatus = statusFilter === "All statuses" || record.status === statusFilter;
       const matchesReason = reasonFilter === "All reasons" || record.reasonType === reasonFilter;
       const matchesSearch =
         search.trim() === "" ||
@@ -231,9 +224,9 @@ export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveMana
         record.declarantName.toLowerCase().includes(search.toLowerCase()) ||
         record.archivedBy.toLowerCase().includes(search.toLowerCase()) ||
         record.reasonDetail.toLowerCase().includes(search.toLowerCase());
-      return matchesType && matchesStatus && matchesReason && matchesSearch;
+      return matchesType && matchesReason && matchesSearch;
     });
-  }, [records, search, docTypeFilter, statusFilter, reasonFilter]);
+  }, [records, search, docTypeFilter, reasonFilter]);
 
   // â”€â”€â”€ Pagination (mirrors TransactionRegistry's TransactionTable) â”€â”€â”€â”€â”€â”€â”€â”€
   const totalRecords = filteredRecords.length;
@@ -242,7 +235,7 @@ export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveMana
   // Reset to page 1 when filters, search, or page size change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, docTypeFilter, statusFilter, reasonFilter, pageSize]);
+  }, [search, docTypeFilter, reasonFilter, pageSize]);
 
   const start = (currentPage - 1) * pageSize;
   const end = Math.min(start + pageSize, totalRecords);
@@ -258,36 +251,19 @@ export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveMana
     setPageSize(Number(e.target.value));
   };
 
-  const autoCount = useMemo(() => records.filter((r) => r.reasonType === "Auto" && r.status === "Archived").length, [records]);
-  const manualCount = useMemo(() => records.filter((r) => r.reasonType === "Manual" && r.status === "Archived").length, [records]);
-  const cancelledCount = useMemo(() => records.filter((r) => r.status === "Cancelled").length, [records]);
+  const autoCount = useMemo(() => records.filter((r) => r.reasonType === "Auto").length, [records]);
+  const manualCount = useMemo(() => records.filter((r) => r.reasonType === "Manual").length, [records]);
 
-  const hasActiveFilters = search.trim() !== "" || docTypeFilter !== "All types" || statusFilter !== "All statuses" || reasonFilter !== "All reasons";
+  const hasActiveFilters = search.trim() !== "" || docTypeFilter !== "All types" || reasonFilter !== "All reasons";
 
   const resetFilters = () => {
     setSearch("");
     setDocTypeFilter("All types");
-    setStatusFilter("All statuses");
     setReasonFilter("All reasons");
   };
 
   return (
     <div className="arc-page">
-      {/* Breadcrumb — Dashboard > Archive Management (same chain pattern as
-          Reports, Settings and About: top-level sidebar pages sit directly
-          under the Dashboard home). */}
-      <nav className="arc-breadcrumb" aria-label="Breadcrumb">
-        <button
-          type="button"
-          className="arc-breadcrumb-item--link"
-          onClick={onNavigateToDashboard}
-        >
-          Dashboard
-        </button>
-        <span className="arc-breadcrumb-sep">&gt;</span>
-        <span className="arc-breadcrumb-item--current">Archive Management</span>
-      </nav>
-
       {/* ---- Header card ---- */}
       <div className="arc-header">
         <div className="arc-header-top">
@@ -314,15 +290,6 @@ export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveMana
             <div className="arc-summary-card-text">
               <span className="arc-summary-card-value">{records.length}</span>
               <span className="arc-summary-card-label">Total Archived</span>
-            </div>
-          </div>
-          <div className="arc-summary-card">
-            <div className="arc-summary-icon-wrap arc-summary-icon-wrap--cancelled">
-              <XCircle size={20} />
-            </div>
-            <div className="arc-summary-card-text">
-              <span className="arc-summary-card-value">{cancelledCount}</span>
-              <span className="arc-summary-card-label">Cancelled</span>
             </div>
           </div>
           <div className="arc-summary-card">
@@ -373,22 +340,8 @@ export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveMana
             >
               <option value="All types">All types</option>
               <option value="Tax Declaration">Tax Declaration</option>
-              <option value="Certificate of Land Holding">Certificate of Land Holding</option>
-              <option value="No-Landholding Certificate">No-Landholding Certificate</option>
-              <option value="Certified True Copy">Certified True Copy</option>
-            </select>
-            <ChevronDown size={14} className="arc-select-chevron" />
-          </div>
-
-          <div className="arc-filter-select-wrap">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className="arc-filter-select"
-            >
-              <option value="All statuses">All statuses</option>
-              <option value="Archived">Archived</option>
-              <option value="Cancelled">Cancelled</option>
+              <option value="No Land Holding">No Land Holding</option>
+              <option value="Landholding">Landholding</option>
             </select>
             <ChevronDown size={14} className="arc-select-chevron" />
           </div>
@@ -420,7 +373,6 @@ export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveMana
                 <th>Reference Number</th>
                 <th>Declarant</th>
                 <th>Document Type</th>
-                <th>Status</th>
                 <th>Reason</th>
                 <th>Archived By</th>
                 <th>Date &amp; Time</th>
@@ -430,7 +382,7 @@ export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveMana
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="arc-table-empty">
+                  <td colSpan={7} className="arc-table-empty">
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                       <Loader2 size={18} style={{ animation: "arc-spin 1s linear infinite" }} />
                       Loading archives...
@@ -439,7 +391,7 @@ export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveMana
                 </tr>
               ) : loadError ? (
                 <tr>
-                  <td colSpan={8} className="arc-table-empty">
+                  <td colSpan={7} className="arc-table-empty">
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", padding: "8px 0" }}>
                       <strong style={{ color: "var(--db-error)" }}>{loadError}</strong>
                       <button className="arc-restore-btn" onClick={() => fetchArchivedData()}>
@@ -450,7 +402,7 @@ export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveMana
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="arc-table-empty">
+                  <td colSpan={7} className="arc-table-empty">
                     <strong>No archived records found.</strong>
                     Try adjusting your search or filters.
                   </td>
@@ -461,12 +413,9 @@ export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveMana
                     <td>
                       <ReferenceBadge reference={record.reference} type={record.documentType} />
                     </td>
-                    <td className="arc-declarant"><ExpandableText text={record.declarantName} /></td>
+                    <td className="arc-declarant">{record.declarantName}</td>
                     <td>
-                      <DocTypeText type={record.documentType} />
-                    </td>
-                    <td>
-                      <StatusPill status={record.status} />
+                      <DocTypeTag type={record.documentType} />
                     </td>
                     <td>
                       <div className="arc-reason-cell">
@@ -483,10 +432,15 @@ export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveMana
                       <div className="arc-actions">
                         <button
                           className="arc-restore-btn"
-                          onClick={() => handleRestore(record.id, record.reference)}
+                          onClick={() => setRestoreTarget({ id: record.id, reference: record.reference })}
+                          disabled={restoringId === record.id}
                         >
-                          <RotateCcw size={14} />
-                          Restore
+                          {restoringId === record.id ? (
+                            <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                          ) : (
+                            <RotateCcw size={14} />
+                          )}
+                          {restoringId === record.id ? "Restoring..." : "Restore"}
                         </button>
                       </div>
                     </td>
@@ -538,6 +492,35 @@ export default function ArchiveManagement({ onNavigateToDashboard }: ArchiveMana
           </div>
         </div>
       </div>
+
+      {/* Restore confirmation modal — system rc-modal design (same as the
+          logout confirm), replacing the old native window.confirm(). */}
+      <RestoreConfirmModal
+        open={!!restoreTarget}
+        reference={restoreTarget?.reference ?? ""}
+        onCancel={() => setRestoreTarget(null)}
+        onConfirm={() => {
+          if (!restoreTarget) return;
+          const { id, reference } = restoreTarget;
+          setRestoreTarget(null);
+          void handleRestore(id, reference);
+        }}
+      />
+
+      {/* Restore feedback toast — same .as-toast design as the rest of ADePT
+          (bottom-center, dark pill, 2500ms auto-dismiss), with a success/error
+          icon variant. */}
+      {toast && (
+        <div
+          className={`as-toast as-toast--${toast.type}`}
+          role={toast.type === "error" ? "alert" : "status"}
+        >
+          {toast.type === "success"
+            ? <Check size={16} strokeWidth={2.5} aria-hidden="true" />
+            : <X size={16} strokeWidth={2.5} aria-hidden="true" />}
+          <span>{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 }

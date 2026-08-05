@@ -13,3 +13,5 @@
 .rc-btn--cancel { background:#fff; border-color:#E2E1F5; color:#475569; }
 .rc-btn--confirm { background:#29237A; color:#fff; }
 .rc-btn--confirm:disabled, .rc-btn--cancel:disabled { opacity:0.6; cursor:not-allowed; }
+.rc-btn--danger { background:#e11d48; color:#fff; }
+.rc-btn--danger:disabled { opacity:0.6; cursor:not-allowed; }

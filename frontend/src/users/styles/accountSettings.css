@@ -555,6 +555,23 @@
     z-index: 1100;
 }
 
+/* Success/error variants — same base pill, with a colored leading icon
+   (success #16a34a family, error #e11d48 family). */
+.as-toast--success,
+.as-toast--error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.as-toast--success svg {
+    color: #4ade80;
+}
+
+.as-toast--error svg {
+    color: #f87171;
+}
+
 /* ── Change Password modal ────────────────────────────────── */
 .as-modal-overlay {
     position: fixed;
