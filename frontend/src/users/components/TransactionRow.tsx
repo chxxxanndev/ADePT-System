@@ -1,5 +1,6 @@
 import type { DeclarantGroup } from '../types/transaction';
 import { StatusBadge } from './StatusBadge';
+import { ExpandableText } from './common/ExpandableText';
 import { getDocPillMeta, getDocumentTypeFromReference } from '../../utils/documentType';
 
 interface TransactionRowProps {
@@ -61,12 +62,12 @@ export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
                         {/* Declarant varies per transaction within the group
                             (e.g. Arsenio Noel Jr. vs Spouses Arsenio Noel),
                             so it repeats per row — not rowSpan'd. */}
-                        <td><span className="tr-declarant" title={t.client.declarantName}>{t.client.declarantName}</span></td>
+                        <td><ExpandableText text={t.client.declarantName} className="tr-declarant" /></td>
 
                         {/* Requested By is the group key, so it's identical
                             for every row — repeats per row like
                             PendingPayment's Requested By column does. */}
-                        <td>{t.client.requestedBy}</td>
+                        <td><ExpandableText text={t.client.requestedBy} /></td>
 
                         <td>{t.dateRequested}</td>
                         <td>{t.dateReleased || '—'}</td>
@@ -74,9 +75,10 @@ export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
                         <td>{t.releasedBy || '—'}</td>
                         <td><span className="tr-or-number">{t.payment.orNumber || '—'}</span></td>
                         <td>
-                            <span className={`tr-or-justification${t.payment.orJustification ? '' : ' tr-or-justification--none'}`}>
-                                {t.payment.orJustification || 'OR Unique'}
-                            </span>
+                            <ExpandableText
+                                text={t.payment.orJustification || 'OR Unique'}
+                                className={`tr-or-justification${t.payment.orJustification ? '' : ' tr-or-justification--none'}`}
+                            />
                         </td>
                         <td><StatusBadge status={t.status} /></td>
 

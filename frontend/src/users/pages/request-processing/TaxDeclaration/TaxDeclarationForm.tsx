@@ -376,11 +376,20 @@ export function TaxDeclarationForm({
             // fields from the rows so the value typed on first encode
             // survives the round-trip back into this form.
             const rowsAreaTotal = rawRows.reduce(
-                (sum: number, r: any) => sum + (parseFloat(r.area) || 0), 0
+                (sum: number, r: any) => sum + (parseFloat(String(r.area || '').replace(/,/g, '')) || 0), 0
             );
             const firstAreaRow = rawRows.find((r: any) => r.area);
+            // FIX: sqm values reload with at least two decimals ("1,756.50",
+            // not "1,756.5") so the field mirrors what was typed and what the
+            // PDF prints — the DB numeric column drops trailing zeros.
             const parsedArea = firstAreaRow
-                ? { value: String(rowsAreaTotal), unit: dbUnitToFormUnit(firstAreaRow.area_unit) }
+                ? {
+                    value: rowsAreaTotal.toLocaleString(undefined, {
+                        minimumFractionDigits: /sq/i.test(String(firstAreaRow.area_unit || '')) ? 2 : 0,
+                        maximumFractionDigits: 10,
+                    }),
+                    unit: dbUnitToFormUnit(firstAreaRow.area_unit),
+                }
                 : null;
 
             setForm((prev) => ({
@@ -531,20 +540,34 @@ export function TaxDeclarationForm({
             // Preview or the Document Generation & Release PDF (and only
             // appeared after typing it again per-row in the Full Document
             // Edit modal).
-            const totalAreaValue = parseFloat(form.area);
-            const hasTotalArea = !isNaN(totalAreaValue) && totalAreaValue > 0;
-            const assessmentRows = form.assessmentRows.map((row, idx) =>
-                hasTotalArea && idx === 0
-                    ? { ...row, area: String(totalAreaValue), areaUnit: form.areaUnit }
-                    : row
-            );
-            // Recombine the split value/unit back into the single combined
-            // string the backend column expects (see formatAreaString above).
-            const payload = {
-                ...form,
-                assessmentRows,
-                area: formatAreaString(form.area, form.areaUnit),
-            };
+            // FIX: strip thousand separators before parsing. A staff member
+            // typing "123,456.78" into the plain-text Area field would
+            // otherwise parse to 123 (parseFloat stops at the comma), so
+            // "123 sqm" got persisted and printed in the generated PDF.
+            //
+            // The cleaned TEXT (not the parsed float) is what gets saved:
+            // parseFloat drops trailing zeros ("1,756.50" -> 1756.5), and a
+            // Certified True Copy must mirror exactly what was typed from the
+            // physical record.
+            const cleanedArea = String(form.area || '').replace(/,/g, '').trim();
+            const totalAreaValue = parseFloat(cleanedArea);
+const hasTotalArea = !isNaN(totalAreaValue) && totalAreaValue > 0;
+
+const assessmentRows = form.assessmentRows.map((row, idx) =>
+    hasTotalArea && idx === 0
+        ? { ...row, area: hasTotalArea ? cleanedArea : row.area, areaUnit: form.areaUnit }
+        : row
+);
+const dbAreaUnit = form.areaUnit === 'sqm.' ? 'SQM' : 'HECTARE';
+const payload = {
+    ...form,
+    assessmentRows: assessmentRows.map((row, idx) =>
+        hasTotalArea && idx === 0
+            ? { ...row, areaUnit: dbAreaUnit }
+            : row
+    ) as any,
+    area: formatAreaString(form.area, form.areaUnit),
+};
             await taxDeclarationService.save(payload, entryData.requestId, user.id);
             localStorage.removeItem(LS_KEY);
 

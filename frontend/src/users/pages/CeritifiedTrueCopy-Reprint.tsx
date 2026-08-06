@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Printer } from "lucide-react";
+import { Search, Printer, CheckCircle2, Clock } from "lucide-react";
 import "../styles/TransactionRegistry.css";
 import type { CertifiedCopyRecord, CTCStatus } from "../types/transaction";
 import { fetchCertifiedTrueCopies } from "../services/transactionService";
-import { RegistrySummarySkeleton } from "../components/common/Skeleton";
+import { ExpandableText } from "../components/common/ExpandableText";
+import { getDocPillMeta, getDocumentTypeFromReference } from "../../utils/documentType";
+
+// Legend icons come from the shared documentType helper — the exact same
+// icons the reference-number pills render, so the legend key always matches
+// the table (no duplicate SVG copies here), exactly like TransactionRegistry.
+const TaxDeclarationIcon = getDocPillMeta('Tax Declaration').Icon;
+const LandholdingIcon = getDocPillMeta('Landholding').Icon;
+const NoLandholdingIcon = getDocPillMeta('No Land Holding').Icon;
 
 const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
@@ -22,6 +30,21 @@ const CTC_COLUMNS = [
   "Reference No.", "Declarant", "Original Doc", "OR Number",
   "Justification", "Requested", "Released", "Released By", "Status",
 ];
+
+/* --- Summary skeleton (three compact cards — mirrors VoidAmendSummarySkeleton
+   and uses the same tr-summary-grid--multi sizing as the loaded cards) --- */
+function CTCSummarySkeleton() {
+  return (
+    <div className="tr-summary-grid tr-summary-grid--multi">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="skeleton-card-ghost tr-summary-skeleton-card">
+          <div className="skeleton-item" style={{ width: '60%', height: 10 }} />
+          <div className="skeleton-item" style={{ width: '30%', height: 20 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /* --- Skeleton (mirrors PendingPayment/TransactionRegistry's shimmer pattern) --- */
 function CTCTableSkeleton({ rows = 8 }: { rows?: number }) {
@@ -139,6 +162,13 @@ export default function CertifiedTrueCopy({
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / rowsPerPage));
   const safePage = Math.min(currentPage, totalPages);
 
+  // ─── Summary counts ───────────────────────────────────────
+  const releasedCount = useMemo(
+    () => records.filter((r) => r.status === "Released").length,
+    [records]
+  );
+  const pendingCount = records.length - releasedCount;
+
   const paginatedRecords = useMemo(() => {
     const start = (safePage - 1) * rowsPerPage;
     return filteredRecords.slice(start, start + rowsPerPage);
@@ -222,26 +252,54 @@ export default function CertifiedTrueCopy({
           </button>
         </div>
 
-        {/* Summary card — same position inside tr-header as TransactionRegistry's
-            SummaryCards (right after the tabs), so the pill → card spacing matches
+        {/* Summary cards — same position inside tr-header as TransactionRegistry's
+            summary grid (right after the tabs), so the pill → card spacing matches
             the registry exactly (tr-tabs margin-bottom 10px + tr-summary-grid
-            margin-top 18px). Every reprint row in this registry is a successfully
-            created reprint request (request_type = REPRINT), so the count is
-            simply the number of records shown here. */}
+            margin-top 18px). tr-summary-grid--multi applies the same compact
+            card sizing as the registry's single card (flex: 0 0 auto, 220–320px),
+            so the three cards sit side-by-side. */}
         {isLoading ? (
-          <RegistrySummarySkeleton />
+          <CTCSummarySkeleton />
         ) : (
-          <div className="tr-summary-grid tr-summary-grid--single">
-            <div className="tr-summary-card">
-              <div className="tr-summary-icon-wrap tr-summary-icon-wrap--total">
-                <Printer size={20} strokeWidth={2.3} />
+          <>
+            <div className="tr-summary-grid tr-summary-grid--multi">
+              <div className="tr-summary-card">
+                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--total">
+                  <Printer size={20} strokeWidth={2.3} />
+                </div>
+                <div className="tr-summary-card-text">
+                  <span className="tr-summary-card-value">{records.length}</span>
+                  <span className="tr-summary-card-label">Total Reprinted Documents</span>
+                </div>
               </div>
-              <div className="tr-summary-card-text">
-                <span className="tr-summary-card-value">{records.length}</span>
-                <span className="tr-summary-card-label">Total Reprinted Documents</span>
+              <div className="tr-summary-card">
+                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--released">
+                  <CheckCircle2 size={20} strokeWidth={2.3} />
+                </div>
+                <div className="tr-summary-card-text">
+                  <span className="tr-summary-card-value">{releasedCount}</span>
+                  <span className="tr-summary-card-label">Released</span>
+                </div>
+              </div>
+              <div className="tr-summary-card">
+                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--pending">
+                  <Clock size={20} strokeWidth={2.3} />
+                </div>
+                <div className="tr-summary-card-text">
+                  <span className="tr-summary-card-value">{pendingCount}</span>
+                  <span className="tr-summary-card-label">Pending</span>
+                </div>
               </div>
             </div>
-          </div>
+
+            {/* Legend — same key TransactionRegistry shows under its summary
+                cards, explaining the reference pill colors in this table. */}
+            <div className="tr-legend-row">
+              <div className="tr-legend-item tr-legend-item--td"><TaxDeclarationIcon />Tax Declaration</div>
+              <div className="tr-legend-item tr-legend-item--lh"><LandholdingIcon />Landholding</div>
+              <div className="tr-legend-item tr-legend-item--nlh"><NoLandholdingIcon />No Land Holding</div>
+            </div>
+          </>
         )}
       </div>
 
@@ -305,30 +363,36 @@ export default function CertifiedTrueCopy({
                       </td>
                     </tr>
                   ) : (
-                    paginatedRecords.map((record) => (
-                      <tr key={record.id} className="tr-row">
-                        <td><span className="tr-ref">{record.reference}</span></td>
-                        <td><span className="tr-declarant" title={record.declarantName}>{record.declarantName}</span></td>
-                        <td>{record.originalDocument}</td>
-                        <td><span className="tr-or-number">{record.orNumber}</span></td>
-                        <td>
-                          <span
-                            className={`tr-or-justification${record.orJustification === '—' ? ' tr-or-justification--none' : ''}`}
-                            title={record.orJustification}
-                          >
-                            {record.orJustification}
-                          </span>
-                        </td>
-                        <td>{record.dateRequested}</td>
-                        <td>{record.dateReleased}</td>
-                        <td>{record.releasedBy}</td>
-                        <td>
-                          <span className={`tr-badge tr-badge--${record.status.toLowerCase()}`}>
-                            {record.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
+                    paginatedRecords.map((record) => {
+                      const docPillMeta = getDocPillMeta(getDocumentTypeFromReference(record.reference) ?? '');
+                      return (
+                        <tr key={record.id} className="tr-row">
+                          <td>
+                            <span className={`tr-doc-pill ${docPillMeta.className}`} title={record.reference}>
+                              <docPillMeta.Icon />
+                              {record.reference}
+                            </span>
+                          </td>
+                          <td><ExpandableText text={record.declarantName} className="tr-declarant" /></td>
+                          <td>{record.originalDocument}</td>
+                          <td><span className="tr-or-number">{record.orNumber}</span></td>
+                          <td>
+                            <ExpandableText
+                              text={record.orJustification}
+                              className={`tr-or-justification${record.orJustification === '—' ? ' tr-or-justification--none' : ''}`}
+                            />
+                          </td>
+                          <td>{record.dateRequested}</td>
+                          <td>{record.dateReleased}</td>
+                          <td>{record.releasedBy}</td>
+                          <td>
+                            <span className={`tr-badge tr-badge--${record.status.toLowerCase()}`}>
+                              {record.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

@@ -786,6 +786,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onRetry={refetchNotifications}
                             unreadCount={unreadCount}
                             onMarkAllRead={markAllAsRead}
+                            onNavigateToDashboard={() => guardedSetActiveView('dashboard')}
                         />
                     ) : isRequestFormView ? (
                         <RequestFormEntry
@@ -858,6 +859,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onSelectNewRequest={handleSelectNewRequest}
                             onSelectDraft={handleSelectDraft}
                             onSelectDocumentView={(view) => setActiveView(view)}
+                            onNavigateToDashboard={() => guardedSetActiveView('dashboard')}
                         />
                     ) : activeView === 'transaction-summary' ? (
                         (completedEntryData || cartItems.length > 0) ? (

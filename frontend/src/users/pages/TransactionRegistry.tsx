@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { RegistrySummarySkeleton, RegistryToolbarSkeleton, RegistryTableSkeleton } from '../components/common/Skeleton';
 import type { Transaction, TransactionFilters, DeclarantGroup } from '../types/transaction';
-import { computeSummary } from '../data/mockTransactions';
 import { fetchTransactionRegistry, voidTransaction, createReprint } from '../services/transactionService';
 import { SummaryCards } from '../components/SummaryCards';
 import { SearchBar } from '../components/SearchBar';
@@ -12,7 +11,7 @@ import { VoidDocumentSelectModal } from '../components/DocumentSelectModal';
 import type { User } from '../../auth-folder/types/auth';
 import type { VoidAmendRecord } from './VoidAndAmend';
 import '../styles/TransactionRegistry.css';
-import { getDocPillMeta } from '../../utils/documentType';
+import { getDocPillMeta, getDocumentTypeFromReference } from '../../utils/documentType';
 
 // Legend icons come from the shared documentType helper — the exact same
 // icons TransactionRow.tsx renders inside the reference-number pills, so
@@ -111,7 +110,33 @@ export function TransactionRegistry({
         [transactions]
     );
 
-    const summary = useMemo(() => computeSummary(releasedTransactions), [releasedTransactions]);
+    const summaryChips = useMemo(() => {
+        const today = new Date();
+        const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+        let releasedToday = 0;
+        let taxDeclarations = 0;
+        let landholdings = 0;
+        let noLandholdings = 0;
+
+        for (const t of releasedTransactions) {
+            if (toComparableDate(getReleaseSortDate(t)) === todayKey) releasedToday++;
+
+            // Document-type counts use the same prefix-first resolution the
+            // reference pills in TransactionRow use, so a chip always matches
+            // the pills rendered in the table.
+            const meta = getDocPillMeta(
+                getDocumentTypeFromReference(t.referenceNumber) ??
+                t.requestedDocuments[0]?.documentType ??
+                ''
+            );
+            if (meta.className === 'tr-doc-pill--td') taxDeclarations++;
+            else if (meta.className === 'tr-doc-pill--lh') landholdings++;
+            else if (meta.className === 'tr-doc-pill--nlh') noLandholdings++;
+        }
+
+        return { total: releasedTransactions.length, releasedToday, taxDeclarations, landholdings, noLandholdings };
+    }, [releasedTransactions]);
 
     const transactionsByRef = useMemo(() => {
         const map = new Map<string, Transaction>();
@@ -314,7 +339,13 @@ export function TransactionRegistry({
                     <RegistrySummarySkeleton />
                 ) : (
                     <>
-                        <SummaryCards summary={summary} />
+                    <SummaryCards
+                        total={summaryChips.total}
+                        releasedToday={summaryChips.releasedToday}
+                        taxDeclarations={summaryChips.taxDeclarations}
+                        landholdings={summaryChips.landholdings}
+                        noLandholdings={summaryChips.noLandholdings}
+                    />
                         <div className="tr-legend-row">
                             <div className="tr-legend-item tr-legend-item--td"><TaxDeclarationIcon />Tax Declaration</div>
                             <div className="tr-legend-item tr-legend-item--lh"><LandholdingIcon />Landholding</div>
