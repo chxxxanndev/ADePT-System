@@ -31,7 +31,7 @@ export function DeveloperCredit() {
                         </button>
 
                         <div className="as-modal-body about-us-full-modal-body">
-                            <AboutADePT />
+                            <AboutADePT embedded />
                         </div>
                     </div>
                 </div>,

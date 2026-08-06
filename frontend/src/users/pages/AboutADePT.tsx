@@ -163,21 +163,29 @@ const COLLAB = {
         'Commanding the project lifecycle\u2014from strategic blueprinting and pixel-perfect prototyping to stringent version control.',
 };
 
-export function AboutADePT({ onNavigateToDashboard }: { onNavigateToDashboard?: () => void }) {
+export function AboutADePT({
+    onNavigateToDashboard,
+    embedded = false,
+}: {
+    onNavigateToDashboard?: () => void;
+    embedded?: boolean;
+}) {
     return (
         <div className="aa-page page-transition">
-            {/* Breadcrumb — Dashboard > About ADePT */}
-            <nav className="aa-breadcrumb" aria-label="Breadcrumb">
-                <button
-                    type="button"
-                    className="aa-breadcrumb-item--link"
-                    onClick={onNavigateToDashboard}
-                >
-                    Dashboard
-                </button>
-                <span className="aa-breadcrumb-sep">&gt;</span>
-                <span className="aa-breadcrumb-item--current">About ADePT</span>
-            </nav>
+            {/* Breadcrumb — Dashboard > About ADePT (hidden when embedded, e.g. auth footer modal) */}
+            {!embedded && (
+                <nav className="aa-breadcrumb" aria-label="Breadcrumb">
+                    <button
+                        type="button"
+                        className="aa-breadcrumb-item--link"
+                        onClick={onNavigateToDashboard}
+                    >
+                        Dashboard
+                    </button>
+                    <span className="aa-breadcrumb-sep">&gt;</span>
+                    <span className="aa-breadcrumb-item--current">About ADePT</span>
+                </nav>
+            )}
 
             {/* --- HERO --- */}
             <div className="aa-hero">

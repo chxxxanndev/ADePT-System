@@ -779,7 +779,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
                         />
                     ) : activeView === 'about-adept' ? (
-                        <AboutADePT />
+                        <AboutADePT onNavigateToDashboard={() => guardedSetActiveView('dashboard')} />
                     ) : activeView === 'notifications' ? (
                         <NotificationPage
                             notifications={notifications}
@@ -889,6 +889,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onChangePassword={handleChangePassword}
                             onChangePhoto={handleChangePhoto}
                             onDisableAccount={handleDisableAccount}
+                            onNavigateToDashboard={() => guardedSetActiveView('dashboard')}
                         />
                     ) : activeView === 'pending-payment' ? (
                         <PendingPayment
