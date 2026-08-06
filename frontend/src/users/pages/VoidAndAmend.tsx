@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Search, Ban, PencilLine, Loader2 } from "lucide-react";
+import { Search, Ban, PencilLine, Loader2, CheckCircle2 } from "lucide-react";
 import { fetchTransactionRegistry } from "../services/transactionService";
 import { requestService } from "../services/requestService";
 import type { Transaction } from "../types/transaction";
@@ -157,7 +157,23 @@ function ActionBadge() {
   return (
     <span className="tr-badge tr-badge--void" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
       <Ban size={14} />
-      Void
+      Voided
+    </span>
+  );
+}
+
+/** Shows the "Amended" state for a voided record that already has an
+ *  amended copy — replaces the disabled grey pen button so the status
+ *  is readable at a glance instead of being implied by a dimmed icon. */
+function AmendedBadge() {
+  return (
+    <span
+      className="tr-badge tr-badge--amend"
+      title="An amended copy of this document already exists"
+      style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+    >
+      <CheckCircle2 size={14} />
+      Amended
     </span>
   );
 }
@@ -498,7 +514,7 @@ export default function VoidAndAmend({
           <>
             <div className="tr-summary-grid tr-summary-grid--multi">
               <div className="tr-summary-card">
-                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--total">
+                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--amend">
                   <PencilLine size={20} strokeWidth={2.3} />
                 </div>
                 <div className="tr-summary-card-text">
@@ -507,7 +523,7 @@ export default function VoidAndAmend({
                 </div>
               </div>
               <div className="tr-summary-card">
-                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--total">
+                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--void">
                   <Ban size={20} strokeWidth={2.3} />
                 </div>
                 <div className="tr-summary-card-text">
@@ -604,7 +620,10 @@ export default function VoidAndAmend({
                   paginatedRecords.map((record) => {
                     const docPillMeta = getDocPillMeta(getDocumentTypeFromReference(record.reference) ?? '');
                     return (
-                      <tr key={record.id} className="tr-row">
+                      <tr
+                        key={record.id}
+                        className={`tr-row${record.hasBeenAmended ? ' tr-row--amended' : ''}`}
+                      >
                         <td>
                           <span className={`tr-doc-pill ${docPillMeta.className}`} title={record.reference}>
                             <docPillMeta.Icon />
@@ -620,30 +639,27 @@ export default function VoidAndAmend({
                         </td>
                         <td>
                           <div className="tr-actions">
-                            <ActionBadge />
-                            <button
-                              type="button"
-                              className="tr-action-btn"
-                              title={
-                                record.hasBeenAmended
-                                  ? `${record.reference} has already been amended`
-                                  : `Amend ${record.reference}`
-                              }
-                              aria-label={`Amend ${record.reference}`}
-                              onClick={() => handleAmendClick(record)}
-                              disabled={amendingId === record.id || record.hasBeenAmended}
-                              style={
-                                record.hasBeenAmended
-                                  ? { opacity: 0.4, cursor: "not-allowed" }
-                                  : undefined
-                              }
-                            >
-                              {amendingId === record.id ? (
-                                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-                              ) : (
-                                <PencilLine size={14} />
-                              )}
-                            </button>
+                            {record.hasBeenAmended ? (
+                              <AmendedBadge />
+                            ) : (
+                              <>
+                                <ActionBadge />
+                                <button
+                                  type="button"
+                                  className="tr-action-btn"
+                                  title={`Amend ${record.reference}`}
+                                  aria-label={`Amend ${record.reference}`}
+                                  onClick={() => handleAmendClick(record)}
+                                  disabled={amendingId === record.id}
+                                >
+                                  {amendingId === record.id ? (
+                                    <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                                  ) : (
+                                    <PencilLine size={14} />
+                                  )}
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
