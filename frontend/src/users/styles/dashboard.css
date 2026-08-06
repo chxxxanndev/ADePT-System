@@ -1303,6 +1303,15 @@
     background-color: var(--db-hover-highlight);
 }
 
+/* See more/See less for long declarant names — driven by the shared
+   components/common/ExpandableText.tsx (28-char truncation, per-row
+   state, base styling in ExpandableText.css). This rule keeps the toggle
+   reading as part of the declarant cell. */
+.transactions-table .expandable-text-toggle {
+    white-space: nowrap;
+    color: var(--db-secondary);
+}
+
 .status-badge {
     display: inline-flex;
     align-items: center;

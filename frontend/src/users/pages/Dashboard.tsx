@@ -765,7 +765,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             </div>
                         </>
                     ) : activeView === 'reports' ? (
-                        <Reports />
+                        <Reports onNavigateToDashboard={() => setActiveView('dashboard')} />
                     ) : activeView === 'certified-true-copy' ? (
                         <CertifiedTrueCopy
                             onNavigateToRegistry={() => setActiveView('transaction-registry')}
@@ -774,7 +774,10 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
                         />
                     ) : activeView === 'archive-management' ? (
-                        <ArchiveManagement />
+                        <ArchiveManagement
+                            onNavigateToDashboard={() => setActiveView('dashboard')}
+                            onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
+                        />
                     ) : activeView === 'about-adept' ? (
                         <AboutADePT />
                     ) : activeView === 'notifications' ? (

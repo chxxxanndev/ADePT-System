@@ -399,6 +399,15 @@
     text-wrap: pretty;
 }
 
+/* See more/See less for long declarant names — driven by the shared
+   components/common/ExpandableText.tsx (28-char truncation, per-row
+   state, base styling in ExpandableText.css). This rule only keeps the
+   toggle reading as part of the declarant cell. */
+.arc-table .expandable-text-toggle {
+    white-space: nowrap;
+    color: var(--db-secondary);
+}
+
 .arc-cell-muted {
     font-weight: 600;
     color: var(--db-text-muted);

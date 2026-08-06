@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { BadgeStatus, TransactionRow } from '../types/dashboard';
 import { SearchIcon } from './icons';
+import { ExpandableText } from './common/ExpandableText';
 
 // Maps every status the registry emits to its badge bg/text pairing.
 const STATUS_STYLE: Record<BadgeStatus, string> = {
@@ -91,7 +92,9 @@ export function RecentTransactions({ rows, allRows, onViewAll }: RecentTransacti
                         {filteredRows.map((row) => (
                             <tr key={row.id}>
                                 <td>{row.controlNumber}</td>
-                                <td>{row.declarant}</td>
+                                <td>
+                                    <ExpandableText text={row.declarant} />
+                                </td>
                                 <td>{row.document}</td>
                                 <td>
                                     <span className={`status-badge ${STATUS_STYLE[row.status]}`}>{row.status}</span>

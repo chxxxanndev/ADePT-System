@@ -2,7 +2,8 @@
    ReportsAnalytics.css
    Styles for src/users/pages/Reports.tsx
    Responsive pattern matches PendingPayment.css (single 720px breakpoint)
-   Full-width layout — no max-width cap, no centering, fills the screen
+   Page shell mirrors .tr-page / .arc-page: full-width, no own padding
+   (inset comes from the shared .dashboard-content parent)
    ================================================================== */
 
 .reports-page {
@@ -42,8 +43,8 @@
   --card-shadow: rgba(30, 33, 48, 0.06);
 
   width: 100%;
-  min-height: 100vh;
-  background-color: var(--color-background);
+  min-height: 100%;
+  background-color: transparent;
   color: var(--color-text);
   font-family: inherit;
   box-sizing: border-box;
@@ -55,14 +56,15 @@
   box-sizing: border-box;
 }
 
-/* No max-width, no margin:auto — this stretches to fill whatever
-   width is available, exactly like .pp-card's margin:0 24px approach */
+/* Full-width page shell. Horizontal/top/bottom inset is delegated to the
+   shared .dashboard-content parent (20px 28px 40px), exactly like
+   .tr-page and .arc-page — no double padding here. */
 .reports-container {
   width: 100%;
-  padding: 32px 24px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 40px;
 }
 
 /* ---------- Header ---------- */
@@ -535,6 +537,14 @@
   overflow-wrap: break-word;
 }
 
+/* See more/See less for long declarant names — driven by the shared
+   components/common/ExpandableText.tsx (28-char truncation, its own
+   state). This rule keeps the toggle reading as part of the cell. */
+.reports-table .expandable-text-toggle {
+  white-space: nowrap;
+  color: var(--color-secondary);
+}
+
 .cell-muted {
   font-size: 0.82rem;
   font-weight: 600;
@@ -666,9 +676,10 @@
 /* ---------- Responsive (single breakpoint, matches PendingPayment.css) ---------- */
 
 @media (max-width: 720px) {
-  .reports-container {
-    padding: 20px 12px;
-    gap: 20px;
+  .chart-card,
+  .table-card {
+    margin-left: 12px;
+    margin-right: 12px;
   }
 
   .reports-header {
