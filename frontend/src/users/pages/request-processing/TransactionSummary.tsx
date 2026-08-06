@@ -266,9 +266,10 @@ export function TransactionSummary({ entryData, onBackToForms, onProceedToQueue 
                     </div>
 
                     {/* --- FOOTER ACTIONS --- */}
-                    <div className="rfe-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', borderTop: '1px solid #e2e8f0', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px', flexWrap: 'wrap', gap: '16px' }}>
+                    <div className="rfe-footer" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', background: '#fff', borderTop: '1px solid #e2e8f0', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px', flexWrap: 'wrap', gap: '16px' }}>
 
                         {/* Upgraded Add Another Document Button */}
+                        {!entryData?.amendedFromReference && (
                         <button
                             onClick={onBackToForms}
                             disabled={submitting}
@@ -276,6 +277,7 @@ export function TransactionSummary({ entryData, onBackToForms, onProceedToQueue 
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '8px',
+                                marginRight: 'auto',
                                 background: '#eef2ff',
                                 color: '#29237a',
                                 border: '1.5px solid #c7d2fe',
@@ -305,6 +307,7 @@ export function TransactionSummary({ entryData, onBackToForms, onProceedToQueue 
                             </svg>
                             Add Another Document
                         </button>
+                        )}
 
                         <button
                             className="btn-proceed"

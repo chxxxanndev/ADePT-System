@@ -177,6 +177,8 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
     const addRow = () => setForm((prev) => ({ ...prev, propertyRows: [...prev.propertyRows, EMPTY_LANDHOLDING_ROW()] }));
     const removeRow = (id: string) => setForm((prev) => ({ ...prev, propertyRows: prev.propertyRows.filter((r) => r.id !== id) }));
 
+    const isAmendMode = !!entryData?.amendedFromReference;
+
     const handleSave = async (action: 'review' | 'add_another') => {
         if (!form.declarantName.trim()) return setSaveError('Declarant / Owner Name is required.');
         if (form.propertyRows.some((r) => !r.tdArpNumber.trim())) return setSaveError('TD/ARP No. is required for every property row.');
@@ -206,7 +208,8 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
             });
 
             if (action === 'review') onGoToSummary();
-            else onAddAnother();
+            else if (action === 'add_another' && !isAmendMode) onAddAnother();
+            else onGoToSummary();
         } catch (err: any) {
             setSaveError(err?.response?.data?.error || 'Failed to save. Please try again.');
         } finally {
@@ -350,9 +353,11 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
                             </button>
                         </div>
                         <div className="lh-footer-right">
-                            <button type="button" className="lh-btn lh-btn-secondary" onClick={() => handleSave('add_another')} disabled={saving}>
-                                <ClipboardListIcon size={16} /> Save & Add Another
-                            </button>
+                            {!isAmendMode && (
+                                <button type="button" className="lh-btn lh-btn-secondary" onClick={() => handleSave('add_another')} disabled={saving}>
+                                    <ClipboardListIcon size={16} /> Save & Add Another
+                                </button>
+                            )}
                             <button type="button" className="lh-btn lh-btn-primary" onClick={() => handleSave('review')} disabled={saving}>
                                 {saving ? 'Saving...' : 'Review Transaction →'}
                             </button>
@@ -418,27 +423,29 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
                             in this transaction. Add another document, or go review and submit what's already saved.
                         </p>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowNextStepChoice(false);
-                                    if (onAddAnotherAfterDiscard) {
-                                        onAddAnotherAfterDiscard({
-                                            declarantName: entryData.declarantName,
-                                            requestedByName: entryData.requestedByName,
-                                            propertyLocation: entryData.propertyLocation,
-                                            purposeId: entryData.purposeId,
-                                            authRequired: entryData.authRequired,
-                                            actionTaken: entryData.actionTaken,
-                                        });
-                                    } else {
-                                        onDiscard();
-                                    }
-                                }}
-                                style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}
-                            >
-                                Add Another Document
-                            </button>
+                            {!isAmendMode && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowNextStepChoice(false);
+                                        if (onAddAnotherAfterDiscard) {
+                                            onAddAnotherAfterDiscard({
+                                                declarantName: entryData.declarantName,
+                                                requestedByName: entryData.requestedByName,
+                                                propertyLocation: entryData.propertyLocation,
+                                                purposeId: entryData.purposeId,
+                                                authRequired: entryData.authRequired,
+                                                actionTaken: entryData.actionTaken,
+                                            });
+                                        } else {
+                                            onDiscard();
+                                        }
+                                    }}
+                                    style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}
+                                >
+                                    Add Another Document
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => { setShowNextStepChoice(false); (onDiscardToSummary ?? onGoToSummary)(); }}

@@ -460,6 +460,7 @@ export function RequestFormEntry({
                 ...formData,
                 requestId: actualId,
                 referenceNumber: actualRef,
+                amendedFromReference: (prefilledRequestData as any)?.amendedFromReference,
             };
 
             onEntryComplete(completedData);
@@ -609,34 +610,46 @@ export function RequestFormEntry({
                             what's already saved.
                         </p>
                         <div className="rfe-modal-actions">
-                            <button
-                                type="button"
-                                className="rfe-modal-btn-cancel"
-                                onClick={() => {
-                                    setShowNextStepChoice(false);
-                                    if (onAddAnotherAfterDiscard) {
-                                        onAddAnotherAfterDiscard({
-                                            declarantName: formData.declarantName,
-                                            requestedByName: formData.requestedByName,
-                                            propertyLocation: formData.propertyLocation,
-                                            purposeId: formData.purposeId,
-                                            authRequired: formData.authRequired,
-                                            actionTaken: formData.actionTaken,
-                                        });
-                                    } else {
-                                        onCancel();
-                                    }
-                                }}
-                            >
-                                Add Another Document
-                            </button>
-                            <button
-                                type="button"
-                                className="rfe-modal-btn-confirm"
-                                onClick={() => { setShowNextStepChoice(false); onGoToTransactionSummary?.(); }}
-                            >
-                                Proceed to Transaction Summary
-                            </button>
+                            {(prefilledRequestData as any)?.amendedFromReference ? (
+                                <button
+                                    type="button"
+                                    className="rfe-modal-btn-confirm"
+                                    onClick={() => { setShowNextStepChoice(false); onGoToTransactionSummary?.(); }}
+                                >
+                                    Proceed to Transaction Summary
+                                </button>
+                            ) : (
+                                <>
+                                    <button
+                                        type="button"
+                                        className="rfe-modal-btn-cancel"
+                                        onClick={() => {
+                                            setShowNextStepChoice(false);
+                                            if (onAddAnotherAfterDiscard) {
+                                                onAddAnotherAfterDiscard({
+                                                    declarantName: formData.declarantName,
+                                                    requestedByName: formData.requestedByName,
+                                                    propertyLocation: formData.propertyLocation,
+                                                    purposeId: formData.purposeId,
+                                                    authRequired: formData.authRequired,
+                                                    actionTaken: formData.actionTaken,
+                                                });
+                                            } else {
+                                                onCancel();
+                                            }
+                                        }}
+                                    >
+                                        Add Another Document
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="rfe-modal-btn-confirm"
+                                        onClick={() => { setShowNextStepChoice(false); onGoToTransactionSummary?.(); }}
+                                    >
+                                        Proceed to Transaction Summary
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>

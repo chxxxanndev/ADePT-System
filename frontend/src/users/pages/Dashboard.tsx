@@ -562,7 +562,10 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     //     }
     // };
 
+    const isAmendEntry = !!completedEntryData?.amendedFromReference || !!(prefilledRequestData as any)?.amendedFromReference;
+
     const handleAddAnother = () => {
+        if (isAmendEntry) return;
         if (completedEntryData) {
             setPrefilledRequestData({
                 declarantName: completedEntryData.declarantName,
@@ -595,6 +598,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         authRequired?: boolean | null;
         actionTaken?: string;
     }) => {
+        if (isAmendEntry) return;
         setPrefilledRequestData(buildAddAnotherPrefill(base));
         setCompletedEntryData(null);
         setActiveView('new-request');

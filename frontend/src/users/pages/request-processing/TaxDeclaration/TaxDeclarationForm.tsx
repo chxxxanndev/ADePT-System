@@ -524,6 +524,8 @@ export function TaxDeclarationForm({
         );
     }
 
+    const isAmendMode = !!entryData.amendedFromReference;
+
     const handleSave = async (action: 'draft' | 'review' | 'add_another') => {
         if (!form.taxDeclarationNumber.trim()) return setSaveError('Assessment of Real Property No. is required.');
         document.getElementById('td-arp-no')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -585,7 +587,8 @@ const payload = {
             setSaved(true);
             setTimeout(() => {
                 if (action === 'review') onGoToSummary();
-                else if (action === 'add_another') onAddAnother();
+                else if (action === 'add_another' && !isAmendMode) onAddAnother();
+                else onGoToSummary();
             }, 1500);
         } catch (err: any) {
             setSaveError('Failed to save. Check database connection.');
@@ -958,15 +961,17 @@ const payload = {
                             </button>
                         </div>
                         <div className="td-footer-right">
-                            <button
-                                type="button"
-                                className="td-btn td-btn-add-another"
-                                onClick={() => handleSave('add_another')}
-                                disabled={saving}
-                                style={{ backgroundColor: '#10b981', color: 'white' }}
-                            >
-                                {saving ? <span className="td-spinner" /> : <PlusIcon size={14} />} Save & Add Another Doc
-                            </button>
+                            {!isAmendMode && (
+                                <button
+                                    type="button"
+                                    className="td-btn td-btn-add-another"
+                                    onClick={() => handleSave('add_another')}
+                                    disabled={saving}
+                                    style={{ backgroundColor: '#10b981', color: 'white' }}
+                                >
+                                    {saving ? <span className="td-spinner" /> : <PlusIcon size={14} />} Save & Add Another Doc
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 className="td-btn td-btn-submit"
@@ -1048,27 +1053,29 @@ const payload = {
                             in this transaction. Add another document, or go review and submit what's already saved.
                         </p>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowNextStepChoice(false);
-                                    if (onAddAnotherAfterDiscard) {
-                                        onAddAnotherAfterDiscard({
-                                            declarantName: entryData.declarantName,
-                                            requestedByName: entryData.requestedByName,
-                                            propertyLocation: entryData.propertyLocation,
-                                            purposeId: entryData.purposeId,
-                                            authRequired: entryData.authRequired,
-                                            actionTaken: entryData.actionTaken,
-                                        });
-                                    } else {
-                                        onDiscard();
-                                    }
-                                }}
-                                style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}
-                            >
-                                Add Another Document
-                            </button>
+                            {!isAmendMode && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowNextStepChoice(false);
+                                        if (onAddAnotherAfterDiscard) {
+                                            onAddAnotherAfterDiscard({
+                                                declarantName: entryData.declarantName,
+                                                requestedByName: entryData.requestedByName,
+                                                propertyLocation: entryData.propertyLocation,
+                                                purposeId: entryData.purposeId,
+                                                authRequired: entryData.authRequired,
+                                                actionTaken: entryData.actionTaken,
+                                            });
+                                        } else {
+                                            onDiscard();
+                                        }
+                                    }}
+                                    style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}
+                                >
+                                    Add Another Document
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => { setShowNextStepChoice(false); (onDiscardToSummary ?? onGoToSummary)(); }}

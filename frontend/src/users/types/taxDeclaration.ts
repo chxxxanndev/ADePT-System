@@ -111,6 +111,8 @@ export interface CompletedEntryData {
     actionTaken: string;
     authRequired: boolean;
     propertyLocation: string;
+    /** Present when this entry is an amendment of a voided document — edit-only, no adding another */
+    amendedFromReference?: string;
 }
 
 /** Default empty state for a new Tax Declaration form */
