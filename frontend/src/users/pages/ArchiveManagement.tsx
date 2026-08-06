@@ -1,5 +1,4 @@
 ﻿import { useMemo, useState, useEffect, useRef } from "react";
-import type { ReactElement } from "react";
 import {
   Search,
   ChevronDown,
@@ -14,18 +13,10 @@ import { requestService } from "../services/requestService";
 import { fetchTransactionRegistry } from "../services/transactionService";
 import { ExpandableText } from "../components/common/ExpandableText";
 import { SkeletonBox } from "../components/common/Skeleton";
-import { getDocumentTypeFromReference } from "../../utils/documentType";
+import { getDocumentTypeFromReference, getDocPillMeta } from "../../utils/documentType";
 import { RestoreConfirmModal } from "../components/RestoreConfirmModal";
 import type { Transaction, RequestedDocumentItem } from "../types/transaction";
 import "../styles/ArchiveManagement.css";
-
-/* ------------------------------------------------------------------ */
-/*  Reference-number icons — same SVG shapes as TransactionRegistry's  */
-/*  TransactionRow.tsx so reference pills read identically.            */
-/* ------------------------------------------------------------------ */
-const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="21" x2="21" y2="21"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 3 21 9 3 9"></polygon></svg>;
-const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
-const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>;
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -51,18 +42,6 @@ interface ArchivedRecord {
 
 type DocTypeFilter = "All types" | DocumentType;
 type ReasonFilter = "All reasons" | ArchiveReason;
-
-const DOC_TYPE_CLASS: Record<DocumentType, string> = {
-  "Tax Declaration": "arc-doc-pill--td",
-  "No Land Holding": "arc-doc-pill--nlh",
-  Landholding: "arc-doc-pill--lh",
-};
-
-const DOC_TYPE_ICON: Record<DocumentType, () => ReactElement> = {
-  "Tax Declaration": TaxDeclarationIcon,
-  "No Land Holding": NoLandholdingIcon,
-  Landholding: LandholdingIcon,
-};
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
@@ -94,14 +73,14 @@ function resolveArchiveDocName(docs: RequestedDocumentItem[], referenceNumber: s
 }
 
 function DocTypeTag({ type }: { type: DocumentType }) {
-  return <span className={`arc-doc-pill ${DOC_TYPE_CLASS[type]}`}>{type}</span>;
+  return <span className="arc-doc-type">{type}</span>;
 }
 
 function ReferenceBadge({ reference, type }: { reference: string; type: DocumentType }) {
-  const Icon = DOC_TYPE_ICON[type];
+  const meta = getDocPillMeta(type);
   return (
-    <span className={`arc-ref-pill ${DOC_TYPE_CLASS[type]}`}>
-      <Icon />
+    <span className={`tr-doc-pill ${meta.className}`} title={reference}>
+      <meta.Icon />
       {reference}
     </span>
   );
