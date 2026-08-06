@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontFamily: 'Castellar', textAlign: 'center' },
 
   // Field Rows
-  fieldRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  fieldRow: { flexDirection: 'row', alignItems: 'flex-end'},
   label10: { fontSize: 11 },
   underlineData: { 
     flex: 1, 
@@ -97,6 +97,26 @@ const styles = StyleSheet.create({
 });
 
 const peso = (n: any) => (n ? Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '');
+
+const formatArea = (n: any) => {
+  if (!n && n !== 0) return '';
+  // Accept a bare number OR a display string like "123,456.78 sqm.".
+  // Split the numeric part from any unit suffix first, reformat the number
+  // with thousand separators, then re-append the suffix ("sqm." / "has.").
+  const str = String(n).trim();
+  const unitMatch = str.match(/^([\d.,]+)\s*(.*)$/);
+  const numPart = unitMatch ? unitMatch[1] : str;
+  const suffix = unitMatch ? unitMatch[2].trim() : '';
+  const cleaned = numPart.replace(/,/g, '');
+  const num = Number(cleaned);
+  if (isNaN(num)) return str; // non-numeric fallback, leave untouched
+  const decimalPlaces = cleaned.includes('.') ? cleaned.split('.')[1].length : 0;
+  const formatted = num.toLocaleString(undefined, {
+    minimumFractionDigits: decimalPlaces,
+    maximumFractionDigits: decimalPlaces,
+  });
+  return suffix ? `${formatted} ${suffix}` : formatted;
+};
 
 // ---------------------------------------------------------------------------
 // Tax Declaration layout adjustments (released from DocumentReleasePanel).
@@ -304,7 +324,7 @@ export const TaxDeclarationPDF = ({
               
               {/* Left: Owner */}
               <View style={{ width: '55%', flexDirection: 'row', alignItems: 'flex-end' }}>
-                <Text style={{ fontSize: 10 }}>Owner: </Text>
+                <Text style={{ fontSize: 11 }}>Owner: </Text>
                 <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 14 }}>
                   <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: ownerNameSize, textAlign: 'center' }} hyphenationCallback={(word) => [word]}>
                     {data.ownerName || ''}
@@ -329,7 +349,7 @@ export const TaxDeclarationPDF = ({
               
               {/* Left: Administrator */}
               <View style={{ width: '55%', flexDirection: 'row', alignItems: 'flex-end' }}>
-                <Text style={{ fontSize: 10 }}>Administrator: </Text>
+                <Text style={{ fontSize: 11 }}>Administrator: </Text>
                 <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 14 }}>
                   <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: adminNameSize, textAlign: 'center' }} hyphenationCallback={(word) => [word]}>
                     {data.administratorName || data.administrator_name || ''}
@@ -339,7 +359,7 @@ export const TaxDeclarationPDF = ({
 
               {/* Right: Admin Address */}
               <View style={{ width: '44%', flexDirection: 'row', alignItems: 'flex-end' }}>
-                <Text style={{ fontSize: 10 }}>Address: </Text>
+                <Text style={{ fontSize: 11 }}>Address: </Text>
                 <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', minHeight: 14 }}>
                   <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: adminAddressSize, textAlign: 'left' }} hyphenationCallback={(word) => [word]}>
                     {data.administratorAddress || data.administrator_address || ''}
@@ -531,17 +551,17 @@ export const TaxDeclarationPDF = ({
           <View style={{ flexDirection: 'row', marginTop: 4, justifyContent: 'flex-start', paddingLeft: 2 }}>
             <View style={{ width: '16%' }} />
             <View style={{ width: '18%', marginLeft: '1%', flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 9.5, fontFamily: 'Times-Bold', marginRight: 4 }}>TOTAL</Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Times-Bold', marginRight: 4 }}>TOTAL</Text>
             </View>
             <View style={{ width: '20%', marginLeft: '4%', borderBottomWidth: 1, borderBottomColor: '#000', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 }}>
-              <Text style={{ fontFamily: 'Times-Roman', fontSize: 10 }}>P</Text>
+              <Text style={{ fontFamily: 'Times-Roman', fontSize: 11 }}>P</Text>
               <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10 }}>{peso(totalMarketValue)}</Text>
             </View>
             <View style={{ width: '12%', marginLeft: '4%', flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-end' }}>
               <Text style={{ fontSize: 9.5, fontFamily: 'Times-Bold', marginRight: 4 }}>TOTAL</Text>
             </View>
             <View style={{ width: '20%', marginLeft: '4%', borderBottomWidth: 1, borderBottomColor: '#000', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 }}>
-              <Text style={{ fontFamily: 'Times-Roman', fontSize: 10 }}>P</Text>
+              <Text style={{ fontFamily: 'Times-Roman', fontSize: 11 }}>P</Text>
               <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10 }}>{peso(totalAssessedValue)}</Text>
             </View>
           </View>
@@ -561,7 +581,7 @@ export const TaxDeclarationPDF = ({
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', width: '25%' }}>
               <Text style={{ fontSize: 11 }}>Area: </Text>
               <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: '#000', textAlign: 'center', height: 14, overflow: 'hidden' }}>
-                <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 11 }}>{data.area}</Text>
+                <Text style={{ fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 11 }}>{formatArea(data.area)}</Text>
               </View>
             </View>
 
@@ -575,8 +595,12 @@ export const TaxDeclarationPDF = ({
 
           {/* TAXABLE / EXEMPT (No gap) */}
           <View style={styles.fieldRow}>
-            <Text style={{ fontSize: 11, marginRight: 20 }}>Taxable [ {data.taxable ? 'X' : ' '} ]</Text>
-            <Text style={{ fontSize: 11 }}>Exempt [ {!data.taxable ? 'X' : ' '} ]</Text>
+            <Text style={{ fontSize: 11, marginRight: 20 }}>
+                Taxable [ <Text style={{ fontFamily: 'Times-Bold' }}>{data.taxable ? 'X' : ' '}</Text> ]
+            </Text>
+            <Text style={{ fontSize: 11 }}>
+                Exempt [ <Text style={{ fontFamily: 'Times-Bold' }}>{!data.taxable ? 'X' : ' '}</Text> ]
+            </Text>
           </View>
 
           {/* [1 space (font size 8)] */}

@@ -69,7 +69,14 @@ export const taxDeclarationService = {
                 classificationLabel: (row as any).classificationLabel || null,
                 actualUseId: row.actualUseId || null,
                 actualUseOtherText: row.actualUseOtherText || null,
-                area: row.area || null,
+                // FIX: strip thousand separators so a value typed as
+                // "123,456.78" reaches the backend as plain "123456.78".
+                // The DB column is numeric(14,4) — a comma-formatted string
+                // would be rejected by Postgres, and without this the modal
+                // path could also upload an unparseable area.
+                area: row.area != null && String(row.area).trim() !== ''
+                    ? String(row.area).replace(/,/g, '')
+                    : null,
                 areaUnit: row.areaUnit,
                 marketValue: row.marketValue ? Number(row.marketValue) : null,
                 assessmentLevel: row.assessmentLevel ? Number(row.assessmentLevel) : null,
@@ -188,7 +195,7 @@ export const taxDeclarationService = {
             });
 
             const totalArea = assessmentRows.reduce(
-                (sum: number, r: any) => sum + (parseFloat(r.area) || 0),
+                (sum: number, r: any) => sum + (parseFloat(String(r.area || '').replace(/,/g, '')) || 0),
                 0
             );
 
@@ -200,7 +207,30 @@ export const taxDeclarationService = {
                 ),
             ];
 
-            const areaUnitSuffix = distinctUnits[0] || '';
+            // Current — causes the error
+const areaUnitSuffix = (distinctUnits[0] as string) || '';
+const displayUnitSuffix = /sq/i.test(areaUnitSuffix) ? 'sqm.' : areaUnitSuffix ? 'has.' : '';
+
+            // FIX: format totalArea with comma separators before building
+            // the area string. Previously `totalArea` was a raw float
+            // (e.g. 1223467), so data.area arrived in the PDF as
+            // "1223467 sqm." with no formatting. toLocaleString with
+            // maximumFractionDigits:10 preserves decimal places for
+            // hectare values (e.g. 1.5) while adding commas for large
+            // whole numbers (e.g. 1,223,467).
+            //
+            // FIX: sqm always renders with AT LEAST two decimals. The DB
+            // stores area in a numeric(14,4) column, so a trailing zero typed
+            // on the form ("1,756.50") is normalized to 1756.5 and read back
+            // as a plain number — without a minimum it printed "1,756.5" on
+            // the CTC instead of the "1,756.50" from the physical record.
+            // Hectares keep as-typed formatting (1.5 stays 1.5).
+            const formattedArea = totalArea > 0
+                ? totalArea.toLocaleString(undefined, {
+                      minimumFractionDigits: /sq/i.test(areaUnitSuffix) ? 2 : 0,
+                      maximumFractionDigits: 10,
+                  })
+                : '';
 
             return {
                 id: dbData.id,
@@ -235,7 +265,9 @@ export const taxDeclarationService = {
                 assessorName: dbData.assessor_name,
                 assessorTitle: dbData.assessor_title,
                 memoranda: dbData.memoranda,
-                area: totalArea > 0 ? `${totalArea}${areaUnitSuffix ? ' ' + areaUnitSuffix : ''}` : '',
+                area: formattedArea
+                    ? `${formattedArea}${displayUnitSuffix ? ' ' + displayUnitSuffix : ''}`
+                    : '',
                 // Kept for any other callers relying on the old key name.
                 assessmentRows,
                 // FIX: added — this is the key the modal's preview/edit
