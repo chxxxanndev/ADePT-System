@@ -1125,18 +1125,25 @@ class RequestService {
     async getDashboardMetrics(from, to) {
         let requestsQuery = supabase
             .from('requests')
-            .select('id, status, request_date, created_at, declarant_name, reference_number, property_location, encoded_by, staff:encoded_by(first_name, last_name)')
+            .select('id, status, request_date, created_at, updated_at, declarant_name, reference_number, property_location, encoded_by, released_by, void_reason, amended_from_id, staff:encoded_by(first_name, last_name)')
             .order('created_at', { ascending: false });
         if (from) requestsQuery = requestsQuery.gte('request_date', from);
         if (to) requestsQuery = requestsQuery.lte('request_date', to);
 
-        const [{ data: requests }, { data: docLinks }, { data: docTypes }] = await Promise.all([
+        const [{ data: requests }, { data: docLinks }, { data: docTypes }, { data: staffRows }] = await Promise.all([
             requestsQuery,
             supabase.from('request_documents').select('request_id, document_type_id, document_types(name, prefix)'),
             supabase.from('document_types').select('id, name, prefix'),
+            supabase.from('staff').select('id, first_name, last_name'),
         ]);
 
         const allReqs = requests || [];
+        const staffById = new Map((staffRows || []).map((s) => [s.id, `${s.first_name} ${s.last_name}`]));
+        const resolveReleasedBy = (r) => {
+            const raw = r.released_by;
+            if (!raw) return 'Not Released';
+            return staffById.get(raw) || raw;
+        };
 
         // Transaction Summary Counts
         const totalCount = allReqs.length;
@@ -1219,6 +1226,16 @@ class RequestService {
             CANCELLED: 'Cancelled',
         };
 
+        const amendedOriginalIds = new Set(
+            allReqs
+                .filter((r) =>
+                    r.amended_from_id &&
+                    r.status !== 'DRAFT' &&
+                    !['CANCELLED'].includes(r.status)
+                )
+                .map((r) => r.amended_from_id)
+        );
+
         const requestQueue = allReqs.map((r) => {
             const relDocs = (docLinks || []).filter(d => d.request_id === r.id).map(d => d.document_types?.name).filter(Boolean);
             const staffName = r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : 'Unassigned';
@@ -1227,9 +1244,22 @@ class RequestService {
                 referenceNo: r.reference_number || `REF-${r.id.slice(0, 6).toUpperCase()}`,
                 clientName: r.declarant_name || 'Anonymous Declarant',
                 documentType: relDocs.join(', ') || 'No-Landholding Certificate',
-                date: r.request_date ? new Date(r.request_date).toLocaleDateString() : new Date(r.created_at).toLocaleDateString(),
+                date: r.created_at
+                    ? new Date(r.created_at).toLocaleString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric',
+                        hour: 'numeric', minute: '2-digit', hour12: true,
+                    })
+                    : r.request_date
+                        ? new Date(r.request_date).toLocaleDateString()
+                        : '',
                 assignedStaff: staffName,
+                releasedStaff: r.status === 'RELEASED' ? resolveReleasedBy(r) : 'Not Released',
                 status: STATUS_MAP[r.status] || 'Pending',
+                voidReason: (r.status === 'VOID' || r.status === 'VOIDED') ? (r.void_reason || '') : undefined,
+                voidedAt: (r.status === 'VOID' || r.status === 'VOIDED') ? (r.updated_at || null) : undefined,
+                cancelledAt: r.status === 'CANCELLED' ? (r.updated_at || null) : undefined,
+                hasBeenAmended: amendedOriginalIds.has(r.id),
+                amendedFromId: r.amended_from_id || null,
             };
         });
 
@@ -1253,14 +1283,28 @@ class RequestService {
 
     /**
      * Aggregates reports and analytics dataset directly from Supabase.
+     * Optional `from`/`to` (YYYY-MM-DD) restrict rows to a request-date range.
      */
-    async getReportsData() {
+    async getReportsData(from, to) {
+        let requestsQuery = supabase
+            .from('requests')
+            .select('*, staff:encoded_by(first_name, last_name), releaser:released_by(first_name, last_name)')
+            .order('created_at', { ascending: false });
+        if (from) requestsQuery = requestsQuery.gte('request_date', from);
+        if (to) requestsQuery = requestsQuery.lte('request_date', to);
+
         const [{ data: requests }, { data: docLinks }] = await Promise.all([
-            supabase.from('requests').select('*, staff:encoded_by(first_name, last_name)').order('created_at', { ascending: false }),
+            requestsQuery,
             supabase.from('request_documents').select('request_id, document_types(name)'),
         ]);
 
         const allReqs = requests || [];
+
+        // ── helper maps ──
+        const docCountByRequest = new Map();
+        (docLinks || []).forEach((d) => {
+            docCountByRequest.set(d.request_id, (docCountByRequest.get(d.request_id) || 0) + 1);
+        });
 
         const totalDocuments = allReqs.length;
         const totalReleased = allReqs.filter(r => r.status === 'RELEASED').length;
@@ -1270,6 +1314,88 @@ class RequestService {
         const originalCount = allReqs.filter(r => r.request_type === 'ORIGINAL').length;
         const reprintCount = allReqs.filter(r => r.request_type === 'REPRINT').length;
         const amendedCount = allReqs.filter(r => !!r.amended_from_id).length;
+
+        // ── revenue ──
+        const FEE_PER_DOC = 40;
+        let totalFees = 0;
+        let totalCollected = 0;
+        let totalOutstanding = 0;
+        const monthlyRevenue = {};
+        allReqs.forEach((r) => {
+            const docCount = docCountByRequest.get(r.id) || 0;
+            const amountDue = docCount * FEE_PER_DOC;
+            const paid = r.or_number ? amountDue : 0;
+            totalFees += amountDue;
+            totalCollected += paid;
+            totalOutstanding += amountDue - paid;
+            if (r.payment_date) {
+                const d = new Date(r.payment_date);
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                monthlyRevenue[key] = (monthlyRevenue[key] || 0) + paid;
+            }
+        });
+        const monthlyRevenueArr = [];
+        for (let m = 0; m < 12; m++) {
+            const d = new Date(new Date().getFullYear(), new Date().getMonth() - 11 + m, 1);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            monthlyRevenueArr.push({
+                month: d.toLocaleDateString('en-US', { month: 'short' }),
+                revenue: monthlyRevenue[key] || 0,
+            });
+        }
+
+        // ── void reason breakdown ──
+        const voidReasonCounts = {};
+        allReqs.forEach((r) => {
+            if (r.status !== 'VOID' && r.status !== 'VOIDED' && r.status !== 'CANCELLED') return;
+            const reason = (r.void_reason || '').trim();
+            const key = reason
+                ? (reason.length > 48 ? `${reason.slice(0, 48)}\u2026` : reason)
+                : (r.status === 'CANCELLED' ? 'Cancelled from pending payment' : 'No reason provided');
+            voidReasonCounts[key] = (voidReasonCounts[key] || 0) + 1;
+        });
+        const voidReasonBreakdown = Object.entries(voidReasonCounts)
+            .map(([reason, count]) => ({ reason, count }))
+            .sort((a, b) => b.count - a.count);
+
+        // ── activity buckets (by hour of day / day of week, from created_at) ──
+        const hourly = Array(24).fill(0);
+        const byDay = Array(7).fill(0);
+        allReqs.forEach((r) => {
+            const d = new Date(r.created_at);
+            if (Number.isNaN(d.getTime())) return;
+            hourly[d.getHours()] += 1;
+            byDay[d.getDay()] += 1;
+        });
+
+        // ── staff performance ──
+        const staffStats = {};
+        allReqs.forEach((r) => {
+            const encoder = r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : null;
+            if (encoder) {
+                if (!staffStats[encoder]) {
+                    staffStats[encoder] = { released: 0, reprints: 0, voided: 0, turnaroundMs: 0, releaseCount: 0 };
+                }
+                if (r.status === 'RELEASED') {
+                    staffStats[encoder].released += 1;
+                    if (r.released_at && r.created_at) {
+                        staffStats[encoder].turnaroundMs += new Date(r.released_at).getTime() - new Date(r.created_at).getTime();
+                        staffStats[encoder].releaseCount += 1;
+                    }
+                }
+                if (r.request_type === 'REPRINT') staffStats[encoder].reprints += 1;
+                if (r.status === 'VOID' || r.status === 'VOIDED' || r.status === 'CANCELLED') staffStats[encoder].voided += 1;
+            }
+        });
+        const staffPerformance = Object.entries(staffStats)
+            .map(([staff, s]) => ({
+                staff,
+                released: s.released,
+                reprints: s.reprints,
+                voided: s.voided,
+                avgTurnaroundDays: s.releaseCount > 0 ? Math.round((s.turnaroundMs / s.releaseCount) / (1000 * 60 * 60 * 24) * 10) / 10 : null,
+            }))
+            .sort((a, b) => b.released - a.released);
 
         const STATUS_LABEL_MAP = {
             DRAFT: 'Pending',
@@ -1282,10 +1408,24 @@ class RequestService {
             CANCELLED: 'Cancelled',
         };
 
+        // Best-available proxy for "when did the request enter its current
+        // status": released_at for released, pending_payment_at for the
+        // payment step, otherwise updated_at. There is no dedicated
+        // status-changed column in the schema.
+        const statusAtFor = (r) => {
+            if (r.status === 'RELEASED' && r.released_at) return r.released_at;
+            if (r.status === 'PENDING_PAYMENT' && r.pending_payment_at) return r.pending_payment_at;
+            return r.updated_at || r.created_at || null;
+        };
+
         const rows = allReqs.map(r => {
             const relDocs = (docLinks || []).filter(d => d.request_id === r.id).map(d => d.document_types?.name).filter(Boolean);
             const docName = relDocs.join(', ') || 'No-Landholding Certificate';
             const staffName = r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : 'Office Staff';
+            const releasedName = r.releaser ? `${r.releaser.first_name} ${r.releaser.last_name}` : null;
+            const docCount = docCountByRequest.get(r.id) || 0;
+            const amountDue = docCount * FEE_PER_DOC;
+            const amountPaid = r.or_number ? amountDue : 0;
             return {
                 id: r.id,
                 referenceNo: r.reference_number || `REF-${r.id.slice(0, 6).toUpperCase()}`,
@@ -1298,6 +1438,15 @@ class RequestService {
                 orNumber: r.or_number || 'N/A',
                 requestType: r.request_type || 'ORIGINAL',
                 amendedFromId: r.amended_from_id || null,
+                statusAt: statusAtFor(r),
+                createdAt: r.created_at || null,
+                docCount,
+                amountDue,
+                amountPaid,
+                paymentDate: r.payment_date || null,
+                voidReason: r.void_reason || '',
+                faultType: r.fault_type || '',
+                releasedBy: releasedName || null,
             };
         });
 
@@ -1309,6 +1458,10 @@ class RequestService {
             originalCount,
             reprintCount,
             amendedCount,
+            revenue: { totalFees, totalCollected, totalOutstanding, monthlyRevenue: monthlyRevenueArr },
+            voidReasonBreakdown,
+            activityBuckets: { hourly, byDay },
+            staffPerformance,
             rows,
         };
     }

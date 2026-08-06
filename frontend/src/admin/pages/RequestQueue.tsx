@@ -4,7 +4,7 @@ import { SearchIcon } from '../components/icons';
 import { RefreshIcon } from '../../users/components/icons';
 import type { User } from '../../auth-folder/types/auth';
 // 1. Updated Imports: Removed authHeaders, Added api
-import { api } from '../../users/services/requestService';
+import { api, requestService } from '../../users/services/requestService';
 
 // 2. Removed hardcoded API_BASE
 
@@ -16,12 +16,18 @@ interface DocumentRequest {
     clientName: string;
     documentType: string;
     assignedStaff: string;
+    releasedStaff: string;
     status: RequestStatus;
     date: string;
     isReprint: boolean;
+    voidReason?: string;
+    voidedAt?: string | null;
+    cancelledAt?: string | null;
+    hasBeenAmended?: boolean;
+    amendedFromId?: string | null;
 }
 
-type TabKey = 'all' | 'pending' | 'processing' | 'released' | 'void';
+type TabKey = 'all' | 'pending' | 'processing' | 'released' | 'void' | 'amend';
 
 interface RequestQueueProps {
     user: User;
@@ -33,6 +39,7 @@ const STATUS_TAB_MAP: Record<TabKey, RequestStatus[]> = {
     processing: ['Processing'],
     released: ['Released'],
     void: ['Void', 'Cancelled'],
+    amend: [],
 };
 
 function statusPillClass(status: RequestStatus): string {
@@ -55,6 +62,35 @@ export function RequestQueue({ user }: RequestQueueProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
+    const [selectedRequest, setSelectedRequest] = useState<DocumentRequest | null>(null);
+    const [amending, setAmending] = useState(false);
+    const [amendError, setAmendError] = useState<string | null>(null);
+    const [amendResult, setAmendResult] = useState<string | null>(null);
+
+    const openReasonPopup = (req: DocumentRequest) => {
+        setAmendError(null);
+        setAmendResult(null);
+        setSelectedRequest(req);
+    };
+
+    const closeReasonPopup = () => setSelectedRequest(null);
+
+    const handleAmend = async () => {
+        if (!selectedRequest || selectedRequest.hasBeenAmended || amending) return;
+        setAmending(true);
+        setAmendError(null);
+        try {
+            const result = await requestService.amendRequest(selectedRequest.id);
+            setAmendResult(result?.request?.reference_number || selectedRequest.referenceNo);
+            void fetchRequests(true);
+        } catch (err: any) {
+            setAmendError(
+                err?.response?.data?.error || err?.message || 'Failed to amend the request.'
+            );
+        } finally {
+            setAmending(false);
+        }
+    };
 
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin';
     const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` || 'A';
@@ -82,9 +118,15 @@ export function RequestQueue({ user }: RequestQueueProps) {
                 clientName: r.clientName || r.declarant_name || 'Anonymous Declarant',
                 documentType: r.documentType || 'N/A',
                 assignedStaff: r.assignedStaff || 'Unassigned',
+                releasedStaff: r.releasedStaff || 'Not Released',
                 status: (r.status || 'Pending') as RequestStatus,
                 date: r.date || '',
                 isReprint: !!r.isReprint,
+                voidReason: r.voidReason || undefined,
+                voidedAt: r.voidedAt ?? null,
+                cancelledAt: r.cancelledAt ?? null,
+                hasBeenAmended: !!r.hasBeenAmended,
+                amendedFromId: r.amendedFromId ?? null,
             }));
             setRequests(queue);
         } catch (err: any) {
@@ -105,6 +147,7 @@ export function RequestQueue({ user }: RequestQueueProps) {
     // Count helpers
     const countForTab = (tab: TabKey) => {
         if (tab === 'all') return requests.length;
+        if (tab === 'amend') return requests.filter(r => r.amendedFromId).length;
         return requests.filter(r => STATUS_TAB_MAP[tab].includes(r.status)).length;
     };
 
@@ -114,18 +157,22 @@ export function RequestQueue({ user }: RequestQueueProps) {
         { key: 'processing', label: 'Processing' },
         { key: 'released', label: 'Released' },
         { key: 'void', label: 'Void / Cancelled' },
+        { key: 'amend', label: 'Amend' },
     ];
 
     const filteredRequests = requests.filter((req) => {
         const matchesTab =
             activeTab === 'all' ||
-            STATUS_TAB_MAP[activeTab].includes(req.status);
+            (activeTab === 'amend'
+                ? !!req.amendedFromId
+                : STATUS_TAB_MAP[activeTab].includes(req.status));
         const query = searchQuery.toLowerCase();
         const matchesSearch =
             req.referenceNo.toLowerCase().includes(query) ||
             req.clientName.toLowerCase().includes(query) ||
             req.documentType.toLowerCase().includes(query) ||
-            req.assignedStaff.toLowerCase().includes(query);
+            req.assignedStaff.toLowerCase().includes(query) ||
+            req.releasedStaff.toLowerCase().includes(query);
         return matchesTab && matchesSearch;
     });
 
@@ -141,8 +188,8 @@ export function RequestQueue({ user }: RequestQueueProps) {
             <div className="rq-page-header">
                 <div className="rq-page-header-row">
                     <div>
-                        <h1 className="rq-page-title">Request Queue</h1>
-                        <p className="rq-page-subtitle">Track citizen document requests from submission to release.</p>
+                        <h1 className="rq-page-title">Transaction Queue</h1>
+                        <p className="rq-page-subtitle">Track the complete lifecycle of citizen document transactions — from request and processing through release, void or cancellation, and amendments.</p>
                     </div>
 
                     <div className="admin-profile-widget audit-user-chip">
@@ -226,7 +273,7 @@ export function RequestQueue({ user }: RequestQueueProps) {
                                     <th>Reference No.</th>
                                     <th>Declarant</th>
                                     <th>Document Type</th>
-                                    <th>Assigned Staff</th>
+                                    <th>Released Staff</th>
                                     <th>Status</th>
                                     <th>Date</th>
                                 </tr>
@@ -237,14 +284,26 @@ export function RequestQueue({ user }: RequestQueueProps) {
                                         <td className="rq-control-no">{req.referenceNo}</td>
                                         <td><strong>{req.clientName}</strong></td>
                                         <td className="rq-document-cell">{req.documentType}</td>
-                                        <td>{req.assignedStaff}</td>
+                                        <td>{req.releasedStaff}</td>
                                         <td>
-                                            <span className={`status-indicator ${statusPillClass(req.status)}`}>
-                                                <span className="status-dot" />
-                                                {req.status}
-                                            </span>
+                                            {req.status === 'Void' || req.status === 'Cancelled' ? (
+                                                <button
+                                                    type="button"
+                                                    className={`status-indicator rq-status-link ${statusPillClass(req.status)}`}
+                                                    onClick={() => openReasonPopup(req)}
+                                                    title={`View reason for ${req.status}`}
+                                                >
+                                                    <span className="status-dot" />
+                                                    {req.status}
+                                                </button>
+                                            ) : (
+                                                <span className={`status-indicator ${statusPillClass(req.status)}`}>
+                                                    <span className="status-dot" />
+                                                    {req.status}
+                                                </span>
+                                            )}
                                         </td>
-                                        <td>{req.date}</td>
+                                        <td className="rq-date-cell">{req.date}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -316,6 +375,115 @@ export function RequestQueue({ user }: RequestQueueProps) {
                     </div>
                 )}
             </div>
+
+            {selectedRequest && (
+                <div className="rq-modal-overlay" onClick={() => setSelectedRequest(null)}>
+                    <div
+                        className="rq-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={`${selectedRequest.status} reason`}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="rq-modal-header">
+                            <div>
+                                <h2 className="rq-modal-title">
+                                    {selectedRequest.status === 'Void' ? 'Voided Request' : 'Cancelled Request'}
+                                </h2>
+                                <p className="rq-modal-subtitle">
+                                    {selectedRequest.referenceNo} · {selectedRequest.clientName}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                className="rq-modal-close"
+                                onClick={closeReasonPopup}
+                                aria-label="Close"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div className="rq-modal-section">
+                            <p className="rq-modal-label">Reason</p>
+                            <p className="rq-modal-reason">
+                                {selectedRequest.voidReason || (
+                                    selectedRequest.status === 'Cancelled'
+                                        ? 'Cancelled from pending payment.'
+                                        : 'No reason provided.'
+                                )}
+                            </p>
+                        </div>
+
+                        <div className="rq-modal-fields">
+                            <div className="rq-modal-field">
+                                <p className="rq-modal-label">Status</p>
+                                <p className="rq-modal-value">
+                                    <span className={`status-indicator ${statusPillClass(selectedRequest.status)}`}>
+                                        <span className="status-dot" />
+                                        {selectedRequest.status}
+                                    </span>
+                                </p>
+                            </div>
+                            <div className="rq-modal-field">
+                                <p className="rq-modal-label">Document Type</p>
+                                <p className="rq-modal-value">{selectedRequest.documentType}</p>
+                            </div>
+                            <div className="rq-modal-field">
+                                <p className="rq-modal-label">Assigned Staff</p>
+                                <p className="rq-modal-value">{selectedRequest.assignedStaff}</p>
+                            </div>
+                            <div className="rq-modal-field">
+                                <p className="rq-modal-label">Released Staff</p>
+                                <p className="rq-modal-value">{selectedRequest.releasedStaff}</p>
+                            </div>
+                            {(selectedRequest.voidedAt || selectedRequest.cancelledAt) && (
+                                <div className="rq-modal-field">
+                                    <p className="rq-modal-label">Date {selectedRequest.status === 'Void' ? 'Voided' : 'Cancelled'}</p>
+                                    <p className="rq-modal-value">
+                                        {new Date(selectedRequest.voidedAt || selectedRequest.cancelledAt || '').toLocaleDateString('en-US', {
+                                            month: 'short', day: 'numeric', year: 'numeric',
+                                        })}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {selectedRequest.status === 'Void' || selectedRequest.status === 'Cancelled' ? (
+                            <div className="rq-modal-actions">
+                                {amendResult ? (
+                                    <div className="rq-modal-success">
+                                        Amended as <strong>{amendResult}</strong> — a new draft request was created. Review and complete it to re-release the document.
+                                    </div>
+                                ) : (
+                                    <>
+                                        {amendError && <div className="rq-modal-error">{amendError}</div>}
+                                        <button
+                                            type="button"
+                                            className="rq-modal-amend"
+                                            onClick={handleAmend}
+                                            disabled={amending || selectedRequest.hasBeenAmended}
+                                        >
+                                            {amending
+                                                ? 'Amending…'
+                                                : selectedRequest.hasBeenAmended
+                                                    ? 'Already Amended'
+                                                    : 'Amend Request'}
+                                        </button>
+                                    </>
+                                )}
+                                <button type="button" className="rq-modal-done" onClick={closeReasonPopup}>
+                                    Done
+                                </button>
+                            </div>
+                        ) : (
+                            <button type="button" className="rq-modal-done" onClick={closeReasonPopup}>
+                                Done
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

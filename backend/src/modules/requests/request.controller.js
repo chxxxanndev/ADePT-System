@@ -178,7 +178,8 @@ export const getDashboardMetrics = async (req, res) => {
 
 export const getReportsData = async (req, res) => {
     try {
-        const reportsData = await RequestService.getReportsData();
+        const { from, to } = req.query;
+        const reportsData = await RequestService.getReportsData(from, to);
         res.status(200).json(reportsData);
     } catch (error) {
         res.status(500).json({ error: error.message });

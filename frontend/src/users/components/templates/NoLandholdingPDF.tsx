@@ -403,7 +403,7 @@ export const CertOfNoLandholdingPDF = (props: CertOfNoLandholdingPDFProps) => {
                     style={styles.pageNumber}
                     fixed
                     render={({ pageNumber, totalPages }) =>
-                        totalPages > 1 ? `Page ${pageNumber} of ${totalPages}` : ''
+                        `Page ${pageNumber} of ${totalPages}`
                     }
                 />
             </Page>

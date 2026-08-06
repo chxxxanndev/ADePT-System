@@ -197,9 +197,12 @@ export async function fetchRecentTransactions(limit = 5, from?: string, to?: str
 }
 
 /**
- * Fetches real-time reports & analytics (URL standardized)
+ * Fetches real-time reports & analytics (URL standardized).
+ * Optional from/to (YYYY-MM-DD) restrict row counts to a request-date range.
  */
-export async function fetchReportsAnalytics() {
-    const res = await api.get('/requests/reports-data');
+export async function fetchReportsAnalytics(from?: string, to?: string) {
+    const res = await api.get('/requests/reports-data', {
+        params: { from, to },
+    });
     return res.data;
 }

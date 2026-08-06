@@ -133,8 +133,8 @@ export function AdminRequestQueue({ user }: AdminRequestQueueProps) {
         <div className="request-queue-page">
             <div className="rq-header-row">
                 <div className="rq-header-title-group">
-                    <h1 className="rq-page-title">Request queue</h1>
-                    <p className="rq-page-subtitle">Track citizen document requests from submission to release.</p>
+                    <h1 className="rq-page-title">Transaction Queue</h1>
+                    <p className="rq-page-subtitle">Track the complete lifecycle of citizen document transactions — from request and processing through release, void or cancellation, and amendments.</p>
                 </div>
 
                 <div className="rq-header-actions">

@@ -155,7 +155,7 @@
 .ar-chart-description {
     font-size: 13.5px;
     color: var(--admin-text-muted);
-    margin: -12px 0 16px;
+    margin: 4px 0 16px;
 }
 
 .ar-chart-canvas {
@@ -602,4 +602,159 @@
 .calendar-apply-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* ===== Header actions (Export CSV / Print) ===== */
+.ar-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ar-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    border: 1px solid #E2E4EC;
+    border-radius: 10px;
+    background: #FFFFFF;
+    color: #3D2E7C;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.ar-export-btn:hover {
+    background: #F1EEFB;
+    border-color: #C9C0EC;
+}
+
+/* ===== Stat card deltas ===== */
+.ar-stat-delta-row {
+    margin-top: 8px;
+    min-height: 16px;
+}
+
+.ar-stat-delta {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.ar-stat-delta.good {
+    background: #E7F8EE;
+    color: #1E9E5A;
+}
+
+.ar-stat-delta.bad {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.ar-stat-card--revenue .ar-stat-value {
+    color: #252175;
+}
+
+/* ===== Void / cancel reasons ===== */
+.ar-void-reasons {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 8px 0 4px;
+}
+
+.ar-void-reason-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ar-void-reason-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.ar-void-reason-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1F2333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 75%;
+}
+
+.ar-void-reason-count {
+    font-size: 13px;
+    font-weight: 800;
+    color: #C62828;
+}
+
+.ar-void-reason-bar-track {
+    height: 8px;
+    border-radius: 999px;
+    background: #F1F0F7;
+    overflow: hidden;
+}
+
+.ar-void-reason-bar {
+    height: 100%;
+    border-radius: 999px;
+    background: #DC2626;
+    transition: width 0.25s ease;
+}
+
+/* ===== Day-of-week bars ===== */
+.ar-day-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    margin-top: 8px;
+    height: 120px;
+}
+
+.ar-day-bar-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    height: 100%;
+}
+
+.ar-day-bar-count {
+    font-size: 12px;
+    font-weight: 800;
+    color: #1F2333;
+}
+
+.ar-day-bar-track {
+    flex: 1;
+    width: 100%;
+    max-width: 24px;
+    display: flex;
+    align-items: flex-end;
+    background: #F1F0F7;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.ar-day-bar {
+    width: 100%;
+    background: #00BCD4;
+    border-radius: 6px 6px 0 0;
+    transition: height 0.25s ease;
+}
+
+.ar-day-bar-label {
+    font-size: 11px;
+    color: #8b8fa3;
+    font-weight: 600;
 }

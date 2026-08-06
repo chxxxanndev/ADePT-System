@@ -76,7 +76,7 @@ export const adminNavigation: AdminNavSection[] = [
                     { label: 'Staff Accounts', view: 'staff-accounts' },
                 ],
             },
-            { label: 'Request queue', view: 'request-queue' },
+            { label: 'Transaction Queue', view: 'request-queue' },
         ],
     },
     {

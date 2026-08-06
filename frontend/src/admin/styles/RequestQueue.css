@@ -141,6 +141,10 @@
     font-weight: 600;
 }
 
+.rq-date-cell {
+    white-space: nowrap;
+}
+
 /* ===== Status colors =====
    Requests are now only ever Pending or Released. "Reprint" is not its own
    status — it's shown as a small badge next to the status pill instead
@@ -358,4 +362,203 @@
     gap: 8px;
     padding: 16px 20px 12px;
     border-bottom: 1px solid #ecedf3;
+}
+
+.rq-summary-pills .rq-tab + .rq-tab {
+    border-left: 1px solid #E2E4EC;
+    border-radius: 0;
+    padding-left: 16px;
+}
+
+/* ===== Clickable Void / Cancelled status ===== */
+.rq-status-link {
+    font-family: inherit;
+    border: 1px solid #FFCDD2;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+}
+
+.rq-status-link:hover {
+    filter: brightness(0.96);
+    text-decoration: underline;
+}
+
+/* ===== Reason popup modal ===== */
+.rq-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+}
+
+.rq-modal {
+    background: #ffffff;
+    border-radius: 14px;
+    width: min(440px, 100%);
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 50px rgba(20, 20, 43, 0.25);
+    padding: 24px;
+}
+
+.rq-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.rq-modal-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #1F2333;
+    margin: 0;
+}
+
+.rq-modal-subtitle {
+    font-size: 13px;
+    color: #6B6F80;
+    margin: 4px 0 0;
+}
+
+.rq-modal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6B6F80;
+    font-size: 22px;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.rq-modal-close:hover {
+    background-color: #F1F0F7;
+    color: #1F2333;
+}
+
+.rq-modal-section {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: #FFF6F6;
+    border: 1px solid #FFE0E0;
+}
+
+.rq-modal-reason {
+    font-size: 14px;
+    color: #1F2333;
+    margin: 6px 0 0;
+    line-height: 1.5;
+}
+
+.rq-modal-fields {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.rq-modal-field:first-child {
+    grid-column: 1 / -1;
+}
+
+.rq-modal-label {
+    font-size: 11px;
+    color: #9CA0AF;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-weight: 600;
+}
+
+.rq-modal-value {
+    font-size: 14px;
+    color: #1F2333;
+    margin: 4px 0 0;
+    font-weight: 600;
+}
+
+.rq-modal-done {
+    margin-top: 20px;
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 10px;
+    background: #3D2E7C;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.rq-modal-done:hover {
+    background: #2F2363;
+}
+
+/* ===== Amend action ===== */
+.rq-modal-actions {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.rq-modal-actions .rq-modal-done {
+    margin-top: 0;
+    background: #ECEDF3;
+    color: #1F2333;
+}
+
+.rq-modal-actions .rq-modal-done:hover {
+    background: #DFE1EA;
+}
+
+.rq-modal-amend {
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 10px;
+    background: #1E9E5A;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.rq-modal-amend:hover:not(:disabled) {
+    background: #17814A;
+}
+
+.rq-modal-amend:disabled {
+    background: #C8CFD8;
+    cursor: not-allowed;
+}
+
+.rq-modal-error {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #FFF0F0;
+    border: 1px solid #FFD2D2;
+    color: #C62828;
+    font-size: 13px;
+}
+
+.rq-modal-success {
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #E9F9F0;
+    border: 1px solid #C9EFDA;
+    color: #1E6B45;
+    font-size: 13px;
+    line-height: 1.5;
 }
