@@ -262,6 +262,7 @@ export default function VoidAndAmend({
 }: VoidAndAmendProps) {
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("All Time");
+  const [statusFilter, setStatusFilter] = useState("All statuses");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -349,7 +350,11 @@ export default function VoidAndAmend({
           record.detail.toLowerCase().includes(search.toLowerCase()) ||
           record.actionedBy.toLowerCase().includes(search.toLowerCase());
         const matchesTime = matchesTimeRange(record.actionedAt || null, timeRange);
-        return matchesSearch && matchesTime;
+        const matchesStatus =
+          statusFilter === "All statuses" ||
+          (statusFilter === "Voided" && !record.hasBeenAmended) ||
+          (statusFilter === "Amended" && record.hasBeenAmended);
+        return matchesSearch && matchesTime && matchesStatus;
       })
       .sort((a, b) => {
         // Records with a known actionedAt sort newest-first; unknown ones sink to the bottom.
@@ -358,7 +363,7 @@ export default function VoidAndAmend({
         if (!b.actionedAt) return -1;
         return new Date(b.actionedAt).getTime() - new Date(a.actionedAt).getTime();
       });
-  }, [records, search, timeRange]);
+  }, [records, search, timeRange, statusFilter]);
 
   // ─── Pagination ───────────────────────────────────────────
   const totalRecords = filteredRecords.length;
@@ -367,7 +372,7 @@ export default function VoidAndAmend({
   // Reset to page 1 when filters or page size change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, timeRange, pageSize]);
+  }, [search, timeRange, statusFilter, pageSize]);
 
   const start = (currentPage - 1) * pageSize;
   const end = Math.min(start + pageSize, totalRecords);
@@ -591,6 +596,17 @@ export default function VoidAndAmend({
                 <option>Yesterday</option>
                 <option>This Week</option>
                 <option>This Month</option>
+              </select>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="tr-filter-select"
+              >
+                <option value="All statuses">All statuses</option>
+                <option value="Voided">Voided</option>
+                <option value="Amended">Amended</option>
               </select>
             </div>
           </div>
