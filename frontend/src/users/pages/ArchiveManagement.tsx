@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { requestService } from "../services/requestService";
 import { fetchTransactionRegistry } from "../services/transactionService";
+import { ExpandableText } from "../components/common/ExpandableText";
+import { SkeletonBox } from "../components/common/Skeleton";
 import { getDocumentTypeFromReference } from "../../utils/documentType";
 import { RestoreConfirmModal } from "../components/RestoreConfirmModal";
 import type { Transaction, RequestedDocumentItem } from "../types/transaction";
@@ -105,6 +107,88 @@ function ReferenceBadge({ reference, type }: { reference: string; type: Document
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Skeleton loading — mirrors TransactionRegistry's lazy-load pattern */
+/*  (components/common/Skeleton.tsx + the .tr-lazy-load wrapper): the  */
+/*  summary cards and the toolbar/table are ghost skeletons while the  */
+/*  first fetch runs, then the real cards mount in the same spots, so  */
+/*  nothing jumps on load.                                             */
+/* ------------------------------------------------------------------ */
+
+function ArchiveSummarySkeleton() {
+  return (
+    <div className="arc-summary-grid">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="arc-summary-card">
+          <div className="arc-summary-icon-wrap">
+            <SkeletonBox width="20px" height="20px" borderRadius="999px" />
+          </div>
+          <div className="arc-summary-card-text">
+            <SkeletonBox width="42%" height="24px" />
+            <SkeletonBox width="68%" height="10px" margin="6px 0 0" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ArchiveToolbarSkeleton() {
+  return (
+    <div className="arc-table-toolbar">
+      <div className="arc-search-wrapper">
+        <SkeletonBox width="100%" height="38px" borderRadius="999px" />
+      </div>
+      <SkeletonBox width="200px" height="38px" borderRadius="999px" />
+      <SkeletonBox width="220px" height="38px" borderRadius="999px" />
+    </div>
+  );
+}
+
+const ARCHIVE_TABLE_COLUMNS = [
+  "Reference Number",
+  "Declarant",
+  "Document Type",
+  "Reason",
+  "Archived By",
+  "Date & Time",
+  "Action",
+];
+
+function ArchiveTableSkeleton({ rows = 7 }: { rows?: number }) {
+  return (
+    <div className="arc-card">
+      <ArchiveToolbarSkeleton />
+      <div className="arc-table-scroll">
+        <table className="arc-table">
+          <thead>
+            <tr>
+              {ARCHIVE_TABLE_COLUMNS.map((col) => (
+                <th key={col} style={col === "Action" ? { textAlign: "center" } : undefined}>
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: rows }).map((_, i) => (
+              <tr key={i}>
+                <td><SkeletonBox width="75%" height="12px" /></td>
+                <td><SkeletonBox width="85%" height="12px" /></td>
+                <td><SkeletonBox width="70%" height="12px" /></td>
+                <td><SkeletonBox width="55%" height="12px" /></td>
+                <td><SkeletonBox width="50%" height="12px" /></td>
+                <td><SkeletonBox width="65%" height="12px" /></td>
+                <td style={{ textAlign: "center" }}><SkeletonBox width="72px" height="30px" borderRadius="7px" /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Transaction has no `archivedAt`/`archivedBy` columns yet — only
  * `dateRequested` and `assignedStaff` are available from the registry.
@@ -147,7 +231,18 @@ function toArchivedRecord(t: Transaction): ArchivedRecord {
 /* ------------------------------------------------------------------ */
 /*  Page component                                                    */
 /* ------------------------------------------------------------------ */
-export default function ArchiveManagement() {
+interface ArchiveManagementProps {
+  // Breadcrumb navigation — mirrors the onNavigateTo* wiring used by
+  // TransactionRegistry/CertifiedTrueCopy: the parent (Dashboard) passes
+  // the active-view setters so the breadcrumb can jump between screens.
+  onNavigateToDashboard?: () => void;
+  onNavigateToPendingPayment?: () => void;
+}
+
+export default function ArchiveManagement({
+  onNavigateToDashboard,
+  onNavigateToPendingPayment,
+}: ArchiveManagementProps) {
   const [records, setRecords] = useState<ArchivedRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -228,7 +323,7 @@ export default function ArchiveManagement() {
     });
   }, [records, search, docTypeFilter, reasonFilter]);
 
-  // â”€â”€â”€ Pagination (mirrors TransactionRegistry's TransactionTable) â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Pagination (mirrors TransactionRegistry's TransactionTable) ──
   const totalRecords = filteredRecords.length;
   const totalPages = Math.ceil(totalRecords / pageSize) || 1;
 
@@ -237,7 +332,12 @@ export default function ArchiveManagement() {
     setCurrentPage(1);
   }, [search, docTypeFilter, reasonFilter, pageSize]);
 
-  const start = (currentPage - 1) * pageSize;
+  // Same clamp the Registry/Reports use: if data shrinks (e.g. Restoring
+  // the last row of the last page, or a filter narrowing the list) the
+  // view falls back to the last valid page instead of an empty page.
+  const activePage = Math.min(currentPage, totalPages);
+
+  const start = (activePage - 1) * pageSize;
   const end = Math.min(start + pageSize, totalRecords);
   const pageRecords = useMemo(() => filteredRecords.slice(start, end), [filteredRecords, start, end]);
 
@@ -266,6 +366,29 @@ export default function ArchiveManagement() {
     <div className="arc-page">
       {/* ---- Header card ---- */}
       <div className="arc-header">
+        {/* Breadcrumb — reuses the shared .tr-breadcrumb styles from
+            TransactionRegistry.css (same classes Void & Amend and
+            Reprint/CTC use), so this reads identically to the registry. */}
+        <nav className="tr-breadcrumb" aria-label="Breadcrumb">
+          <button
+            type="button"
+            className="tr-breadcrumb-item--link"
+            onClick={onNavigateToDashboard ?? (() => {})}
+          >
+            Dashboard
+          </button>
+          <span className="tr-breadcrumb-sep">&gt;</span>
+          <button
+            type="button"
+            className="tr-breadcrumb-item--link"
+            onClick={onNavigateToPendingPayment ?? (() => {})}
+          >
+            Pending Payment
+          </button>
+          <span className="tr-breadcrumb-sep">&gt;</span>
+          <span className="tr-breadcrumb-item--current">Archive Management</span>
+        </nav>
+
         <div className="arc-header-top">
           <div className="arc-header-titles">
             <h2>
@@ -282,39 +405,55 @@ export default function ArchiveManagement() {
           </button>
         </div>
 
-        <div className="arc-summary-grid">
-          <div className="arc-summary-card">
-            <div className="arc-summary-icon-wrap arc-summary-icon-wrap--total">
-              <Archive size={20} />
+        {loading ? (
+          <ArchiveSummarySkeleton />
+        ) : (
+          <div className="arc-summary-grid">
+            <div className="arc-summary-card">
+              <div className="arc-summary-icon-wrap arc-summary-icon-wrap--total">
+                <Archive size={20} />
+              </div>
+              <div className="arc-summary-card-text">
+                <span className="arc-summary-card-value">{records.length}</span>
+                <span className="arc-summary-card-label">Total Archived</span>
+              </div>
             </div>
-            <div className="arc-summary-card-text">
-              <span className="arc-summary-card-value">{records.length}</span>
-              <span className="arc-summary-card-label">Total Archived</span>
+            <div className="arc-summary-card">
+              <div className="arc-summary-icon-wrap arc-summary-icon-wrap--auto">
+                <RefreshCw size={18} />
+              </div>
+              <div className="arc-summary-card-text">
+                <span className="arc-summary-card-value">{autoCount}</span>
+                <span className="arc-summary-card-label">Auto-Archived</span>
+              </div>
+            </div>
+            <div className="arc-summary-card">
+              <div className="arc-summary-icon-wrap arc-summary-icon-wrap--manual">
+                <RotateCcw size={18} />
+              </div>
+              <div className="arc-summary-card-text">
+                <span className="arc-summary-card-value">{manualCount}</span>
+                <span className="arc-summary-card-label">Manually Archived</span>
+              </div>
             </div>
           </div>
-          <div className="arc-summary-card">
-            <div className="arc-summary-icon-wrap arc-summary-icon-wrap--auto">
-              <RefreshCw size={18} />
-            </div>
-            <div className="arc-summary-card-text">
-              <span className="arc-summary-card-value">{autoCount}</span>
-              <span className="arc-summary-card-label">Auto-Archived</span>
-            </div>
-          </div>
-          <div className="arc-summary-card">
-            <div className="arc-summary-icon-wrap arc-summary-icon-wrap--manual">
-              <RotateCcw size={18} />
-            </div>
-            <div className="arc-summary-card-text">
-              <span className="arc-summary-card-value">{manualCount}</span>
-              <span className="arc-summary-card-label">Manually Archived</span>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* ---- Table card ---- */}
-      <div className="arc-card">
+      {loading ? (
+        <div className="tr-lazy-load">
+          <ArchiveTableSkeleton />
+        </div>
+      ) : loadError ? (
+        <div className="arc-card" style={{ padding: "32px", textAlign: "center", color: "#B0281C" }}>
+          <p style={{ margin: "0 0 12px", fontWeight: 600 }}>{loadError}</p>
+          <button className="arc-restore-btn" onClick={() => fetchArchivedData()}>
+            Retry
+          </button>
+        </div>
+      ) : (
+        <div className="arc-card">
         <div className="arc-table-toolbar">
           <div className="arc-search-wrapper">
             <div className="arc-search">
@@ -380,27 +519,7 @@ export default function ArchiveManagement() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="arc-table-empty">
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                      <Loader2 size={18} style={{ animation: "arc-spin 1s linear infinite" }} />
-                      Loading archives...
-                    </div>
-                  </td>
-                </tr>
-              ) : loadError ? (
-                <tr>
-                  <td colSpan={7} className="arc-table-empty">
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", padding: "8px 0" }}>
-                      <strong style={{ color: "var(--db-error)" }}>{loadError}</strong>
-                      <button className="arc-restore-btn" onClick={() => fetchArchivedData()}>
-                        Retry
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredRecords.length === 0 ? (
+              {filteredRecords.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="arc-table-empty">
                     <strong>No archived records found.</strong>
@@ -413,7 +532,9 @@ export default function ArchiveManagement() {
                     <td>
                       <ReferenceBadge reference={record.reference} type={record.documentType} />
                     </td>
-                    <td className="arc-declarant">{record.declarantName}</td>
+                    <td className="arc-declarant">
+                      <ExpandableText text={record.declarantName} />
+                    </td>
                     <td>
                       <DocTypeTag type={record.documentType} />
                     </td>
@@ -473,18 +594,18 @@ export default function ArchiveManagement() {
             <button
               type="button"
               className="arc-page-btn-text"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
+              onClick={() => handlePageChange(activePage - 1)}
+              disabled={activePage === 1}
               aria-label="Previous page"
             >
               Previous
             </button>
-            <span className="arc-page-current">Page {currentPage} of {totalPages}</span>
+            <span className="arc-page-current">Page {activePage} of {totalPages}</span>
             <button
               type="button"
               className="arc-page-btn-text"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              onClick={() => handlePageChange(activePage + 1)}
+              disabled={activePage === totalPages}
               aria-label="Next page"
             >
               Next
@@ -492,6 +613,7 @@ export default function ArchiveManagement() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Restore confirmation modal — system rc-modal design (same as the
           logout confirm), replacing the old native window.confirm(). */}

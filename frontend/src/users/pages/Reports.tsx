@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import "../styles/ReportsAnalytics.css";
 import { useReportsAnalytics } from "../hooks/useReportsAnalytics";
+import { ExpandableText } from "../components/common/ExpandableText";
 import { getDocPillMeta } from "../../utils/documentType";
 import { SkeletonBox } from "../components/common/Skeleton";
 import type { DeclarantRecord } from "../data/reportsMockData";
@@ -257,7 +258,13 @@ function ReportsTableSkeleton({ rows = 6 }: { rows?: number }) {
 /* ------------------------------------------------------------------ */
 /*  Page component                                                    */
 /* ------------------------------------------------------------------ */
-export default function Reports() {
+interface ReportsProps {
+  // Breadcrumb navigation — the Dashboard link jumps back to the home
+  // view (wired by Dashboard.tsx, like the other pages' onNavigateTo*).
+  onNavigateToDashboard?: () => void;
+}
+
+export default function Reports({ onNavigateToDashboard }: ReportsProps) {
   const analytics = useReportsAnalytics();
   const [period, setPeriod] = useState<Period>("monthly");
   const [search, setSearch] = useState("");
@@ -304,6 +311,21 @@ export default function Reports() {
   return (
     <div className="reports-page">
       <div className="reports-container">
+        {/* Breadcrumb — uses the page's own .reports-breadcrumb classes
+            (ReportsAnalytics.css), which mirror the shared tr-breadcrumb
+            styling used by Transaction Registry and Archive Management. */}
+        <nav className="reports-breadcrumb" aria-label="Breadcrumb">
+          <button
+            type="button"
+            className="reports-breadcrumb-item--link"
+            onClick={onNavigateToDashboard ?? (() => {})}
+          >
+            Dashboard
+          </button>
+          <span className="reports-breadcrumb-sep">&gt;</span>
+          <span className="reports-breadcrumb-item--current">Reports &amp; Analytics</span>
+        </nav>
+
         {/* Header — always mounted (same as TransactionRegistry: the page
             shell stays visible while content swaps between skeleton/error/data) */}
         <div className="reports-header">
@@ -476,7 +498,9 @@ export default function Reports() {
                               {d.reference}
                             </span>
                           </td>
-                          <td className="cell-name">{d.declarantName}</td>
+                          <td className="cell-name">
+                            <ExpandableText text={d.declarantName} />
+                          </td>
                           <td>{d.documentRequested}</td>
                           <td className="cell-muted">{d.dateReleased}</td>
                           <td className="cell-muted">{d.staffReleased}</td>
