@@ -598,6 +598,17 @@
     white-space: nowrap;
 }
 
+/* Cells that pair .tr-declarant with the shared ExpandableText component
+   must drop the ellipsis/nowrap clipping so the "See more"/"See less"
+   toggle stays visible and expanded text can wrap. (Certified True Copy
+   and Void & Amend use this combo; the registry's plain declarant spans
+   keep the default ellipsis above.) */
+.tr-table .expandable-text.tr-declarant {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+}
+
 .tr-declarant-sub {
     display: block;
     font-weight: 400;

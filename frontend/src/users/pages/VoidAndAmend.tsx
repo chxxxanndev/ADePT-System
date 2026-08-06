@@ -4,6 +4,15 @@ import { fetchTransactionRegistry } from "../services/transactionService";
 import { requestService } from "../services/requestService";
 import type { Transaction } from "../types/transaction";
 import "../styles/TransactionRegistry.css";
+import { ExpandableText } from "../components/common/ExpandableText";
+import { getDocPillMeta, getDocumentTypeFromReference } from "../../utils/documentType";
+
+// Legend icons come from the shared documentType helper — the exact same
+// icons the reference-number pills render, so the legend key always matches
+// the table (no duplicate SVG copies here), exactly like TransactionRegistry.
+const TaxDeclarationIcon = getDocPillMeta('Tax Declaration').Icon;
+const LandholdingIcon = getDocPillMeta('Landholding').Icon;
+const NoLandholdingIcon = getDocPillMeta('No Land Holding').Icon;
 
 export type ActionType = "void";
 
@@ -59,7 +68,7 @@ type TimeRange = "Today" | "Yesterday" | "This Week" | "This Month" | "All Time"
 // backend adds voidedBy too, this cache — and the whole metadata-merge
 // dance below — can be shrunk further / removed entirely.
 const METADATA_STORAGE_KEY = "voidAmendMetadata";
-const PAGE_SIZE_OPTIONS = [10, 25, 50];
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
 interface VoidMetadataEntry {
   actionedBy: string;
@@ -243,6 +252,7 @@ export default function VoidAndAmend({
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [metadataStore, setMetadataStore] = useState<VoidMetadataStore>(() => loadMetadataStore());
 
@@ -250,8 +260,9 @@ export default function VoidAndAmend({
   const [amendingId, setAmendingId] = useState<string | null>(null);
   const [amendError, setAmendError] = useState<string | null>(null);
 
-  const loadVoidedTransactions = async () => {
-    setLoading(true);
+  const loadVoidedTransactions = async (isManualRefresh = false) => {
+    if (isManualRefresh) setIsRefreshing(true);
+    else setLoading(true);
     setLoadError(null);
     try {
       const all = await fetchTransactionRegistry();
@@ -263,6 +274,7 @@ export default function VoidAndAmend({
       setAllTransactions([]);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -435,6 +447,14 @@ export default function VoidAndAmend({
             <h2>Void and Amended Records</h2>
             <p>Every voided document, with the reason and who actioned it.</p>
           </div>
+          <button
+            className={`tr-refresh-btn${isRefreshing ? ' is-spinning' : ''}`}
+            onClick={() => loadVoidedTransactions(true)}
+            title="Refresh registry"
+            aria-label="Refresh registry"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          </button>
         </div>
 
         {/* Pill tab nav — inlined directly here (no separate TransactionTabs.tsx
@@ -475,26 +495,36 @@ export default function VoidAndAmend({
         {loading ? (
           <VoidAmendSummarySkeleton />
         ) : (
-          <div className="tr-summary-grid tr-summary-grid--multi">
-            <div className="tr-summary-card">
-              <div className="tr-summary-icon-wrap tr-summary-icon-wrap--total">
-                <PencilLine size={20} strokeWidth={2.3} />
+          <>
+            <div className="tr-summary-grid tr-summary-grid--multi">
+              <div className="tr-summary-card">
+                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--total">
+                  <PencilLine size={20} strokeWidth={2.3} />
+                </div>
+                <div className="tr-summary-card-text">
+                  <span className="tr-summary-card-value">{amendedCount}</span>
+                  <span className="tr-summary-card-label">Total Amended Documents</span>
+                </div>
               </div>
-              <div className="tr-summary-card-text">
-                <span className="tr-summary-card-value">{amendedCount}</span>
-                <span className="tr-summary-card-label">Total Amended Documents</span>
+              <div className="tr-summary-card">
+                <div className="tr-summary-icon-wrap tr-summary-icon-wrap--total">
+                  <Ban size={20} strokeWidth={2.3} />
+                </div>
+                <div className="tr-summary-card-text">
+                  <span className="tr-summary-card-value">{voidedCount}</span>
+                  <span className="tr-summary-card-label">Total Voided Documents</span>
+                </div>
               </div>
             </div>
-            <div className="tr-summary-card">
-              <div className="tr-summary-icon-wrap tr-summary-icon-wrap--total">
-                <Ban size={20} strokeWidth={2.3} />
-              </div>
-              <div className="tr-summary-card-text">
-                <span className="tr-summary-card-value">{voidedCount}</span>
-                <span className="tr-summary-card-label">Total Voided Documents</span>
-              </div>
+
+            {/* Legend — same key TransactionRegistry shows under its summary
+                cards, explaining the reference pill colors in this table. */}
+            <div className="tr-legend-row">
+              <div className="tr-legend-item tr-legend-item--td"><TaxDeclarationIcon />Tax Declaration</div>
+              <div className="tr-legend-item tr-legend-item--lh"><LandholdingIcon />Landholding</div>
+              <div className="tr-legend-item tr-legend-item--nlh"><NoLandholdingIcon />No Land Holding</div>
             </div>
-          </div>
+          </>
         )}
       </div>
 
@@ -519,7 +549,7 @@ export default function VoidAndAmend({
       ) : loadError ? (
         <div className="tr-card" style={{ padding: '32px', textAlign: 'center', color: '#B0281C' }}>
           <p style={{ margin: '0 0 12px', fontWeight: 600 }}>{loadError}</p>
-          <button className="tr-filter-reset" onClick={loadVoidedTransactions}>Retry</button>
+          <button className="tr-filter-reset" onClick={() => loadVoidedTransactions()}>Retry</button>
         </div>
       ) : (
         <div className="tr-card">
@@ -571,46 +601,54 @@ export default function VoidAndAmend({
                     </td>
                   </tr>
                 ) : (
-                  paginatedRecords.map((record) => (
-                    <tr key={record.id} className="tr-row">
-                      <td><span className="tr-ref">{record.reference}</span></td>
-                      <td><span className="tr-declarant" title={record.declarantName}>{record.declarantName}</span></td>
-                      <td>{record.documentType}</td>
-                      <td>{record.detail}</td>
-                      <td>{record.actionedBy}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        {record.actionedAt ? formatDateTime(record.actionedAt) : "—"}
-                      </td>
-                      <td>
-                        <div className="tr-actions">
-                          <ActionBadge />
-                          <button
-                            type="button"
-                            className="tr-action-btn"
-                            title={
-                              record.hasBeenAmended
-                                ? `${record.reference} has already been amended`
-                                : `Amend ${record.reference}`
-                            }
-                            aria-label={`Amend ${record.reference}`}
-                            onClick={() => handleAmendClick(record)}
-                            disabled={amendingId === record.id || record.hasBeenAmended}
-                            style={
-                              record.hasBeenAmended
-                                ? { opacity: 0.4, cursor: "not-allowed" }
-                                : undefined
-                            }
-                          >
-                            {amendingId === record.id ? (
-                              <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-                            ) : (
-                              <PencilLine size={14} />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  paginatedRecords.map((record) => {
+                    const docPillMeta = getDocPillMeta(getDocumentTypeFromReference(record.reference) ?? '');
+                    return (
+                      <tr key={record.id} className="tr-row">
+                        <td>
+                          <span className={`tr-doc-pill ${docPillMeta.className}`} title={record.reference}>
+                            <docPillMeta.Icon />
+                            {record.reference}
+                          </span>
+                        </td>
+                        <td><ExpandableText text={record.declarantName} className="tr-declarant" /></td>
+                        <td><ExpandableText text={record.documentType} /></td>
+                        <td><ExpandableText text={record.detail} /></td>
+                        <td><ExpandableText text={record.actionedBy} /></td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          {record.actionedAt ? formatDateTime(record.actionedAt) : "—"}
+                        </td>
+                        <td>
+                          <div className="tr-actions">
+                            <ActionBadge />
+                            <button
+                              type="button"
+                              className="tr-action-btn"
+                              title={
+                                record.hasBeenAmended
+                                  ? `${record.reference} has already been amended`
+                                  : `Amend ${record.reference}`
+                              }
+                              aria-label={`Amend ${record.reference}`}
+                              onClick={() => handleAmendClick(record)}
+                              disabled={amendingId === record.id || record.hasBeenAmended}
+                              style={
+                                record.hasBeenAmended
+                                  ? { opacity: 0.4, cursor: "not-allowed" }
+                                  : undefined
+                              }
+                            >
+                              {amendingId === record.id ? (
+                                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                              ) : (
+                                <PencilLine size={14} />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
