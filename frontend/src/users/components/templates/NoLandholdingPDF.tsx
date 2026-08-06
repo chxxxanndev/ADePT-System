@@ -65,8 +65,8 @@ export const DEFAULT_NLH_SPACING: NLHSpacing = {
     receiptRowGap: 3,
     declarantPadding: 1,
     declarantLetterSpacing: 0.3,
-    footerClearance: 113, // 4cm
-    continuationTopClearance: 70,
+    footerClearance: 70,
+    continuationTopClearance: 60,
 };
 
 // ---------------------------------------------------------------------------
@@ -122,6 +122,8 @@ const styles = StyleSheet.create({
     underlineText: {
         fontWeight: 'bold',
         textDecoration: 'underline',
+        spacing: 0.3,
+        // lineHeight: 1,
     },
     signatoryContainer: {
         width: '100%',
