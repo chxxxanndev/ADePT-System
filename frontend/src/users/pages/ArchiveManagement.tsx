@@ -28,11 +28,17 @@ type DocumentType = "Tax Declaration" | "No Land Holding" | "Landholding";
 
 type ArchiveReason = "Auto" | "Manual";
 
+// Whether this record landed here because the transaction was manually
+// archived (pending payment → Archive Management) or because it was
+// cancelled (cancel button in Final Verification & Payment).
+type ArchiveStatus = "Cancelled" | "Archived";
+
 interface ArchivedRecord {
   id: string;
   reference: string;
   declarantName: string;
   documentType: DocumentType;
+  status: ArchiveStatus;
   archivedDate: string;
   archivedTime: string;
   archivedBy: string;
@@ -41,7 +47,7 @@ interface ArchivedRecord {
 }
 
 type DocTypeFilter = "All types" | DocumentType;
-type ReasonFilter = "All reasons" | ArchiveReason;
+type StatusFilter = "All statuses" | ArchiveStatus;
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
@@ -74,6 +80,14 @@ function resolveArchiveDocName(docs: RequestedDocumentItem[], referenceNumber: s
 
 function DocTypeTag({ type }: { type: DocumentType }) {
   return <span className="arc-doc-type">{type}</span>;
+}
+
+function StatusBadge({ status }: { status: ArchiveStatus }) {
+  return (
+    <span className={`arc-status-badge arc-status-badge--${status.toLowerCase()}`}>
+      {status}
+    </span>
+  );
 }
 
 function ReferenceBadge({ reference, type }: { reference: string; type: DocumentType }) {
@@ -128,6 +142,7 @@ const ARCHIVE_TABLE_COLUMNS = [
   "Reference Number",
   "Declarant",
   "Document Type",
+  "Status",
   "Reason",
   "Archived By",
   "Date & Time",
@@ -189,6 +204,7 @@ function toArchivedRecord(t: Transaction): ArchivedRecord {
     reference: t.referenceNumber,
     declarantName: t.client.declarantName,
     documentType: resolveArchiveDocName(t.requestedDocuments, t.referenceNumber),
+    status: isCancelled ? "Cancelled" : "Archived",
     archivedDate: requested.toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "short",
@@ -228,7 +244,7 @@ export default function ArchiveManagement({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [docTypeFilter, setDocTypeFilter] = useState<DocTypeFilter>("All types");
-  const [reasonFilter, setReasonFilter] = useState<ReasonFilter>("All reasons");
+  const [reasonFilter, setReasonFilter] = useState<StatusFilter>("All statuses");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   // Restore confirmation modal target (replaces the native window.confirm).
@@ -281,6 +297,9 @@ export default function ArchiveManagement({
       setRecords((prev) => prev.filter((r) => r.id !== id));
       // Only claim success after the backend confirms the restore.
       showToast("success", `Document ${ref} restored successfully.`);
+      // The restored record lands back in the Pending Payments queue —
+      // navigate there so the user sees the request back in the queue.
+      onNavigateToPendingPayment?.();
     } catch {
       showToast("error", "Failed to restore document. Please try again.");
     } finally {
@@ -291,7 +310,7 @@ export default function ArchiveManagement({
   const filteredRecords = useMemo(() => {
     return records.filter((record) => {
       const matchesType = docTypeFilter === "All types" || record.documentType === docTypeFilter;
-      const matchesReason = reasonFilter === "All reasons" || record.reasonType === reasonFilter;
+      const matchesReason = reasonFilter === "All statuses" || record.status === reasonFilter;
       const matchesSearch =
         search.trim() === "" ||
         record.reference.toLowerCase().includes(search.toLowerCase()) ||
@@ -330,15 +349,15 @@ export default function ArchiveManagement({
     setPageSize(Number(e.target.value));
   };
 
-  const autoCount = useMemo(() => records.filter((r) => r.reasonType === "Auto").length, [records]);
-  const manualCount = useMemo(() => records.filter((r) => r.reasonType === "Manual").length, [records]);
+  const cancelledCount = useMemo(() => records.filter((r) => r.status === "Cancelled").length, [records]);
+  const archivedCount = useMemo(() => records.filter((r) => r.status === "Archived").length, [records]);
 
-  const hasActiveFilters = search.trim() !== "" || docTypeFilter !== "All types" || reasonFilter !== "All reasons";
+  const hasActiveFilters = search.trim() !== "" || docTypeFilter !== "All types" || reasonFilter !== "All statuses";
 
   const resetFilters = () => {
     setSearch("");
     setDocTypeFilter("All types");
-    setReasonFilter("All reasons");
+    setReasonFilter("All statuses");
   };
 
   return (
@@ -398,21 +417,21 @@ export default function ArchiveManagement({
               </div>
             </div>
             <div className="arc-summary-card">
-              <div className="arc-summary-icon-wrap arc-summary-icon-wrap--auto">
-                <RefreshCw size={18} />
+              <div className="arc-summary-icon-wrap arc-summary-icon-wrap--cancelled">
+                <X size={18} />
               </div>
               <div className="arc-summary-card-text">
-                <span className="arc-summary-card-value">{autoCount}</span>
-                <span className="arc-summary-card-label">Auto-Archived</span>
+                <span className="arc-summary-card-value">{cancelledCount}</span>
+                <span className="arc-summary-card-label">Cancelled</span>
               </div>
             </div>
             <div className="arc-summary-card">
-              <div className="arc-summary-icon-wrap arc-summary-icon-wrap--manual">
-                <RotateCcw size={18} />
+              <div className="arc-summary-icon-wrap arc-summary-icon-wrap--archived">
+                <Archive size={18} />
               </div>
               <div className="arc-summary-card-text">
-                <span className="arc-summary-card-value">{manualCount}</span>
-                <span className="arc-summary-card-label">Manually Archived</span>
+                <span className="arc-summary-card-value">{archivedCount}</span>
+                <span className="arc-summary-card-label">Archived</span>
               </div>
             </div>
           </div>
@@ -467,12 +486,12 @@ export default function ArchiveManagement({
           <div className="arc-filter-select-wrap">
             <select
               value={reasonFilter}
-              onChange={(e) => setReasonFilter(e.target.value as ReasonFilter)}
+              onChange={(e) => setReasonFilter(e.target.value as StatusFilter)}
               className="arc-filter-select"
             >
-              <option value="All reasons">All reasons</option>
-              <option value="Auto">Auto</option>
-              <option value="Manual">Manual</option>
+              <option value="All statuses">All statuses</option>
+              <option value="Cancelled">Cancelled</option>
+              <option value="Archived">Archived</option>
             </select>
             <ChevronDown size={14} className="arc-select-chevron" />
           </div>
@@ -491,6 +510,7 @@ export default function ArchiveManagement({
                 <th>Reference Number</th>
                 <th>Declarant</th>
                 <th>Document Type</th>
+                <th>Status</th>
                 <th>Reason</th>
                 <th>Archived By</th>
                 <th>Date &amp; Time</th>
@@ -500,7 +520,7 @@ export default function ArchiveManagement({
             <tbody>
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="arc-table-empty">
+                  <td colSpan={8} className="arc-table-empty">
                     <strong>No archived records found.</strong>
                     Try adjusting your search or filters.
                   </td>
@@ -516,6 +536,9 @@ export default function ArchiveManagement({
                     </td>
                     <td>
                       <DocTypeTag type={record.documentType} />
+                    </td>
+                    <td>
+                      <StatusBadge status={record.status} />
                     </td>
                     <td>
                       <div className="arc-reason-cell">

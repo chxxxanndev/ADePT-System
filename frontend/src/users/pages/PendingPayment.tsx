@@ -88,7 +88,17 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
 
             const rawRequests = await requestService.getRequests();
             if (Array.isArray(rawRequests)) {
-                const pending = rawRequests.filter((r: any) => r.status === 'PENDING_PAYMENT');
+                // Sort the queue by when each request entered it — newest first.
+                // Restored/archived records get a fresh pending_payment_at, so
+                // they surface at the top instead of falling back to the
+                // original request date (created_at) order.
+                const pending = rawRequests
+                    .filter((r: any) => r.status === 'PENDING_PAYMENT')
+                    .sort((a: any, b: any) => {
+                        const ta = a.pending_payment_at ? new Date(a.pending_payment_at).getTime() : 0;
+                        const tb = b.pending_payment_at ? new Date(b.pending_payment_at).getTime() : 0;
+                        return tb - ta;
+                    });
 
                 const grouped = pending.reduce((acc: any, req: any) => {
                     const requester = req.requested_by_name || req.requestedByName || 'Unknown Client';
