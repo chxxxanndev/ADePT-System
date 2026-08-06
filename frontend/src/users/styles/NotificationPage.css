@@ -2,6 +2,17 @@
    NotificationsPage.css
    ============================ */
 
+/* ---- Page container (matches pp-container exactly: full-bleed, 40px rhythm) ---- */
+.notif-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    min-width: 0;
+}
+
 /* ---- Breadcrumb (matches tr-breadcrumb exactly) ---- */
 .notif-breadcrumb {
     display: flex;
@@ -42,7 +53,7 @@
 }
 
 .notif-page-header {
-    margin-bottom: 24px;
+    margin-bottom: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;

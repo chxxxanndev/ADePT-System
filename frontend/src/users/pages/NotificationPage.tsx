@@ -34,9 +34,9 @@ export function NotificationPage({
     onNavigateToDashboard,
 }: NotificationPageProps) {
     return (
-        <div className="page-transition" style={{ padding: '20px' }}>
+        <div className="notif-container page-transition">
             {/* Breadcrumb — Dashboard > Notification Center */}
-            <nav className="notif-breadcrumb" aria-label="Breadcrumb" style={{ marginBottom: 12 }}>
+            <nav className="notif-breadcrumb" aria-label="Breadcrumb">
                 <button
                     type="button"
                     className="notif-breadcrumb-item--link"
