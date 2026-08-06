@@ -28,7 +28,7 @@ interface AdminSidebarProps {
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
     'Overview': DashboardIcon,
     'User Management': UserIcon,
-    'Request queue': ClipboardListIcon,
+    'Transaction Queue': ClipboardListIcon,
     'Reports & Analytics': BarChartIcon,
     'Audit Log': ArchiveIcon,
     'Settings': SettingsIcon,

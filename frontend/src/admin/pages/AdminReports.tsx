@@ -13,7 +13,7 @@ import {
     ResponsiveContainer,
     Legend,
 } from 'recharts';
-import { FileStack, FileCheck2, XCircle, FileText, Copy, Edit3, Ban, Clock } from 'lucide-react';
+import { FileStack, FileCheck2, XCircle, FileText, Copy, Edit3, Ban, Clock, Printer } from 'lucide-react';
 import '../styles/AdminReports.css';
 import type { User } from '../../auth-folder/types/auth';
 import { CalendarIcon, ChevronDownIcon } from '../../users/components/icons';
@@ -122,6 +122,7 @@ function isSameDate(a: Date, b: Date) {
 }
 
 const PENDING_STATUSES = ['Pending', 'Processing', 'Payment Verified'];
+const STAFF_DOC_STATUSES = ['Pending', 'Processing', 'Payment Verified', 'Released'];
 
 interface MonthlyRequest {
     month: string;
@@ -144,6 +145,14 @@ interface ReportRow {
     requestType?: string;
     amendedFromId?: string | null;
     actionTaken?: string | null;
+    statusAt?: string | null;
+    createdAt?: string | null;
+    amountDue?: number;
+    amountPaid?: number;
+    paymentDate?: string | null;
+    voidReason?: string;
+    faultType?: string;
+    releasedBy?: string | null;
 }
 
 interface DistributionSlice {
@@ -287,6 +296,130 @@ export function AdminReports({ user }: AdminReportsProps) {
         void loadReportData(false, null);
     }
 
+    // ── Print / CSV export ──
+    function handlePrintReport() {
+        window.print();
+    }
+
+    async function handleExportCsv() {
+        const XLSX = await import('xlsx');
+        const headers = [
+            'Reference No.', 'Declarant', 'Document Type', 'Request Type', 'Date', 'Status',
+            'Assigned Staff', 'Processed By', 'Released By', 'OR Number',
+            'Amount Due (PHP)', 'Amount Paid (PHP)', 'Payment Date', 'Void/Cancel Reason', 'Fault Type',
+        ];
+        const toRow = (r: ReportRow): (string | number)[] => [
+            r.referenceNo,
+            r.clientName,
+            r.documentType,
+            r.requestType ?? 'ORIGINAL',
+            r.requestedDate,
+            r.status,
+            r.assignedStaff || r.processedBy || 'Unassigned',
+            r.processedBy,
+            r.releasedBy ?? '',
+            r.orNumber,
+            r.amountDue ?? 0,
+            r.amountPaid ?? 0,
+            r.paymentDate ?? '',
+            r.voidReason ?? '',
+            r.faultType ?? '',
+        ];
+
+        const from = dateRange?.from ?? null;
+        const to = dateRange?.to ?? null;
+        const singleDay = !!from && !!to && from === to;
+
+        const wb = XLSX.utils.book_new();
+
+        const buildSheet = (name: string, sheetRows: ReportRow[]): void => {
+            const totalDue = sheetRows.reduce((s, r) => s + (r.amountDue ?? 0), 0);
+            const totalPaid = sheetRows.reduce((s, r) => s + (r.amountPaid ?? 0), 0);
+            const aoa: (string | number)[][] = [
+                ['ADePT System - Reports & Analytics'],
+                [`Period: ${dateFilterLabel}`, `Exported: ${new Date().toLocaleString()}`],
+                [`Subset: ${name}`, `Requests: ${sheetRows.length}`],
+                [],
+                headers,
+                ...sheetRows.map((r) => toRow(r)),
+                [],
+                ['Summary'],
+                ['Total Requests in Sheet', sheetRows.length],
+                ['Total Amount Due (PHP)', totalDue],
+                ['Total Amount Collected (PHP)', totalPaid],
+            ];
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+            ws['!cols'] = headers.map((h) => ({
+                wch: h.length <= 8 ? 14 : Math.min(Math.max(h.length + 2, 14), 30),
+            }));
+            XLSX.utils.book_append_sheet(wb, ws, name);
+        };
+
+        if (singleDay) {
+            buildSheet('Report', filteredRows);
+        } else {
+            const byMonth = new Map<string, { key: string; rows: ReportRow[] }>();
+            filteredRows.forEach((r) => {
+                const d = parseLocalDate(r.submittedRaw);
+                const key = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : 'Unknown';
+                if (!byMonth.has(key)) {
+                    byMonth.set(key, {
+                        key,
+                        rows: [],
+                    });
+                }
+                byMonth.get(key)!.rows.push(r);
+            });
+            Array.from(byMonth.values())
+                .sort((a, b) => a.key.localeCompare(b.key))
+                .forEach((g) => {
+                    const [y, m] = g.key.split('-').map(Number);
+                    const label = isNaN(y) || isNaN(m)
+                        ? g.key
+                        : `${new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short' })} ${y}`;
+                    buildSheet(label, g.rows);
+                });
+        }
+
+        const grouped: Record<string, Record<string, number>> = {};
+        filteredRows.forEach((r) => {
+            const staff = r.assignedStaff || r.processedBy || 'Unassigned';
+            if (!grouped[staff]) grouped[staff] = {};
+            grouped[staff][r.status] = (grouped[staff][r.status] || 0) + 1;
+        });
+        const workloadAoa: (string | number)[][] = [
+            ['Staff Workload', 'Status', 'Document Count'],
+            ...Object.entries(grouped).flatMap(([staff, statuses]) =>
+                Object.entries(statuses).map(([status, count]) => [staff, status, count])
+            ),
+        ];
+        const wsWorkload = XLSX.utils.aoa_to_sheet(workloadAoa);
+        wsWorkload['!cols'] = [
+            { wch: 24 },
+            { wch: 18 },
+            { wch: 15 },
+        ];
+        XLSX.utils.book_append_sheet(wb, wsWorkload, 'Staff Workload');
+
+        const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([out], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safe = (s: string) => s.replace(/[^\w-]+/g, '').toLowerCase();
+        a.download = singleDay
+            ? `report-${from}.xlsx`
+            : from && to
+                ? `report-${safe(from)}_to_${safe(to)}.xlsx`
+                : 'report-all-time.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin';
     const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` || 'A';
     const roleLabel =
@@ -323,6 +456,14 @@ export function AdminReports({ user }: AdminReportsProps) {
                     requestType: r.requestType ?? r.request_type ?? 'ORIGINAL',
                     amendedFromId: r.amendedFromId ?? r.amended_from_id ?? null,
                     actionTaken: r.actionTaken ?? r.action_taken ?? 'PENDING',
+                    statusAt: r.statusAt ?? null,
+                    createdAt: r.createdAt ?? null,
+                    amountDue: r.amountDue ?? 0,
+                    amountPaid: r.amountPaid ?? 0,
+                    paymentDate: r.paymentDate ?? null,
+                    voidReason: r.voidReason ?? '',
+                    faultType: r.faultType ?? '',
+                    releasedBy: r.releasedBy ?? null,
                 })));
             }
 
@@ -362,13 +503,172 @@ export function AdminReports({ user }: AdminReportsProps) {
     const totalVoided = filteredRows.filter((r) => r.status === 'Void' || r.status === 'disapproved').length;
     const totalCancelled = filteredRows.filter((r) => r.status === 'Cancelled').length;
     const totalPending = filteredRows.filter((r) => PENDING_STATUSES.includes(r.status)).length;
-    const totalRequestAccounts = totalDocuments || filteredRows.length;
+    const totalRequestAccounts = dateRange ? filteredRows.length : (totalDocuments || filteredRows.length);
 
     const originalCount = filteredRows.filter((r) => r.requestType === 'ORIGINAL').length;
     const reprintCount = filteredRows.filter((r) => r.requestType === 'REPRINT').length;
     const amendedCount = filteredRows.filter((r) => !!r.amendedFromId).length;
 
     const monthlyRequests = useMemo(() => buildMonthlyBuckets(filteredRows), [filteredRows]);
+
+    // ── Previous-period window (for % change deltas) ──
+    const previousRows = useMemo(() => {
+        if (!dateRange) return [];
+        const from = parseLocalDate(dateRange.from);
+        const to = parseLocalDate(dateRange.to);
+        if (!from || !to) return [];
+        const lengthMs = to.getTime() - from.getTime() + 24 * 60 * 60 * 1000;
+        const prevFrom = new Date(from.getTime() - lengthMs);
+        const prevTo = new Date(from.getTime() - 1);
+        return rows.filter((r) => {
+            const d = parseLocalDate(r.submittedRaw);
+            if (!d) return false;
+            return d >= prevFrom && d <= prevTo;
+        });
+    }, [rows, dateRange]);
+
+    const countOf = (list: ReportRow[], predicate: (r: ReportRow) => boolean) =>
+        list.filter(predicate).length;
+
+    const pctDelta = (current: number, previous: number): number | null => {
+        if (previous === 0) return null;
+        return Math.round(((current - previous) / previous) * 100);
+    };
+
+    const deltas = useMemo(() => {
+        const prev = {
+            total: previousRows.length,
+            released: countOf(previousRows, (r) => r.status === 'Released' || r.status === 'approved'),
+            voided: countOf(previousRows, (r) => r.status === 'Void' || r.status === 'disapproved'),
+            cancelled: countOf(previousRows, (r) => r.status === 'Cancelled'),
+            pending: countOf(previousRows, (r) => PENDING_STATUSES.includes(r.status)),
+            collected: previousRows.reduce((sum, r) => sum + (r.amountPaid || 0), 0),
+        };
+        return {
+            total: pctDelta(filteredRows.length, prev.total),
+            released: pctDelta(totalApproved, prev.released),
+            voided: pctDelta(totalVoided, prev.voided),
+            cancelled: pctDelta(totalCancelled, prev.cancelled),
+            pending: pctDelta(totalPending, prev.pending),
+            collected: pctDelta(
+                filteredRows.reduce((sum, r) => sum + (r.amountPaid || 0), 0),
+                prev.collected
+            ),
+        };
+    }, [previousRows, filteredRows, totalApproved, totalVoided, totalCancelled, totalPending]);
+
+    // ── Revenue (period-scoped) ──
+    const revenueStats = useMemo(() => {
+        const totalFees = filteredRows.reduce((sum, r) => sum + (r.amountDue || 0), 0);
+        const totalCollected = filteredRows.reduce((sum, r) => sum + (r.amountPaid || 0), 0);
+        return { totalFees, totalCollected, totalOutstanding: totalFees - totalCollected };
+    }, [filteredRows]);
+
+    const monthlyRevenue = useMemo(() => {
+        const now = new Date();
+        const buckets: { key: string; month: string; revenue: number }[] = [];
+        for (let m = 11; m >= 0; m--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - m, 1);
+            buckets.push({
+                key: `${d.getFullYear()}-${d.getMonth()}`,
+                month: d.toLocaleDateString('en-US', { month: 'short' }),
+                revenue: 0,
+            });
+        }
+        const byKey = new Map(buckets.map((b) => [b.key, b]));
+        filteredRows.forEach((r) => {
+            if (!r.paymentDate) return;
+            const d = new Date(r.paymentDate);
+            if (Number.isNaN(d.getTime())) return;
+            const b = byKey.get(`${d.getFullYear()}-${d.getMonth()}`);
+            if (b) b.revenue += r.amountPaid || 0;
+        });
+        return buckets;
+    }, [filteredRows]);
+
+    // ── Void / cancelled reason breakdown (period-scoped) ──
+    const voidReasonBreakdown = useMemo(() => {
+        const counts: Record<string, number> = {};
+        filteredRows.forEach((r) => {
+            if (r.status !== 'Void' && r.status !== 'Cancelled' && r.status !== 'disapproved') return;
+            const reason = (r.voidReason || '').trim();
+            const key = reason
+                ? (reason.length > 48 ? `${reason.slice(0, 48)}\u2026` : reason)
+                : (r.status === 'Cancelled' ? 'Cancelled from pending payment' : 'No reason provided');
+            counts[key] = (counts[key] || 0) + 1;
+        });
+        return Object.entries(counts)
+            .map(([reason, count]) => ({ reason, count }))
+            .sort((a, b) => b.count - a.count);
+    }, [filteredRows]);
+
+    // ── Peak activity buckets (period-scoped, from createdAt) ──
+    const hourlyActivity = useMemo(() => {
+        const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }));
+        filteredRows.forEach((r) => {
+            const d = new Date(r.createdAt || r.submittedRaw);
+            if (Number.isNaN(d.getTime())) return;
+            buckets[d.getHours()].count += 1;
+        });
+        return buckets;
+    }, [filteredRows]);
+
+    const byDayActivity = useMemo(() => {
+        const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const buckets = labels.map((label) => ({ day: label, count: 0 }));
+        filteredRows.forEach((r) => {
+            const d = new Date(r.createdAt || r.submittedRaw);
+            if (Number.isNaN(d.getTime())) return;
+            buckets[d.getDay()].count += 1;
+        });
+        return buckets;
+    }, [filteredRows]);
+
+    // ── Staff performance (period-scoped) ──
+    const staffPerformance = useMemo(() => {
+        const grouped: Record<string, { released: number; reprints: number; voided: number; turnaroundMs: number; releaseCount: number }> = {};
+        filteredRows.forEach((r) => {
+            const staff = r.processedBy || 'Office Staff';
+            if (!grouped[staff]) {
+                grouped[staff] = { released: 0, reprints: 0, voided: 0, turnaroundMs: 0, releaseCount: 0 };
+            }
+            const s = grouped[staff];
+            if (r.status === 'Released' || r.status === 'approved') {
+                s.released += 1;
+                const start = new Date(r.createdAt || r.submittedRaw).getTime();
+                const end = new Date(r.statusAt || '').getTime();
+                if (!Number.isNaN(start) && !Number.isNaN(end)) {
+                    s.turnaroundMs += end - start;
+                    s.releaseCount += 1;
+                }
+            }
+            if (r.requestType === 'REPRINT') s.reprints += 1;
+            if (r.status === 'Void' || r.status === 'Cancelled' || r.status === 'disapproved') s.voided += 1;
+        });
+        return Object.entries(grouped)
+            .map(([staff, s]) => ({
+                staff,
+                released: s.released,
+                reprints: s.reprints,
+                voided: s.voided,
+                avgTurnaroundDays: s.releaseCount > 0
+                    ? Math.round((s.turnaroundMs / s.releaseCount) / (1000 * 60 * 60 * 24) * 10) / 10
+                    : null,
+            }))
+            .filter((s) => s.released || s.reprints || s.voided)
+            .sort((a, b) => b.released - a.released);
+    }, [filteredRows]);
+
+    const renderDelta = (delta: number | null, invert = false) => {
+        if (delta === null) return null;
+        const up = delta > 0;
+        const good = invert ? !up : up;
+        return (
+            <span className={`ar-stat-delta ${good ? 'good' : 'bad'}`}>
+                {up ? '\u25B2' : '\u25BC'} {Math.abs(delta)}%
+            </span>
+        );
+    };
 
     interface AgingRow {
         status: string;
@@ -395,7 +695,7 @@ export function AdminReports({ user }: AdminReportsProps) {
         });
 
         filteredRows.forEach((r) => {
-            const ageDays = (now - new Date(r.submittedRaw).getTime()) / (1000 * 60 * 60 * 24);
+            const ageDays = (now - new Date(r.statusAt || r.submittedRaw).getTime()) / (1000 * 60 * 60 * 24);
             const bucket = buckets.find((b) => ageDays < b.max) || buckets[buckets.length - 1];
             if (agingMap[r.status]) agingMap[r.status][bucket.key]++;
         });
@@ -509,7 +809,7 @@ export function AdminReports({ user }: AdminReportsProps) {
     const staffPendingRows = useMemo<StaffPendingRow[]>(() => {
         const grouped: Record<string, Record<string, number>> = {};
         filteredRows.forEach((r) => {
-            if (!PENDING_STATUSES.includes(r.status)) return;
+            if (!STAFF_DOC_STATUSES.includes(r.status)) return;
             if (staffStatusFilter !== 'all' && r.status !== staffStatusFilter) return;
             const staff = r.assignedStaff || r.processedBy || 'Unassigned';
             if (!grouped[staff]) grouped[staff] = {};
@@ -562,7 +862,7 @@ export function AdminReports({ user }: AdminReportsProps) {
             };
             return filteredRows.filter((r) => {
                 if (r.status !== status) return false;
-                const age = (now - new Date(r.submittedRaw).getTime()) / (1000 * 60 * 60 * 24);
+                const age = (now - new Date(r.statusAt || r.submittedRaw).getTime()) / (1000 * 60 * 60 * 24);
                 return matchesAge(age);
             });
         },
@@ -579,6 +879,15 @@ export function AdminReports({ user }: AdminReportsProps) {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
+                        <div className="ar-header-actions">
+                            <button type="button" className="ar-export-btn" onClick={handleExportCsv}>
+                                <FileText size={15} /> Export Excel
+                            </button>
+                            <button type="button" className="ar-export-btn" onClick={handlePrintReport}>
+                                <Printer size={15} /> Print
+                            </button>
+                        </div>
+
                         <div className="admin-profile-widget audit-user-chip">
                             <div className="profile-widget-avatar-container">
                                 {user.avatarUrl
@@ -654,6 +963,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                             {loading ? '—' : totalRequestAccounts.toLocaleString()}
                         </span>
                     </div>
+                    <div className="ar-stat-delta-row">{renderDelta(deltas.total)}</div>
                 </div>
 
                 <div className="ar-stat-card">
@@ -668,6 +978,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                             {loading ? '—' : totalApproved.toLocaleString()}
                         </span>
                     </div>
+                    <div className="ar-stat-delta-row">{renderDelta(deltas.released)}</div>
                 </div>
 
                 <div className="ar-stat-card">
@@ -682,6 +993,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                             {loading ? '—' : totalVoided.toLocaleString()}
                         </span>
                     </div>
+                    <div className="ar-stat-delta-row">{renderDelta(deltas.voided, true)}</div>
                 </div>
 
                 <div className="ar-stat-card">
@@ -696,6 +1008,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                             {loading ? '—' : totalCancelled.toLocaleString()}
                         </span>
                     </div>
+                    <div className="ar-stat-delta-row">{renderDelta(deltas.cancelled, true)}</div>
                 </div>
 
                 <div className="ar-stat-card">
@@ -710,6 +1023,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                             {loading ? '—' : totalPending.toLocaleString()}
                         </span>
                     </div>
+                    <div className="ar-stat-delta-row">{renderDelta(deltas.pending, true)}</div>
                 </div>
             </div>
 
@@ -752,6 +1066,51 @@ export function AdminReports({ user }: AdminReportsProps) {
                     <div className="ar-stat-value-row">
                         <span className="ar-stat-value ar-stat-value--purple">
                             {loading ? '—' : amendedCount.toLocaleString()}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="ar-stats-row">
+                <div className="ar-stat-card ar-stat-card--revenue">
+                    <div className="ar-stat-card-top">
+                        <span className="ar-stat-label">Total Fees</span>
+                        <div className="ar-stat-icon ar-stat-icon--primary">
+                            <FileStack size={18} />
+                        </div>
+                    </div>
+                    <div className="ar-stat-value-row">
+                        <span className="ar-stat-value">
+                            {loading ? '—' : `\u20B1${revenueStats.totalFees.toLocaleString()}`}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="ar-stat-card ar-stat-card--revenue">
+                    <div className="ar-stat-card-top">
+                        <span className="ar-stat-label">Collected</span>
+                        <div className="ar-stat-icon ar-stat-icon--success">
+                            <FileCheck2 size={18} />
+                        </div>
+                    </div>
+                    <div className="ar-stat-value-row">
+                        <span className="ar-stat-value">
+                            {loading ? '—' : `\u20B1${revenueStats.totalCollected.toLocaleString()}`}
+                        </span>
+                    </div>
+                    <div className="ar-stat-delta-row">{renderDelta(deltas.collected)}</div>
+                </div>
+
+                <div className="ar-stat-card ar-stat-card--revenue">
+                    <div className="ar-stat-card-top">
+                        <span className="ar-stat-label">Outstanding</span>
+                        <div className="ar-stat-icon ar-stat-icon--amber">
+                            <Clock size={18} />
+                        </div>
+                    </div>
+                    <div className="ar-stat-value-row">
+                        <span className="ar-stat-value">
+                            {loading ? '—' : `\u20B1${revenueStats.totalOutstanding.toLocaleString()}`}
                         </span>
                     </div>
                 </div>
@@ -815,6 +1174,145 @@ export function AdminReports({ user }: AdminReportsProps) {
                     slices={distribution}
                     isRefreshing={loading}
                 />
+            </div>
+
+            <div className="ar-charts-row" style={{ gridTemplateColumns: '1fr' }}>
+                <div className="admin-card ar-bar-card">
+                    <h2 className="admin-card-title">Monthly Revenue</h2>
+                    <p className="ar-chart-description">
+                        Collections per month (last 12 months)
+                    </p>
+                    <div className="ar-chart-canvas">
+                        {loading ? (
+                            <div className="ar-chart-loading">Loading chart data…</div>
+                        ) : (
+                            <ResponsiveContainer>
+                                <BarChart
+                                    data={monthlyRevenue}
+                                    margin={{ top: 8, right: 8, left: -12, bottom: 8 }}
+                                >
+                                    <CartesianGrid vertical={false} stroke="rgba(41,35,122,0.08)" />
+                                    <XAxis
+                                        dataKey="month"
+                                        tick={{ fontSize: 11, fill: '#8b8fa3' }}
+                                        axisLine={{ stroke: 'rgba(41,35,122,0.12)' }}
+                                        tickLine={false}
+                                        interval={0}
+                                    />
+                                    <YAxis
+                                        tick={{ fontSize: 11, fill: '#8b8fa3' }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tickFormatter={(v: number) => `\u20B1${v}`}
+                                    />
+                                    <Tooltip
+                                        formatter={(value: any) => [`\u20B1${Number(value).toLocaleString()}`, 'Collected']}
+                                        cursor={{ fill: 'rgba(41,35,122,0.04)' }}
+                                        contentStyle={{ borderRadius: 8, border: '1px solid #EDEEF3', fontSize: 13 }}
+                                    />
+                                    <Bar dataKey="revenue" fill="#3D2E7C" radius={[4, 4, 0, 0]} barSize={12} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="ar-charts-row">
+                <div className="admin-card ar-bar-card">
+                    <h2 className="admin-card-title">Peak Hours</h2>
+                    <p className="ar-chart-description">
+                        Requests submitted per hour of the day
+                    </p>
+                    <div className="ar-chart-canvas">
+                        {loading ? (
+                            <div className="ar-chart-loading">Loading chart data…</div>
+                        ) : (
+                            <ResponsiveContainer>
+                                <BarChart
+                                    data={hourlyActivity}
+                                    margin={{ top: 8, right: 8, left: -12, bottom: 8 }}
+                                >
+                                    <CartesianGrid vertical={false} stroke="rgba(41,35,122,0.08)" />
+                                    <XAxis
+                                        dataKey="hour"
+                                        tick={{ fontSize: 11, fill: '#8b8fa3' }}
+                                        axisLine={{ stroke: 'rgba(41,35,122,0.12)' }}
+                                        tickLine={false}
+                                        interval={1}
+                                        tickFormatter={(v: number) => `${v}h`}
+                                    />
+                                    <YAxis
+                                        tick={{ fontSize: 11, fill: '#8b8fa3' }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        allowDecimals={false}
+                                    />
+                                    <Tooltip
+                                        formatter={(value: any) => [value, 'Requests']}
+                                        labelFormatter={(label: any) => `${label}:00`}
+                                        cursor={{ fill: 'rgba(41,35,122,0.04)' }}
+                                        contentStyle={{ borderRadius: 8, border: '1px solid #EDEEF3', fontSize: 13 }}
+                                    />
+                                    <Bar dataKey="count" fill="#00BCD4" radius={[4, 4, 0, 0]} barSize={12} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
+                    </div>
+                    <p className="ar-chart-description" style={{ marginTop: 10, marginBottom: 4 }}>
+                        Requests per day of the week
+                    </p>
+                    <div className="ar-day-bars">
+                        {byDayActivity.map((d) => {
+                            const max = Math.max(1, ...byDayActivity.map((b) => b.count));
+                            const pct = Math.round((d.count / max) * 100);
+                            return (
+                                <div className="ar-day-bar-item" key={d.day}>
+                                    <span className="ar-day-bar-count">{d.count}</span>
+                                    <div className="ar-day-bar-track">
+                                        <div className="ar-day-bar" style={{ height: `${Math.max(pct, 3)}%` }} />
+                                    </div>
+                                    <span className="ar-day-bar-label">{d.day}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="admin-card ar-bar-card">
+                    <h2 className="admin-card-title">Void / Cancel Reasons</h2>
+                    <p className="ar-chart-description">
+                        Why requests were voided or cancelled
+                    </p>
+                    <div className="ar-void-reasons">
+                        {loading ? (
+                            <div className="ar-chart-loading">Loading…</div>
+                        ) : voidReasonBreakdown.length === 0 ? (
+                            <div style={{ padding: '24px', textAlign: 'center', color: '#9aa0af', fontSize: 13 }}>
+                                No voided or cancelled requests in this period.
+                            </div>
+                        ) : (
+                            voidReasonBreakdown.slice(0, 8).map((item, i) => {
+                                const max = voidReasonBreakdown[0].count;
+                                const pct = Math.round((item.count / max) * 100);
+                                return (
+                                    <div className="ar-void-reason-item" key={`${item.reason}-${i}`}>
+                                        <div className="ar-void-reason-top">
+                                            <span className="ar-void-reason-label" title={item.reason}>{item.reason}</span>
+                                            <span className="ar-void-reason-count">{item.count}</span>
+                                        </div>
+                                        <div className="ar-void-reason-bar-track">
+                                            <div
+                                                className="ar-void-reason-bar"
+                                                style={{ width: `${Math.max(pct, 4)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '24px' }}>
@@ -992,10 +1490,10 @@ export function AdminReports({ user }: AdminReportsProps) {
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                         <div>
                             <h2 className="admin-card-title" style={{ margin: 0 }}>
-                                Staff Pending Documents
+                                Staff Workload
                             </h2>
                             <p className="ar-chart-description" style={{ marginTop: 2, marginBottom: 16 }}>
-                                Active staff with pending, processing, or payment-verified documents
+                                Document counts per staff by status, including released documents
                             </p>
                         </div>
                         <select
@@ -1013,7 +1511,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                             }}
                         >
                             <option value="all">All Statuses</option>
-                            {PENDING_STATUSES.map((s) => (
+                            {STAFF_DOC_STATUSES.map((s) => (
                                 <option key={s} value={s}>{s}</option>
                             ))}
                         </select>
@@ -1021,7 +1519,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                     <div className="admin-table-container" style={{ maxHeight: '320px', overflowY: 'auto' }}>
                         {staffPendingRows.length === 0 ? (
                             <div style={{ padding: '32px', textAlign: 'center', color: '#9aa0af' }}>
-                                No pending documents.
+                                No documents in this period.
                             </div>
                         ) : (
                             <table className="admin-table" style={{ minWidth: 0 }}>
@@ -1042,9 +1540,11 @@ export function AdminReports({ user }: AdminReportsProps) {
                                                     padding: '4px 12px', borderRadius: '999px',
                                                     fontSize: '12px', fontWeight: 600, border: '1px solid transparent',
                                                     background: r.status === 'Pending' ? '#FFF6E5' :
-                                                        r.status === 'Processing' ? '#E8F0FE' : '#E7F8EE',
+                                                        r.status === 'Processing' ? '#E8F0FE' :
+                                                        r.status === 'Payment Verified' ? '#E8F5E9' : '#E7F8EE',
                                                     color: r.status === 'Pending' ? '#D89A1D' :
-                                                        r.status === 'Processing' ? '#3267d6' : '#2e7d32',
+                                                        r.status === 'Processing' ? '#3267d6' :
+                                                        r.status === 'Payment Verified' ? '#2e7d32' : '#1E9E5A',
                                                 }}>
                                                     <span style={{
                                                         width: 6, height: 6, borderRadius: '50%',
@@ -1075,6 +1575,49 @@ export function AdminReports({ user }: AdminReportsProps) {
                                                     </button>
                                                 ) : r.count}
                                             </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {!loading && (
+                <div className="admin-card" style={{ padding: '22px' }}>
+                    <div>
+                        <h2 className="admin-card-title" style={{ margin: 0 }}>
+                            Staff Performance
+                        </h2>
+                        <p className="ar-chart-description" style={{ marginTop: 2, marginBottom: 16 }}>
+                            Releases, reprints, voids and average turnaround per staff
+                        </p>
+                    </div>
+                    <div className="admin-table-container" style={{ maxHeight: '320px', overflowY: 'auto' }}>
+                        {staffPerformance.length === 0 ? (
+                            <div style={{ padding: '32px', textAlign: 'center', color: '#9aa0af' }}>
+                                No staff activity in this period.
+                            </div>
+                        ) : (
+                            <table className="admin-table" style={{ minWidth: 0 }}>
+                                <thead>
+                                    <tr>
+                                        <th style={{ textAlign: 'left' }}>Staff</th>
+                                        <th>Released</th>
+                                        <th>Avg. Turnaround</th>
+                                        <th>Reprints</th>
+                                        <th>Void / Cancelled</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {staffPerformance.map((r, i) => (
+                                        <tr key={`${r.staff}-${i}`}>
+                                            <td style={{ textAlign: 'left', fontWeight: 600 }}>{r.staff}</td>
+                                            <td style={{ fontWeight: 700, color: '#1E9E5A' }}>{r.released}</td>
+                                            <td>{r.avgTurnaroundDays !== null ? `${r.avgTurnaroundDays} days` : '—'}</td>
+                                            <td>{r.reprints}</td>
+                                            <td style={{ color: r.voided > 0 ? '#C62828' : undefined }}>{r.voided}</td>
                                         </tr>
                                     ))}
                                 </tbody>
