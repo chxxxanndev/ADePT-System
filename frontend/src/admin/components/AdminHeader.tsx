@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { CalendarIcon, ChevronDownIcon, MenuIcon } from '../../users/components/icons';
 import type { User } from '../../auth-folder/types/auth';
 import { CalendarPicker } from './Calendarpicker';
@@ -8,6 +9,7 @@ interface AdminHeaderProps {
     user: User;
     dateFilter: string;
     onToggleMobileMenu: () => void;
+    onProfileClick?: () => void;
     onDateFilterChange?: (period: string, range: { from: string; to: string }) => void;
 }
 
@@ -135,6 +137,7 @@ export function AdminHeader({
     user,
     dateFilter,
     onToggleMobileMenu,
+    onProfileClick,
     onDateFilterChange
 }: AdminHeaderProps) {
     const fullName = `${user.firstName || 'Mommy'} ${user.lastName || 'Dionisia'}`;
@@ -143,6 +146,13 @@ export function AdminHeader({
     const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
     const [view, setView] = useState<'list' | 'calendar'>('list');
     const dateDropdownRef = useRef<HTMLDivElement>(null);
+
+    const handleProfileKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onProfileClick?.();
+        }
+    };
 
     function handleSelectPeriod(period: string) {
         if (period === 'Custom Range...') {
@@ -188,7 +198,14 @@ export function AdminHeader({
                     </div>
                 </div>
 
-                <div className="header-profile">
+                <div
+                    className="header-profile"
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Open account settings"
+                    onClick={onProfileClick}
+                    onKeyDown={handleProfileKeyDown}
+                >
                     <div className="header-profile-card">
                         <div className="header-profile-avatar">
                             {user.avatarUrl ? (

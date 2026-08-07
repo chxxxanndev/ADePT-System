@@ -110,6 +110,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                         dateFilter={dateFilter}
                         onDateFilterChange={applyDateFilter}
                         onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        onProfileClick={() => setActiveView('settings')}
                     />
                 )}
 

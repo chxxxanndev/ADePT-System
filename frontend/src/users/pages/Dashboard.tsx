@@ -728,6 +728,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                         user={headerUser as any}
                         userName={fullName}
                         onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
+                        onProfileClick={() => guardedSetActiveView('account-settings')}
                     />
                 )}
 

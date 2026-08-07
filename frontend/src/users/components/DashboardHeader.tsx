@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { KeyboardEvent } from 'react';
 // REMOVED the conflicting UserProfile import from here
 import { MenuIcon, UserIcon, RefreshIcon } from './icons';
 import { DateRangePicker } from './DateRangePicker';
@@ -19,6 +20,7 @@ interface DashboardHeaderProps {
     user: UserProfile;
     userName: string;
     onToggleMobileMenu?: () => void;
+    onProfileClick?: () => void;
     title?: string;
     subtitle?: string;
     brandMode?: boolean;
@@ -28,10 +30,18 @@ export function DashboardHeader({
     user,
     userName,
     onToggleMobileMenu,
+    onProfileClick,
     title = 'Dashboard',
     subtitle,
     brandMode = false,
 }: DashboardHeaderProps) {
+    const handleProfileKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onProfileClick?.();
+        }
+    };
+
     return (
         <header className={`dashboard-header ${brandMode ? 'dashboard-header-brand' : ''}`}>
             <div className="header-left">
@@ -80,7 +90,14 @@ export function DashboardHeader({
                     </>
                 )}
             </div>
-            <div className="header-profile">
+            <div
+                className="header-profile"
+                role="button"
+                tabIndex={0}
+                aria-label="Open account settings"
+                onClick={onProfileClick}
+                onKeyDown={handleProfileKeyDown}
+            >
                 <div className="header-profile-card">
                     <div className="header-profile-avatar">
                         {user.avatarUrl ? (
