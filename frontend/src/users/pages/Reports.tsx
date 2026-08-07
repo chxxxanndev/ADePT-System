@@ -14,7 +14,6 @@ import {
   FileStack,
   ShieldCheck,
   Search,
-  ChevronDown,
   ListChecks,
   TrendingUp,
   TrendingDown,
@@ -27,6 +26,7 @@ import { ExpandableText } from "../components/common/ExpandableText";
 import { getDocPillMeta } from "../../utils/documentType";
 import type { DocumentTypeFilterValue } from "../../utils/documentType";
 import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
+import { ADePTSelect } from "../components/ADePTSelect";
 import { SkeletonBox } from "../components/common/Skeleton";
 import type { DeclarantRecord } from "../data/reportsMockData";
 
@@ -459,21 +459,15 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
                       className="search-input"
                     />
                   </div>
-                  <div className="adt-select-wrap">
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value as DeclarantStatus | "All")}
-                      className="adt-select"
-                    >
-                      <option value="All">All Statuses</option>
-                      {STATUS_OPTIONS.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={14} className="adt-select-chevron" />
-                  </div>
+                  <ADePTSelect
+                    ariaLabel="Filter by status"
+                    value={statusFilter}
+                    onChange={(v) => setStatusFilter(v as DeclarantStatus | "All")}
+                    options={[
+                      { value: "All", label: "All Statuses" },
+                      ...STATUS_OPTIONS.map((s) => ({ value: s, label: s })),
+                    ]}
+                  />
 
                   <DocumentTypeFilter value={docTypeFilter} onChange={setDocTypeFilter} />
                 </div>
@@ -532,15 +526,13 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
               <div className="reports-pagination">
                 <div className="reports-pagination-rows">
                   <span>Rows per page:</span>
-                  <select
-                    value={rowsPerPage}
-                    onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
-                    className="adt-select adt-select--sm"
-                  >
-                    {ROWS_PER_PAGE_OPTIONS.map((n) => (
-                      <option key={n} value={n}>{n}</option>
-                    ))}
-                  </select>
+                  <ADePTSelect
+                    variant="sm"
+                    ariaLabel="Rows per page"
+                    value={String(rowsPerPage)}
+                    onChange={(v) => handleRowsPerPageChange(Number(v))}
+                    options={ROWS_PER_PAGE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
+                  />
                 </div>
 
                 <span className="reports-pagination-label">

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { DeclarantGroup } from '../types/transaction';
 import { TransactionRow } from './TransactionRow';
+import { ADePTSelect } from './ADePTSelect';
 import '../styles/select.css';
 
 interface TransactionTableProps {
@@ -115,15 +116,13 @@ export function TransactionTable({ groups, onViewDetails, toolbar }: Transaction
             <div className="tr-pagination-footer">
                 <div className="tr-pagination-left">
                     <span className="tr-pagination-label">Rows per page:</span>
-                    <select
-                        className="adt-select adt-select--sm"
-                        value={rowsPerPage}
-                        onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
-                    >
-                        {ROWS_PER_PAGE_OPTIONS.map((n) => (
-                            <option key={n} value={n}>{n}</option>
-                        ))}
-                    </select>
+                    <ADePTSelect
+                        variant="sm"
+                        ariaLabel="Rows per page"
+                        value={String(rowsPerPage)}
+                        onChange={(v) => handleRowsPerPageChange(Number(v))}
+                        options={ROWS_PER_PAGE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
+                    />
                 </div>
 
                 <div className="tr-pagination-center">

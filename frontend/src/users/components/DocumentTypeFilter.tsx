@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react';
+import { ADePTSelect } from './ADePTSelect';
 import type { DocumentTypeFilterValue } from '../../utils/documentType';
 import '../styles/select.css';
 
@@ -15,24 +15,16 @@ interface DocumentTypeFilterProps {
 }
 
 /** Shared Document Type dropdown — Transaction Registry, Archive
- *  Management, and Reports & Analytics all render this same control,
- *  styled with the unified .adt-select design. */
+ *  Management, Void & Amend, Reprint, and Reports & Analytics all
+ *  render this same control, styled with the unified .adt-select
+ *  pill and the shared ADePT dropdown panel design. */
 export function DocumentTypeFilter({ value, onChange }: DocumentTypeFilterProps) {
     return (
-        <div className="adt-select-wrap">
-            <select
-                className="adt-select"
-                value={value}
-                onChange={(e) => onChange(e.target.value as DocumentTypeFilterValue)}
-                aria-label="Filter by document type"
-            >
-                {DOC_TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                        {o.label}
-                    </option>
-                ))}
-            </select>
-            <ChevronDown size={14} className="adt-select-chevron" />
-        </div>
+        <ADePTSelect
+            value={value}
+            onChange={onChange}
+            options={DOC_TYPE_OPTIONS}
+            ariaLabel="Filter by document type"
+        />
     );
 }

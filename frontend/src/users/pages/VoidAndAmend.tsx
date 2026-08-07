@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Search, Ban, PencilLine, Loader2, CheckCircle2, ChevronDown } from "lucide-react";
+import { Search, Ban, PencilLine, Loader2, CheckCircle2 } from "lucide-react";
 import { fetchTransactionRegistry } from "../services/transactionService";
 import { requestService } from "../services/requestService";
 import type { Transaction } from "../types/transaction";
@@ -7,6 +7,7 @@ import "../styles/TransactionRegistry.css";
 import "../styles/select.css";
 import { ExpandableText } from "../components/common/ExpandableText";
 import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
+import { ADePTSelect } from "../components/ADePTSelect";
 import { getDocPillMeta, getDocumentTypeFromReference, matchesDocumentType } from "../../utils/documentType";
 import type { DocumentTypeFilterValue } from "../../utils/documentType";
 
@@ -396,8 +397,8 @@ export default function VoidAndAmend({
     }
   };
 
-  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setPageSize(Number(e.target.value));
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
   };
 
   // ─── Amend callback ──────────────────────────────────────
@@ -595,32 +596,28 @@ export default function VoidAndAmend({
                 />
               </div>
             </div>
-            <div className="adt-select-wrap">
-              <select
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value as TimeRange)}
-                className="adt-select"
-              >
-                <option>All Time</option>
-                <option>Today</option>
-                <option>Yesterday</option>
-                <option>This Week</option>
-                <option>This Month</option>
-              </select>
-              <ChevronDown size={14} className="adt-select-chevron" />
-            </div>
-            <div className="adt-select-wrap">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="adt-select"
-              >
-                <option value="All statuses">All statuses</option>
-                <option value="Voided">Voided</option>
-                <option value="Amended">Amended</option>
-              </select>
-              <ChevronDown size={14} className="adt-select-chevron" />
-            </div>
+            <ADePTSelect
+              ariaLabel="Filter by time range"
+              value={timeRange}
+              onChange={(v) => setTimeRange(v as TimeRange)}
+              options={[
+                { value: "All Time", label: "All Time" },
+                { value: "Today", label: "Today" },
+                { value: "Yesterday", label: "Yesterday" },
+                { value: "This Week", label: "This Week" },
+                { value: "This Month", label: "This Month" },
+              ]}
+            />
+            <ADePTSelect
+              ariaLabel="Filter by status"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: "All statuses", label: "All statuses" },
+                { value: "Voided", label: "Voided" },
+                { value: "Amended", label: "Amended" },
+              ]}
+            />
             <DocumentTypeFilter value={docTypeFilter} onChange={setDocTypeFilter} />
           </div>
 
@@ -701,15 +698,13 @@ export default function VoidAndAmend({
             <div className="tr-pagination-footer">
               <div className="tr-pagination-left">
                 <span className="tr-pagination-label">Rows per page:</span>
-                <select
-                  className="adt-select adt-select--sm"
-                  value={pageSize}
-                  onChange={handlePageSizeChange}
-                >
-                  {PAGE_SIZE_OPTIONS.map((size) => (
-                    <option key={size} value={size}>{size}</option>
-                  ))}
-                </select>
+                <ADePTSelect
+                  variant="sm"
+                  ariaLabel="Rows per page"
+                  value={String(pageSize)}
+                  onChange={(v) => handlePageSizeChange(Number(v))}
+                  options={PAGE_SIZE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
+                />
               </div>
 
               <div className="tr-pagination-center">

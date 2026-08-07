@@ -1,7 +1,6 @@
 ﻿import { useMemo, useState, useEffect, useRef } from "react";
 import {
   Search,
-  ChevronDown,
   Archive,
   RotateCcw,
   Loader2,
@@ -17,6 +16,7 @@ import { getDocumentTypeFromReference, getDocPillMeta, matchesDocumentType, type
 import { RestoreConfirmModal } from "../components/RestoreConfirmModal";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
+import { ADePTSelect } from "../components/ADePTSelect";
 import type { Transaction, RequestedDocumentItem } from "../types/transaction";
 import "../styles/ArchiveManagement.css";
 import "../styles/select.css";
@@ -350,8 +350,8 @@ export default function ArchiveManagement({
     }
   };
 
-  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setPageSize(Number(e.target.value));
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
   };
 
   const cancelledCount = useMemo(() => records.filter((r) => r.status === "Cancelled").length, [records]);
@@ -477,18 +477,16 @@ export default function ArchiveManagement({
             </div>
           </div>
 
-          <div className="adt-select-wrap">
-            <select
-              value={reasonFilter}
-              onChange={(e) => setReasonFilter(e.target.value as StatusFilter)}
-              className="adt-select"
-            >
-              <option value="All statuses">All statuses</option>
-              <option value="Cancelled">Cancelled</option>
-              <option value="Archived">Archived</option>
-            </select>
-            <ChevronDown size={14} className="adt-select-chevron" />
-          </div>
+          <ADePTSelect
+            ariaLabel="Filter by status"
+            value={reasonFilter}
+            onChange={(v) => setReasonFilter(v as StatusFilter)}
+            options={[
+              { value: "All statuses", label: "All statuses" },
+              { value: "Cancelled", label: "Cancelled" },
+              { value: "Archived", label: "Archived" },
+            ]}
+          />
 
           <DocumentTypeFilter value={docTypeFilter} onChange={setDocTypeFilter} />
 
@@ -578,15 +576,13 @@ export default function ArchiveManagement({
         <div className="arc-pagination-footer">
           <div className="arc-pagination-left">
             <span className="arc-pagination-label">Rows per page:</span>
-            <select
-              className="adt-select adt-select--sm"
-              value={pageSize}
-              onChange={handlePageSizeChange}
-            >
-              {[5, 10, 20, 50, 100, 150].map((size) => (
-                <option key={size} value={size}>{size}</option>
-              ))}
-            </select>
+            <ADePTSelect
+              variant="sm"
+              ariaLabel="Rows per page"
+              value={String(pageSize)}
+              onChange={(v) => handlePageSizeChange(Number(v))}
+              options={[5, 10, 20, 50, 100, 150].map((n) => ({ value: String(n), label: String(n) }))}
+            />
           </div>
 
           <div className="arc-pagination-center">

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Printer, CheckCircle2, Clock, ChevronDown } from "lucide-react";
+import { Search, Printer, CheckCircle2, Clock } from "lucide-react";
 import "../styles/TransactionRegistry.css";
 import "../styles/select.css";
 import type { CertifiedCopyRecord, CTCStatus } from "../types/transaction";
 import { fetchCertifiedTrueCopies } from "../services/transactionService";
 import { ExpandableText } from "../components/common/ExpandableText";
 import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
+import { ADePTSelect } from "../components/ADePTSelect";
 import { getDocPillMeta, getDocumentTypeFromReference, matchesDocumentType } from "../../utils/documentType";
 import type { DocumentTypeFilterValue } from "../../utils/documentType";
 
@@ -337,18 +338,16 @@ export default function CertifiedTrueCopy({
                   />
                 </div>
               </div>
-              <div className="adt-select-wrap">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="adt-select"
-                >
-                  <option value="All statuses">All statuses</option>
-                  <option value="Released">Released</option>
-                  <option value="Pending">Pending</option>
-                </select>
-                <ChevronDown size={14} className="adt-select-chevron" />
-              </div>
+              <ADePTSelect
+                ariaLabel="Filter by status"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[
+                  { value: "All statuses", label: "All statuses" },
+                  { value: "Released", label: "Released" },
+                  { value: "Pending", label: "Pending" },
+                ]}
+              />
               <DocumentTypeFilter value={docTypeFilter} onChange={setDocTypeFilter} />
             </div>
 
@@ -415,15 +414,13 @@ export default function CertifiedTrueCopy({
               <div className="tr-pagination-footer">
                 <div className="tr-pagination-left">
                   <span className="tr-pagination-label">Rows per page:</span>
-                  <select
-                    className="adt-select adt-select--sm"
-                    value={rowsPerPage}
-                    onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                  >
-                    {ROWS_PER_PAGE_OPTIONS.map((n) => (
-                      <option key={n} value={n}>{n}</option>
-                    ))}
-                  </select>
+                  <ADePTSelect
+                    variant="sm"
+                    ariaLabel="Rows per page"
+                    value={String(rowsPerPage)}
+                    onChange={(v) => setRowsPerPage(Number(v))}
+                    options={ROWS_PER_PAGE_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
+                  />
                 </div>
 
                 <div className="tr-pagination-center">
