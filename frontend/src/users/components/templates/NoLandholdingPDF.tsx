@@ -54,10 +54,10 @@ export interface NLHSpacing {
 
 export const DEFAULT_NLH_SPACING: NLHSpacing = {
     sigMarginTop: 80,
-    sigBlockGap: 60,
+    sigBlockGap: 65,
     sigBlockWidth: 260,
     nameFontSize: 11,
-    titleFontSize: 10,
+    titleFontSize: 11,
     offsetX1: 0,
     offsetX2: 0,
     receiptBottom: 95,
@@ -65,7 +65,7 @@ export const DEFAULT_NLH_SPACING: NLHSpacing = {
     receiptRowGap: 3,
     declarantPadding: 1,
     declarantLetterSpacing: 0.3,
-    footerClearance: 70,
+    footerClearance: 90,
     continuationTopClearance: 60,
 };
 
@@ -77,8 +77,7 @@ const styles = StyleSheet.create({
         padding: 0,
         fontFamily: 'Georgia',
         position: 'relative',
-        fontSize: 10,
-        lineHeight: 1.2,
+        fontSize: 12,
     },
     headerImage: {
         width: '100%',
@@ -123,7 +122,6 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         textDecoration: 'underline',
         spacing: 0.3,
-        // lineHeight: 1,
     },
     signatoryContainer: {
         width: '100%',
@@ -403,7 +401,7 @@ export const CertOfNoLandholdingPDF = (props: CertOfNoLandholdingPDFProps) => {
                     style={styles.pageNumber}
                     fixed
                     render={({ pageNumber, totalPages }) =>
-                        `Page ${pageNumber} of ${totalPages}`
+                        totalPages > 1 ? `Page ${pageNumber} of ${totalPages}` : ''
                     }
                 />
             </Page>

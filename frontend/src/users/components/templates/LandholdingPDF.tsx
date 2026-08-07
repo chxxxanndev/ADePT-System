@@ -459,15 +459,6 @@ export const CertOfLandholdingPDF = (props: CertOfLandholdingPDFProps) => {
               </View>
             )}
 
-            {/* Page number — sits in the same footer band between the
-                receipt block and the signature block, repeated on every
-                page so multi-page certs are easy to keep in order. We
-                already know pageIndex/totalPages ourselves (we built the
-                `pages` array), so this is a plain computed string rather
-                than react-pdf's render+fixed API — that API is for content
-                that overflows a *single* <Page> into multiple physical
-                pages automatically; here we're building explicit <Page>
-                elements ourselves, so render+fixed never fires. */}
             {totalPages > 1 && (
   <Text style={styles.pageNumber}>{`Page ${pageIndex + 1} of ${totalPages}`}</Text>
 )}
