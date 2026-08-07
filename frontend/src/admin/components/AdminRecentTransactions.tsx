@@ -41,7 +41,7 @@ export function AdminRecentTransactions({
                             <th>Declarant</th>
                             <th>Assigned Staff</th>
                             <th>Status</th>
-                            <th>Date</th>
+                            <th>Date &amp; Time</th>
                         </tr>
                     </thead>
                     <tbody>

@@ -607,9 +607,28 @@ class RequestService {
             if (formData.status === 'PENDING_PAYMENT') {
                 updateData.pending_payment_at = new Date().toISOString();
             }
+            if (formData.status === 'ARCHIVED') {
+                updateData.archived_at = new Date().toISOString();
+                if (formData.archiveReason) updateData.archive_reason = formData.archiveReason;
+            }
         }
 
         const { data, error } = await supabase.from('requests').update(updateData).eq('id', id).select().single();
+        // The archive_reason/archived_at columns may not exist yet if the
+        // archive migration hasn't been applied — retry without them so the
+        // archive flow keeps working until the migration runs.
+        if (error && error.code === '42703') {
+            delete updateData.archive_reason;
+            delete updateData.archived_at;
+            const { data: retryData, error: retryError } = await supabase
+                .from('requests')
+                .update(updateData)
+                .eq('id', id)
+                .select()
+                .single();
+            if (retryError) throw retryError;
+            return retryData;
+        }
         if (error) throw error;
 
         // Sync document type links
@@ -1125,7 +1144,7 @@ class RequestService {
     async getDashboardMetrics(from, to) {
         let requestsQuery = supabase
             .from('requests')
-            .select('id, status, request_date, created_at, updated_at, declarant_name, reference_number, property_location, encoded_by, released_by, void_reason, amended_from_id, staff:encoded_by(first_name, last_name)')
+            .select('*, staff:encoded_by(first_name, last_name)')
             .order('created_at', { ascending: false });
         if (from) requestsQuery = requestsQuery.gte('request_date', from);
         if (to) requestsQuery = requestsQuery.lte('request_date', to);
@@ -1224,6 +1243,7 @@ class RequestService {
             RELEASED: 'Released',
             VOID: 'Void',
             CANCELLED: 'Cancelled',
+            ARCHIVED: 'Archived',
         };
 
         const amendedOriginalIds = new Set(
@@ -1254,6 +1274,9 @@ class RequestService {
                         : '',
                 assignedStaff: staffName,
                 releasedStaff: r.status === 'RELEASED' ? resolveReleasedBy(r) : 'Not Released',
+                releasedAt: r.status === 'RELEASED' ? (r.released_at || null) : null,
+                archiveReason: r.status === 'ARCHIVED' ? (r.archive_reason || null) : null,
+                archivedAt: r.status === 'ARCHIVED' ? (r.archived_at || r.updated_at || null) : null,
                 status: STATUS_MAP[r.status] || 'Pending',
                 voidReason: (r.status === 'VOID' || r.status === 'VOIDED') ? (r.void_reason || '') : undefined,
                 voidedAt: (r.status === 'VOID' || r.status === 'VOIDED') ? (r.updated_at || null) : undefined,

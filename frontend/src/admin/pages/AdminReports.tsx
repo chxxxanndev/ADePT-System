@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { fetchReportsAnalytics, fetchDashboardMetrics } from '../services/userManagementService';
+import { fetchReportsAnalytics, fetchDashboardMetrics, fetchAllStaff } from '../services/userManagementService';
 import {
     BarChart,
     Bar,
@@ -13,7 +13,7 @@ import {
     ResponsiveContainer,
     Legend,
 } from 'recharts';
-import { FileStack, FileCheck2, XCircle, FileText, Copy, Edit3, Ban, Clock, Printer } from 'lucide-react';
+import { FileStack, FileCheck2, XCircle, FileText, Copy, Edit3, Ban, Clock } from 'lucide-react';
 import '../styles/AdminReports.css';
 import type { User } from '../../auth-folder/types/auth';
 import { CalendarIcon, ChevronDownIcon } from '../../users/components/icons';
@@ -243,6 +243,7 @@ interface AdminReportsProps {
 
 export function AdminReports({ user }: AdminReportsProps) {
     const [rows, setRows] = useState<ReportRow[]>([]);
+    const [allStaffNames, setAllStaffNames] = useState<string[]>([]);
     const [totalDocuments, setTotalDocuments] = useState(0);
     const [distribution, setDistribution] = useState<DistributionSlice[]>([]);
     const [loading, setLoading] = useState(true);
@@ -286,11 +287,7 @@ export function AdminReports({ user }: AdminReportsProps) {
         void loadReportData(false, null);
     }
 
-    // ── Print / CSV export ──
-    function handlePrintReport() {
-        window.print();
-    }
-
+    // ── CSV export ──
     async function handleExportCsv() {
         const XLSX = await import('xlsx');
         const headers = [
@@ -422,10 +419,16 @@ export function AdminReports({ user }: AdminReportsProps) {
         setError(null);
         try {
             const activeRange = rangeOverride !== undefined ? rangeOverride : dateRange;
-            const [data, metrics] = await Promise.all([
+            const [data, metrics, staff] = await Promise.all([
                 fetchReportsAnalytics(),
                 fetchDashboardMetrics(activeRange?.from, activeRange?.to).catch(() => null),
+                fetchAllStaff().catch(() => []),
             ]);
+
+            const activeStaff = staff
+                .filter((m: any) => m.account_status === 'ACTIVE')
+                .map((m: any) => `${m.first_name} ${m.last_name}`.trim());
+            setAllStaffNames([...new Set(activeStaff)]);
 
             if (data.totalDocuments !== undefined) {
                 setTotalDocuments(data.totalDocuments);
@@ -547,35 +550,6 @@ export function AdminReports({ user }: AdminReportsProps) {
         };
     }, [previousRows, filteredRows, totalApproved, totalVoided, totalCancelled, totalPending]);
 
-    // ── Revenue (period-scoped) ──
-    const revenueStats = useMemo(() => {
-        const totalFees = filteredRows.reduce((sum, r) => sum + (r.amountDue || 0), 0);
-        const totalCollected = filteredRows.reduce((sum, r) => sum + (r.amountPaid || 0), 0);
-        return { totalFees, totalCollected, totalOutstanding: totalFees - totalCollected };
-    }, [filteredRows]);
-
-    const monthlyRevenue = useMemo(() => {
-        const now = new Date();
-        const buckets: { key: string; month: string; revenue: number }[] = [];
-        for (let m = 11; m >= 0; m--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - m, 1);
-            buckets.push({
-                key: `${d.getFullYear()}-${d.getMonth()}`,
-                month: d.toLocaleDateString('en-US', { month: 'short' }),
-                revenue: 0,
-            });
-        }
-        const byKey = new Map(buckets.map((b) => [b.key, b]));
-        filteredRows.forEach((r) => {
-            if (!r.paymentDate) return;
-            const d = new Date(r.paymentDate);
-            if (Number.isNaN(d.getTime())) return;
-            const b = byKey.get(`${d.getFullYear()}-${d.getMonth()}`);
-            if (b) b.revenue += r.amountPaid || 0;
-        });
-        return buckets;
-    }, [filteredRows]);
-
     // ── Void / cancelled reason breakdown (period-scoped) ──
     const voidReasonBreakdown = useMemo(() => {
         const counts: Record<string, number> = {};
@@ -618,7 +592,7 @@ export function AdminReports({ user }: AdminReportsProps) {
     const staffPerformance = useMemo(() => {
         const grouped: Record<string, { released: number; reprints: number; voided: number; turnaroundMs: number; releaseCount: number }> = {};
         filteredRows.forEach((r) => {
-            const staff = r.processedBy || 'Office Staff';
+            const staff = r.releasedBy || r.processedBy || 'Office Staff';
             if (!grouped[staff]) {
                 grouped[staff] = { released: 0, reprints: 0, voided: 0, turnaroundMs: 0, releaseCount: 0 };
             }
@@ -635,8 +609,9 @@ export function AdminReports({ user }: AdminReportsProps) {
             if (r.requestType === 'REPRINT') s.reprints += 1;
             if (r.status === 'Void' || r.status === 'Cancelled' || r.status === 'disapproved') s.voided += 1;
         });
-        return Object.entries(grouped)
-            .map(([staff, s]) => ({
+        const byName: Record<string, { staff: string; released: number; reprints: number; voided: number; avgTurnaroundDays: number | null }> = {};
+        Object.entries(grouped).forEach(([staff, s]) => {
+            byName[staff] = {
                 staff,
                 released: s.released,
                 reprints: s.reprints,
@@ -644,10 +619,12 @@ export function AdminReports({ user }: AdminReportsProps) {
                 avgTurnaroundDays: s.releaseCount > 0
                     ? Math.round((s.turnaroundMs / s.releaseCount) / (1000 * 60 * 60 * 24) * 10) / 10
                     : null,
-            }))
-            .filter((s) => s.released || s.reprints || s.voided)
-            .sort((a, b) => b.released - a.released);
-    }, [filteredRows]);
+            };
+        });
+        const zeroed = allStaffNames.map((name) => byName[name] || { staff: name, released: 0, reprints: 0, voided: 0, avgTurnaroundDays: null });
+        const extra = Object.values(byName).filter((s) => !allStaffNames.includes(s.staff));
+        return [...zeroed, ...extra].sort((a, b) => b.released - a.released || a.staff.localeCompare(b.staff));
+    }, [filteredRows, allStaffNames]);
 
     const renderDelta = (delta: number | null, invert = false) => {
         if (delta === null) return null;
@@ -820,7 +797,7 @@ export function AdminReports({ user }: AdminReportsProps) {
     const getStaffFiltered = useCallback(
         (staff: string, status: string): ReportRow[] => {
             return filteredRows.filter((r) => {
-                const s = r.assignedStaff || r.processedBy || 'Unassigned';
+                const s = r.releasedBy || r.processedBy || 'Office Staff';
                 return s === staff && r.status === status;
             });
         },
@@ -872,9 +849,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                         <div className="ar-header-actions">
                             <button type="button" className="ar-export-btn" onClick={handleExportCsv}>
                                 <FileText size={15} /> Export Excel
-                            </button>
-                            <button type="button" className="ar-export-btn" onClick={handlePrintReport}>
-                                <Printer size={15} /> Print
                             </button>
                         </div>
 
@@ -1069,51 +1043,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                 </div>
             </div>
 
-            <div className="ar-stats-row">
-                <div className="ar-stat-card ar-stat-card--revenue">
-                    <div className="ar-stat-card-top">
-                        <span className="ar-stat-label">Total Fees</span>
-                        <div className="ar-stat-icon ar-stat-icon--primary">
-                            <FileStack size={18} />
-                        </div>
-                    </div>
-                    <div className="ar-stat-value-row">
-                        <span className="ar-stat-value">
-                            {loading ? '—' : `\u20B1${revenueStats.totalFees.toLocaleString()}`}
-                        </span>
-                    </div>
-                </div>
-
-                <div className="ar-stat-card ar-stat-card--revenue">
-                    <div className="ar-stat-card-top">
-                        <span className="ar-stat-label">Collected</span>
-                        <div className="ar-stat-icon ar-stat-icon--success">
-                            <FileCheck2 size={18} />
-                        </div>
-                    </div>
-                    <div className="ar-stat-value-row">
-                        <span className="ar-stat-value">
-                            {loading ? '—' : `\u20B1${revenueStats.totalCollected.toLocaleString()}`}
-                        </span>
-                    </div>
-                    <div className="ar-stat-delta-row">{renderDelta(deltas.collected)}</div>
-                </div>
-
-                <div className="ar-stat-card ar-stat-card--revenue">
-                    <div className="ar-stat-card-top">
-                        <span className="ar-stat-label">Outstanding</span>
-                        <div className="ar-stat-icon ar-stat-icon--amber">
-                            <Clock size={18} />
-                        </div>
-                    </div>
-                    <div className="ar-stat-value-row">
-                        <span className="ar-stat-value">
-                            {loading ? '—' : `\u20B1${revenueStats.totalOutstanding.toLocaleString()}`}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
             <div className="ar-charts-row">
                 <div className="admin-card ar-bar-card">
                     <div className="ar-bar-card-header">
@@ -1172,48 +1101,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                     slices={distribution}
                     isRefreshing={loading}
                 />
-            </div>
-
-            <div className="ar-charts-row" style={{ gridTemplateColumns: '1fr' }}>
-                <div className="admin-card ar-bar-card">
-                    <h2 className="admin-card-title">Monthly Revenue</h2>
-                    <p className="ar-chart-description">
-                        Collections per month (last 12 months)
-                    </p>
-                    <div className="ar-chart-canvas">
-                        {loading ? (
-                            <div className="ar-chart-loading">Loading chart data…</div>
-                        ) : (
-                            <ResponsiveContainer>
-                                <BarChart
-                                    data={monthlyRevenue}
-                                    margin={{ top: 8, right: 8, left: -12, bottom: 8 }}
-                                >
-                                    <CartesianGrid vertical={false} stroke="rgba(41,35,122,0.08)" />
-                                    <XAxis
-                                        dataKey="month"
-                                        tick={{ fontSize: 11, fill: '#8b8fa3' }}
-                                        axisLine={{ stroke: 'rgba(41,35,122,0.12)' }}
-                                        tickLine={false}
-                                        interval={0}
-                                    />
-                                    <YAxis
-                                        tick={{ fontSize: 11, fill: '#8b8fa3' }}
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tickFormatter={(v: number) => `\u20B1${v}`}
-                                    />
-                                    <Tooltip
-                                        formatter={(value: any) => [`\u20B1${Number(value).toLocaleString()}`, 'Collected']}
-                                        cursor={{ fill: 'rgba(41,35,122,0.04)' }}
-                                        contentStyle={{ borderRadius: 8, border: '1px solid #EDEEF3', fontSize: 13 }}
-                                    />
-                                    <Bar dataKey="revenue" fill="#3D2E7C" radius={[4, 4, 0, 0]} barSize={12} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        )}
-                    </div>
-                </div>
             </div>
 
             <div className="ar-charts-row">
@@ -1589,7 +1476,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                             Staff Performance
                         </h2>
                         <p className="ar-chart-description" style={{ marginTop: 2, marginBottom: 16 }}>
-                            Releases, reprints, voids and average turnaround per staff
+                            Releases, reprints, voids and average turnaround per releasing staff (all active staff shown)
                         </p>
                     </div>
                     <div className="admin-table-container" style={{ maxHeight: '320px', overflowY: 'auto' }}>

@@ -1,4 +1,5 @@
 import type { AdminActivityItem } from '../data/adminTypes';
+import { AuditTypeIcon } from '../services/auditIcons';
 
 interface AdminRecentActivityProps {
     activities: AdminActivityItem[];
@@ -30,7 +31,7 @@ export function AdminRecentActivity({ activities, onViewFullLog }: AdminRecentAc
                 <div className="activity-stack">
                     {visibleActivities.map((activity) => (
                         <div className="activity-item" key={activity.id}>
-                            <div className={`activity-color-block ${activity.status}`} />
+                            <AuditTypeIcon type={activity.type} />
                             <div className="activity-details">
                                 <span className="activity-title">{activity.title}</span>
                                 <span className="activity-meta">

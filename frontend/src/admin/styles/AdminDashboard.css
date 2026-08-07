@@ -1561,25 +1561,6 @@
     border-left: none;
 }
 
-.activity-color-block {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    flex-shrink: 0;
-}
-
-.activity-color-block.approved {
-    background-color: rgba(76, 175, 80, 0.3);
-}
-
-.activity-color-block.pending {
-    background-color: rgba(253, 216, 53, 0.35);
-}
-
-.activity-color-block.declined {
-    background-color: rgba(211, 47, 47, 0.25);
-}
-
 .activity-details {
     flex: 1;
     display: flex;
@@ -1784,18 +1765,6 @@
     margin-top: 12px;
     padding-top: 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.activity-color-block.login {
-    background-color: rgba(15, 163, 196, 0.28);
-}
-
-.activity-color-block.logout {
-    background-color: rgba(100, 116, 139, 0.28);
-}
-
-.activity-color-block.system {
-    background-color: rgba(124, 58, 237, 0.22);
 }
 
 /* --- EMPTY STATES --- */
