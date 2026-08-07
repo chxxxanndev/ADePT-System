@@ -27,22 +27,29 @@ const styles = StyleSheet.create({
     lineHeight: 1.15 
   },
   background: { 
-    position: 'absolute', 
-    top: 0, 
-    left: 0, 
-    right: 0, 
-    bottom: 0, 
-    width: '100%', 
-    height: '100%', 
-    objectFit: 'fill', 
-    zIndex: -1 
-  },
+  position: 'absolute', 
+  bottom: 0,
+  left: 0, 
+  right: 0,
+  width: '100%',
+  height: 200,
+  objectFit: 'cover',
+  zIndex: -1,
+},
   // NEW: header image style (same pattern as CertOfLandholdingPDF's headerImage)
   headerImage: {
     width: '100%',
     objectFit: 'contain',
   },
-  formNoTag: { position: 'absolute', top: 15, left: 36, fontSize: 8 },
+  // In styles:
+  formNoTag: { 
+  position: 'absolute', 
+  top: 25, 
+  left: 25, 
+  fontSize: 6, 
+  fontFamily: 'Times-Roman',
+  color: '#000000',
+},
   content: { paddingHorizontal: 38, paddingTop: 15, paddingBottom: 15 },
   headerCenter: { textAlign: 'center' },
   h8: { fontSize: 9},
@@ -93,7 +100,27 @@ const styles = StyleSheet.create({
   certSignatoryBlock: { flex: 1, alignItems: 'center', paddingRight: 10, paddingTop: 2 },
   certRightRow: { flexDirection: 'row', marginBottom: 2 },
   certValueUnderline: { borderBottomWidth: 1, flex: 1, fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 11, paddingLeft: 4, textAlign: 'left' },
-  importantText: { fontSize: 11, textAlign: 'justify' }
+  importantWrapper: {
+  backgroundColor: 'white',
+  paddingVertical: 3,
+  paddingHorizontal: 2,
+  paddingRight: 10,  // ← add this
+  marginTop: 8,
+},
+importantLabel: {
+  fontSize: 11,
+  // fontFamily: 'Times-Bold',
+  width: 78,
+},
+importantBody: {
+  fontSize: 11,
+  flex: 1,
+  textAlign: 'justify',
+},
+importantRow: {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+},
 });
 
 const peso = (n: any) => (n ? Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '');
@@ -281,9 +308,7 @@ export const TaxDeclarationPDF = ({
   return (
     <Document>
       <Page size="LETTER" style={styles.page}>
-        <Image fixed src={window.location.origin + '/images/official_bg.png'} style={styles.background} />
-
-        <Text style={styles.formNoTag}>RPA FORM NO. 1A</Text>
+        <Image fixed src={window.location.origin + '/images/landholding_bg.png'} style={styles.background} />
 
         {/* PAGE CLAMP: header + content sit inside a fixed-height, clipped
             container so the LETTER form can never spill onto a second page —
@@ -291,6 +316,8 @@ export const TaxDeclarationPDF = ({
         <View style={{ height: PAGE_HEIGHT, overflow: 'hidden' }}>
           {/* HEADER IMAGE (replaces hardcoded Republic/Province/Office text header) */}
           <Image src={window.location.origin + '/images/landholding_header.png'} style={styles.headerImage} />
+  
+          <Text style={styles.formNoTag}>RPA FORM NO. 1A</Text>
 
           <View style={styles.content}>
           {/* ASSESSMENT OF REAL PROPERTY NO. LINE */}
@@ -736,15 +763,34 @@ export const TaxDeclarationPDF = ({
             </View>
 
           {/* [1 space] */}
-          <View style={{ height: 11 }} />
+<View style={{ height: 8 }} />
 
-          {/* IMPORTANT TEXT */}
-          <Text style={styles.importantText}>
-            IMPORTANT: This declaration is issued only in connection with real property taxation and the valuation indicated herein is based on a schedule of market values prepared for the purpose. It should not be considered as title to the property.
-          </Text>
+{/* IMPORTANT TEXT — white bg + hanging indent, sits above the footer banner */}
+<View style={{ 
+  backgroundColor: 'white', 
+  paddingVertical: 3,
+  paddingHorizontal: 2,
+  marginTop: 8,
+}}>
+  <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+    <Text style={{ 
+      fontSize: 11, 
+      width: 78,
+    }}>
+      IMPORTANT:
+    </Text>
+    <Text style={{ 
+      fontSize: 10, 
+      flex: 1, 
+      textAlign: 'justify',
+    }}>
+      This declaration is issued only in connection with real property taxation and the valuation indicated herein is based on a schedule of market values prepared for the purpose. It should not be considered as title to the property.
+    </Text>
+  </View>
+</View>
 
-          {/* [1 space - End] */}
-          <View style={{ height: 11 }} />
+{/* [End spacer — clears the 200pt footer banner] */}
+<View style={{ height: 40 }} />
           </View>
         </View>
       </Page>
