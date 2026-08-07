@@ -654,6 +654,14 @@
     min-width: 0;
 }
 
+/* Void & Amend: the status badge and the amend button share one flex
+   row, so give them a clear, consistent gap (unlike the registry's
+   icon-only button clusters). Applied to the container, not the button,
+   so Amended (badge only) and Voided (badge + button) stay balanced. */
+.tr-actions--gapped {
+    gap: 12px;
+}
+
 .tr-action-btn {
     background: rgba(41, 35, 122, 0.06);
     border: none;

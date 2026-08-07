@@ -659,7 +659,7 @@ export default function VoidAndAmend({
                           {record.actionedAt ? formatDateTime(record.actionedAt) : "—"}
                         </td>
                         <td>
-                          <div className="tr-actions">
+                          <div className="tr-actions tr-actions--gapped">
                             {record.hasBeenAmended ? (
                               <AmendedBadge />
                             ) : (
