@@ -15,6 +15,7 @@ export interface RequestFormData {
     referenceNumber?: string;
     propertyLocation?: string;
     purposeOtherText?: string;
+    archiveReason?: string;
 }
 
 const BASE_URL = `${API_ROOT}/api`;
