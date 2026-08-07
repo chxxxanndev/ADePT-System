@@ -353,6 +353,52 @@ body {
     font-weight: 550;
 }
 
+/* Spinner inside the Sign In button */
+.submit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.login-spinner {
+    width: 16px;
+    height: 16px;
+    animation: login-spin 0.75s linear infinite;
+    flex-shrink: 0;
+}
+
+.login-spinner-track {
+    opacity: 0.25;
+}
+
+.login-spinner-arc {
+    opacity: 0.9;
+}
+
+@keyframes login-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+/* Wake-up note below the button */
+.wakeup-note {
+    font-size: 0.78rem;
+    color: #92400e;           /* amber-ish — warm but not alarming */
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-top: 4px;
+    text-align: center;
+    animation: fadeInNote 0.4s ease;
+}
+
+@keyframes fadeInNote {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
 .auth-form {
     display: flex;
     flex-direction: column;

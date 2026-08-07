@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { View } from './types/auth';
 import { AlertBanner } from './components/AlertBanner';
@@ -29,15 +29,31 @@ export function LoginForm({ active, loading, onLogin, onReactivate, navigateTo, 
     const [password, setPassword] = useState('');
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
+    const [showWakeUpNote, setShowWakeUpNote] = useState(false);
 
     // Reactivation confirmation prompt
     const [showReactivatePrompt, setShowReactivatePrompt] = useState(false);
     const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
     const [reactivating, setReactivating] = useState(false);
 
+    const wakeUpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     useEffect(() => {
         if (initialUsername) setUsername(initialUsername);
     }, [initialUsername]);
+
+    // Show the wake-up note after 3s of loading, hide it when loading stops
+    useEffect(() => {
+        if (loading) {
+            wakeUpTimerRef.current = setTimeout(() => setShowWakeUpNote(true), 3000);
+        } else {
+            if (wakeUpTimerRef.current) clearTimeout(wakeUpTimerRef.current);
+            setShowWakeUpNote(false);
+        }
+        return () => {
+            if (wakeUpTimerRef.current) clearTimeout(wakeUpTimerRef.current);
+        };
+    }, [loading]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -125,8 +141,39 @@ export function LoginForm({ active, loading, onLogin, onReactivate, navigateTo, 
                 </span>
 
                 <button type="submit" className="submit-btn" disabled={loading}>
-                    {loading ? 'Signing In...' : 'Sign In'}
+                    {loading ? (
+                        <>
+                            {/* Inline SVG spinner — no extra dependency needed */}
+                            <svg
+                                className="login-spinner"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
+                                <circle
+                                    className="login-spinner-track"
+                                    cx="12" cy="12" r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="3"
+                                />
+                                <path
+                                    className="login-spinner-arc"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                />
+                            </svg>
+                            Signing In…
+                        </>
+                    ) : 'Sign In'}
                 </button>
+
+                {/* Wake-up notice — only appears after 3s of waiting */}
+                {showWakeUpNote && (
+                    <p className="wakeup-note" role="status">
+                        ☕ The server is waking up. This may take up to 30 seconds on first sign-in.
+                    </p>
+                )}
 
                 <div className="form-footer-actions">
                     Don't have an account?{' '}
@@ -139,17 +186,6 @@ export function LoginForm({ active, loading, onLogin, onReactivate, navigateTo, 
             <LockDisclaimer />
             <DeveloperCredit />
 
-            {/* Rendered via portal straight onto document.body — this modal
-                used to be a normal descendant of .form-content-wrapper, but
-                that element (and .auth-form-container above it in signup
-                mode) has a CSS `transform`, which makes it the containing
-                block for any `position: fixed` element inside it. That's
-                why the overlay was rendering confined to the right-hand
-                form panel instead of covering the full screen. A portal
-                mounts this DOM subtree directly under <body>, completely
-                outside any transformed ancestor, so `position: fixed`
-                behaves normally regardless of what animations exist
-                elsewhere on the page. */}
             {showReactivatePrompt && createPortal(
                 <div className="as-modal-overlay" onClick={handleCancelReactivate}>
                     <div
