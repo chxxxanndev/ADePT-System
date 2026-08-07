@@ -93,12 +93,12 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     const el = declarantNameEditRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
+    el.style.height = `${Math.max(el.scrollHeight, 38)}px`;
   };
 
   useEffect(() => {
-    if (isEditing) resizeDeclarantNameEdit();
-  }, [isEditing, formData.declarantName]);
+    resizeDeclarantNameEdit();
+  }, [formData.declarantName]);
 
   const getFormattedDates = () => {
     const today = new Date();
@@ -354,8 +354,14 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
         finalEditData = { ...finalEditData, ...(saved?.data ?? saved) };
       }
       else if (docType === 'LANDHOLDING') {
+        const properties = (finalEditData.properties || []).map((p: any) => {
+          const raw = String(p.area || '').trim();
+          if (!raw) return { ...p, area: '' };
+          return { ...p, area: stripAreaUnit(raw) === raw ? `${raw} ${detectAreaUnit(raw)}` : p.area };
+        });
         const payload = {
           ...finalEditData,
+          properties,
           declarantName: formData.declarantName,
           declarant_name: formData.declarantName
         };
@@ -392,6 +398,27 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
           );
           finalEditData = { ...finalEditData, ...(saved?.data ?? saved) };
         }
+      }
+
+      // Recompute the printed "Area: X has./sqm." line from the edited
+      // assessment rows (same logic as taxDeclarationService's
+      // getTaxDeclaration) so the regenerated preview reflects unit
+      // changes instead of keeping the stale string loaded at open.
+      if (docType === 'TAX_DEC' && finalEditData.assessments) {
+        const rows = finalEditData.assessments;
+        const total = rows.reduce(
+          (sum: number, r: any) => sum + (parseFloat(String(r.area || '').replace(/,/g, '')) || 0),
+          0
+        );
+        const unit = rows.map((r: any) => (r.areaUnit || '').trim()).filter(Boolean)[0] || '';
+        const suffix = /sq/i.test(unit) ? 'sqm.' : unit ? 'has.' : '';
+        const formatted = total > 0
+          ? total.toLocaleString(undefined, {
+              minimumFractionDigits: /sq/i.test(unit) ? 2 : 0,
+              maximumFractionDigits: 10,
+            })
+          : '';
+        finalEditData.area = formatted ? `${formatted}${suffix ? ' ' + suffix : ''}` : '';
       }
 
       setFullData(finalEditData);
@@ -439,6 +466,7 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     if (field === 'classificationLabel') delete newAss[index].classification_label;
     if (field === 'marketValue') delete newAss[index].market_value;
     if (field === 'assessmentLevel') delete newAss[index].assessment_level;
+    if (field === 'areaUnit') delete newAss[index].area_unit;
     setEditData({ ...editData, assessments: newAss });
   };
 
@@ -451,6 +479,7 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
       marketValue: 0,
       assessmentLevel: 0,
       area: '',
+      areaUnit: 'HECTARE',
     });
     setEditData({ ...editData, assessments: newAssessments });
   };
@@ -524,6 +553,12 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     </div>
   );
 
+  const stripAreaUnit = (raw: string) =>
+    String(raw || '')
+      .replace(/(hectares?|has\.?|sq\.?\s*m\.?|sqm\.?|square\s*meters?)$/i, '')
+      .trim();
+  const detectAreaUnit = (raw: string) => (/sq/i.test(String(raw || '')) ? 'sqm.' : 'has.');
+
   const renderLandholdingEdit = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -548,7 +583,7 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
         </div>
       </div>
 
-      {/* DECLARED PROPERTIES TABLE */}
+      {/* DECLARED PROPERTIES */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <span style={{ fontSize: '14px', fontWeight: 700, color: '#374151' }}>DECLARED PROPERTIES</span>
@@ -571,102 +606,106 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
             <PlusIcon size={14} /> Add Row
           </button>
         </div>
-        <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-            <colgroup>
-              <col style={{ width: '14%' }} />
-              <col style={{ width: '20%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '14%' }} />
-              <col style={{ width: '8%' }} />
-            </colgroup>
-            <thead style={{ backgroundColor: '#f3f4f6' }}>
-              <tr>
-                <th style={thStyle}>TD/ARP No.</th>
-                <th style={thStyle}>Location</th>
-                <th style={thStyle}>Lot No.</th>
-                <th style={thStyle}>Title No.</th>
-                <th style={thStyle}>Area</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Assessed Val.</th>
-                <th style={{ ...thStyle, textAlign: 'center' }}> </th>
-              </tr>
-            </thead>
-            <tbody>
-              {(editData?.properties || []).length === 0 && (
-                <tr><td colSpan={7} style={{ padding: '16px', textAlign: 'center', color: '#6b7280' }}>No properties added.</td></tr>
-              )}
-              {(editData?.properties || []).map((p: any, i: number) => (
-                <tr key={i} style={{ borderTop: '1px solid #e5e7eb' }}>
-                  <td style={tdStyle}>
+
+        {(editData?.properties || []).length === 0 ? (
+          <div style={{ padding: '16px', textAlign: 'center', color: '#6b7280', fontSize: '13px', border: '1px dashed #d1d5db', borderRadius: '8px' }}>
+            No properties added.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {(editData?.properties || []).map((p: any, i: number) => (
+              <div key={i} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', backgroundColor: '#fff' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 1fr 1fr auto', gap: '8px', alignItems: 'flex-end', marginBottom: '10px' }}>
+                  <div>
+                    <label style={propLabelStyle}>TD/ARP No.</label>
                     <input
                       type="text"
                       value={p.tdArpNumber || p.td_arp_number || ''}
                       onChange={(e) => updateProperty(i, 'tdArpNumber', e.target.value)}
                       style={inputStyle}
                     />
-                  </td>
-                  <td style={tdStyle}>
+                  </div>
+                  <div>
+                    <label style={propLabelStyle}>Location</label>
                     <input
                       type="text"
                       value={p.locationOfProperty || p.location_of_property || ''}
                       onChange={(e) => updateProperty(i, 'locationOfProperty', e.target.value)}
                       style={inputStyle}
                     />
-                  </td>
-                  <td style={tdStyle}>
+                  </div>
+                  <div>
+                    <label style={propLabelStyle}>Lot No.</label>
                     <input
                       type="text"
                       value={p.lotNumber || p.lot_number || ''}
                       onChange={(e) => updateProperty(i, 'lotNumber', e.target.value)}
                       style={inputStyle}
                     />
-                  </td>
-                  <td style={tdStyle}>
+                  </div>
+                  <div>
+                    <label style={propLabelStyle}>Title No.</label>
                     <input
                       type="text"
                       value={p.titleNumber || p.title_number || ''}
                       onChange={(e) => updateProperty(i, 'titleNumber', e.target.value)}
                       style={inputStyle}
                     />
-                  </td>
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      value={p.area || ''}
-                      onChange={(e) => updateProperty(i, 'area', e.target.value)}
-                      style={inputStyle}
-                    />
-                  </td>
-                  <td style={tdStyle}>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', alignSelf: 'flex-end', height: '35px' }}>
+                    <button
+                      onClick={() => removePropertyRow(i)}
+                      title="Remove property"
+                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '18px', padding: '4px 6px' }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '8px' }}>
+                  <div>
+                    <label style={propLabelStyle}>Area</label>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <input
+                        type="text"
+                        value={p.area || ''}
+                        onChange={(e) => updateProperty(i, 'area', e.target.value)}
+                        style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+                      />
+                      <select
+                        value={detectAreaUnit(p.area || '')}
+                        onChange={(e) => {
+                          const bare = stripAreaUnit(p.area || '');
+                          updateProperty(i, 'area', bare ? `${bare} ${e.target.value}` : e.target.value);
+                        }}
+                        style={{ ...inputStyle, width: 'auto', flexShrink: 0, padding: '8px 6px' }}
+                      >
+                        <option value="has.">has.</option>
+                        <option value="sqm.">sqm.</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={propLabelStyle}>Assessed Value (₱)</label>
                     <input
                       type="number"
                       value={p.assessedValue || p.assessed_value || 0}
                       onChange={(e) => updateProperty(i, 'assessedValue', e.target.value)}
                       style={{ ...inputStyle, textAlign: 'right' }}
                     />
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: 'center' }}>
-                    <button
-                      onClick={() => removePropertyRow(i)}
-                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px' }}
-                    >
-                      ×
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 
   const renderTaxDecEdit = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', backgroundColor: '#f0fdf4', padding: '16px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
         <div><label style={editLabelStyle}>ARP No.</label><input type="text" value={editData?.taxDeclarationNumber || editData?.tax_declaration_number || ''} onChange={(e) => setEditData({ ...editData, taxDeclarationNumber: e.target.value })} style={inputStyle} /></div>
         <div><label style={editLabelStyle}>PIN</label><input type="text" value={editData?.propertyIndexNumber || editData?.property_index_number || ''} onChange={(e) => setEditData({ ...editData, propertyIndexNumber: e.target.value })} style={inputStyle} /></div>
       </div>
@@ -711,110 +750,116 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
             <PlusIcon size={14} /> Add Row
           </button>
         </div>
-        <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-            <colgroup>
-              <col style={{ width: '16%' }} />
-              <col style={{ width: '16%' }} />
-              <col style={{ width: '14%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '14%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '6%' }} />
-            </colgroup>
-            <thead style={{ backgroundColor: '#f3f4f6' }}>
-              <tr>
-                <th style={thStyle}>Kind of Property</th>
-                <th style={thStyle}>Classification</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Market Value (₱)</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Assess. Level (%)</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Assessed Value (₱)</th>
-                <th style={thStyle}>Area</th>
-                <th style={{ ...thStyle, textAlign: 'center' }}> </th>
-              </tr>
-            </thead>
-            <tbody>
-              {(editData?.assessments || []).length === 0 && (
-                <tr><td colSpan={7} style={{ padding: '16px', textAlign: 'center', color: '#6b7280' }}>No assessments added.</td></tr>
-              )}
-              {(editData?.assessments || []).map((a: any, i: number) => {
-                const mv = parseFloat(a.marketValue || a.market_value) || 0;
-                const lvl = parseFloat(a.assessmentLevel || a.assessment_level) || 0;
-                const computed = calcAssessedValue(mv, lvl);
-                const av = computed > 0 ? computed : (parseFloat(a.assessedValue) || 0);
-                return (
-                  <tr key={i} style={{ borderTop: '1px solid #e5e7eb' }}>
-                    <td style={tdStyle}>
+        {(editData?.assessments || []).length === 0 ? (
+          <div style={{ padding: '16px', textAlign: 'center', color: '#6b7280', fontSize: '13px', border: '1px dashed #d1d5db', borderRadius: '8px' }}>
+            No assessments added.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {(editData?.assessments || []).map((a: any, i: number) => {
+              const mv = parseFloat(a.marketValue || a.market_value) || 0;
+              const lvl = parseFloat(a.assessmentLevel || a.assessment_level) || 0;
+              const computed = calcAssessedValue(mv, lvl);
+              const av = computed > 0 ? computed : (parseFloat(a.assessedValue) || 0);
+              return (
+                <div key={i} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', backgroundColor: '#fff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                      Assessment #{i + 1}
+                    </span>
+                    <button
+                      onClick={() => removeAssessmentRow(i)}
+                      title="Remove assessment"
+                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '18px', padding: '4px 6px' }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                    <div>
+                      <label style={propLabelStyle}>Kind of Property</label>
                       <input
                         type="text"
                         value={a.kindOfProperty || a.kind_of_property || ''}
                         onChange={(e) => updateAssessment(i, 'kindOfProperty', e.target.value)}
                         style={inputStyle}
                       />
-                    </td>
-                    <td style={tdStyle}>
+                    </div>
+                    <div>
+                      <label style={propLabelStyle}>Classification</label>
                       <input
                         type="text"
                         value={a.classificationLabel || a.classification_label || ''}
                         onChange={(e) => updateAssessment(i, 'classificationLabel', e.target.value)}
                         style={inputStyle}
                       />
-                    </td>
-                    <td style={tdStyle}>
+                    </div>
+                    <div>
+                      <label style={propLabelStyle}>Area</label>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <input
+                          type="text"
+                          value={a.area || ''}
+                          onChange={(e) => updateAssessment(i, 'area', e.target.value)}
+                          style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+                        />
+                        <select
+                          value={/sq/i.test(a.areaUnit || '') ? 'SQM' : 'HECTARE'}
+                          onChange={(e) => updateAssessment(i, 'areaUnit', e.target.value)}
+                          style={{ ...inputStyle, width: 'auto', flexShrink: 0, padding: '8px 6px' }}
+                        >
+                          <option value="HECTARE">has.</option>
+                          <option value="SQM">sqm.</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                    <div>
+                      <label style={propLabelStyle}>Market Value (₱)</label>
                       <input
                         type="number"
                         value={mv}
                         onChange={(e) => updateAssessment(i, 'marketValue', e.target.value)}
                         style={{ ...inputStyle, textAlign: 'right' }}
                       />
-                    </td>
-                    <td style={tdStyle}>
+                    </div>
+                    <div>
+                      <label style={propLabelStyle}>Assess. Level (%)</label>
                       <input
                         type="number"
                         value={lvl}
                         onChange={(e) => updateAssessment(i, 'assessmentLevel', e.target.value)}
                         style={{ ...inputStyle, textAlign: 'right' }}
                       />
-                    </td>
-                    <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: '#166534' }}>
-                      ₱ {formatCurrency(av)}
-                    </td>
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        value={a.area || ''}
-                        onChange={(e) => updateAssessment(i, 'area', e.target.value)}
-                        style={inputStyle}
-                      />
-                    </td>
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>
-                      <button
-                        onClick={() => removeAssessmentRow(i)}
-                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px' }}
-                      >
-                        ×
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot style={{ backgroundColor: '#f9fafb', fontWeight: 700, borderTop: '2px solid #d1d5db' }}>
-              <tr>
-                <td colSpan={2} style={tdStyle}>TOTALS</td>
-                <td style={{ ...tdStyle, textAlign: 'right' }}>₱ {formatCurrency(editData?.assessments?.reduce((sum: number, a: any) => sum + (parseFloat(a.marketValue || a.market_value) || 0), 0) || 0)}</td>
-                <td style={tdStyle}></td>
-                <td style={{ ...tdStyle, textAlign: 'right', color: '#166534' }}>₱ {formatCurrency(editData?.assessments?.reduce((sum: number, a: any) => {
-                  const mv = parseFloat(a.marketValue || a.market_value) || 0;
-                  const lvl = parseFloat(a.assessmentLevel || a.assessment_level) || 0;
-                  const computed = calcAssessedValue(mv, lvl);
-                  return sum + (computed > 0 ? computed : (parseFloat(a.assessedValue || a.assessed_value) || 0));
-                }, 0) || 0)}</td>
-                <td style={tdStyle}></td>
-                <td style={tdStyle}></td>
-              </tr>
-            </tfoot>
-          </table>
+                    </div>
+                    <div>
+                      <label style={propLabelStyle}>Assessed Value (₱)</label>
+                      <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', fontWeight: 600, color: '#111827', backgroundColor: '#f9fafb' }}>
+                        ₱ {formatCurrency(av)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* TOTALS */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', backgroundColor: '#f9fafb', padding: '12px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>TOTALS</span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>
+            Market Value: <strong>₱ {formatCurrency(editData?.assessments?.reduce((sum: number, a: any) => sum + (parseFloat(a.marketValue || a.market_value) || 0), 0) || 0)}</strong>
+          </span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>
+            Assessed Value: <strong>₱ {formatCurrency(editData?.assessments?.reduce((sum: number, a: any) => {
+              const mv = parseFloat(a.marketValue || a.market_value) || 0;
+              const lvl = parseFloat(a.assessmentLevel || a.assessment_level) || 0;
+              const computed = calcAssessedValue(mv, lvl);
+              return sum + (computed > 0 ? computed : (parseFloat(a.assessedValue || a.assessed_value) || 0));
+            }, 0) || 0)}</strong>
+          </span>
         </div>
       </div>
 
@@ -834,9 +879,83 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     </div>
   );
 
+  // Full Document Edit form — rendered beside the document preview so staff
+  // can edit without switching modes, and also used for the full-screen
+  // edit mode.
+  const renderEditForm = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '12px', borderRadius: '6px', fontSize: '13px' }}>
+        <strong>Editing Mode:</strong> Update any field below to correct typos or incorrect data.
+      </div>
+
+      {/* Base Fields */}
+      <div style={{ display: 'grid', gridTemplateColumns: docType === 'NO_LANDHOLDING' ? '1fr 1fr' : '1.4fr 1fr 1fr', gap: '16px', backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
+        <div>
+          <label style={{ ...editLabelStyle, whiteSpace: 'nowrap' }}>Declarant / Owner Name</label>
+          <textarea
+            ref={declarantNameEditRef}
+            rows={1}
+            value={formData.declarantName}
+            onChange={(e) => setFormData({ ...formData, declarantName: e.target.value })}
+            style={{
+              ...inputStyle,
+              resize: 'none',
+              overflow: 'hidden',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              overflowWrap: 'break-word',
+              fontFamily: 'inherit',
+              lineHeight: 1.4,
+            }}
+          />
+        </div>
+        <div>
+          <label style={{ ...editLabelStyle, whiteSpace: 'nowrap' }}>Requested By Name</label>
+          <input type="text" value={formData.requestedByName} onChange={(e) => setFormData({ ...formData, requestedByName: e.target.value })} style={{ ...inputStyle, height: '38px' }} />
+        </div>
+        {docType !== 'NO_LANDHOLDING' && (
+          <div style={{ position: 'relative' }}>
+            <label style={{ ...editLabelStyle, whiteSpace: 'nowrap' }}>Property Location</label>
+            <input
+              type="text"
+              value={formData.propertyLocation}
+              onChange={(e) => { setFormData({ ...formData, propertyLocation: e.target.value }); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="Select or type..."
+              style={{ ...inputStyle, height: '38px' }}
+            />
+            {showSuggestions && filtered.length > 0 && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10000,
+                background: 'white', border: '1px solid #d1d5db', borderRadius: '6px',
+                maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+              }}>
+                {filtered.map((loc, i) => (
+                  <div key={i}
+                    onMouseDown={() => { setFormData({ ...formData, propertyLocation: loc }); setShowSuggestions(false); }}
+                    style={{ padding: '8px 10px', cursor: 'pointer', fontSize: '13px' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                  >{loc}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <hr style={{ borderTop: '1px dashed #d1d5db', borderBottom: 'none', margin: 0 }} />
+
+      {docType === 'NO_LANDHOLDING' && renderNoLandholdingEdit()}
+      {docType === 'LANDHOLDING' && renderLandholdingEdit()}
+      {docType === 'TAX_DEC' && renderTaxDecEdit()}
+    </div>
+  );
+
   const modalContent = (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0, 0, 0, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-      <div style={{ backgroundColor: 'white', borderRadius: '12px', width: '100%', maxWidth: '850px', maxHeight: '90vh', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ backgroundColor: 'white', borderRadius: '12px', width: '100%', maxWidth: '1250px', maxHeight: '95vh', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
         {/* Header */}
         <div style={{ backgroundColor: '#4f46e5', color: 'white', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
@@ -867,112 +986,39 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
                 Loading PDF preview...
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                {/* Base Request Fields */}
-                <div style={{ display: 'grid', gridTemplateColumns: docType === 'NO_LANDHOLDING' ? '1fr 1fr' : '1fr 1fr 1fr', gap: '16px' }}>
-                  <div><span style={labelStyle}>DECLARANT / OWNER NAME</span><div style={{ ...valueStyle, fontSize: '16px' }}>{formData.declarantName || 'N/A'}</div></div>
-                  <div><span style={labelStyle}>REQUESTED BY (CLIENT)</span><div style={{ ...valueStyle, fontSize: '16px' }}>{formData.requestedByName || 'N/A'}</div></div>
-                  {docType !== 'NO_LANDHOLDING' && (
-                    <div><span style={labelStyle}>PROPERTY LOCATION</span><div style={{ ...valueStyle, fontSize: '16px' }}>{formData.propertyLocation || 'N/A'}</div></div>
-                  )}
-                </div>
-
-                <hr style={{ borderTop: '1px dashed #d1d5db', borderBottom: 'none' }} />
-
-                {fetchError && (
-                  <div style={{ color: '#b91c1c', padding: 12, backgroundColor: '#fee2e2', borderRadius: 6 }}>
-                    {fetchError}
-                  </div>
-                )}
-                {!fetchError && !fullData && (
-                  <div style={{ color: '#92400e', padding: 16, backgroundColor: '#fffbeb', borderRadius: 6, border: '1px solid #fde68a' }}>
-                    This document hasn't been encoded yet. Click <strong>Edit Full Document</strong> below to fill in the details.
-                  </div>
-                )}
-                {!fetchError && fullData && (
-                  pdfUrl ? (
-                    <iframe
-                      src={pdfUrl}
-                      title="Document PDF Preview"
-                      style={{ width: '100%', height: '70vh', border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#f9fafb' }}
-                    />
-                  ) : (
-                    <div style={{ color: '#b91c1c', padding: 16, backgroundColor: '#fee2e2', borderRadius: 6 }}>
-                      Could not generate the PDF preview. Please try editing the document, or check the console for details.
-                    </div>
-                  )
-                )}
-              </div>
-            )
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '12px', borderRadius: '6px', fontSize: '13px' }}>
-                <strong>Editing Mode:</strong> Update any field below to correct typos or incorrect data.
-              </div>
-
-              {/* Base Fields */}
-              <div style={{ display: 'grid', gridTemplateColumns: docType === 'NO_LANDHOLDING' ? '1fr 1fr' : '1fr 1fr 1fr', gap: '16px', backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
-                <div>
-                  <label style={editLabelStyle}>Declarant / Owner Name *</label>
-                  <textarea
-                    ref={declarantNameEditRef}
-                    rows={1}
-                    value={formData.declarantName}
-                    onChange={(e) => setFormData({ ...formData, declarantName: e.target.value })}
-                    style={{
-                      ...inputStyle,
-                      resize: 'none',
-                      overflow: 'hidden',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      overflowWrap: 'break-word',
-                      fontFamily: 'inherit',
-                      lineHeight: 1.4,
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={editLabelStyle}>Requested By Name</label>
-                  <input type="text" value={formData.requestedByName} onChange={(e) => setFormData({ ...formData, requestedByName: e.target.value })} style={inputStyle} />
-                </div>
-                {docType !== 'NO_LANDHOLDING' && (
-                  <div style={{ position: 'relative' }}>
-                    <label style={editLabelStyle}>Property Location</label>
-                    <input
-                      type="text"
-                      value={formData.propertyLocation}
-                      onChange={(e) => { setFormData({ ...formData, propertyLocation: e.target.value }); setShowSuggestions(true); }}
-                      onFocus={() => setShowSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                      placeholder="Select or type..."
-                      style={inputStyle}
-                    />
-                    {showSuggestions && filtered.length > 0 && (
-                      <div style={{
-                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10000,
-                        background: 'white', border: '1px solid #d1d5db', borderRadius: '6px',
-                        maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                      }}>
-                        {filtered.map((loc, i) => (
-                          <div key={i}
-                            onMouseDown={() => { setFormData({ ...formData, propertyLocation: loc }); setShowSuggestions(false); }}
-                            style={{ padding: '8px 10px', cursor: 'pointer', fontSize: '13px' }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-                            onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                          >{loc}</div>
-                        ))}
+              <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+                <div style={{ flex: '1 1 55%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {fetchError && (
+                      <div style={{ color: '#b91c1c', padding: 12, backgroundColor: '#fee2e2', borderRadius: 6 }}>
+                        {fetchError}
                       </div>
                     )}
+                    {!fetchError && !fullData && (
+                      <div style={{ color: '#92400e', padding: 16, backgroundColor: '#fffbeb', borderRadius: 6, border: '1px solid #fde68a' }}>
+                        This document hasn't been encoded yet. Fill in the form beside the preview to encode it.
+                      </div>
+                    )}
+                    {!fetchError && fullData && (
+                      pdfUrl ? (
+                        <iframe
+                          src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                          title="Document PDF Preview"
+                          style={{ width: '100%', height: '78vh', border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#f9fafb' }}
+                        />
+                      ) : (
+                        <div style={{ color: '#b91c1c', padding: 16, backgroundColor: '#fee2e2', borderRadius: 6 }}>
+                          Could not generate the PDF preview. Please try editing the document, or check the console for details.
+                        </div>
+                      )
+                    )}
                   </div>
-                )}
-              </div>
-
-              <hr style={{ borderTop: '1px dashed #d1d5db', borderBottom: 'none', margin: 0 }} />
-
-              {docType === 'NO_LANDHOLDING' && renderNoLandholdingEdit()}
-              {docType === 'LANDHOLDING' && renderLandholdingEdit()}
-              {docType === 'TAX_DEC' && renderTaxDecEdit()}
-            </div>
+                  <div style={{ flex: '1 1 45%', minWidth: 0, maxHeight: '78vh', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', backgroundColor: '#f9fafb' }}>
+                    {renderEditForm()}
+                  </div>
+                </div>
+            )
+          ) : (
+            renderEditForm()
           )}
         </div>
 
@@ -980,8 +1026,8 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
         <div style={{ backgroundColor: '#f9fafb', padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #e5e7eb', flexShrink: 0 }}>
           {!isEditing ? (
             <>
-              <button onClick={() => setIsEditing(true)} style={{ backgroundColor: '#e0e7ff', color: '#4f46e5', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <EditIcon size={15} /> Edit Full Document
+              <button onClick={handleSave} disabled={isSaving} style={{ backgroundColor: '#4f46e5', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <EditIcon size={15} /> {isSaving ? 'Saving to DB...' : 'Save & Update DB'}
               </button>
               <button onClick={onClose} style={{ backgroundColor: '#374151', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>
                 Close
@@ -1006,9 +1052,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
 };
 
 // Inline styling helpers
-const labelStyle: React.CSSProperties = { fontSize: '12px', color: '#6b7280', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: '4px' };
-const valueStyle: React.CSSProperties = { fontSize: '14px', fontWeight: 500, color: '#111827' };
-const thStyle: React.CSSProperties = { padding: '10px', color: '#4b5563', fontWeight: 600, textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px', wordBreak: 'break-word' };
-const tdStyle: React.CSSProperties = { padding: '10px', color: '#1f2937', wordBreak: 'break-word', whiteSpace: 'normal', overflowWrap: 'break-word' };
 const inputStyle: React.CSSProperties = { width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '13px', boxSizing: 'border-box' };
 const editLabelStyle: React.CSSProperties = { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '6px' };
+const propLabelStyle: React.CSSProperties = { display: 'block', fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: '4px' };
