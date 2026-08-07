@@ -34,6 +34,12 @@ const CTC_COLUMNS = [
   "Justification", "Requested", "Released", "Released By", "Status",
 ];
 
+/** Total minimum table width (px) — below this the shared .tr-table-scroll
+ *  container scrolls horizontally (the same pattern TransactionRegistry's
+ *  REGISTRY_TABLE_MIN_WIDTH uses) instead of cramming all nine columns into
+ *  the viewport and crushing the reference pills and status badges. */
+const CTC_TABLE_MIN_WIDTH = 1210;
+
 /* --- Summary skeleton (three compact cards — mirrors VoidAmendSummarySkeleton
    and uses the same tr-summary-grid--multi sizing as the loaded cards) --- */
 function CTCSummarySkeleton() {
@@ -54,7 +60,7 @@ function CTCTableSkeleton({ rows = 8 }: { rows?: number }) {
   return (
     <div className="tr-card">
       <div className="tr-table-scroll">
-        <table className="tr-table">
+        <table className="tr-table" style={{ minWidth: CTC_TABLE_MIN_WIDTH }}>
           <thead>
             <tr>
               {CTC_COLUMNS.map((col) => <th key={col}>{col}</th>)}
@@ -347,7 +353,7 @@ export default function CertifiedTrueCopy({
             </div>
 
             <div className="tr-table-scroll">
-              <table className="tr-table">
+              <table className="tr-table" style={{ minWidth: CTC_TABLE_MIN_WIDTH }}>
                 <thead>
                   <tr>
                     <th style={{ width: '12%' }}>Reference No.</th>

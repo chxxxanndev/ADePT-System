@@ -207,6 +207,12 @@ function toDisplayRecord(t: Transaction, metadata: VoidMetadataEntry | undefined
 
 const VA_COLUMNS = ["Reference No.", "Declarant", "Reason / Change", "Actioned By", "Date & Time", "Action"];
 
+/** Total minimum table width (px) — below this the shared .tr-table-scroll
+ *  container scrolls horizontally (the same pattern TransactionRegistry's
+ *  REGISTRY_TABLE_MIN_WIDTH uses) instead of cramming all six columns into
+ *  the viewport and crushing the badges, pills and buttons. */
+const VA_TABLE_MIN_WIDTH = 1040;
+
 /* --- Summary skeleton (two compact cards — mirrors RegistrySummarySkeleton
    and uses the same tr-summary-grid--multi sizing as the loaded cards) --- */
 function VoidAmendSummarySkeleton() {
@@ -227,7 +233,7 @@ function VoidAmendTableSkeleton({ rows = 8 }: { rows?: number }) {
   return (
     <div className="tr-card">
       <div className="tr-table-scroll">
-        <table className="tr-table">
+        <table className="tr-table" style={{ minWidth: VA_TABLE_MIN_WIDTH }}>
           <thead>
             <tr>
               {VA_COLUMNS.map((col) => <th key={col} style={col === "Action" ? { textAlign: "center" } : undefined}>{col}</th>)}
@@ -619,7 +625,7 @@ export default function VoidAndAmend({
           </div>
 
           <div className="tr-table-scroll">
-            <table className="tr-table">
+            <table className="tr-table" style={{ minWidth: VA_TABLE_MIN_WIDTH }}>
               <thead>
                 <tr>
                   <th style={{ width: '16%' }}>Reference No.</th>
