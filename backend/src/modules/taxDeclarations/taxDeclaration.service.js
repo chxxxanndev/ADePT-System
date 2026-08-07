@@ -307,6 +307,23 @@ class TaxDeclarationService {
                     property_type_id: ptMap[code],
                 }));
 
+            // FIX: delete the OLD property-type rows BEFORE inserting the
+            // replacements. encoded_property_types has a unique constraint
+            // on (encoded_tax_declaration_id, property_type_id), so a
+            // re-save that kept the old rows while inserting the same kind
+            // codes violated the constraint and aborted the entire save
+            // with a 500 — the TD update (boundaries, owner, etc.) had
+            // already committed, but the API errored out so the frontend
+            // reported the save as failed. These rows are fully derived
+            // from kindOfProperty, so deleting first is safe.
+            if (oldTypeIds.length > 0) {
+                const { error: delTypesErr } = await supabase
+                    .from('encoded_property_types')
+                    .delete()
+                    .in('id', oldTypeIds);
+                if (delTypesErr) throw delTypesErr;
+            }
+
             if (ptRows.length) {
                 const { error: ptInsertErr } = await supabase
                     .from('encoded_property_types')
@@ -327,14 +344,6 @@ class TaxDeclarationService {
                 .delete()
                 .in('id', oldRowIds);
             if (delRowsErr) throw delRowsErr;
-        }
-
-        if (oldTypeIds.length > 0) {
-            const { error: delTypesErr } = await supabase
-                .from('encoded_property_types')
-                .delete()
-                .in('id', oldTypeIds);
-            if (delTypesErr) throw delTypesErr;
         }
 
         // 4. Link every request_documents row under this request that
