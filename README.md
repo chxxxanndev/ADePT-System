@@ -394,4 +394,12 @@ Add the project's official license here if one is adopted.
 
 ## Maintainers
 
-Add the authorized development team, project adviser, or technical maintainer information here.
+ADePT is developed and maintained by the **ADePT Development Team**:
+
+| Name | Role | GitHub | Email |
+| --- | --- | --- | --- |
+| Jade Kyll M. Tecson | Lead Front-End Developer | [codexkyll](https://github.com/codexkyll) | jadekyllmagallontecson@gmail.com |
+| Melissa Oria | Lead Back-End Developer | [0xMeyls](https://github.com/0xMeyls) | meylsoria@gmail.com |
+| Nova Grace B. Enojo | Full-Stack Developer | [ssusupernova](https://github.com/ssusupernova) | enojonovagrace@gmail.com |
+| Che Ann P. Abal | Database Architect and Deployment Engineer | [chxxxanndev](https://github.com/chxxxanndev) | abalcheannplaza@gmail.com |
+| Sheila Mae A. Lagpac | Front-End Developer and Documentation Lead | [shxaberry](https://github.com/shxaberry) | sheilamai32@gmail.com |
