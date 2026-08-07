@@ -124,10 +124,11 @@ interface WelcomeBannerProps {
     dateFrom?: string;
     dateTo?: string;
     onDateRangeChange?: (dateFrom: string, dateTo: string) => void;
+    onReset?: () => void;
     onRefresh?: () => void | Promise<void>;
 }
 
-export function WelcomeBanner({ dateFrom, dateTo, onDateRangeChange, onRefresh }: WelcomeBannerProps) {
+export function WelcomeBanner({ dateFrom, dateTo, onDateRangeChange, onReset, onRefresh }: WelcomeBannerProps) {
     const [refreshing, setRefreshing] = useState(false);
 
     const handleRefreshClick = async () => {
@@ -141,6 +142,12 @@ export function WelcomeBanner({ dateFrom, dateTo, onDateRangeChange, onRefresh }
         }
     };
 
+    // The dashboard period defaults to today — show the reset button only
+    // when the selected range has drifted from that default.
+    const now = new Date();
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const isDefaultRange = dateFrom === todayISO && dateTo === todayISO;
+
     return (
         <div className="dashboard-welcome">
             <div className="period-selector-wrap">
@@ -149,6 +156,11 @@ export function WelcomeBanner({ dateFrom, dateTo, onDateRangeChange, onRefresh }
                     dateTo={dateTo}
                     onChange={(from, to) => onDateRangeChange?.(from, to)}
                 />
+                {!isDefaultRange && onReset && (
+                    <button type="button" className="tr-filter-reset" onClick={onReset}>
+                        Reset
+                    </button>
+                )}
             </div>
 
             <button

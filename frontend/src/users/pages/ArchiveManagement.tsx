@@ -13,10 +13,13 @@ import { requestService } from "../services/requestService";
 import { fetchTransactionRegistry } from "../services/transactionService";
 import { ExpandableText } from "../components/common/ExpandableText";
 import { SkeletonBox } from "../components/common/Skeleton";
-import { getDocumentTypeFromReference, getDocPillMeta } from "../../utils/documentType";
+import { getDocumentTypeFromReference, getDocPillMeta, matchesDocumentType, type DocumentTypeFilterValue } from "../../utils/documentType";
 import { RestoreConfirmModal } from "../components/RestoreConfirmModal";
+import { DateRangePicker } from "../components/DateRangePicker";
+import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
 import type { Transaction, RequestedDocumentItem } from "../types/transaction";
 import "../styles/ArchiveManagement.css";
+import "../styles/select.css";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -41,12 +44,12 @@ interface ArchivedRecord {
   status: ArchiveStatus;
   archivedDate: string;
   archivedTime: string;
+  archivedDateISO: string;
   archivedBy: string;
   reasonType: ArchiveReason;
   reasonDetail: string;
 }
 
-type DocTypeFilter = "All types" | DocumentType;
 type StatusFilter = "All statuses" | ArchiveStatus;
 
 /* ------------------------------------------------------------------ */
@@ -76,10 +79,6 @@ function resolveArchiveDocName(docs: RequestedDocumentItem[], referenceNumber: s
   if (name.includes("Landholding") || name.includes("Land Holding")) return "Landholding";
 
   return "Tax Declaration";
-}
-
-function DocTypeTag({ type }: { type: DocumentType }) {
-  return <span className="arc-doc-type">{type}</span>;
 }
 
 function StatusBadge({ status }: { status: ArchiveStatus }) {
@@ -141,7 +140,6 @@ function ArchiveToolbarSkeleton() {
 const ARCHIVE_TABLE_COLUMNS = [
   "Reference Number",
   "Declarant",
-  "Document Type",
   "Status",
   "Reason",
   "Archived By",
@@ -169,10 +167,10 @@ function ArchiveTableSkeleton({ rows = 7 }: { rows?: number }) {
               <tr key={i}>
                 <td><SkeletonBox width="75%" height="12px" /></td>
                 <td><SkeletonBox width="85%" height="12px" /></td>
-                <td><SkeletonBox width="70%" height="12px" /></td>
                 <td><SkeletonBox width="55%" height="12px" /></td>
                 <td><SkeletonBox width="50%" height="12px" /></td>
                 <td><SkeletonBox width="65%" height="12px" /></td>
+                <td><SkeletonBox width="60%" height="12px" /></td>
                 <td style={{ textAlign: "center" }}><SkeletonBox width="72px" height="30px" borderRadius="7px" /></td>
               </tr>
             ))}
@@ -215,6 +213,7 @@ function toArchivedRecord(t: Transaction): ArchivedRecord {
       minute: "2-digit",
       hour12: true,
     }),
+    archivedDateISO: `${requested.getFullYear()}-${String(requested.getMonth() + 1).padStart(2, "0")}-${String(requested.getDate()).padStart(2, "0")}`,
     archivedBy: t.assignedStaff || "Staff",
     // No archive-reason field exists on the backend yet — every archived
     // transaction is reported as "Manual" until one is added.
@@ -243,8 +242,10 @@ export default function ArchiveManagement({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [docTypeFilter, setDocTypeFilter] = useState<DocTypeFilter>("All types");
   const [reasonFilter, setReasonFilter] = useState<StatusFilter>("All statuses");
+  const [docTypeFilter, setDocTypeFilter] = useState<DocumentTypeFilterValue>("All");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   // Restore confirmation modal target (replaces the native window.confirm).
@@ -309,7 +310,6 @@ export default function ArchiveManagement({
 
   const filteredRecords = useMemo(() => {
     return records.filter((record) => {
-      const matchesType = docTypeFilter === "All types" || record.documentType === docTypeFilter;
       const matchesReason = reasonFilter === "All statuses" || record.status === reasonFilter;
       const matchesSearch =
         search.trim() === "" ||
@@ -317,9 +317,14 @@ export default function ArchiveManagement({
         record.declarantName.toLowerCase().includes(search.toLowerCase()) ||
         record.archivedBy.toLowerCase().includes(search.toLowerCase()) ||
         record.reasonDetail.toLowerCase().includes(search.toLowerCase());
-      return matchesType && matchesReason && matchesSearch;
+      // Same ISO-string date comparison the Transaction Registry uses.
+      const matchesDateFrom = !dateFrom || record.archivedDateISO >= dateFrom;
+      const matchesDateTo = !dateTo || record.archivedDateISO <= dateTo;
+      // Same reference-prefix document-type check the Registry uses.
+      const matchesDocType = matchesDocumentType(record.reference, docTypeFilter);
+      return matchesReason && matchesSearch && matchesDateFrom && matchesDateTo && matchesDocType;
     });
-  }, [records, search, docTypeFilter, reasonFilter]);
+  }, [records, search, reasonFilter, dateFrom, dateTo, docTypeFilter]);
 
   // ── Pagination (mirrors TransactionRegistry's TransactionTable) ──
   const totalRecords = filteredRecords.length;
@@ -328,7 +333,7 @@ export default function ArchiveManagement({
   // Reset to page 1 when filters, search, or page size change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, docTypeFilter, reasonFilter, pageSize]);
+  }, [search, reasonFilter, docTypeFilter, dateFrom, dateTo, pageSize]);
 
   // Same clamp the Registry/Reports use: if data shrinks (e.g. Restoring
   // the last row of the last page, or a filter narrowing the list) the
@@ -352,12 +357,15 @@ export default function ArchiveManagement({
   const cancelledCount = useMemo(() => records.filter((r) => r.status === "Cancelled").length, [records]);
   const archivedCount = useMemo(() => records.filter((r) => r.status === "Archived").length, [records]);
 
-  const hasActiveFilters = search.trim() !== "" || docTypeFilter !== "All types" || reasonFilter !== "All statuses";
+  const hasActiveFilters =
+    search.trim() !== "" || reasonFilter !== "All statuses" || docTypeFilter !== "All" || dateFrom !== "" || dateTo !== "";
 
   const resetFilters = () => {
     setSearch("");
-    setDocTypeFilter("All types");
     setReasonFilter("All statuses");
+    setDocTypeFilter("All");
+    setDateFrom("");
+    setDateTo("");
   };
 
   return (
@@ -469,32 +477,29 @@ export default function ArchiveManagement({
             </div>
           </div>
 
-          <div className="arc-filter-select-wrap">
-            <select
-              value={docTypeFilter}
-              onChange={(e) => setDocTypeFilter(e.target.value as DocTypeFilter)}
-              className="arc-filter-select"
-            >
-              <option value="All types">All types</option>
-              <option value="Tax Declaration">Tax Declaration</option>
-              <option value="No Land Holding">No Land Holding</option>
-              <option value="Landholding">Landholding</option>
-            </select>
-            <ChevronDown size={14} className="arc-select-chevron" />
-          </div>
-
-          <div className="arc-filter-select-wrap">
+          <div className="adt-select-wrap">
             <select
               value={reasonFilter}
               onChange={(e) => setReasonFilter(e.target.value as StatusFilter)}
-              className="arc-filter-select"
+              className="adt-select"
             >
               <option value="All statuses">All statuses</option>
               <option value="Cancelled">Cancelled</option>
               <option value="Archived">Archived</option>
             </select>
-            <ChevronDown size={14} className="arc-select-chevron" />
+            <ChevronDown size={14} className="adt-select-chevron" />
           </div>
+
+          <DocumentTypeFilter value={docTypeFilter} onChange={setDocTypeFilter} />
+
+          <DateRangePicker
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onChange={(from, to) => {
+              setDateFrom(from);
+              setDateTo(to);
+            }}
+          />
 
           {hasActiveFilters && (
             <button className="arc-filter-reset" onClick={resetFilters}>
@@ -509,7 +514,6 @@ export default function ArchiveManagement({
               <tr>
                 <th>Reference Number</th>
                 <th>Declarant</th>
-                <th>Document Type</th>
                 <th>Status</th>
                 <th>Reason</th>
                 <th>Archived By</th>
@@ -520,7 +524,7 @@ export default function ArchiveManagement({
             <tbody>
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="arc-table-empty">
+                  <td colSpan={7} className="arc-table-empty">
                     <strong>No archived records found.</strong>
                     Try adjusting your search or filters.
                   </td>
@@ -533,9 +537,6 @@ export default function ArchiveManagement({
                     </td>
                     <td className="arc-declarant">
                       <ExpandableText text={record.declarantName} />
-                    </td>
-                    <td>
-                      <DocTypeTag type={record.documentType} />
                     </td>
                     <td>
                       <StatusBadge status={record.status} />
@@ -578,7 +579,7 @@ export default function ArchiveManagement({
           <div className="arc-pagination-left">
             <span className="arc-pagination-label">Rows per page:</span>
             <select
-              className="arc-items-per-page"
+              className="adt-select adt-select--sm"
               value={pageSize}
               onChange={handlePageSizeChange}
             >

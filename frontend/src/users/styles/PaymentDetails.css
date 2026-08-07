@@ -2,6 +2,8 @@
    Payment Verification Page Styles (PaymentDetails.css)
    ========================================================================== */
 
+@import "./NameTip.css";
+
 .pd-page {
     width: 100%;
     max-width: min(1800px, 96vw);
@@ -206,8 +208,16 @@
     /* FIX: long declarant names used to stretch the auto-layout table past
        the container, pushing the Action column (View & Edit / Cancel
        buttons) off-screen where it was clipped. Clamp the cell to a
-       fixed max width and ellipsize overflow — the full name is still
-       available via the cell's title tooltip. */
+       fixed max width — the ellipsis itself now lives on the inner
+       .pd-doc-declarant-clamp span so this cell can host the
+       system-themed name tooltip without clipping it. */
+    max-width: 280px;
+}
+
+/* Inner clamp keeps the original ellipsis look; the cell (not the clamp)
+   is the .name-tip hover target, so the tooltip is never clipped. */
+.pd-doc-declarant-clamp {
+    display: block;
     max-width: 280px;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -272,7 +272,6 @@ export function RequestQueue({ user }: RequestQueueProps) {
                                 <tr>
                                     <th>Reference No.</th>
                                     <th>Declarant</th>
-                                    <th>Document Type</th>
                                     <th>Released Staff</th>
                                     <th>Status</th>
                                     <th>Date</th>
@@ -283,7 +282,6 @@ export function RequestQueue({ user }: RequestQueueProps) {
                                     <tr key={req.id}>
                                         <td className="rq-control-no">{req.referenceNo}</td>
                                         <td><strong>{req.clientName}</strong></td>
-                                        <td className="rq-document-cell">{req.documentType}</td>
                                         <td>{req.releasedStaff}</td>
                                         <td>
                                             {req.status === 'Void' || req.status === 'Cancelled' ? (

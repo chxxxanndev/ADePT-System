@@ -1,11 +1,14 @@
 import { useMemo, useState, useEffect } from "react";
-import { Search, Ban, PencilLine, Loader2, CheckCircle2 } from "lucide-react";
+import { Search, Ban, PencilLine, Loader2, CheckCircle2, ChevronDown } from "lucide-react";
 import { fetchTransactionRegistry } from "../services/transactionService";
 import { requestService } from "../services/requestService";
 import type { Transaction } from "../types/transaction";
 import "../styles/TransactionRegistry.css";
+import "../styles/select.css";
 import { ExpandableText } from "../components/common/ExpandableText";
-import { getDocPillMeta, getDocumentTypeFromReference } from "../../utils/documentType";
+import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
+import { getDocPillMeta, getDocumentTypeFromReference, matchesDocumentType } from "../../utils/documentType";
+import type { DocumentTypeFilterValue } from "../../utils/documentType";
 
 // Legend icons come from the shared documentType helper — the exact same
 // icons the reference-number pills render, so the legend key always matches
@@ -202,7 +205,7 @@ function toDisplayRecord(t: Transaction, metadata: VoidMetadataEntry | undefined
   };
 }
 
-const VA_COLUMNS = ["Reference No.", "Declarant", "Document Type", "Reason / Change", "Actioned By", "Date & Time", "Action"];
+const VA_COLUMNS = ["Reference No.", "Declarant", "Reason / Change", "Actioned By", "Date & Time", "Action"];
 
 /* --- Summary skeleton (two compact cards — mirrors RegistrySummarySkeleton
    and uses the same tr-summary-grid--multi sizing as the loaded cards) --- */
@@ -235,7 +238,6 @@ function VoidAmendTableSkeleton({ rows = 8 }: { rows?: number }) {
               <tr key={i} className="tr-row">
                 <td><div className="skeleton-item" style={{ width: '85%', height: 12 }} /></td>
                 <td><div className="skeleton-item" style={{ width: '70%', height: 12 }} /></td>
-                <td><div className="skeleton-item" style={{ width: '60%', height: 12 }} /></td>
                 <td><div className="skeleton-item" style={{ width: '80%', height: 12 }} /></td>
                 <td><div className="skeleton-item" style={{ width: '55%', height: 12 }} /></td>
                 <td><div className="skeleton-item" style={{ width: '65%', height: 12 }} /></td>
@@ -263,6 +265,7 @@ export default function VoidAndAmend({
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("All Time");
   const [statusFilter, setStatusFilter] = useState("All statuses");
+  const [docTypeFilter, setDocTypeFilter] = useState<DocumentTypeFilterValue>("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -354,7 +357,8 @@ export default function VoidAndAmend({
           statusFilter === "All statuses" ||
           (statusFilter === "Voided" && !record.hasBeenAmended) ||
           (statusFilter === "Amended" && record.hasBeenAmended);
-        return matchesSearch && matchesTime && matchesStatus;
+        const matchesDocType = matchesDocumentType(record.reference, docTypeFilter);
+        return matchesSearch && matchesTime && matchesStatus && matchesDocType;
       })
       .sort((a, b) => {
         // Records with a known actionedAt sort newest-first; unknown ones sink to the bottom.
@@ -363,7 +367,7 @@ export default function VoidAndAmend({
         if (!b.actionedAt) return -1;
         return new Date(b.actionedAt).getTime() - new Date(a.actionedAt).getTime();
       });
-  }, [records, search, timeRange, statusFilter]);
+  }, [records, search, timeRange, statusFilter, docTypeFilter]);
 
   // ─── Pagination ───────────────────────────────────────────
   const totalRecords = filteredRecords.length;
@@ -372,7 +376,7 @@ export default function VoidAndAmend({
   // Reset to page 1 when filters or page size change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, timeRange, statusFilter, pageSize]);
+  }, [search, timeRange, statusFilter, docTypeFilter, pageSize]);
 
   const start = (currentPage - 1) * pageSize;
   const end = Math.min(start + pageSize, totalRecords);
@@ -585,11 +589,11 @@ export default function VoidAndAmend({
                 />
               </div>
             </div>
-            <div style={{ position: 'relative' }}>
+            <div className="adt-select-wrap">
               <select
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value as TimeRange)}
-                className="tr-filter-select"
+                className="adt-select"
               >
                 <option>All Time</option>
                 <option>Today</option>
@@ -597,37 +601,39 @@ export default function VoidAndAmend({
                 <option>This Week</option>
                 <option>This Month</option>
               </select>
+              <ChevronDown size={14} className="adt-select-chevron" />
             </div>
-            <div style={{ position: 'relative' }}>
+            <div className="adt-select-wrap">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="tr-filter-select"
+                className="adt-select"
               >
                 <option value="All statuses">All statuses</option>
                 <option value="Voided">Voided</option>
                 <option value="Amended">Amended</option>
               </select>
+              <ChevronDown size={14} className="adt-select-chevron" />
             </div>
+            <DocumentTypeFilter value={docTypeFilter} onChange={setDocTypeFilter} />
           </div>
 
           <div className="tr-table-scroll">
             <table className="tr-table">
               <thead>
                 <tr>
-                  <th>Reference No.</th>
-                  <th>Declarant</th>
-                  <th>Document Type</th>
-                  <th>Reason / Change</th>
-                  <th>Actioned By</th>
-                  <th>Date &amp; Time</th>
-                  <th style={{ textAlign: "center" }}>Action</th>
+                  <th style={{ width: '16%' }}>Reference No.</th>
+                  <th style={{ width: '16%' }}>Declarant</th>
+                  <th style={{ width: '22%' }}>Reason / Change</th>
+                  <th style={{ width: '16%' }}>Actioned By</th>
+                  <th style={{ width: '15%' }}>Date &amp; Time</th>
+                  <th style={{ width: '15%', textAlign: "center" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedRecords.length === 0 ? (
                   <tr>
-                    <td className="tr-table-empty" colSpan={7}>
+                    <td className="tr-table-empty" colSpan={6}>
                       <strong>No voided records found</strong>
                       No voided records match your filters.
                     </td>
@@ -647,7 +653,6 @@ export default function VoidAndAmend({
                           </span>
                         </td>
                         <td><ExpandableText text={record.declarantName} className="tr-declarant" /></td>
-                        <td><ExpandableText text={record.documentType} /></td>
                         <td><ExpandableText text={record.detail} /></td>
                         <td><ExpandableText text={record.actionedBy} /></td>
                         <td style={{ whiteSpace: "nowrap" }}>
@@ -691,7 +696,7 @@ export default function VoidAndAmend({
               <div className="tr-pagination-left">
                 <span className="tr-pagination-label">Rows per page:</span>
                 <select
-                  className="tr-items-per-page"
+                  className="adt-select adt-select--sm"
                   value={pageSize}
                   onChange={handlePageSizeChange}
                 >

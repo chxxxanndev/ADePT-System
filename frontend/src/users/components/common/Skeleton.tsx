@@ -1,5 +1,7 @@
 
 // Base component
+import { REGISTRY_COLUMNS, REGISTRY_TABLE_MIN_WIDTH } from '../TransactionTable';
+
 export const SkeletonBox = ({ width = '100%', height = '20px', borderRadius = '4px', margin = '0' }) => (
     <div className="skeleton-item" style={{ width, height, borderRadius, margin }} />
 );
@@ -20,65 +22,55 @@ export const RegistrySummarySkeleton = () => {
     );
 };
 
-// 2. TOOLBAR: mirrors the real .tr-toolbar's 4 controls (search, status
-// select, doc type select, date range — Reset omitted since it's a plain
-// button, not data-dependent) inside the same .tr-toolbar-skeleton row.
-export const RegistryToolbarSkeleton = () => (
-    <div className="tr-toolbar-skeleton">
-        <SkeletonBox width="36%" height="42px" borderRadius="10px" />
-        <SkeletonBox width="15%" height="42px" borderRadius="10px" />
-        <SkeletonBox width="18%" height="42px" borderRadius="10px" />
-        <SkeletonBox width="20%" height="42px" borderRadius="10px" />
-    </div>
-);
-
-const COLUMNS = [
-    'Reference Number',
-    'Declarant',
-    'Requested By',
-    'Date Requested',
-    'Assigned Staff',
-    'Current Status',
-    'Actions',
-];
-
-// 3. TABLE: a real <table className="tr-table"> inside a real .tr-card,
-// so column widths come straight from the CSS (table-layout: fixed +
-// nth-child %) — guaranteed to line up with the loaded table, including
-// the mobile fallback to a scrollable table below 720px.
+// 2 + 3. TABLE CARD (toolbar + table in one ghost card, mirroring how
+// Reports & Analytics lazy-loads its Declarant Records card): the same
+// real .tr-table with REGISTRY_COLUMNS headers and min-width as the loaded
+// registry table, so the skeleton column layout can never drift from the
+// real table — no layout jump when the data lands.
 export const RegistryTableSkeleton = ({ rows = 6 }: { rows?: number }) => (
     <div className="tr-card">
-        <table className="tr-table">
-            <thead>
-                <tr>
-                    {COLUMNS.map((col) => (
-                        <th key={col} style={col === 'Actions' ? { textAlign: 'center' } : undefined}>
-                            {col}
-                        </th>
-                    ))}
-                </tr>
-            </thead>
-            <tbody>
-                {Array.from({ length: rows }).map((_, i) => (
-                    <tr key={i}>
-                        <td><SkeletonBox width="80%" height="12px" /></td>
-                        <td>
-                            <SkeletonBox width="90%" height="12px" margin="0 0 6px 0" />
-                            <SkeletonBox width="60%" height="10px" />
-                        </td>
-                        <td><SkeletonBox width="70%" height="12px" /></td>
-                        <td><SkeletonBox width="60%" height="12px" /></td>
-                        <td><SkeletonBox width="70%" height="12px" /></td>
-                        <td><SkeletonBox width="80px" height="22px" borderRadius="999px" /></td>
-                        <td style={{ textAlign: 'center' }}>
-                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                <SkeletonBox width="28px" height="28px" borderRadius="50%" />
-                                <SkeletonBox width="28px" height="28px" borderRadius="50%" />
-                            </div>
-                        </td>
+        <div className="tr-table-toolbar">
+            <SkeletonBox width="38%" height="38px" borderRadius="999px" />
+            <SkeletonBox width="170px" height="38px" borderRadius="999px" />
+            <SkeletonBox width="120px" height="38px" borderRadius="10px" />
+        </div>
+        <div className="tr-table-scroll">
+            <table
+                className="tr-table tr-table--registry"
+                style={{ minWidth: REGISTRY_TABLE_MIN_WIDTH }}
+            >
+                <thead>
+                    <tr>
+                        {REGISTRY_COLUMNS.map((col) => (
+                            <th
+                                key={col.label}
+                                style={{ width: `${col.width}px`, textAlign: col.align ?? 'left' }}
+                            >
+                                {col.label}
+                            </th>
+                        ))}
                     </tr>
-                ))}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {Array.from({ length: rows }).map((_, i) => (
+                        <tr key={i}>
+                            <td><SkeletonBox width="82%" height="14px" /></td>
+                            <td><SkeletonBox width="86%" height="14px" /></td>
+                            <td><SkeletonBox width="70%" height="14px" /></td>
+                            <td><SkeletonBox width="58%" height="14px" /></td>
+                            <td><SkeletonBox width="58%" height="14px" /></td>
+                            <td><SkeletonBox width="68%" height="14px" /></td>
+                            <td><SkeletonBox width="68%" height="14px" /></td>
+                            <td><SkeletonBox width="56%" height="14px" /></td>
+                            <td><SkeletonBox width="64%" height="14px" /></td>
+                            <td><SkeletonBox width="84px" height="24px" borderRadius="999px" /></td>
+                            <td style={{ textAlign: 'center' }}>
+                                <SkeletonBox width="64px" height="32px" borderRadius="8px" />
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
     </div>
 );

@@ -15,14 +15,6 @@ export function AdminRecentTransactions({
     onViewAll
 }: AdminRecentTransactionsProps) {
 
-    // Maps document titles to custom styled classes
-    const getDocClass = (doc: string) => {
-        const d = doc.toLowerCase();
-        if (d.includes('tax')) return 'tax-dec';
-        if (d.includes('no land')) return 'no-landholding';
-        return 'landholding';
-    };
-
     return (
         <div className="admin-card">
             {/* Table Header */}
@@ -47,7 +39,6 @@ export function AdminRecentTransactions({
                         <tr>
                             <th>Control No.</th>
                             <th>Declarant</th>
-                            <th>Document</th>
                             <th>Assigned Staff</th>
                             <th>Status</th>
                             <th>Date</th>
@@ -56,7 +47,7 @@ export function AdminRecentTransactions({
                     <tbody>
                         {rows.length === 0 ? (
                             <tr>
-                                <td colSpan={6}>
+                                <td colSpan={5}>
                                     <div className="admin-empty-state">
                                         No matching transactions found.
                                     </div>
@@ -69,11 +60,6 @@ export function AdminRecentTransactions({
                                         <span className="admin-control-no">{row.controlNo}</span>
                                     </td>
                                     <td>{row.declarant}</td>
-                                    <td>
-                                        <span className={`admin-doc-badge ${getDocClass(row.document)}`}>
-                                            {row.document}
-                                        </span>
-                                    </td>
                                     <td>{row.assignedStaff}</td>
                                     <td>
                                         <span className={`admin-status-badge ${row.status.toLowerCase()}`}>

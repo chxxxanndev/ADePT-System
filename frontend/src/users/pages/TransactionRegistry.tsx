@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { RegistrySummarySkeleton, RegistryToolbarSkeleton, RegistryTableSkeleton } from '../components/common/Skeleton';
+import { RegistrySummarySkeleton, RegistryTableSkeleton } from '../components/common/Skeleton';
 import type { Transaction, TransactionFilters, DeclarantGroup } from '../types/transaction';
 import { fetchTransactionRegistry, voidTransaction, createReprint } from '../services/transactionService';
 import { SummaryCards } from '../components/SummaryCards';
@@ -11,7 +11,7 @@ import { VoidDocumentSelectModal } from '../components/DocumentSelectModal';
 import type { User } from '../../auth-folder/types/auth';
 import type { VoidAmendRecord } from './VoidAndAmend';
 import '../styles/TransactionRegistry.css';
-import { getDocPillMeta, getDocumentTypeFromReference } from '../../utils/documentType';
+import { getDocPillMeta, getDocumentTypeFromReference, matchesDocumentType } from '../../utils/documentType';
 
 // Legend icons come from the shared documentType helper — the exact same
 // icons TransactionRow.tsx renders inside the reference-number pills, so
@@ -22,9 +22,9 @@ const NoLandholdingIcon = getDocPillMeta('No Land Holding').Icon;
 const RefreshIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>;
 
 const DEFAULT_FILTERS: TransactionFilters = {
-    documentType: 'All',
     dateFrom: '',
     dateTo: '',
+    documentType: 'All',
 };
 
 function toComparableDate(dateStr: string): string {
@@ -156,14 +156,12 @@ export function TransactionRegistry({
                 (t.payment?.orNumber ?? '').toLowerCase().includes(query) ||
                 (t.payment?.orJustification ?? '').toLowerCase().includes(query);
 
-            const matchesDocType = filters.documentType === 'All' ||
-                t.requestedDocuments.some((d) => d.documentType === filters.documentType);
-
             const requestDate = toComparableDate(getReleaseSortDate(t));
             const matchesDateFrom = !filters.dateFrom || requestDate >= filters.dateFrom;
             const matchesDateTo = !filters.dateTo || requestDate <= filters.dateTo;
+            const matchesDocType = matchesDocumentType(t.referenceNumber, filters.documentType ?? 'All');
 
-            return matchesQuery && matchesDocType && matchesDateFrom && matchesDateTo;
+            return matchesQuery && matchesDateFrom && matchesDateTo && matchesDocType;
         });
     }, [releasedTransactions, searchQuery, filters]);
 
@@ -359,10 +357,7 @@ export function TransactionRegistry({
             TransactionDetails, VoidDocumentSelectModal) stays exactly as-is */}
 
             {isLoading ? (
-                <div className="tr-lazy-load">
-                    <RegistryToolbarSkeleton />
-                    <RegistryTableSkeleton />
-                </div>
+                <RegistryTableSkeleton />
             ) : loadError ? (
                 <div className="tr-card" style={{ padding: '32px', textAlign: 'center', color: '#B0281C' }}>
                     <p style={{ margin: '0 0 12px', fontWeight: 600 }}>{loadError}</p>

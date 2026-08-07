@@ -1270,30 +1270,6 @@
     color: var(--admin-pending-dark);
 }
 
-/* Document type pills */
-.admin-doc-badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 12.5px;
-    font-weight: 700;
-}
-
-.admin-doc-badge.tax-dec {
-    background-color: #E3F2FD;
-    color: #1976D2;
-}
-
-.admin-doc-badge.landholding {
-    background-color: #FFFDE7;
-    color: var(--admin-pending-dark);
-}
-
-.admin-doc-badge.no-landholding {
-    background-color: #F3E8FF;
-    color: #7C3AED;
-}
-
 .admin-control-no {
     display: inline-block;
     background-color: rgba(76, 175, 80, 0.12);

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { NameTooltip } from './NameTooltip';
 import "../../styles/ExpandableText.css";
 
 /**
@@ -36,8 +37,25 @@ export function ExpandableText({ text, limit = TABLE_NAME_CHAR_LIMIT, className 
     }
 
     return (
-        <span className={`expandable-text ${className}`} title={expanded ? undefined : value}>
-            {expanded ? value : `${value.slice(0, limit).trimEnd()}…`}
+        <span className={`expandable-text ${className}`}>
+            {expanded ? (
+                <span
+                    className="expandable-text-label name-tip name-tip--clickable"
+                    onClick={(e) => {
+                        // Table rows are often clickable (row-level onClick
+                        // for selection/navigation) — stop the text click
+                        // from also triggering that.
+                        e.stopPropagation();
+                        setExpanded(false);
+                    }}
+                >
+                    {value}
+                </span>
+            ) : (
+                <NameTooltip value={value} className="expandable-text-label">
+                    {`${value.slice(0, limit).trimEnd()}…`}
+                </NameTooltip>
+            )}
             <button
                 type="button"
                 className="expandable-text-toggle"

@@ -3,6 +3,8 @@
    Color Palette & Typography Compliance
    ========================================================================== */
 
+@import "./NameTip.css";
+
 :root {
     /* Brand Colors */
     --brand-indigo: #29237A;

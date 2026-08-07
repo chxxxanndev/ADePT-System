@@ -1,5 +1,7 @@
 // ===== Transaction Registry — Type Definitions =====
 
+import type { DocumentTypeFilterValue } from '../../utils/documentType';
+
 export type PropertySource = 'TAX_DECLARATION' | 'LAND_HOLDING' | 'NO_LANDHOLDING' | 'UNKNOWN';
 
 // Match the labels shown in the UI
@@ -186,9 +188,9 @@ export interface DeclarantGroup {
 }
 
 export interface TransactionFilters {
-    documentType: DocumentType | 'All';
     dateFrom?: string;
     dateTo?: string;
+    documentType?: DocumentTypeFilterValue;
 }
 
 export interface TransactionSummary {

@@ -1,4 +1,5 @@
 import React from 'react';
+import { NameTooltip } from '../components/common/NameTooltip';
 
 interface DocumentVerificationPanelProps {
     documents: any[];
@@ -101,7 +102,13 @@ export const DocumentVerificationPanel: React.FC<DocumentVerificationPanelProps>
                                         </span>
                                     </td>
                                     <td className="pd-doc-type">{docTypeLabel(doc)}</td>
-                                    <td className="pd-doc-declarant" title={doc.declarantName || doc.declarant_name}>{doc.declarantName || doc.declarant_name}</td>
+                                    <td className="pd-doc-declarant">
+                                        <span className="pd-doc-declarant-clamp">
+                                            <NameTooltip value={doc.declarantName || doc.declarant_name}>
+                                                {doc.declarantName || doc.declarant_name}
+                                            </NameTooltip>
+                                        </span>
+                                    </td>
                                     <td className="pd-col-action">
                                         <div className="pd-action-btns">
                                             <button

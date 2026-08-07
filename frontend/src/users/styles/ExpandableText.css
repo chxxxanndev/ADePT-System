@@ -1,3 +1,5 @@
+@import "./NameTip.css";
+
 .expandable-text {
     display: inline;
     word-break: break-word;
@@ -5,11 +7,19 @@
 }
 
 .expandable-text-toggle {
-    display: inline;
+    display: inline-block;
+    /* Explicitly opt back into pointer events in case any page-level rule
+       sets pointer-events: none on descendants; also keep the toggle above
+       sibling tooltip pseudo-elements so nothing can cover its hit area. */
+    pointer-events: auto;
+    position: relative;
+    z-index: 1;
     background: none;
     border: none;
-    padding: 0;
-    margin-left: 6px;
+    padding: 0 2px;
+    /* 4px margin + 2px left padding = the original 6px offset — layout is
+       unchanged, the padding only widens the hover target slightly. */
+    margin-left: 4px;
     font: inherit;
     font-size: 0.78em;
     font-weight: 700;
@@ -18,9 +28,20 @@
     white-space: nowrap;
     text-decoration: underline;
     text-underline-offset: 2px;
+    border-radius: 3px;
+    transition: color 0.15s ease, background-color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
+/* Hover activates only over the "See more" / "See less" text itself —
+   not the row, container, or the surrounding name. Uses the same subtle
+   indigo tint as the clickable-name hover, plus a color/underline shift. */
 .expandable-text-toggle:hover {
+    color: var(--db-primary, #29237a);
+    background-color: rgba(41, 35, 122, 0.07);
+    text-decoration-thickness: 2px;
+}
+
+.expandable-text-toggle:active {
     color: var(--db-primary, #29237a);
 }
 

@@ -485,37 +485,6 @@
   border-color: var(--input-focus-border);
 }
 
-.filter-field {
-  position: relative;
-}
-
-.filter-select {
-  appearance: none;
-  padding: 8px 36px 8px 16px;
-  border-radius: 9999px;
-  font-size: 0.83rem;
-  font-weight: 600;
-  font-family: inherit;
-  outline: none;
-  background-color: var(--input-bg);
-  border: 1px solid var(--input-border);
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-.filter-select:focus {
-  border-color: var(--input-focus-border);
-}
-
-.filter-chevron {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-muted-light);
-  pointer-events: none;
-}
-
 /* ---------- Table ---------- */
 
 .table-scroll {

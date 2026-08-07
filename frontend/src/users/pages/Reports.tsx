@@ -21,9 +21,12 @@ import {
   RefreshCw,
 } from "lucide-react";
 import "../styles/ReportsAnalytics.css";
+import "../styles/select.css";
 import { useReportsAnalytics } from "../hooks/useReportsAnalytics";
 import { ExpandableText } from "../components/common/ExpandableText";
 import { getDocPillMeta } from "../../utils/documentType";
+import type { DocumentTypeFilterValue } from "../../utils/documentType";
+import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
 import { SkeletonBox } from "../components/common/Skeleton";
 import type { DeclarantRecord } from "../data/reportsMockData";
 
@@ -207,7 +210,6 @@ function ReportsChartSkeleton() {
 const REPORTS_TABLE_COLUMNS = [
   "Reference No.",
   "Declarant",
-  "Document Requested",
   "Date Released",
   "Released / Assisted By",
   "Encoded By",
@@ -265,7 +267,8 @@ interface ReportsProps {
 }
 
 export default function Reports({ onNavigateToDashboard }: ReportsProps) {
-  const analytics = useReportsAnalytics();
+  const [docTypeFilter, setDocTypeFilter] = useState<DocumentTypeFilterValue>("All");
+  const analytics = useReportsAnalytics(docTypeFilter);
   const [period, setPeriod] = useState<Period>("monthly");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<DeclarantStatus | "All">("All");
@@ -293,7 +296,7 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
   // to fewer results could get stranded on a now out-of-range page.
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, docTypeFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredDeclarants.length / rowsPerPage));
   const currentPage = Math.min(page, totalPages);
@@ -456,11 +459,11 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
                       className="search-input"
                     />
                   </div>
-                  <div className="filter-field">
+                  <div className="adt-select-wrap">
                     <select
                       value={statusFilter}
                       onChange={(e) => setStatusFilter(e.target.value as DeclarantStatus | "All")}
-                      className="filter-select"
+                      className="adt-select"
                     >
                       <option value="All">All Statuses</option>
                       {STATUS_OPTIONS.map((s) => (
@@ -469,8 +472,10 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
                         </option>
                       ))}
                     </select>
-                    <ChevronDown size={14} className="filter-chevron" />
+                    <ChevronDown size={14} className="adt-select-chevron" />
                   </div>
+
+                  <DocumentTypeFilter value={docTypeFilter} onChange={setDocTypeFilter} />
                 </div>
               </div>
 
@@ -480,7 +485,6 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
                     <tr>
                       <th>Reference No.</th>
                       <th>Declarant</th>
-                      <th>Document Requested</th>
                       <th>Date Released</th>
                       <th>Released / Assisted By</th>
                       <th>Encoded By</th>
@@ -501,7 +505,6 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
                           <td className="cell-name">
                             <ExpandableText text={d.declarantName} />
                           </td>
-                          <td>{d.documentRequested}</td>
                           <td className="cell-muted">{d.dateReleased}</td>
                           <td className="cell-muted">{d.staffReleased}</td>
                           <td className="cell-muted">{d.encodedBy}</td>
@@ -513,7 +516,7 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
                     })}
                     {filteredDeclarants.length === 0 && (
                       <tr className="empty-row">
-                        <td colSpan={7}>No records match your search or filter.</td>
+                        <td colSpan={6}>No records match your search or filter.</td>
                       </tr>
                     )}
                   </tbody>
@@ -532,6 +535,7 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
                   <select
                     value={rowsPerPage}
                     onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
+                    className="adt-select adt-select--sm"
                   >
                     {ROWS_PER_PAGE_OPTIONS.map((n) => (
                       <option key={n} value={n}>{n}</option>

@@ -14,6 +14,7 @@ import {
     AlertTriangleIcon,
 } from '../components/icons';
 import '../styles/DocumentRequestDashboard.css';
+import { NameTooltip } from '../components/common/NameTooltip';
 
 interface DocumentRequestDashboardProps {
     user: User;
@@ -363,8 +364,8 @@ export function DocumentRequestDashboard({
                                                 {formatDate(draft.request_date || draft.requestDate)}
                                             </div>
                                         </div>
-                                        <div className="doc-req-draft-declarant" title={declarant}>
-                                            {declarant}
+                                        <div className="doc-req-draft-declarant">
+                                            <NameTooltip value={declarant}>{declarant}</NameTooltip>
                                         </div>
                                         <div className="doc-req-draft-docs">
                                             {docNames.map((name, i) => (

@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Printer, CheckCircle2, Clock } from "lucide-react";
+import { Search, Printer, CheckCircle2, Clock, ChevronDown } from "lucide-react";
 import "../styles/TransactionRegistry.css";
+import "../styles/select.css";
 import type { CertifiedCopyRecord, CTCStatus } from "../types/transaction";
 import { fetchCertifiedTrueCopies } from "../services/transactionService";
 import { ExpandableText } from "../components/common/ExpandableText";
-import { getDocPillMeta, getDocumentTypeFromReference } from "../../utils/documentType";
+import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
+import { getDocPillMeta, getDocumentTypeFromReference, matchesDocumentType } from "../../utils/documentType";
+import type { DocumentTypeFilterValue } from "../../utils/documentType";
 
 // Legend icons come from the shared documentType helper — the exact same
 // icons the reference-number pills render, so the legend key always matches
@@ -102,6 +105,7 @@ export default function CertifiedTrueCopy({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All statuses");
+  const [docTypeFilter, setDocTypeFilter] = useState<DocumentTypeFilterValue>("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -141,23 +145,24 @@ export default function CertifiedTrueCopy({
 
   // Reset to page 1 whenever the filter criteria change, so you don't
   // get stranded on e.g. page 4 of a filtered result set that only has 2 pages.
-  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, rowsPerPage]);
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, docTypeFilter, rowsPerPage]);
 
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
       const matchesStatus = statusFilter === "All statuses" || r.status === statusFilter;
+      const matchesDocType = matchesDocumentType(r.reference, docTypeFilter);
 
       const term = search.toLowerCase().trim();
-      if (!term) return matchesStatus;
+      if (!term) return matchesStatus && matchesDocType;
 
       const matchesSearch = [
         r.reference, r.declarantName, r.originalDocument, r.orNumber,
         r.orJustification, r.dateRequested, r.dateReleased, r.releasedBy
       ].some(value => value.toLowerCase().includes(term));
 
-      return matchesStatus && matchesSearch;
+      return matchesStatus && matchesSearch && matchesDocType;
     });
-  }, [records, search, statusFilter]);
+  }, [records, search, statusFilter, docTypeFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / rowsPerPage));
   const safePage = Math.min(currentPage, totalPages);
@@ -326,32 +331,34 @@ export default function CertifiedTrueCopy({
                   />
                 </div>
               </div>
-              <div style={{ position: 'relative' }}>
+              <div className="adt-select-wrap">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="tr-filter-select"
+                  className="adt-select"
                 >
                   <option value="All statuses">All statuses</option>
                   <option value="Released">Released</option>
                   <option value="Pending">Pending</option>
                 </select>
+                <ChevronDown size={14} className="adt-select-chevron" />
               </div>
+              <DocumentTypeFilter value={docTypeFilter} onChange={setDocTypeFilter} />
             </div>
 
             <div className="tr-table-scroll">
               <table className="tr-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '13%' }}>Reference No.</th>
-                    <th style={{ width: '15%' }}>Declarant</th>
+                    <th style={{ width: '12%' }}>Reference No.</th>
+                    <th style={{ width: '11%' }}>Declarant</th>
                     <th style={{ width: '12%' }}>Original Doc</th>
-                    <th style={{ width: '9%' }}>OR Number</th>
-                    <th style={{ width: '12%' }}>Justification</th>
-                    <th style={{ width: '8%' }}>Requested</th>
-                    <th style={{ width: '8%' }}>Released</th>
+                    <th style={{ width: '11%' }}>OR Number</th>
+                    <th style={{ width: '13%' }}>Justification</th>
+                    <th style={{ width: '11%' }}>Requested</th>
+                    <th style={{ width: '10%' }}>Released</th>
                     <th style={{ width: '11%' }}>Released By</th>
-                    <th style={{ width: '12%' }}>Status</th>
+                    <th style={{ width: '9%' }}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -403,7 +410,7 @@ export default function CertifiedTrueCopy({
                 <div className="tr-pagination-left">
                   <span className="tr-pagination-label">Rows per page:</span>
                   <select
-                    className="tr-items-per-page"
+                    className="adt-select adt-select--sm"
                     value={rowsPerPage}
                     onChange={(e) => setRowsPerPage(Number(e.target.value))}
                   >

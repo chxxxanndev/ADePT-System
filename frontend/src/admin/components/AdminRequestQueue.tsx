@@ -187,7 +187,6 @@ export function AdminRequestQueue({ user }: AdminRequestQueueProps) {
                             <tr>
                                 <th>Control No.</th>
                                 <th>Citizen</th>
-                                <th>Document</th>
                                 <th>Assigned Staff</th>
                                 <th>Status</th>
                                 <th>Date</th>
@@ -196,14 +195,14 @@ export function AdminRequestQueue({ user }: AdminRequestQueueProps) {
                         <tbody>
                             {loading && (
                                 <tr>
-                                    <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: '#9aa0af' }}>
+                                    <td colSpan={5} style={{ padding: '30px', textAlign: 'center', color: '#9aa0af' }}>
                                         Loading document requests...
                                     </td>
                                 </tr>
                             )}
                             {!loading && filteredRequests.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: '#9aa0af' }}>
+                                    <td colSpan={5} style={{ padding: '30px', textAlign: 'center', color: '#9aa0af' }}>
                                         No document requests match your filter or search query.
                                     </td>
                                 </tr>
@@ -212,7 +211,6 @@ export function AdminRequestQueue({ user }: AdminRequestQueueProps) {
                                 <tr key={req.id}>
                                     <td className="rq-control-no">{req.controlNo}</td>
                                     <td><strong>{req.citizen}</strong></td>
-                                    <td className="rq-document-cell">{req.document}</td>
                                     <td>{req.assignedStaff}</td>
                                     <td>
                                         {req.isReprint ? (

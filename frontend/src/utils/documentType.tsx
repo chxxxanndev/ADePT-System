@@ -45,6 +45,30 @@ export function getDocumentTypeFromReference(referenceNumber?: string | null): s
 }
 
 /**
+ * Values for the shared Document Type dropdown filter used across
+ * Transaction Registry, Archive Management, and Reports & Analytics.
+ * Matches REF_PREFIX_LABELS above so the filter value compares directly
+ * against getDocumentTypeFromReference's output.
+ */
+export type DocumentTypeFilterValue = 'All' | 'Tax Declaration' | 'Landholding' | 'No Land Holding';
+
+/**
+ * One consistent document-type filter check for every screen: a record
+ * matches when the type recovered from its reference-number prefix equals
+ * the selected filter value. 'All' (and empty) always matches. Because
+ * getDocumentTypeFromReference matches the exact prefix ("NLH" before
+ * "LH" is inherent to exact matching), NLH records can never be
+ * classified as Landholding.
+ */
+export function matchesDocumentType(
+    referenceNumber: string | null | undefined,
+    filter: DocumentTypeFilterValue
+): boolean {
+    if (!filter || filter === 'All') return true;
+    return getDocumentTypeFromReference(referenceNumber) === filter;
+}
+
+/**
  * Returns the pill styling + icon for a document-type string. Matches both
  * the registry API spellings ("Certificate of Land Holding") and the
  * frontend union spellings ("Certificate of Landholding"), plus the short

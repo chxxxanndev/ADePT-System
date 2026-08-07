@@ -738,6 +738,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                                 dateFrom={dateFrom}
                                 dateTo={dateTo}
                                 onDateRangeChange={handleDateRangeChange}
+                                onReset={() => handleDateRangeChange(TODAY_ISO, TODAY_ISO)}
                                 onRefresh={analytics.refetch}
                             />
                             <DashboardSummary

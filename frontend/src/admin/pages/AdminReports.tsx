@@ -1662,7 +1662,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                                     <tr>
                                         <th>Reference No.</th>
                                         <th>Declarant</th>
-                                        <th>Document Type</th>
                                         <th>Date</th>
                                         <th>Status</th>
                                     </tr>
@@ -1672,7 +1671,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                                         <tr key={row.id}>
                                             <td style={{ fontFamily: 'monospace', fontSize: '12px', color: '#5d6178' }}>{row.referenceNo}</td>
                                             <td><strong>{row.clientName}</strong></td>
-                                            <td>{row.documentType}</td>
                                             <td>{row.requestedDate}</td>
                                             <td>{row.status}</td>
                                         </tr>
@@ -1748,7 +1746,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                                     <tr>
                                         <th>Reference No.</th>
                                         <th>Declarant</th>
-                                        <th>Document Type</th>
                                         <th>Date</th>
                                         <th>Processed By</th>
                                         <th>Status</th>
@@ -1761,7 +1758,6 @@ export function AdminReports({ user }: AdminReportsProps) {
                                                 {row.referenceNo}
                                             </td>
                                             <td><strong>{row.clientName}</strong></td>
-                                            <td>{row.documentType}</td>
                                             <td>{row.requestedDate}</td>
                                             <td>{row.processedBy}</td>
                                             <td>{row.status}</td>

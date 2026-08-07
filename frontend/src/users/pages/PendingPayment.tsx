@@ -2,7 +2,9 @@ import { useState, useEffect, useMemo, Fragment } from 'react';
 import { requestService } from '../services/requestService';
 import { addAdminAuditEntry } from '../../admin/services/auditLogService';
 import '../styles/PendingPayment.css';
+import '../styles/select.css';
 import { ExpandableText } from '../components/common/ExpandableText';
+import { NameTooltip } from '../components/common/NameTooltip';
 
 // --- ICONS ---
 const SearchIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
@@ -506,8 +508,10 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                                                     </td>
 
                                                     <td className="pp-cell" data-label="Encoded By Staff">
-                                                        <span className="pp-doc-declarant pp-doc-declarant--staff" title={d.encodedByStaff || 'Not yet recorded'}>
-                                                            {d.encodedByStaff || '—'}
+                                                        <span className="pp-doc-declarant pp-doc-declarant--staff">
+                                                            <NameTooltip value={d.encodedByStaff || 'Not yet recorded'}>
+                                                                {d.encodedByStaff || '—'}
+                                                            </NameTooltip>
                                                         </span>
                                                     </td>
 
@@ -566,7 +570,7 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                         <div className="pp-pagination-left">
                             <span className="pp-pagination-label">Rows per page:</span>
                             <select
-                                className="pp-items-per-page"
+                                className="adt-select adt-select--sm"
                                 value={itemsPerPage}
                                 onChange={(e) => setItemsPerPage(Number(e.target.value))}
                             >

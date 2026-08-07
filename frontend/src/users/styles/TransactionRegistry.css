@@ -240,6 +240,7 @@
     padding: 16px 24px;
     border-bottom: 1px solid var(--db-glass-border-alt);
     background-color: rgba(41, 35, 122, 0.02);
+    min-width: 0;
 }
 
 .tr-search-wrapper {
@@ -297,20 +298,6 @@
 .tr-search-clear-btn:hover {
     background-color: #f1f5f9;
     color: var(--db-error);
-}
-
-.tr-filter-select {
-    background-color: #ffffff;
-    border: 1px solid var(--db-glass-border-alt);
-    border-radius: 999px;
-    padding: 9px 16px;
-    font-size: 0.85rem;
-    color: var(--db-primary);
-    font-weight: 600;
-    cursor: pointer;
-    flex: 0 0 auto;
-    min-width: 200px;
-    width: auto;
 }
 
 .tr-filter-date {
@@ -371,15 +358,17 @@
 
 .tr-table-scroll {
     width: 100%;
+    max-width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
 }
 
-/* 11 columns can't stay readable when the card crushes below ~1000px —
-   let the table keep its width and scroll horizontally instead of
-   squishing every column into unreadable slivers. */
-.tr-table--registry {
-    min-width: 1000px;
-}
+/* The registry has 11 data-dense columns: the table keeps a computed
+   minimum width (REGISTRY_TABLE_MIN_WIDTH, applied inline from
+   TransactionTable.tsx / Skeleton.tsx) so every column stays readable,
+   and this scroll container takes over on narrower screens — the page
+   itself never overflows horizontally. */
 
 .tr-table {
     width: 100%;
@@ -393,16 +382,14 @@
 }
 
 .tr-table thead th {
-    padding: 13px 16px;
-    font-size: 0.66rem;
+    padding: 14px 20px;
+    font-size: 0.7rem;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: #64748B;
-    white-space: normal;
-    word-break: keep-all;
-    overflow-wrap: normal;
-    hyphens: none;
+    letter-spacing: 0.05em;
+    color: var(--db-primary);
+    white-space: nowrap;
+    text-align: left;
 }
 
 .tr-table tbody td {
@@ -422,9 +409,10 @@
    Declarant, Reference and Status columns carry the visual weight. Every
    nowrap cell also gets overflow + ellipsis so a long value clips with "…"
    instead of spilling into the neighboring column. */
-.tr-table--registry tbody td:nth-child(2) {
-    overflow: hidden;
-}
+/* The Declarant cell hosts ExpandableText (See more / See less) with the
+   portal-based NameTooltip — the tooltip is fixed-positioned outside the
+   table, and the cell must not clip overflow (a previous overflow: hidden
+   here silently killed the name hover by clipping the tooltip). */
 .tr-table--registry tbody td:nth-child(4),
 .tr-table--registry tbody td:nth-child(5) {
     font-size: 12.5px;
@@ -438,6 +426,8 @@
 .tr-table--registry tbody td:nth-child(7) {
     font-size: 12.5px;
     color: #64748B;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .tr-table--registry tbody td:nth-child(8) {
@@ -448,8 +438,21 @@
     text-overflow: ellipsis;
 }
 
+.tr-table--registry tbody td:nth-child(9) {
+    font-size: 12.5px;
+    color: #334155;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
 .tr-table--registry tbody td:nth-child(10) {
     text-align: center;
+}
+
+.tr-table--registry tbody td:nth-child(11),
+.tr-table--registry .tr-actions-cell {
+    text-align: center;
+    white-space: nowrap;
 }
 
 .tr-table tbody tr:last-child td {
@@ -634,13 +637,21 @@
 
 /* ---- Actions ---- */
 
+/* The Actions cell is rowSpan'd across a group's document rows (same as
+   PendingPayment's Process button). Top-aligned so the View button sits
+   anchored against the group's FIRST row — never floating mid-cell. */
+.tr-actions-cell {
+    vertical-align: top;
+    padding-top: 10px;
+}
+
 .tr-actions {
     display: flex;
     align-items: center;
-    gap: 6px;
     justify-content: center;
-    position: relative;
+    gap: 6px;
     flex-wrap: nowrap;
+    min-width: 0;
 }
 
 .tr-action-btn {
@@ -675,25 +686,42 @@
     background: #F9D2CE;
 }
 
+/* View button — a plain, stable table action button. No absolute
+   positioning, transforms, or hover-driven layout changes: it stays
+   inside its Actions cell at all times and hover only shifts colors /
+   adds a subtle shadow, exactly like the rest of the app's buttons. */
 .tr-view-details-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    background: rgba(41, 35, 122, 0.06);
-    border: 1px solid var(--db-glass-border-alt);
+    background-color: rgba(41, 35, 122, 0.06);
+    border: 1px solid rgba(41, 35, 122, 0.14);
     color: var(--db-primary);
     font-size: 0.78rem;
     font-weight: 700;
-    padding: 7px 14px;
+    font-family: inherit;
+    line-height: 1;
+    padding: 8px 16px;
     border-radius: 8px;
     cursor: pointer;
     white-space: nowrap;
-    transition: background-color 0.15s ease;
+    box-shadow: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .tr-view-details-btn:hover {
-    background: rgba(41, 35, 122, 0.12);
+    background-color: rgba(41, 35, 122, 0.12);
+    border-color: rgba(41, 35, 122, 0.3);
+    box-shadow: 0 2px 6px rgba(41, 35, 122, 0.12);
+}
+
+.tr-view-details-btn:active {
+    background-color: rgba(41, 35, 122, 0.16);
+}
+
+.tr-view-details-btn:focus-visible {
+    outline: 2px solid var(--db-secondary, #00bcd4);
+    outline-offset: 2px;
 }
 
 /* ---- Status badge ---- */
@@ -703,7 +731,7 @@
     padding: 5px 10px;
     font-size: 11px;
     font-weight: 700;
-    white-space: normal;
+    white-space: nowrap;
     line-height: 1.4;
     border-radius: 999px;
 }
@@ -783,22 +811,6 @@
     font-size: 0.85rem;
     font-weight: 500;
     color: var(--db-text-muted, #64748b);
-}
-
-.tr-items-per-page {
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 6px 32px 6px 12px;
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: var(--db-primary, #29237a);
-    background-color: #ffffff;
-    cursor: pointer;
-    outline: none;
-}
-
-.tr-items-per-page:focus {
-    border-color: var(--db-primary);
 }
 
 .tr-pagination-center {
@@ -1278,13 +1290,30 @@
 
     .tr-search-wrapper {
         flex: 1 1 100%;
+        min-width: 0;
     }
 }
 
 @media (max-width: 720px) {
+    .tr-page {
+        gap: 24px;
+    }
+
     .tr-card {
         margin-left: 12px;
         margin-right: 12px;
+    }
+
+    .tr-table-toolbar {
+        padding: 14px 16px;
+        gap: 10px;
+    }
+
+    /* The search field owns the full toolbar row on small screens — drop
+       its fixed minimums so it never forces the card (or page) to overflow. */
+    .tr-search {
+        min-width: 0;
+        max-width: none;
     }
 
     .td-grid {
@@ -1306,6 +1335,43 @@
     .tr-pagination-right {
         justify-content: center;
         flex: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .tr-header-titles h2 {
+        font-size: 24px;
+    }
+
+    .tr-header-top {
+        gap: 12px;
+    }
+
+    .tr-table thead th,
+    .tr-table tbody td {
+        padding: 8px 10px;
+    }
+
+    .tr-tabs {
+        flex-wrap: wrap;
+    }
+
+    .tr-tab {
+        padding: 9px 18px;
+        font-size: 13px;
+    }
+
+    .tr-table-toolbar {
+        padding: 12px 14px;
+    }
+
+    .tr-daterange-btn,
+    .tr-filter-reset {
+        flex: 1 1 auto;
+    }
+
+    .tr-pagination-footer {
+        padding: 12px 14px;
     }
 }
 

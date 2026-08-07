@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { DeclarantGroup } from '../types/transaction';
 import { TransactionRow } from './TransactionRow';
+import '../styles/select.css';
 
 interface TransactionTableProps {
     groups: DeclarantGroup[];
@@ -13,25 +14,42 @@ interface TransactionTableProps {
     toolbar?: React.ReactNode;
 }
 
-interface ColumnDef {
+export interface ColumnDef {
     label: string;
-    width: string;
+    /** Fixed minimum width in px. The registry table keeps these readable
+     *  widths and scrolls horizontally when the card can't fit them, instead
+     *  of squishing every column into unreadable slivers. */
+    width: number;
     align?: 'left' | 'center' | 'right';
 }
 
-const COLUMNS: ColumnDef[] = [
-    { label: 'Reference Number', width: '15%' },
-    { label: 'Declarant', width: '14%' },
-    { label: 'Requested By', width: '10%' },
-    { label: 'Date Requested', width: '9%' },
-    { label: 'Date Released', width: '9%' },
-    { label: 'Assigned Staff', width: '8%' },
-    { label: 'Releasing Staff', width: '8%' },
-    { label: 'OR Number', width: '7%' },
-    { label: 'OR Justification', width: '7%' },
-    { label: 'Current Status', width: '7%' },
-    { label: 'Actions', width: '6%', align: 'center' },
+/* Column layout — fixed px minimums per column so each cell stays
+   readable: Reference keeps room for the icon badge, Declarant /
+   Requested By / OR Justification host ExpandableText (See more /
+   See less) cells, dates stay narrow-but-legible, staff names may wrap,
+   OR Number never wraps, Current Status keeps its badge intact, and
+   Actions keeps a stable width for the View button. */
+export const REGISTRY_COLUMNS: ColumnDef[] = [
+    { label: 'Reference Number', width: 175 },
+    { label: 'Declarant', width: 200 },
+    { label: 'Requested By', width: 150 },
+    { label: 'Date Requested', width: 155 },
+    { label: 'Date Released', width: 145 },
+    { label: 'Assigned Staff', width: 155 },
+    { label: 'Releasing Staff', width: 160 },
+    { label: 'OR Number', width: 120 },
+    { label: 'OR Justification', width: 165 },
+    { label: 'Current Status', width: 160, align: 'center' },
+    { label: 'Actions', width: 120, align: 'center' },
 ];
+
+/** Total minimum table width (px) — below this the .tr-table-scroll
+ *  container scrolls horizontally. Shared with the loading skeleton so
+ *  the ghost table always matches the real one. */
+export const REGISTRY_TABLE_MIN_WIDTH = REGISTRY_COLUMNS.reduce(
+    (sum, col) => sum + col.width,
+    0
+);
 
 const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
@@ -57,13 +75,16 @@ export function TransactionTable({ groups, onViewDetails, toolbar }: Transaction
             {toolbar && <div className="tr-table-toolbar">{toolbar}</div>}
 
             <div className="tr-table-scroll">
-                <table className="tr-table tr-table--registry">
+                <table
+                    className="tr-table tr-table--registry"
+                    style={{ minWidth: REGISTRY_TABLE_MIN_WIDTH }}
+                >
                     <thead>
                         <tr>
-                            {COLUMNS.map((col) => (
+                            {REGISTRY_COLUMNS.map((col) => (
                                 <th
                                     key={col.label}
-                                    style={{ width: col.width, textAlign: col.align ?? 'left' }}
+                                    style={{ width: `${col.width}px`, textAlign: col.align ?? 'left' }}
                                 >
                                     {col.label}
                                 </th>
@@ -73,7 +94,7 @@ export function TransactionTable({ groups, onViewDetails, toolbar }: Transaction
                     <tbody>
                         {pageItems.length === 0 ? (
                             <tr>
-                                <td className="tr-table-empty" colSpan={COLUMNS.length}>
+                                <td className="tr-table-empty" colSpan={REGISTRY_COLUMNS.length}>
                                     <strong>No Released Transactions Found</strong>
                                     Try adjusting your search or filters.
                                 </td>
@@ -95,7 +116,7 @@ export function TransactionTable({ groups, onViewDetails, toolbar }: Transaction
                 <div className="tr-pagination-left">
                     <span className="tr-pagination-label">Rows per page:</span>
                     <select
-                        className="tr-items-per-page"
+                        className="adt-select adt-select--sm"
                         value={rowsPerPage}
                         onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
                     >

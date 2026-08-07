@@ -92,7 +92,6 @@ export function RecentTransactions({ rows, allRows, onViewAll, onRowClick, onSea
                         <tr>
                             <th>Control Number</th>
                             <th>Declarant</th>
-                            <th>Document</th>
                             <th>Status</th>
                             <th>Date &amp; Time</th>
                         </tr>
@@ -109,7 +108,6 @@ export function RecentTransactions({ rows, allRows, onViewAll, onRowClick, onSea
                                 <td>
                                     <ExpandableText text={row.declarant} />
                                 </td>
-                                <td>{row.document}</td>
                                 <td>
                                     <span className={`status-badge ${STATUS_STYLE[row.status]}`}>{row.status}</span>
                                 </td>
@@ -118,7 +116,7 @@ export function RecentTransactions({ rows, allRows, onViewAll, onRowClick, onSea
                         ))}
                         {filteredRows.length === 0 && (
                             <tr>
-                                <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: 'var(--db-text-muted)' }}>
+                                <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--db-text-muted)' }}>
                                     No transactions match your search.
                                 </td>
                             </tr>

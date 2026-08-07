@@ -85,7 +85,7 @@ export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
                         {/* Actions rowSpan's the group — "View" opens every
                             transaction in this requester's group. */}
                         {idx === 0 && (
-                            <td rowSpan={rowCount}>
+                            <td className="tr-actions-cell" rowSpan={rowCount}>
                                 <div className="tr-actions">
                                     <button type="button" className="tr-view-details-btn" onClick={() => onViewDetails(group)}>
                                         View

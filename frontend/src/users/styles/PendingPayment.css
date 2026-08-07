@@ -3,6 +3,8 @@
    Glassmorphic, minimalist redesign — built on ADePT design tokens
    ========================================================================== */
 
+@import "./NameTip.css";
+
 .pp-container {
     width: 100%;
     max-width: 100%;
@@ -771,22 +773,6 @@
     font-size: 0.85rem;
     font-weight: 500;
     color: var(--db-text-muted, #64748b);
-}
-
-.pp-items-per-page {
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 6px 32px 6px 12px;
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: var(--db-primary, #29237a);
-    background-color: #ffffff;
-    cursor: pointer;
-    outline: none;
-}
-
-.pp-items-per-page:focus {
-    border-color: var(--db-primary);
 }
 
 .pp-pagination-center {

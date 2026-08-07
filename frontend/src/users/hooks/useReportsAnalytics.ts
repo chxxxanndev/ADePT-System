@@ -27,7 +27,11 @@ import { fetchTransactionRegistry } from '../services/transactionService';
 import type { Transaction } from '../types/transaction';
 import type { WeeklyTrendPoint, DocumentDistributionSlice } from '../types/dashboard';
 import type { DeclarantRecord } from '../data/reportsMockData';
-import { getDocumentTypeFromReference } from '../../utils/documentType';
+import {
+    getDocumentTypeFromReference,
+    matchesDocumentType,
+    type DocumentTypeFilterValue,
+} from '../../utils/documentType';
 
 // ─── Period-bucketed metric ────────────────────────────────────────────────
 export interface PeriodMetric {
@@ -223,7 +227,7 @@ function buildWeeklyTrend(released: Transaction[]): WeeklyTrendPoint[] {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────
 
-export function useReportsAnalytics(): ReportsAnalyticsData {
+export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All'): ReportsAnalyticsData {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -260,11 +264,17 @@ export function useReportsAnalytics(): ReportsAnalyticsData {
     }, [refetchToken]);
 
     // ── Derived analytics ────────────────────────────────────────────────
+    // The Document Type filter is applied here, at the source, so every
+    // aggregate below (stat cards, trends, status chart, distribution,
+    // declarant rows) reflects the selected type. Detection is purely
+    // reference-prefix based (getDocumentTypeFromReference); 'All' matches
+    // every record, so the default behavior is unchanged.
     const data = useMemo((): Omit<ReportsAnalyticsData, 'loading' | 'isRefreshing' | 'error' | 'refetch'> => {
-        const released = transactions.filter(t => t.status === 'Released');
-        const voided = transactions.filter(t => t.status === 'Void');
-        const archived = transactions.filter(t => t.status === 'Archived');
-        const pending = transactions.filter(t =>
+        const filtered = transactions.filter(t => matchesDocumentType(t.referenceNumber, documentType));
+        const released = filtered.filter(t => t.status === 'Released');
+        const voided = filtered.filter(t => t.status === 'Void');
+        const archived = filtered.filter(t => t.status === 'Archived');
+        const pending = filtered.filter(t =>
             t.status === 'Pending' || t.status === 'For Payment' ||
             t.status === 'Payment Verified' || t.status === 'Processing' ||
             t.status === 'Ready for Release'
@@ -278,19 +288,19 @@ export function useReportsAnalytics(): ReportsAnalyticsData {
         const releasedMonth = released.filter(t => isThisMonth(t.dateRequested)).length;
         const releasedLastMonth = released.filter(t => isLastMonth(t.dateRequested)).length;
 
-        const totalToday = transactions.filter(t => isToday(t.dateRequested)).length;
-        const totalYesterday = transactions.filter(t => isYesterday(t.dateRequested)).length;
-        const totalWeek = transactions.filter(t => isThisWeek(t.dateRequested)).length;
-        const totalLastWeek = transactions.filter(t => isLastWeek(t.dateRequested)).length;
-        const totalMonth = transactions.filter(t => isThisMonth(t.dateRequested)).length;
-        const totalLastMonth = transactions.filter(t => isLastMonth(t.dateRequested)).length;
+        const totalToday = filtered.filter(t => isToday(t.dateRequested)).length;
+        const totalYesterday = filtered.filter(t => isYesterday(t.dateRequested)).length;
+        const totalWeek = filtered.filter(t => isThisWeek(t.dateRequested)).length;
+        const totalLastWeek = filtered.filter(t => isLastWeek(t.dateRequested)).length;
+        const totalMonth = filtered.filter(t => isThisMonth(t.dateRequested)).length;
+        const totalLastMonth = filtered.filter(t => isLastMonth(t.dateRequested)).length;
 
         const tdToday = countByDocType(released, 'Tax Declaration', t => isToday(t.dateRequested));
         const tdWeek = countByDocType(released, 'Tax Declaration', t => isThisWeek(t.dateRequested));
         const tdMonth = countByDocType(released, 'Tax Declaration', t => isThisMonth(t.dateRequested));
 
         // Reprinted documents: sum all reprintCounts
-        const reprintedCount = transactions.reduce((sum, t) =>
+        const reprintedCount = filtered.reduce((sum, t) =>
             sum + t.requestedDocuments.reduce((s, d) => s + (d.reprintCount || 0), 0), 0
         );
 
@@ -327,7 +337,7 @@ export function useReportsAnalytics(): ReportsAnalyticsData {
         ];
 
         // ── Declarant rows for the Reports table ───────────────────────
-        const declarantRows: DeclarantRecord[] = transactions.map(t => {
+        const declarantRows: DeclarantRecord[] = filtered.map(t => {
             const docTypes =
                 t.requestedDocuments.map(d => d.documentType).join(', ') ||
                 getDocumentTypeFromReference(t.referenceNumber) ||
@@ -361,7 +371,7 @@ export function useReportsAnalytics(): ReportsAnalyticsData {
         });
 
         return {
-            transactions,
+            transactions: filtered,
             documentsReleased: { daily: releasedToday, weekly: releasedWeek, monthly: releasedMonth },
             documentsReleasedTrend: {
                 daily: computeTrend(releasedToday, releasedYesterday, 'yesterday'),
@@ -385,7 +395,7 @@ export function useReportsAnalytics(): ReportsAnalyticsData {
             statusChart,
             declarantRows,
         };
-    }, [transactions]);
+    }, [transactions, documentType]);
 
     return { ...data, loading, isRefreshing, error, refetch };
 }

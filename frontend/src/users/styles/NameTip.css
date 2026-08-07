@@ -1,0 +1,64 @@
+/* ==========================================================================
+   Shared hoverable-name styles — ADePT design system
+   Used by ExpandableText labels (See more / See less) and by name/declarant
+   cells that reveal the full value on hover (Document Verification, Draft
+   Requests, Pending Payment / Pending For Release staff names).
+
+   The tooltip itself is NOT rendered by CSS here — it lives in
+   NameTooltip.tsx as a fixed-positioned portal (.name-tip-popover) so table
+   overflow: hidden/auto containers can never clip it.
+
+   Colors are built from the existing system tokens (--db-primary indigo,
+   --db-secondary teal) with fallbacks matching the rest of the app — no
+   new/random colors are introduced.
+   ========================================================================== */
+
+.name-tip {
+    transition: background-color 0.15s ease;
+}
+
+/* Subtle system-tinted hover background (indigo tint of --db-primary) */
+.name-tip:hover,
+.name-tip--clickable:hover {
+    background-color: rgba(41, 35, 122, 0.07);
+}
+
+/* Clickable names (See more / See less) */
+.name-tip--clickable {
+    cursor: pointer;
+    text-decoration: underline dotted rgba(41, 35, 122, 0.35);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.name-tip--clickable:hover {
+    text-decoration-color: var(--db-secondary, #00bcd4);
+    text-decoration-thickness: 1.5px;
+}
+
+.name-tip--clickable:focus-visible {
+    outline: 2px solid var(--db-secondary, #00bcd4);
+    outline-offset: 2px;
+}
+
+/* Portal-rendered tooltip (see NameTooltip.tsx) — fixed-positioned with a
+   high z-index so table/card overflow can never clip it. Wide rectangle:
+   long names stay on one or two lines instead of stacking into a tall,
+   narrow box. pointer-events: none keeps it from stealing hover. */
+.name-tip-popover {
+    position: fixed;
+    z-index: 9999;
+    width: max-content;
+    max-width: min(560px, calc(100vw - 24px));
+    padding: 6px 10px;
+    background-color: var(--db-primary, #29237a);
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 500;
+    line-height: 1.45;
+    white-space: normal;
+    word-break: break-word;
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(41, 35, 122, 0.22);
+    pointer-events: none;
+}

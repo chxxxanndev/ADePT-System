@@ -1,7 +1,9 @@
 import { useState, useEffect, Fragment } from 'react';
 import { requestService } from '../services/requestService';
 import '../styles/PendingPayment.css';
+import '../styles/select.css';
 import { ExpandableText } from '../components/common/ExpandableText';
+import { NameTooltip } from '../components/common/NameTooltip';
 
 const RELEASE_QUEUE_STATUS = 'PAID';
 
@@ -321,8 +323,10 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                                     </td>
 
                                                     <td className="pp-cell" data-label="Encoded By Staff">
-                                                        <span className="pp-doc-declarant pp-doc-declarant--staff" title={d.encodedByStaff || 'Not yet recorded'}>
-                                                            {d.encodedByStaff || '—'}
+                                                        <span className="pp-doc-declarant pp-doc-declarant--staff">
+                                                            <NameTooltip value={d.encodedByStaff || 'Not yet recorded'}>
+                                                                {d.encodedByStaff || '—'}
+                                                            </NameTooltip>
                                                         </span>
                                                     </td>
 
@@ -367,7 +371,7 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                     <div className="pp-pagination-footer">
                         <div className="pp-pagination-left">
                             <span className="pp-pagination-label">Rows per page:</span>
-                            <select className="pp-items-per-page" value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))}>
+                            <select className="adt-select adt-select--sm" value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))}>
                                 <option value={5}>5</option>
                                 <option value={10}>10</option>
                                 <option value={20}>20</option>

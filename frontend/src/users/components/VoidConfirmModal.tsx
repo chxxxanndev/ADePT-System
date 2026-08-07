@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Transaction } from '../types/transaction';
 import '../styles/VoidConfirmModal.css';
+import '../styles/select.css';
 
 interface VoidConfirmModalProps {
     open: boolean;
@@ -57,15 +58,15 @@ export function VoidConfirmModal({ open, transaction, onClose, onConfirm }: Void
                 <div className="vam-body">
                     <div className="vam-field">
                         <label className="vam-label">Reason</label>
-                        <div className="vam-select-wrapper">
+                        <div className="adt-select-wrap">
                             <select
-                                className="vam-select"
+                                className="adt-select adt-select--block"
                                 value={reasonCode}
                                 onChange={(e) => { setReasonCode(e.target.value); setError(''); }}
                             >
                                 {VOID_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
                             </select>
-                            <span className="vam-select-chevron">▾</span>
+                            <span className="adt-select-chevron">▾</span>
                         </div>
                     </div>
 
