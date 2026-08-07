@@ -408,9 +408,6 @@
 }
 
 .period-dropdown {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
     width: 220px;
     background: #ffffff;
     border-radius: 14px;

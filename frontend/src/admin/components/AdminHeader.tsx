@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { CalendarIcon, ChevronDownIcon, MenuIcon } from '../../users/components/icons';
 import type { User } from '../../auth-folder/types/auth';
 import { CalendarPicker } from './Calendarpicker';
+import { FloatingPopover } from '../../shared/components/FloatingPopover';
 
 interface AdminHeaderProps {
     user: User;
@@ -143,17 +144,6 @@ export function AdminHeader({
     const [view, setView] = useState<'list' | 'calendar'>('list');
     const dateDropdownRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (dateDropdownRef.current && !dateDropdownRef.current.contains(event.target as Node)) {
-                setDateDropdownOpen(false);
-                setView('list');
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
     function handleSelectPeriod(period: string) {
         if (period === 'Custom Range...') {
             setView('calendar');
@@ -242,26 +232,34 @@ export function AdminHeader({
                         <ChevronDownIcon size={14} />
                     </button>
 
-                    {dateDropdownOpen && view === 'list' && (
-                        <div className="period-dropdown">
-                            {PERIOD_OPTIONS.map((period) => (
-                                <button
-                                    key={period}
-                                    type="button"
-                                    className={`date-selector-option ${period === dateFilter ? 'active' : ''}`}
-                                    onClick={() => handleSelectPeriod(period)}
-                                >
-                                    {period}
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    <FloatingPopover
+                        open={dateDropdownOpen}
+                        triggerRef={dateDropdownRef}
+                        onClose={() => {
+                            setDateDropdownOpen(false);
+                            setView('list');
+                        }}
+                        className={`period-dropdown${view === 'calendar' ? ' period-dropdown-calendar' : ''}`}
+                    >
+                        {view === 'list' && (
+                            <>
+                                {PERIOD_OPTIONS.map((period) => (
+                                    <button
+                                        key={period}
+                                        type="button"
+                                        className={`date-selector-option ${period === dateFilter ? 'active' : ''}`}
+                                        onClick={() => handleSelectPeriod(period)}
+                                    >
+                                        {period}
+                                    </button>
+                                ))}
+                            </>
+                        )}
 
-                    {dateDropdownOpen && view === 'calendar' && (
-                        <div className="period-dropdown period-dropdown-calendar">
+                        {view === 'calendar' && (
                             <CalendarPicker onApply={handleApplyRange} onCancel={() => setView('list')} />
-                        </div>
-                    )}
+                        )}
+                    </FloatingPopover>
                 </div>
             </div>
         </header>

@@ -604,15 +604,10 @@
 }
 
 /* The Dashboard Period control is the shared Transaction Registry
-   DateRangePicker. The picker's popover normally anchors to the right
-   edge of its trigger (correct for the registry filter bar, which sits
-   on the right side); on the dashboard the trigger sits at the LEFT of
-   the welcome row, so anchor the popover left so it opens into open
-   space instead of off-screen. */
-.period-selector-wrap .tr-daterange-popover {
-    left: 0;
-    right: auto;
-}
+   DateRangePicker. The picker's popover is now portaled and positioned by
+   the shared FloatingPopover; DashboardHeader passes align="left" so the
+   popover opens into open space next to the welcome row instead of
+   extending off the left edge of the viewport. */
 
 /* =========================================================
    Refresh button (replaces the old period-selector slot on

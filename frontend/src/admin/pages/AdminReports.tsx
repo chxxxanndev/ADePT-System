@@ -18,6 +18,7 @@ import '../styles/AdminReports.css';
 import type { User } from '../../auth-folder/types/auth';
 import { CalendarIcon, ChevronDownIcon } from '../../users/components/icons';
 import { CalendarPicker } from '../components/Calendarpicker';
+import { FloatingPopover } from '../../shared/components/FloatingPopover';
 import { AdminDocumentDistribution } from '../components/AdminDocumentDistribution';
 
 const PERIOD_OPTIONS = [
@@ -251,17 +252,6 @@ export function AdminReports({ user }: AdminReportsProps) {
     const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
     const [dateView, setDateView] = useState<'list' | 'calendar'>('list');
     const dateDropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (dateDropdownRef.current && !dateDropdownRef.current.contains(event.target as Node)) {
-                setDateDropdownOpen(false);
-                setDateView('list');
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
 
     function handleSelectPeriod(period: string) {
         if (period === 'Custom Range...') {
@@ -912,34 +902,42 @@ export function AdminReports({ user }: AdminReportsProps) {
                                 <ChevronDownIcon size={14} />
                             </button>
 
-                            {dateDropdownOpen && dateView === 'list' && (
-                                <div className="period-dropdown">
-                                    {PERIOD_OPTIONS.map((period) => (
-                                        <button
-                                            key={period}
-                                            type="button"
-                                            className={`date-selector-option ${period === dateFilterLabel ? 'active' : ''}`}
-                                            onClick={() => handleSelectPeriod(period)}
-                                        >
-                                            {period}
-                                        </button>
-                                    ))}
+                    <FloatingPopover
+                        open={dateDropdownOpen}
+                        triggerRef={dateDropdownRef}
+                        onClose={() => {
+                            setDateDropdownOpen(false);
+                            setDateView('list');
+                        }}
+                        className={`period-dropdown${dateView === 'calendar' ? ' period-dropdown-calendar' : ''}`}
+                    >
+                        {dateView === 'list' && (
+                            <>
+                                {PERIOD_OPTIONS.map((period) => (
                                     <button
+                                        key={period}
                                         type="button"
-                                        className="date-selector-option"
-                                        onClick={handleClearDateFilter}
+                                        className={`date-selector-option ${period === dateFilterLabel ? 'active' : ''}`}
+                                        onClick={() => handleSelectPeriod(period)}
                                     >
-                                        All Time
+                                        {period}
                                     </button>
-                                </div>
-                            )}
+                                ))}
+                                <button
+                                    type="button"
+                                    className="date-selector-option"
+                                    onClick={handleClearDateFilter}
+                                >
+                                    All Time
+                                </button>
+                            </>
+                        )}
 
-                            {dateDropdownOpen && dateView === 'calendar' && (
-                                <div className="period-dropdown period-dropdown-calendar">
-                                    <CalendarPicker onApply={handleApplyRange} onCancel={() => setDateView('list')} />
-                                </div>
-                            )}
-                        </div>
+                        {dateView === 'calendar' && (
+                            <CalendarPicker onApply={handleApplyRange} onCancel={() => setDateView('list')} />
+                        )}
+                    </FloatingPopover>
+                </div>
                     </div>
                 </div>
             </div>

@@ -154,6 +154,7 @@ export function WelcomeBanner({ dateFrom, dateTo, onDateRangeChange, onReset, on
                 <DateRangePicker
                     dateFrom={dateFrom}
                     dateTo={dateTo}
+                    align="left"
                     onChange={(from, to) => onDateRangeChange?.(from, to)}
                 />
                 {!isDefaultRange && onReset && (

@@ -21,8 +21,8 @@ function formatShort(date: Date) {
 }
 
 // Note: this component renders ONLY the calendar's inner content — no
-// absolutely-positioned wrapper. The parent is expected to render it inside
-// a wrapper like: <div className="period-dropdown period-dropdown-calendar">
+// positioned wrapper. The parent is expected to render it inside a
+// FloatingPopover, e.g.: <FloatingPopover className="period-dropdown period-dropdown-calendar">
 export function CalendarPicker({ onApply, onCancel }: CalendarPickerProps) {
     const today = new Date();
     const [viewMonth, setViewMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
