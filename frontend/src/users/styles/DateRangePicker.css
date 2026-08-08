@@ -1,0 +1,313 @@
+/* ============================================================
+   Date Range Picker — shared stylesheet for the DateRangePicker
+   component (preset list + calendar popup).
+
+   Used by the Transaction Registry (FilterBar), Archive
+   Management, and the Dashboard period selector. Imported from
+   the component itself so every page gets the same design.
+
+   The trigger pill (#tr-daterange-btn) rules are kept identical
+   to the previous TransactionRegistry.css values; only the
+   opened popup/calendar card was redesigned: modern rounded
+   light card, ADePT navy/indigo selected state, soft hover,
+   muted range tint, pill action buttons.
+   ============================================================ */
+
+/* ── Trigger (unchanged design) ─────────────────────────── */
+.tr-daterange {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.tr-daterange-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #ffffff;
+    border: 1px solid var(--db-glass-border-alt);
+    border-radius: 999px;
+    padding: 9px 16px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #94a3b8;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.tr-daterange-btn.has-value {
+    color: var(--db-primary);
+    border-color: var(--db-secondary);
+}
+
+.tr-daterange-btn:hover {
+    background-color: rgba(41, 35, 122, 0.04);
+}
+
+/* ── Popup card (redesigned) ────────────────────────────── */
+.tr-daterange-popover {
+    display: flex;
+    background-color: #ffffff;
+    border-radius: 16px;
+    box-shadow:
+        0 24px 48px -12px rgba(15, 23, 42, 0.18),
+        0 4px 12px rgba(15, 23, 42, 0.06);
+    border: 1px solid #eef0f6;
+    z-index: 50;
+    animation: drp-in 0.16s ease-out;
+    overflow: hidden;
+}
+
+@keyframes drp-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.tr-daterange-popover:not(.tr-daterange-popover--wide) {
+    width: 190px;
+}
+
+.tr-daterange-popover--wide {
+    width: 510px;
+}
+
+/* ── Preset list ────────────────────────────────────────── */
+.tr-preset-list {
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    width: 190px;
+    flex: 0 0 190px;
+    border-right: 1px solid #eef0f6;
+    background: linear-gradient(180deg, rgba(248, 250, 255, 0.6), rgba(255, 255, 255, 0));
+}
+
+.tr-daterange-popover:not(.tr-daterange-popover--wide) .tr-preset-list {
+    border-right: none;
+}
+
+.tr-preset-item {
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--db-slate);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.tr-preset-item:hover {
+    background-color: rgba(99, 102, 241, 0.08);
+    color: var(--db-primary);
+}
+
+.tr-preset-item--active {
+    background-color: rgba(41, 35, 122, 0.08);
+    color: var(--db-primary);
+}
+
+.tr-preset-item--divider {
+    margin-top: 8px;
+    padding-top: 14px;
+    border-top: 1px solid #eef0f6;
+}
+
+/* ── Calendar panel (redesigned) ────────────────────────── */
+.tr-cal-panel {
+    padding: 18px 20px 16px;
+    width: 320px;
+    flex: 0 0 320px;
+}
+
+.tr-cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.tr-cal-title {
+    font-size: 0.98rem;
+    font-weight: 800;
+    color: var(--db-primary);
+    letter-spacing: 0.2px;
+}
+
+.tr-cal-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--db-primary);
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.tr-cal-nav-btn:hover {
+    background-color: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.18);
+}
+
+.tr-cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f1f0f7;
+}
+
+.tr-cal-weekday {
+    text-align: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    color: #94a3b8;
+    padding: 2px 0;
+}
+
+.tr-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    row-gap: 2px;
+}
+
+.tr-cal-day {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 34px;
+    border: none;
+    background: transparent;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    border-radius: 999px;
+    transition: background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.tr-cal-day--empty {
+    cursor: default;
+}
+
+.tr-cal-day--today {
+    box-shadow: inset 0 0 0 1.5px rgba(41, 35, 122, 0.45);
+    color: var(--db-primary);
+    font-weight: 700;
+}
+
+.tr-cal-day--in-range {
+    background-color: rgba(99, 102, 241, 0.12);
+    border-radius: 0;
+    color: var(--db-primary);
+}
+
+.tr-cal-day--selected {
+    background: linear-gradient(135deg, #29237a, #4f46e5);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 4px 12px -2px rgba(41, 35, 122, 0.45);
+}
+
+.tr-cal-day--today.tr-cal-day--selected {
+    box-shadow: 0 4px 12px -2px rgba(41, 35, 122, 0.45);
+}
+
+.tr-cal-day:hover:not(.tr-cal-day--empty):not(.tr-cal-day--selected) {
+    background-color: rgba(99, 102, 241, 0.14);
+}
+
+/* ── Calendar footer ────────────────────────────────────── */
+.tr-cal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #f1f0f7;
+}
+
+.tr-cal-clear-btn {
+    background: none;
+    border: none;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--db-text-muted);
+    cursor: pointer;
+    padding: 8px 14px;
+    border-radius: 999px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.tr-cal-clear-btn:hover {
+    color: #dc2626;
+    background-color: rgba(220, 38, 38, 0.06);
+}
+
+.tr-cal-done-btn {
+    background: linear-gradient(135deg, #29237a, #4f46e5);
+    color: #ffffff;
+    border: none;
+    padding: 9px 22px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px -2px rgba(41, 35, 122, 0.4);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tr-cal-done-btn:hover {
+    transform: translateY(-0.5px);
+    box-shadow: 0 6px 16px -2px rgba(41, 35, 122, 0.5);
+}
+
+/* ---- Responsive behavior (kept from TransactionRegistry.css) ---- */
+@media (max-width: 760px) {
+    .tr-daterange-popover--wide {
+        width: min(510px, calc(100vw - 24px));
+    }
+
+    .tr-cal-panel {
+        width: auto;
+        min-width: 280px;
+        flex: 0 1 100%;
+    }
+}
+
+@media (max-width: 560px) {
+    .tr-daterange-popover--wide {
+        flex-direction: column;
+    }
+
+    .tr-preset-list {
+        width: 100%;
+        flex: none;
+        border-right: none;
+        border-bottom: 1px solid #eef0f6;
+    }
+
+    .tr-cal-panel {
+        min-width: 0;
+    }
+}
+
+@media (max-height: 700px) {
+    .tr-daterange-popover {
+        max-height: calc(100vh - 24px);
+        overflow-y: auto;
+    }
+}

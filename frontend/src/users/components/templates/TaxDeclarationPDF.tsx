@@ -525,16 +525,20 @@ export const TaxDeclarationPDF = ({
 
           {/* KIND OF PROPERTY (TABLE HEADERS) */}
           <View style={[styles.tableHeader, { justifyContent: 'flex-start', paddingLeft: 2 }]}>
-            <Text 
-              hyphenationCallback={(word) => [word]} 
-              style={[styles.thCell, { width: '16%', fontSize: 9.5 }]}
+            <Text
+              hyphenationCallback={(word) => [word]}
+              style={[styles.thCell, { width: '16%', paddingHorizontal: 2, fontSize: 9.5, lineHeight: 1.25 }]}
             >
               Kind of Property
             </Text>
-            <Text style={[styles.thCell, { width: '18%', marginLeft: '1%' }]}>Classification</Text> 
-            <Text style={[styles.thCell, { width: '20%', marginLeft: '4%' }]}>Market Value</Text>
-            <View style={[styles.thCell, { width: '12%', marginLeft: '4%' }]}><Text>Assessment Level (%)</Text></View>
-            <Text style={[styles.thCell, { width: '20%', marginLeft: '4%' }]}>Assessed Value</Text>
+            <Text style={[styles.thCell, { width: '18%', paddingHorizontal: 2, marginLeft: '1%', lineHeight: 1.25 }]}>Classification</Text>
+            <Text style={[styles.thCell, { width: '20%', paddingHorizontal: 2, marginLeft: '4%', lineHeight: 1.25 }]}>Market Value</Text>
+            <Text
+              style={[styles.thCell, { width: '12%', marginLeft: '4%', fontSize: 8.5, lineHeight: 1.25 }]}
+            >
+              Assessment{'\n'}Level (%)
+            </Text>
+            <Text style={[styles.thCell, { width: '20%', paddingHorizontal: 2, marginLeft: '4%', lineHeight: 1.25 }]}>Assessed Value</Text>
           </View>
 
           {tableRows.map((row: any, i: number) => {

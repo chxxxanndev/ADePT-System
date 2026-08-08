@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import '../styles/CalendarPicker.css';
 
 interface CalendarPickerProps {
     onApply: (start: Date, end: Date) => void;

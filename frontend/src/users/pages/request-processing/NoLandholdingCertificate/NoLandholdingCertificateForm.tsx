@@ -14,6 +14,7 @@ import {
 } from '../../../components/icons';
 import { TransactionProgressPanel } from '../../../components/TransactionProgressPanel';
 import { CustomSelect } from '../../../components/CustomSelect';
+import { CustomDateInput } from '../../../components/CustomDateInput';
 
 function ordinal(n: number): string {
     const s = ['th', 'st', 'nd', 'rd'];
@@ -225,7 +226,7 @@ export function NoLandholdingCertificateForm({ user, entryData, onDiscard, onDis
                         <div className="lh-section" style={{ borderBottom: 'none', marginBottom: 0 }}>
                             <div className="lh-section-title">Certification Details</div>
                             <div className="lh-row lh-row-3">
-                                <div className="lh-field"><label className="lh-label">Date Given</label><input id="nlh-date-given" className="lh-input" type="date" value={form.dateGiven} onChange={(e) => set('dateGiven', e.target.value)} /></div>
+                                <div className="lh-field"><label className="lh-label">Date Given</label><CustomDateInput id="nlh-date-given" className="lh-input" value={form.dateGiven} onChange={(v) => set('dateGiven', v)} /></div>
                                 <div className="lh-field"><label className="lh-label">Given At</label><input id="nlh-given-at" className="lh-input" placeholder="e.g. Dipolog City" value={form.givenAt} onChange={(e) => set('givenAt', e.target.value)} /></div>
                                 <div className="lh-field">
                                     <label className="lh-label" style={{ visibility: 'hidden' }}>–</label>

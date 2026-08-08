@@ -1,0 +1,211 @@
+/* ============================================================
+   Custom Date Input (CustomDateInput.tsx) — redesigned calendar
+   card shown by the Date Given / Date of Request fields in the
+   Tax Declaration, Landholding, and No-Landholding forms.
+
+   Same visual language as the DateRangePicker calendar: white
+   rounded card, ADePT navy/indigo selected day, soft hover,
+   muted today ring, pill action buttons. The field itself keeps
+   the passed-through input class (lh-input / rfe-input) so the
+   form layout stays identical to the old native date field.
+   ============================================================ */
+
+.cdi-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.cdi-input {
+    padding-right: 40px !important;
+    cursor: pointer;
+}
+
+.cdi-calendar-btn {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.cdi-calendar-btn:hover {
+    background-color: rgba(99, 102, 241, 0.12);
+    color: var(--db-primary, #29237a);
+}
+
+/* ── Calendar popup card ─────────────────────────────────── */
+.cdi-popover {
+    background: #ffffff;
+    border: 1px solid #eef0f6;
+    border-radius: 14px;
+    box-shadow:
+        0 24px 48px -12px rgba(15, 23, 42, 0.18),
+        0 4px 12px rgba(15, 23, 42, 0.06);
+    z-index: 110000;
+    animation: cdi-in 0.16s ease-out;
+}
+
+@keyframes cdi-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.cdi-cal {
+    width: 280px;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.cdi-cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.cdi-cal-title {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--db-primary, #29237a);
+    letter-spacing: 0.2px;
+}
+
+.cdi-cal-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--db-primary, #29237a);
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.cdi-cal-nav:hover {
+    background-color: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.18);
+}
+
+.cdi-cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 6px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f1f0f7;
+}
+
+.cdi-cal-weekday {
+    text-align: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    color: #94a3b8;
+    padding: 2px 0;
+}
+
+.cdi-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    row-gap: 2px;
+}
+
+.cdi-cal-day {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    border: none;
+    background: transparent;
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: inherit;
+    color: #334155;
+    cursor: pointer;
+    border-radius: 999px;
+    transition: background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.cdi-cal-day--empty {
+    cursor: default;
+}
+
+.cdi-cal-day--today {
+    box-shadow: inset 0 0 0 1.5px rgba(41, 35, 122, 0.45);
+    color: var(--db-primary, #29237a);
+    font-weight: 700;
+}
+
+.cdi-cal-day--selected {
+    background: linear-gradient(135deg, #29237a, #4f46e5);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 4px 12px -2px rgba(41, 35, 122, 0.45);
+}
+
+.cdi-cal-day:hover:not(.cdi-cal-day--empty):not(.cdi-cal-day--selected) {
+    background-color: rgba(99, 102, 241, 0.14);
+}
+
+.cdi-cal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f0f7;
+}
+
+.cdi-cal-today-btn {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--db-primary, #29237a);
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 999px;
+    transition: background-color 0.15s ease;
+}
+
+.cdi-cal-today-btn:hover {
+    background-color: rgba(99, 102, 241, 0.1);
+}
+
+.cdi-cal-clear-btn {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--db-text-muted, #64748b);
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 999px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.cdi-cal-clear-btn:hover {
+    color: #dc2626;
+    background-color: rgba(220, 38, 38, 0.06);
+}

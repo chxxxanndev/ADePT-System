@@ -128,8 +128,10 @@ const styles = StyleSheet.create({
   },
   thText: {
     fontWeight: 'bold',
-    fontSize: 10,
-    textAlign: 'center'
+    fontSize: 9,
+    textAlign: 'center',
+    lineHeight: 1.25,
+    paddingHorizontal: 2,
   },
   tdText: {
     fontSize: 9,

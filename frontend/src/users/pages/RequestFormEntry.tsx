@@ -7,6 +7,7 @@ import '../styles/RequestFormEntry.css';
 import { CheckIcon, SaveIcon, LightbulbIcon } from '../components/icons';
 import { addAdminAuditEntry } from '../../admin/services/auditLogService';
 import { TransactionProgressBar } from '../components/TransactionProgressPanel';
+import { CustomDateInput } from '../components/CustomDateInput';
 
 interface ExtendedRequestFormData extends RequestFormData {
     id?: string;
@@ -776,12 +777,12 @@ export function RequestFormEntry({
 
                             <div className="rfe-field" style={{ marginTop: 14 }}>
                                 <label className="rfe-label">Date of Request</label>
-                                <input
+                                <CustomDateInput
+                                    anchorToIcon
                                     className={`rfe-input ${fieldErrors.requestDate ? 'rfe-input-error' : ''}`}
-                                    type="date"
                                     value={formData.requestDate}
-                                    onChange={(e) => {
-                                        setFormData({ ...formData, requestDate: e.target.value });
+                                    onChange={(v) => {
+                                        setFormData({ ...formData, requestDate: v });
                                         if (fieldErrors.requestDate) setFieldErrors((prev) => ({ ...prev, requestDate: '' }));
                                     }}
                                 />

@@ -17,6 +17,9 @@ import { TaxDeclarationPDF } from './templates/TaxDeclarationPDF';
 // role key and must never ship to the browser). Common locations:
 // '../lib/supabaseClient', '../config/supabaseClient', '../supabaseClient'.
 import { supabase } from '../../lib/supabaseClient';
+import { CustomDateInput } from './CustomDateInput';
+import { ADePTSelect } from './ADePTSelect';
+import '../styles/InitialDocumentPreviewModal.css';
 
 const EditIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -33,6 +36,13 @@ const SearchIcon = ({ size = 16 }: { size?: number }) => (
 const PlusIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 5v14" /><path d="M5 12h14" />
+  </svg>
+);
+const TrashIcon = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 6h18" />
+    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
+    <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
   </svg>
 );
 
@@ -262,6 +272,17 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
               area: a.area || '',
               areaUnit: a.area_unit || a.areaUnit || '',
             }));
+          }
+
+          // The certificate API stores the ownership enum under
+          // `ownership_type` (snake_case), while the edit form options use
+          // `ownershipType` (camelCase) — same mismatch the assessment rows
+          // above had. Normalize on load so the dropdown renders the saved
+          // value instead of showing a blank trigger, and drop the snake_case
+          // key so a later change can't be shadowed by the stale duplicate.
+          if (determinedType === 'LANDHOLDING') {
+            data.ownershipType = normalizeOwnershipType(data.ownershipType || data.ownership_type);
+            delete data.ownership_type;
           }
 
           setFullData(data);
@@ -520,35 +541,61 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     return `${b.name}, ${m ? m.name : 'Unknown'}`;
   };
 
+  // The certificate API stores the ownership enum under `ownership_type`
+  // (snake_case) with values like 'single' | 'multiple', while the edit
+  // options use the same lowercase ids. Older/mock records may carry
+  // casing or spacing variants ('Single owner', etc.), so fold everything
+  // down to the canonical option ids instead of leaving the dropdown blank.
+  const normalizeOwnershipType = (val?: string | null) => {
+    const s = String(val || '').toLowerCase().trim();
+    if (s.includes('multiple') || s.includes('co-owner') || s.includes('co owner')) return 'multiple';
+    if (s.includes('single')) return 'single';
+    return s;
+  };
+
   // --- RENDERING SPECIFIC EDITORS ---
   const renderNoLandholdingEdit = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-      <div>
-        <label style={editLabelStyle}>Pronoun</label>
-        <select value={editData?.pronoun || ''} onChange={(e) => setEditData({ ...editData, pronoun: e.target.value })} style={inputStyle}>
-          <option value="His">His</option>
-          <option value="Her">Her</option>
-          <option value="Their">Their</option>
-        </select>
+    <div className="idpm-grid idpm-grid-2">
+      <div className="idpm-field">
+        <label className="idpm-label">Pronoun</label>
+        <ADePTSelect
+          variant="block"
+          value={editData?.pronoun || ''}
+          onChange={(v) => setEditData({ ...editData, pronoun: v })}
+          options={[
+            { value: 'His', label: 'His' },
+            { value: 'Her', label: 'Her' },
+            { value: 'Their', label: 'Their' },
+          ]}
+        />
       </div>
-      <div>
-        <label style={editLabelStyle}>Property Count</label>
-        <select value={editData?.propertyCount || ''} onChange={(e) => setEditData({ ...editData, propertyCount: e.target.value })} style={inputStyle}>
-          <option value="singular">Singular (Property/Name)</option>
-          <option value="plural">Plural (Properties/Names)</option>
-        </select>
+      <div className="idpm-field">
+        <label className="idpm-label">Property Count</label>
+        <ADePTSelect
+          variant="block"
+          value={editData?.propertyCount || ''}
+          onChange={(v) => setEditData({ ...editData, propertyCount: v })}
+          options={[
+            { value: 'singular', label: 'Singular (Property/Name)' },
+            { value: 'plural', label: 'Plural (Properties/Names)' },
+          ]}
+        />
       </div>
-      <div>
-        <label style={editLabelStyle}>Date Given</label>
-        <input type="date" value={editData?.dateGiven || editData?.date_given || ''} onChange={(e) => setEditData({ ...editData, dateGiven: e.target.value })} style={inputStyle} />
+      <div className="idpm-field">
+        <label className="idpm-label">Date Given</label>
+        <CustomDateInput
+          value={editData?.dateGiven || editData?.date_given || ''}
+          onChange={(v) => setEditData({ ...editData, dateGiven: v })}
+          className="idpm-input"
+        />
       </div>
-      <div>
-        <label style={editLabelStyle}>Given At</label>
-        <input type="text" value={editData?.givenAt || editData?.given_at || ''} onChange={(e) => setEditData({ ...editData, givenAt: e.target.value })} style={inputStyle} />
+      <div className="idpm-field">
+        <label className="idpm-label">Given At</label>
+        <input type="text" value={editData?.givenAt || editData?.given_at || ''} onChange={(e) => setEditData({ ...editData, givenAt: e.target.value })} className="idpm-input" />
       </div>
-      <div style={{ gridColumn: '1 / -1' }}>
-        <label style={editLabelStyle}>Purpose / Intent</label>
-        <input type="text" value={editData?.purpose || ''} onChange={(e) => setEditData({ ...editData, purpose: e.target.value })} style={inputStyle} />
+      <div className="idpm-field" style={{ gridColumn: '1 / -1' }}>
+        <label className="idpm-label">Purpose / Intent</label>
+        <input type="text" value={editData?.purpose || ''} onChange={(e) => setEditData({ ...editData, purpose: e.target.value })} className="idpm-input" />
       </div>
     </div>
   );
@@ -560,142 +607,133 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
   const detectAreaUnit = (raw: string) => (/sq/i.test(String(raw || '')) ? 'sqm.' : 'has.');
 
   const renderLandholdingEdit = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        <div>
-          <label style={editLabelStyle}>Ownership Type</label>
-          <select value={editData?.ownershipType || ''} onChange={(e) => setEditData({ ...editData, ownershipType: e.target.value })} style={inputStyle}>
-            <option value="single">Single Owner</option>
-            <option value="multiple">Multiple Owners</option>
-          </select>
+    <div className="idpm-form">
+      <div className="idpm-grid idpm-grid-2">
+        <div className="idpm-field">
+          <label className="idpm-label">Ownership Type</label>
+          <ADePTSelect
+            variant="block"
+            value={editData?.ownershipType || ''}
+            onChange={(v) => setEditData({ ...editData, ownershipType: v })}
+            options={[
+              { value: 'single', label: 'Single Owner' },
+              { value: 'multiple', label: 'Multiple Owners' },
+            ]}
+          />
         </div>
-        <div>
-          <label style={editLabelStyle}>Date Given</label>
-          <input type="date" value={editData?.dateGiven || editData?.date_given || ''} onChange={(e) => setEditData({ ...editData, dateGiven: e.target.value })} style={inputStyle} />
+        <div className="idpm-field">
+          <label className="idpm-label">Date Given</label>
+          <CustomDateInput
+            value={editData?.dateGiven || editData?.date_given || ''}
+            onChange={(v) => setEditData({ ...editData, dateGiven: v })}
+            className="idpm-input"
+          />
         </div>
-        <div>
-          <label style={editLabelStyle}>Given At</label>
-          <input type="text" value={editData?.givenAt || editData?.given_at || ''} onChange={(e) => setEditData({ ...editData, givenAt: e.target.value })} style={inputStyle} />
+        <div className="idpm-field">
+          <label className="idpm-label">Given At</label>
+          <input type="text" value={editData?.givenAt || editData?.given_at || ''} onChange={(e) => setEditData({ ...editData, givenAt: e.target.value })} className="idpm-input" />
         </div>
-        <div>
-          <label style={editLabelStyle}>Purpose / Intent</label>
-          <input type="text" value={editData?.purpose || ''} onChange={(e) => setEditData({ ...editData, purpose: e.target.value })} style={inputStyle} />
+        <div className="idpm-field">
+          <label className="idpm-label">Purpose / Intent</label>
+          <input type="text" value={editData?.purpose || ''} onChange={(e) => setEditData({ ...editData, purpose: e.target.value })} className="idpm-input" />
         </div>
       </div>
 
       {/* DECLARED PROPERTIES */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: '#374151' }}>DECLARED PROPERTIES</span>
-          <button
-            onClick={addPropertyRow}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              backgroundColor: '#e0e7ff',
-              color: '#4f46e5',
-              border: 'none',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              fontWeight: 600,
-              fontSize: '13px',
-              cursor: 'pointer',
-            }}
-          >
+      <div className="idpm-panel">
+        <div className="idpm-section-head">
+          <span className="idpm-section-title">Declared Properties</span>
+          <button onClick={addPropertyRow} className="idpm-add-row-btn">
             <PlusIcon size={14} /> Add Row
           </button>
         </div>
 
         {(editData?.properties || []).length === 0 ? (
-          <div style={{ padding: '16px', textAlign: 'center', color: '#6b7280', fontSize: '13px', border: '1px dashed #d1d5db', borderRadius: '8px' }}>
-            No properties added.
-          </div>
+          <div className="idpm-empty-box">No properties added.</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="idpm-form" style={{ gap: '10px' }}>
             {(editData?.properties || []).map((p: any, i: number) => (
-              <div key={i} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', backgroundColor: '#fff' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 1fr 1fr auto', gap: '8px', alignItems: 'flex-end', marginBottom: '10px' }}>
-                  <div>
-                    <label style={propLabelStyle}>TD/ARP No.</label>
-                    <input
-                      type="text"
-                      value={p.tdArpNumber || p.td_arp_number || ''}
-                      onChange={(e) => updateProperty(i, 'tdArpNumber', e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label style={propLabelStyle}>Location</label>
-                    <input
-                      type="text"
-                      value={p.locationOfProperty || p.location_of_property || ''}
-                      onChange={(e) => updateProperty(i, 'locationOfProperty', e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label style={propLabelStyle}>Lot No.</label>
-                    <input
-                      type="text"
-                      value={p.lotNumber || p.lot_number || ''}
-                      onChange={(e) => updateProperty(i, 'lotNumber', e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label style={propLabelStyle}>Title No.</label>
-                    <input
-                      type="text"
-                      value={p.titleNumber || p.title_number || ''}
-                      onChange={(e) => updateProperty(i, 'titleNumber', e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', alignSelf: 'flex-end', height: '35px' }}>
-                    <button
-                      onClick={() => removePropertyRow(i)}
-                      title="Remove property"
-                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '18px', padding: '4px 6px' }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '8px' }}>
-                  <div>
-                    <label style={propLabelStyle}>Area</label>
-                    <div style={{ display: 'flex', gap: '4px' }}>
+              <React.Fragment key={i}>
+                <div className="idpm-row-card">
+                  <div className="idpm-prop-grid">
+                    <div className="idpm-field">
+                      <label className="idpm-label idpm-label--thin">TD/ARP No.</label>
                       <input
                         type="text"
-                        value={p.area || ''}
-                        onChange={(e) => updateProperty(i, 'area', e.target.value)}
-                        style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+                        value={p.tdArpNumber || p.td_arp_number || ''}
+                        onChange={(e) => updateProperty(i, 'tdArpNumber', e.target.value)}
+                        className="idpm-input"
                       />
-                      <select
-                        value={detectAreaUnit(p.area || '')}
-                        onChange={(e) => {
-                          const bare = stripAreaUnit(p.area || '');
-                          updateProperty(i, 'area', bare ? `${bare} ${e.target.value}` : e.target.value);
-                        }}
-                        style={{ ...inputStyle, width: 'auto', flexShrink: 0, padding: '8px 6px' }}
-                      >
-                        <option value="has.">has.</option>
-                        <option value="sqm.">sqm.</option>
-                      </select>
+                    </div>
+                    <div className="idpm-field">
+                      <label className="idpm-label idpm-label--thin">Location</label>
+                      <input
+                        type="text"
+                        value={p.locationOfProperty || p.location_of_property || ''}
+                        onChange={(e) => updateProperty(i, 'locationOfProperty', e.target.value)}
+                        className="idpm-input"
+                      />
+                    </div>
+                    <div className="idpm-field">
+                      <label className="idpm-label idpm-label--thin">Lot No.</label>
+                      <input
+                        type="text"
+                        value={p.lotNumber || p.lot_number || ''}
+                        onChange={(e) => updateProperty(i, 'lotNumber', e.target.value)}
+                        className="idpm-input"
+                      />
+                    </div>
+                    <div className="idpm-field">
+                      <label className="idpm-label idpm-label--thin">Title No.</label>
+                      <input
+                        type="text"
+                        value={p.titleNumber || p.title_number || ''}
+                        onChange={(e) => updateProperty(i, 'titleNumber', e.target.value)}
+                        className="idpm-input"
+                      />
                     </div>
                   </div>
-                  <div>
-                    <label style={propLabelStyle}>Assessed Value (₱)</label>
-                    <input
-                      type="number"
-                      value={p.assessedValue || p.assessed_value || 0}
-                      onChange={(e) => updateProperty(i, 'assessedValue', e.target.value)}
-                      style={{ ...inputStyle, textAlign: 'right' }}
-                    />
+                  <div className="idpm-area-grid">
+                    <div className="idpm-field">
+                      <label className="idpm-label idpm-label--thin">Area</label>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <input
+                          type="text"
+                          value={p.area || ''}
+                          onChange={(e) => updateProperty(i, 'area', e.target.value)}
+                          className="idpm-input"
+                        />
+                        <ADePTSelect
+                          variant="sm"
+                          value={detectAreaUnit(p.area || '')}
+                          onChange={(v) => {
+                            const bare = stripAreaUnit(p.area || '');
+                            updateProperty(i, 'area', bare ? `${bare} ${v}` : v);
+                          }}
+                          options={[
+                            { value: 'has.', label: 'has.' },
+                            { value: 'sqm.', label: 'sqm.' },
+                          ]}
+                        />
+                      </div>
+                    </div>
+                    <div className="idpm-field">
+                      <label className="idpm-label idpm-label--thin">Assessed Value (₱)</label>
+                      <input
+                        type="number"
+                        value={p.assessedValue || p.assessed_value || 0}
+                        onChange={(e) => updateProperty(i, 'assessedValue', e.target.value)}
+                        className="idpm-input idpm-input--num"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+                <div className="idpm-row-actions">
+                  <button onClick={() => removePropertyRow(i)} className="idpm-remove-row-btn" title="Remove this property row">
+                    <TrashIcon size={13} /> Remove Row
+                  </button>
+                </div>
+              </React.Fragment>
             ))}
           </div>
         )}
@@ -704,140 +742,124 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
   );
 
   const renderTaxDecEdit = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-        <div><label style={editLabelStyle}>ARP No.</label><input type="text" value={editData?.taxDeclarationNumber || editData?.tax_declaration_number || ''} onChange={(e) => setEditData({ ...editData, taxDeclarationNumber: e.target.value })} style={inputStyle} /></div>
-        <div><label style={editLabelStyle}>PIN</label><input type="text" value={editData?.propertyIndexNumber || editData?.property_index_number || ''} onChange={(e) => setEditData({ ...editData, propertyIndexNumber: e.target.value })} style={inputStyle} /></div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        <div><label style={editLabelStyle}>Owner Name</label><input type="text" value={editData?.ownerName || editData?.owner_name || ''} onChange={(e) => setEditData({ ...editData, ownerName: e.target.value })} style={inputStyle} /></div>
-        <div><label style={editLabelStyle}>Owner Address</label><input type="text" value={editData?.ownerAddress || editData?.owner_address || ''} onChange={(e) => setEditData({ ...editData, ownerAddress: e.target.value })} style={inputStyle} /></div>
-        <div><label style={editLabelStyle}>Administrator Name</label><input type="text" value={editData?.administratorName || editData?.administrator_name || ''} onChange={(e) => setEditData({ ...editData, administratorName: e.target.value })} style={inputStyle} /></div>
-        <div><label style={editLabelStyle}>Administrator Address</label><input type="text" value={editData?.administratorAddress || editData?.administrator_address || ''} onChange={(e) => setEditData({ ...editData, administratorAddress: e.target.value })} style={inputStyle} /></div>
-      </div>
-
-      <div style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
-        <label style={editLabelStyle}>Boundaries</label>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          <div><label style={{ fontSize: '10px', color: '#6b7280' }}>NORTH</label><input type="text" value={editData?.boundaryNorth || editData?.boundary_north || ''} onChange={(e) => setEditData({ ...editData, boundaryNorth: e.target.value })} style={inputStyle} /></div>
-          <div><label style={{ fontSize: '10px', color: '#6b7280' }}>SOUTH</label><input type="text" value={editData?.boundarySouth || editData?.boundary_south || ''} onChange={(e) => setEditData({ ...editData, boundarySouth: e.target.value })} style={inputStyle} /></div>
-          <div><label style={{ fontSize: '10px', color: '#6b7280' }}>EAST</label><input type="text" value={editData?.boundaryEast || editData?.boundary_east || ''} onChange={(e) => setEditData({ ...editData, boundaryEast: e.target.value })} style={inputStyle} /></div>
-          <div><label style={{ fontSize: '10px', color: '#6b7280' }}>WEST</label><input type="text" value={editData?.boundaryWest || editData?.boundary_west || ''} onChange={(e) => setEditData({ ...editData, boundaryWest: e.target.value })} style={inputStyle} /></div>
+    <div className="idpm-form">
+      <div className="idpm-basebox">
+        <div className="idpm-grid idpm-grid-2">
+          <div className="idpm-field"><label className="idpm-label">ARP No.</label><input type="text" value={editData?.taxDeclarationNumber || editData?.tax_declaration_number || ''} onChange={(e) => setEditData({ ...editData, taxDeclarationNumber: e.target.value })} className="idpm-input" /></div>
+          <div className="idpm-field"><label className="idpm-label">PIN</label><input type="text" value={editData?.propertyIndexNumber || editData?.property_index_number || ''} onChange={(e) => setEditData({ ...editData, propertyIndexNumber: e.target.value })} className="idpm-input" /></div>
         </div>
       </div>
 
-      {/* KIND OF PROPERTY & VALUATION TABLE */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: '#374151' }}>KIND OF PROPERTY &amp; VALUATION</span>
-          <button
-            onClick={addAssessmentRow}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              backgroundColor: '#e0e7ff',
-              color: '#4f46e5',
-              border: 'none',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              fontWeight: 600,
-              fontSize: '13px',
-              cursor: 'pointer',
-            }}
-          >
+      <div className="idpm-basebox">
+        <div className="idpm-grid idpm-grid-2">
+          <div className="idpm-field"><label className="idpm-label">Owner Name</label><input type="text" value={editData?.ownerName || editData?.owner_name || ''} onChange={(e) => setEditData({ ...editData, ownerName: e.target.value })} className="idpm-input" /></div>
+          <div className="idpm-field"><label className="idpm-label">Owner Address</label><input type="text" value={editData?.ownerAddress || editData?.owner_address || ''} onChange={(e) => setEditData({ ...editData, ownerAddress: e.target.value })} className="idpm-input" /></div>
+          <div className="idpm-field"><label className="idpm-label">Administrator Name</label><input type="text" value={editData?.administratorName || editData?.administrator_name || ''} onChange={(e) => setEditData({ ...editData, administratorName: e.target.value })} className="idpm-input" /></div>
+          <div className="idpm-field"><label className="idpm-label">Administrator Address</label><input type="text" value={editData?.administratorAddress || editData?.administrator_address || ''} onChange={(e) => setEditData({ ...editData, administratorAddress: e.target.value })} className="idpm-input" /></div>
+        </div>
+      </div>
+
+      <div className="idpm-basebox">
+        <label className="idpm-label" style={{ marginBottom: '10px', display: 'block' }}>Boundaries</label>
+        <div className="idpm-grid idpm-grid-2">
+          <div className="idpm-field"><label className="idpm-label idpm-label--thin">NORTH</label><input type="text" value={editData?.boundaryNorth || editData?.boundary_north || ''} onChange={(e) => setEditData({ ...editData, boundaryNorth: e.target.value })} className="idpm-input" /></div>
+          <div className="idpm-field"><label className="idpm-label idpm-label--thin">SOUTH</label><input type="text" value={editData?.boundarySouth || editData?.boundary_south || ''} onChange={(e) => setEditData({ ...editData, boundarySouth: e.target.value })} className="idpm-input" /></div>
+          <div className="idpm-field"><label className="idpm-label idpm-label--thin">EAST</label><input type="text" value={editData?.boundaryEast || editData?.boundary_east || ''} onChange={(e) => setEditData({ ...editData, boundaryEast: e.target.value })} className="idpm-input" /></div>
+          <div className="idpm-field"><label className="idpm-label idpm-label--thin">WEST</label><input type="text" value={editData?.boundaryWest || editData?.boundary_west || ''} onChange={(e) => setEditData({ ...editData, boundaryWest: e.target.value })} className="idpm-input" /></div>
+        </div>
+      </div>
+
+      {/* KIND OF PROPERTY & VALUATION */}
+      <div className="idpm-panel">
+        <div className="idpm-section-head">
+          <span className="idpm-section-title">Kind of Property &amp; Valuation</span>
+          <button onClick={addAssessmentRow} className="idpm-add-row-btn">
             <PlusIcon size={14} /> Add Row
           </button>
         </div>
         {(editData?.assessments || []).length === 0 ? (
-          <div style={{ padding: '16px', textAlign: 'center', color: '#6b7280', fontSize: '13px', border: '1px dashed #d1d5db', borderRadius: '8px' }}>
-            No assessments added.
-          </div>
+          <div className="idpm-empty-box">No assessments added.</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="idpm-form" style={{ gap: '10px' }}>
             {(editData?.assessments || []).map((a: any, i: number) => {
               const mv = parseFloat(a.marketValue || a.market_value) || 0;
               const lvl = parseFloat(a.assessmentLevel || a.assessment_level) || 0;
               const computed = calcAssessedValue(mv, lvl);
               const av = computed > 0 ? computed : (parseFloat(a.assessedValue) || 0);
               return (
-                <div key={i} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', backgroundColor: '#fff' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                      Assessment #{i + 1}
-                    </span>
+                <div key={i} className="idpm-row-card">
+                  <div className="idpm-row-head">
+                    <span className="idpm-row-label">Assessment #{i + 1}</span>
                     <button
                       onClick={() => removeAssessmentRow(i)}
                       title="Remove assessment"
-                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '18px', padding: '4px 6px' }}
+                      className="idpm-row-remove-btn"
                     >
                       ×
                     </button>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
-                    <div>
-                      <label style={propLabelStyle}>Kind of Property</label>
+                  <div className="idpm-grid idpm-grid-3">
+                    <div className="idpm-field">
+                      <label className="idpm-label idpm-label--thin">Kind of Property</label>
                       <input
                         type="text"
                         value={a.kindOfProperty || a.kind_of_property || ''}
                         onChange={(e) => updateAssessment(i, 'kindOfProperty', e.target.value)}
-                        style={inputStyle}
+                        className="idpm-input"
                       />
                     </div>
-                    <div>
-                      <label style={propLabelStyle}>Classification</label>
+                    <div className="idpm-field">
+                      <label className="idpm-label idpm-label--thin">Classification</label>
                       <input
                         type="text"
                         value={a.classificationLabel || a.classification_label || ''}
                         onChange={(e) => updateAssessment(i, 'classificationLabel', e.target.value)}
-                        style={inputStyle}
+                        className="idpm-input"
                       />
                     </div>
-                    <div>
-                      <label style={propLabelStyle}>Area</label>
+                    <div className="idpm-field">
+                      <label className="idpm-label idpm-label--thin">Area</label>
                       <div style={{ display: 'flex', gap: '4px' }}>
                         <input
                           type="text"
                           value={a.area || ''}
                           onChange={(e) => updateAssessment(i, 'area', e.target.value)}
-                          style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+                          className="idpm-input"
                         />
-                        <select
+                        <ADePTSelect
+                          variant="sm"
                           value={/sq/i.test(a.areaUnit || '') ? 'SQM' : 'HECTARE'}
-                          onChange={(e) => updateAssessment(i, 'areaUnit', e.target.value)}
-                          style={{ ...inputStyle, width: 'auto', flexShrink: 0, padding: '8px 6px' }}
-                        >
-                          <option value="HECTARE">has.</option>
-                          <option value="SQM">sqm.</option>
-                        </select>
+                          onChange={(v) => updateAssessment(i, 'areaUnit', v)}
+                          options={[
+                            { value: 'HECTARE', label: 'has.' },
+                            { value: 'SQM', label: 'sqm.' },
+                          ]}
+                        />
                       </div>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                    <div>
-                      <label style={propLabelStyle}>Market Value (₱)</label>
+                  <div className="idpm-grid idpm-grid-3" style={{ marginTop: '10px' }}>
+                    <div className="idpm-field">
+                      <label className="idpm-label idpm-label--thin">Market Value (₱)</label>
                       <input
                         type="number"
                         value={mv}
                         onChange={(e) => updateAssessment(i, 'marketValue', e.target.value)}
-                        style={{ ...inputStyle, textAlign: 'right' }}
+                        className="idpm-input idpm-input--num"
                       />
                     </div>
-                    <div>
-                      <label style={propLabelStyle}>Assess. Level (%)</label>
+                    <div className="idpm-field">
+                      <label className="idpm-label idpm-label--thin">Assess. Level (%)</label>
                       <input
                         type="number"
                         value={lvl}
                         onChange={(e) => updateAssessment(i, 'assessmentLevel', e.target.value)}
-                        style={{ ...inputStyle, textAlign: 'right' }}
+                        className="idpm-input idpm-input--num"
                       />
                     </div>
-                    <div>
-                      <label style={propLabelStyle}>Assessed Value (₱)</label>
-                      <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', fontWeight: 600, color: '#111827', backgroundColor: '#f9fafb' }}>
-                        ₱ {formatCurrency(av)}
-                      </div>
+                    <div className="idpm-field">
+                      <label className="idpm-label idpm-label--thin">Assessed Value (₱)</label>
+                      <div className="idpm-read">₱ {formatCurrency(av)}</div>
                     </div>
                   </div>
                 </div>
@@ -847,12 +869,12 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
         )}
 
         {/* TOTALS */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', backgroundColor: '#f9fafb', padding: '12px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>TOTALS</span>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>
+        <div className="idpm-totals">
+          <span className="idpm-totals-label">TOTALS</span>
+          <span className="idpm-totals-value">
             Market Value: <strong>₱ {formatCurrency(editData?.assessments?.reduce((sum: number, a: any) => sum + (parseFloat(a.marketValue || a.market_value) || 0), 0) || 0)}</strong>
           </span>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>
+          <span className="idpm-totals-value">
             Assessed Value: <strong>₱ {formatCurrency(editData?.assessments?.reduce((sum: number, a: any) => {
               const mv = parseFloat(a.marketValue || a.market_value) || 0;
               const lvl = parseFloat(a.assessmentLevel || a.assessment_level) || 0;
@@ -863,17 +885,22 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        <div>
-          <label style={editLabelStyle}>Taxability</label>
-          <select value={editData?.taxability || 'TAXABLE'} onChange={(e) => setEditData({ ...editData, taxability: e.target.value })} style={inputStyle}>
-            <option value="TAXABLE">TAXABLE</option>
-            <option value="EXEMPT">EXEMPT</option>
-          </select>
+      <div className="idpm-grid idpm-grid-2">
+        <div className="idpm-field">
+          <label className="idpm-label">Taxability</label>
+          <ADePTSelect
+            variant="block"
+            value={editData?.taxability || 'TAXABLE'}
+            onChange={(v) => setEditData({ ...editData, taxability: v })}
+            options={[
+              { value: 'TAXABLE', label: 'TAXABLE' },
+              { value: 'EXEMPT', label: 'EXEMPT' },
+            ]}
+          />
         </div>
-        <div>
-          <label style={editLabelStyle}>Effectivity Year</label>
-          <input type="number" value={editData?.effectivityYear || editData?.effectivity_year || ''} onChange={(e) => setEditData({ ...editData, effectivityYear: e.target.value })} style={inputStyle} />
+        <div className="idpm-field">
+          <label className="idpm-label">Effectivity Year</label>
+          <input type="number" value={editData?.effectivityYear || editData?.effectivity_year || ''} onChange={(e) => setEditData({ ...editData, effectivityYear: e.target.value })} className="idpm-input" />
         </div>
       </div>
     </div>
@@ -883,39 +910,30 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
   // can edit without switching modes, and also used for the full-screen
   // edit mode.
   const renderEditForm = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '12px', borderRadius: '6px', fontSize: '13px' }}>
+    <div className="idpm-form">
+      <div className="idpm-note-edit">
         <strong>Editing Mode:</strong> Update any field below to correct typos or incorrect data.
       </div>
 
       {/* Base Fields */}
-      <div style={{ display: 'grid', gridTemplateColumns: docType === 'NO_LANDHOLDING' ? '1fr 1fr' : '1.4fr 1fr 1fr', gap: '16px', backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
-        <div>
-          <label style={{ ...editLabelStyle, whiteSpace: 'nowrap' }}>Declarant / Owner Name</label>
+      <div className={`idpm-basebox idpm-grid ${docType === 'NO_LANDHOLDING' ? 'idpm-grid-2' : 'idpm-grid-2h'}`}>
+        <div className="idpm-field">
+          <label className="idpm-label">Declarant / Owner Name</label>
           <textarea
             ref={declarantNameEditRef}
             rows={1}
             value={formData.declarantName}
             onChange={(e) => setFormData({ ...formData, declarantName: e.target.value })}
-            style={{
-              ...inputStyle,
-              resize: 'none',
-              overflow: 'hidden',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              overflowWrap: 'break-word',
-              fontFamily: 'inherit',
-              lineHeight: 1.4,
-            }}
+            className="idpm-input"
           />
         </div>
-        <div>
-          <label style={{ ...editLabelStyle, whiteSpace: 'nowrap' }}>Requested By Name</label>
-          <input type="text" value={formData.requestedByName} onChange={(e) => setFormData({ ...formData, requestedByName: e.target.value })} style={{ ...inputStyle, height: '38px' }} />
+        <div className="idpm-field">
+          <label className="idpm-label">Requested By Name</label>
+          <input type="text" value={formData.requestedByName} onChange={(e) => setFormData({ ...formData, requestedByName: e.target.value })} className="idpm-input" />
         </div>
         {docType !== 'NO_LANDHOLDING' && (
-          <div style={{ position: 'relative' }}>
-            <label style={{ ...editLabelStyle, whiteSpace: 'nowrap' }}>Property Location</label>
+          <div className="idpm-field" style={{ position: 'relative' }}>
+            <label className="idpm-label">Property Location</label>
             <input
               type="text"
               value={formData.propertyLocation}
@@ -923,20 +941,16 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               placeholder="Select or type..."
-              style={{ ...inputStyle, height: '38px' }}
+              className="idpm-input"
             />
             {showSuggestions && filtered.length > 0 && (
-              <div style={{
-                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10000,
-                background: 'white', border: '1px solid #d1d5db', borderRadius: '6px',
-                maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-              }}>
+              <div className="idpm-suggest">
                 {filtered.map((loc, i) => (
-                  <div key={i}
+<div key={i}
+                    className="idpm-suggest-item"
                     onMouseDown={() => { setFormData({ ...formData, propertyLocation: loc }); setShowSuggestions(false); }}
-                    style={{ padding: '8px 10px', cursor: 'pointer', fontSize: '13px' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                    onMouseEnter={(e) => e.currentTarget.classList.add('hover')}
+                    onMouseLeave={(e) => e.currentTarget.classList.remove('hover')}
                   >{loc}</div>
                 ))}
               </div>
@@ -945,7 +959,7 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
         )}
       </div>
 
-      <hr style={{ borderTop: '1px dashed #d1d5db', borderBottom: 'none', margin: 0 }} />
+      <hr className="idpm-divider" />
 
       {docType === 'NO_LANDHOLDING' && renderNoLandholdingEdit()}
       {docType === 'LANDHOLDING' && renderLandholdingEdit()}
@@ -954,65 +968,65 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
   );
 
   const modalContent = (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0, 0, 0, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-      <div style={{ backgroundColor: 'white', borderRadius: '12px', width: '100%', maxWidth: '1250px', maxHeight: '95vh', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div className="idpm-overlay">
+      <div className="idpm-modal">
 
         {/* Header */}
-        <div style={{ backgroundColor: '#4f46e5', color: 'white', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-          <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="idpm-header">
+          <h3>
             {isEditing ? <><EditIcon size={17} /> Full Document Edit</> : <><SearchIcon size={17} /> Initial Document Preview</>}
           </h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>&times;</button>
+          <button onClick={onClose} className="idpm-header-close" title="Close">&times;</button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '24px', overflowY: 'auto', flexGrow: 1 }}>
-          {error && <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '10px', borderRadius: '6px', marginBottom: '16px', fontSize: '14px' }}>{error}</div>}
+        <div className="idpm-body">
+          {error && <div className="idpm-error">{error}</div>}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', backgroundColor: '#f3f4f6', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #4f46e5' }}>
+          <div className="idpm-refbar">
             <div>
-              <span style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>Reference Number</span>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: '#111827' }}>{documentItem.referenceNumber}</div>
+              <span className="idpm-refbar-label">Reference Number</span>
+              <div className="idpm-refbar-value">{documentItem.referenceNumber}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <span style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>Document Type</span>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: '#4f46e5' }}>{documentItem.documentType}</div>
+              <span className="idpm-refbar-label">Document Type</span>
+              <div className="idpm-refbar-value idpm-refbar-value--acc">{documentItem.documentType}</div>
             </div>
           </div>
 
           {!isEditing ? (
             isLoadingData || isGeneratingPdf ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+              <div className="idpm-hint-loading">
                 Loading PDF preview...
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
-                <div style={{ flex: '1 1 55%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {fetchError && (
-                      <div style={{ color: '#b91c1c', padding: 12, backgroundColor: '#fee2e2', borderRadius: 6 }}>
-                        {fetchError}
-                      </div>
-                    )}
-                    {!fetchError && !fullData && (
-                      <div style={{ color: '#92400e', padding: 16, backgroundColor: '#fffbeb', borderRadius: 6, border: '1px solid #fde68a' }}>
-                        This document hasn't been encoded yet. Fill in the form beside the preview to encode it.
-                      </div>
-                    )}
-                    {!fetchError && fullData && (
-                      pdfUrl ? (
-                        <iframe
-                          src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-                          title="Document PDF Preview"
-                          style={{ width: '100%', height: '78vh', border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#f9fafb' }}
-                        />
-                      ) : (
-                        <div style={{ color: '#b91c1c', padding: 16, backgroundColor: '#fee2e2', borderRadius: 6 }}>
-                          Could not generate the PDF preview. Please try editing the document, or check the console for details.
+              <div className="idpm-view">
+                  <div className="idpm-pane-pdf">
+                      {fetchError && (
+                        <div className="idpm-hint-error">
+                          {fetchError}
                         </div>
-                      )
-                    )}
+                      )}
+                      {!fetchError && !fullData && (
+                        <div className="idpm-hint-warn">
+                          This document hasn't been encoded yet. Fill in the form beside the preview to encode it.
+                        </div>
+                      )}
+                      {!fetchError && fullData && (
+                        pdfUrl ? (
+                          <iframe
+                            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                            title="Document PDF Preview"
+                            className="idpm-pdf-frame"
+                          />
+                        ) : (
+                          <div className="idpm-hint-error">
+                            Could not generate the PDF preview. Please try editing the document, or check the console for details.
+                          </div>
+                        )
+                      )}
                   </div>
-                  <div style={{ flex: '1 1 45%', minWidth: 0, maxHeight: '78vh', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', backgroundColor: '#f9fafb' }}>
+                  <div className="idpm-pane-form">
                     {renderEditForm()}
                   </div>
                 </div>
@@ -1023,22 +1037,22 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
         </div>
 
         {/* Footer Actions */}
-        <div style={{ backgroundColor: '#f9fafb', padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #e5e7eb', flexShrink: 0 }}>
+        <div className="idpm-footer">
           {!isEditing ? (
             <>
-              <button onClick={handleSave} disabled={isSaving} style={{ backgroundColor: '#4f46e5', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <button onClick={handleSave} disabled={isSaving} className="idpm-btn idpm-btn-save">
                 <EditIcon size={15} /> {isSaving ? 'Saving to DB...' : 'Save & Update DB'}
               </button>
-              <button onClick={onClose} style={{ backgroundColor: '#374151', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>
+              <button onClick={onClose} className="idpm-btn idpm-btn-close">
                 Close
               </button>
             </>
           ) : (
             <>
-              <button onClick={() => setIsEditing(false)} style={{ backgroundColor: '#e5e7eb', color: '#374151', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>
+              <button onClick={() => setIsEditing(false)} className="idpm-btn idpm-btn-close">
                 Cancel
               </button>
-              <button onClick={handleSave} disabled={isSaving} style={{ backgroundColor: '#4f46e5', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>
+              <button onClick={handleSave} disabled={isSaving} className="idpm-btn idpm-btn-save">
                 {isSaving ? 'Saving to DB...' : 'Save & Update DB'}
               </button>
             </>
@@ -1050,8 +1064,3 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
 
   return createPortal(modalContent, document.body);
 };
-
-// Inline styling helpers
-const inputStyle: React.CSSProperties = { width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '13px', boxSizing: 'border-box' };
-const editLabelStyle: React.CSSProperties = { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '6px' };
-const propLabelStyle: React.CSSProperties = { display: 'block', fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: '4px' };

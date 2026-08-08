@@ -1,0 +1,181 @@
+/* ============================================================
+   Calendar Picker (admin) — shared stylesheet for the admin
+   CalendarPicker component used by the Admin Dashboard
+   (AdminHeader) and Admin Reports period selectors.
+
+   Redesigned as a modern rounded light card matched to the ADePT
+   brand: navy selected day, soft indigo hover, muted range
+   tint, pill action buttons. Only the calendar popup styling
+   lives here; the outer .period-dropdown shell stays in the
+   page stylesheets.
+   ============================================================ */
+
+.period-dropdown-calendar {
+    width: 320px;
+    flex-direction: column;
+    padding: 16px;
+    background: #ffffff;
+}
+
+.calendar-month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.calendar-month-label {
+    font-size: 0.98rem;
+    font-weight: 800;
+    color: var(--admin-primary, #29237a);
+    letter-spacing: 0.2px;
+}
+
+.calendar-nav-btn {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--admin-text-muted);
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.calendar-nav-btn:hover {
+    background-color: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.18);
+    color: var(--admin-primary, #29237a);
+}
+
+.calendar-weekday-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f1f0f7;
+}
+
+.calendar-weekday-cell {
+    text-align: center;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--admin-text-muted, #94a3b8);
+    letter-spacing: 0.6px;
+}
+
+.calendar-day-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.calendar-day-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--admin-text-primary, #334155);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.calendar-day-cell.empty {
+    cursor: default;
+}
+
+.calendar-day-cell:not(.empty):hover {
+    background-color: rgba(99, 102, 241, 0.14);
+}
+
+.calendar-day-cell.today {
+    color: var(--admin-primary, #29237a);
+    font-weight: 700;
+    box-shadow: inset 0 0 0 1.5px rgba(41, 35, 122, 0.45);
+}
+
+.calendar-day-cell.in-range {
+    background-color: rgba(99, 102, 241, 0.12);
+    border-radius: 0;
+    color: var(--admin-primary, #29237a);
+}
+
+.calendar-day-cell.selected {
+    background: linear-gradient(135deg, #29237a, #4f46e5);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 4px 12px -2px rgba(41, 35, 122, 0.45);
+}
+
+.calendar-footer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #f1f0f7;
+}
+
+.calendar-range-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-text-muted, #64748b);
+}
+
+.calendar-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.calendar-cancel-btn {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--admin-text-muted, #64748b);
+    cursor: pointer;
+    padding: 8px 14px;
+    border-radius: 999px;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.calendar-cancel-btn:hover {
+    color: var(--admin-text-primary);
+    background-color: rgba(37, 33, 117, 0.06);
+}
+
+.calendar-apply-btn {
+    background: linear-gradient(135deg, #29237a, #4f46e5);
+    color: #ffffff;
+    border: none;
+    padding: 9px 22px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px -2px rgba(41, 35, 122, 0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.calendar-apply-btn:hover:not(:disabled) {
+    transform: translateY(-0.5px);
+    box-shadow: 0 6px 16px -2px rgba(41, 35, 122, 0.5);
+}
+
+.calendar-apply-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
