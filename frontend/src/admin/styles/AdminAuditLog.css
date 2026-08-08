@@ -482,6 +482,16 @@
   color: #16a34a;
 }
 
+.audit-icon--document-forwarded {
+  background-color: rgba(14, 165, 233, 0.12);
+  color: #0284c7;
+}
+
+.audit-icon--document-reprinted {
+  background-color: rgba(139, 92, 246, 0.12);
+  color: #7c3aed;
+}
+
 .audit-row-body {
   flex: 1;
   min-width: 0;

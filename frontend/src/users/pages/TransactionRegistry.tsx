@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { RegistrySummarySkeleton, RegistryTableSkeleton } from '../components/common/Skeleton';
 import type { Transaction, TransactionFilters, DeclarantGroup } from '../types/transaction';
 import { fetchTransactionRegistry, voidTransaction, createReprint } from '../services/transactionService';
+import { addAdminAuditEntry } from '../../admin/services/auditLogService';
 import { SummaryCards } from '../components/SummaryCards';
 import { SearchBar } from '../components/SearchBar';
 import { FilterBar } from '../components/FilterBar';
@@ -201,7 +202,14 @@ export function TransactionRegistry({
     // request isn't released yet, so it'll show up correctly once it comes
     // back through getTransactionRegistry() after being paid + released.
     const handleReprint = async (transactionId: string, docId: string) => {
-        await createReprint(transactionId, docId);
+        const reprint = await createReprint(transactionId, docId);
+        addAdminAuditEntry({
+            type: 'document_reprinted',
+            description: `Reprinted document — Ref# ${reprint?.reference_number || reprint?.referenceNumber || 'N/A'}`,
+            details: {
+                Declarant: reprint?.declarant_name || reprint?.declarantName || 'N/A',
+            },
+        }).catch(() => { });
         onNavigateToPendingPayment?.();
     };
 

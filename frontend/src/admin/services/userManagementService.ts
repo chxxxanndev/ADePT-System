@@ -189,7 +189,7 @@ export async function fetchRecentTransactions(limit = 5, from?: string, to?: str
             assignedStaff: t.assignedStaff || 'Unassigned',
             status,
             date: t.dateRequested
-                ? new Date(t.dateRequested).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                ? new Date(t.dateRequested).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
                 : 'Today',
         };
     });

@@ -77,6 +77,7 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [confirmTarget, setConfirmTarget] = useState<{ groups: any[]; label: string } | null>(null);
+    const [archiveReason, setArchiveReason] = useState('');
     const [isArchiving, setIsArchiving] = useState(false);
 
     // Pagination states
@@ -214,7 +215,7 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
         try {
             const allDocs = groups.flatMap(g => g.documents);
             await Promise.all(allDocs.map((doc: any) =>
-                requestService.updateRequest(doc.id, { status: 'ARCHIVED' })
+                requestService.updateRequest(doc.id, { status: 'ARCHIVED', archiveReason: archiveReason.trim() || 'Archived from pending payment.' })
             ));
             const archivedIds = new Set(groups.map(g => g.groupId));
             setGroupedPayments(prev => prev.filter(p => !archivedIds.has(p.groupId)));
@@ -243,12 +244,14 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
 
     const requestArchiveOne = (e: React.MouseEvent, group: any) => {
         e.stopPropagation();
+        setArchiveReason('');
         setConfirmTarget({ groups: [group], label: `all ${group.documents.length} pending document(s) for ${group.requesterName}` });
     };
 
     const requestArchiveSelected = () => {
         const groups = groupedPayments.filter(g => selectedIds.has(g.groupId));
         const docCount = groups.reduce((sum, g) => sum + g.documents.length, 0);
+        setArchiveReason('');
         setConfirmTarget({ groups, label: `${docCount} document(s) across ${groups.length} client(s)` });
     };
 
@@ -619,6 +622,13 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                         <p className="pp-modal-body">
                             This will archive <strong>{confirmTarget.label}</strong>. They'll be removed from this queue and moved to <strong>Archive Management</strong>, under Transaction Management — you can restore them from there anytime.
                         </p>
+                        <textarea
+                            className="pp-modal-reason"
+                            placeholder="Reason for archiving (optional)"
+                            value={archiveReason}
+                            onChange={(e) => setArchiveReason(e.target.value)}
+                            rows={2}
+                        />
                         <div className="pp-modal-actions">
                             <button className="pp-modal-btn pp-modal-btn--cancel" onClick={() => setConfirmTarget(null)} disabled={isArchiving}>
                                 Cancel

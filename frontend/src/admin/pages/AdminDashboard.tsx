@@ -16,6 +16,7 @@ import { AdminReports } from '../pages/AdminReports';
 import { AdminAuditLog } from '../pages/AdminAuditLog';
 import { useOnlinePresence } from '../services/useOnlinePresence';
 import { AdminAccountSettings } from '../pages/AdminAccountSettings';
+import { AboutADePT } from '../../users/pages/AboutADePT';
 
 // User Icon for Access Requests Header
 function ShieldUserIcon({ size = 18 }: { size?: number }) {
@@ -104,7 +105,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
             {/* Main Panel */}
             <main className="admin-dashboard-main">
                 {/* Header — hidden on views that render their own header */}
-                {activeView !== 'account-request' && activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && activeView !== 'audit-log' && activeView !== 'settings' && (
+                {activeView !== 'account-request' && activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && activeView !== 'audit-log' && activeView !== 'settings' && activeView !== 'about-adept' && (
                     <AdminHeader
                         user={user}
                         dateFilter={dateFilter}
@@ -193,6 +194,8 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                         />
                     ) : activeView === 'settings' ? (
                         <AdminAccountSettings />
+                    ) : activeView === 'about-adept' ? (
+                        <AboutADePT onNavigateToDashboard={() => setActiveView('overview')} />
                     ) : (
                         /* Placeholder views for submenu clicks */
                         <div className="admin-placeholder-view">

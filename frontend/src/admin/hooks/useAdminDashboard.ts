@@ -111,24 +111,6 @@ function buildRequestQueueItems(
     ];
 }
 
-const AUDIT_STATUS_MAP: Record<AuditActionType, AdminActivityItem['status']> = {
-    approval: 'approved',
-    decline: 'declined',
-    system: 'system',
-    login: 'login',
-    logout: 'logout',
-    document_upload: 'system',
-    document_voided: 'declined',
-    document_archived: 'system',
-    document_released: 'approved',
-    document_pending: 'pending',
-    report_print: 'system',
-    account_activate: 'approved',
-    account_deactivate: 'declined',
-    staff_promote: 'approved',
-    staff_demote: 'declined',
-};
-
 function capitalize(text: string) {
     return text.length ? text[0].toUpperCase() + text.slice(1) : text;
 }
@@ -139,13 +121,19 @@ function auditEntryToActivityItem(entry: AuditLogEntry): AdminActivityItem {
         title: capitalize(entry.description),
         actor: entry.actor,
         time: `${entry.date}, ${entry.time}`,
-        status: AUDIT_STATUS_MAP[entry.type],
+        type: entry.type,
     };
 }
 
+// The dashboard feed mirrors the Staff + Admin Activity Logs exactly:
+// logins/logouts are not part of either log, so they're excluded here too.
+const ACTIVITY_FEED_EXCLUDED_TYPES = new Set<AuditActionType>(['login', 'logout']);
+
 async function buildActivityFeed(): Promise<AdminActivityItem[]> {
     try {
-        return (await getAuditLog()).map(auditEntryToActivityItem);
+        return (await getAuditLog())
+            .filter((entry) => !ACTIVITY_FEED_EXCLUDED_TYPES.has(entry.type))
+            .map(auditEntryToActivityItem);
     } catch {
         return [];
     }

@@ -10,7 +10,8 @@ import {
     ArchiveIcon,
     SettingsIcon,
     LogoutIcon,
-    MenuIcon
+    MenuIcon,
+    InfoIcon
 } from '../../users/components/icons';
 
 interface AdminSidebarProps {
@@ -32,6 +33,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: 
     'Reports & Analytics': BarChartIcon,
     'Audit Log': ArchiveIcon,
     'Settings': SettingsIcon,
+    'About ADePT': InfoIcon,
 };
 
 export function AdminSidebar({

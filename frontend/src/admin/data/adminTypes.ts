@@ -1,3 +1,5 @@
+import type { AuditActionType } from '../services/auditLogService';
+
 export interface AdminStatItem {
     id: string;
     label: string;
@@ -31,7 +33,7 @@ export interface AdminActivityItem {
     title: string;
     actor: string;
     time: string;
-    status: 'approved' | 'pending' | 'declined' | 'login' | 'logout' | 'system';
+    type: AuditActionType;
 }
 
 export interface DocumentDistributionSlice {
@@ -85,6 +87,7 @@ export const adminNavigation: AdminNavSection[] = [
             { label: 'Reports & Analytics', view: 'reports-analytics' },
             { label: 'Audit Log', view: 'audit-log' },
             { label: 'Settings', view: 'settings' },
+            { label: 'About ADePT', view: 'about-adept' },
         ],
     },
 ];

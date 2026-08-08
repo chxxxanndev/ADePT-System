@@ -4,7 +4,8 @@ import { api } from '../../users/services/requestService';
 export type AuditActionType =
   | 'login' | 'logout' | 'document_upload' | 'report_print'
   | 'document_pending' | 'document_voided' | 'document_archived'
-  | 'document_released' | 'approval' | 'decline' | 'account_activate'
+  | 'document_released' | 'document_forwarded' | 'document_reprinted'
+  | 'approval' | 'decline' | 'account_activate'
   | 'account_deactivate' | 'staff_promote' | 'staff_demote' | 'system';
 
 export type AuditActorRole = 'SUPER_ADMIN' | 'ADMIN' | 'OFFICE_STAFF';

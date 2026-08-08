@@ -1,28 +1,14 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   ChevronDown,
-  CheckCircle2,
-  XCircle,
-  Settings2,
-  LogIn,
-  LogOut,
-  UploadCloud,
-  Printer,
-  UserCheck,
-  UserX,
-  ArrowUpCircle,
-  ArrowDownCircle,
   X,
-  Clock,
-  FileX,
-  Archive,
-  Send,
   BarChart2,
   RefreshCw,
 } from "lucide-react";
 import "../styles/AdminAuditLog.css";
 import { getAuditLog, type AuditLogEntry as StoredAuditLogEntry, type AuditActionType } from '../services/auditLogService';
+import { AuditTypeIcon } from '../services/auditIcons';
 import { fetchAllStaff, fetchStaffPerformance, type StaffMember, type StaffPerformanceItem } from '../services/userManagementService';
 import { onStaffPresence, getStaffPresenceChannel } from '../services/staffPresenceChannel';
 
@@ -55,12 +41,12 @@ type TimeRange = "Today" | "This Week" | "This Month" | "All Time";
 
 type StaffActivityFilter =
   | "All Staff Activity"
-  | "Document Uploads"
-  | "Reports Printed"
   | "Pending Documents"
   | "Voided Documents"
-  | "Archived Documents"
-  | "Released Documents";
+  | "Documents Archive"
+  | "Released Documents"
+  | "Forwarded Documents"
+  | "Documents Reprinted";
 
 type AdminActivityFilter =
   | "All Admin Activity"
@@ -92,12 +78,12 @@ const DEFAULT_USER: CurrentUser = {
 /*  Activity taxonomy                                                  */
 /* ------------------------------------------------------------------ */
 const STAFF_ACTIVITY_TYPES: AuditActionType[] = [
-  'document_upload',
-  'report_print',
   'document_pending',
   'document_voided',
   'document_archived',
   'document_released',
+  'document_forwarded',
+  'document_reprinted',
 ];
 
 const ADMIN_ACTIVITY_TYPES: AuditActionType[] = [
@@ -111,12 +97,12 @@ const ADMIN_ACTIVITY_TYPES: AuditActionType[] = [
 
 const STAFF_FILTER_TO_TYPE: Record<StaffActivityFilter, AuditActionType | null> = {
   "All Staff Activity": null,
-  "Document Uploads": 'document_upload',
-  "Reports Printed": 'report_print',
   "Pending Documents": 'document_pending',
   "Voided Documents": 'document_voided',
-  "Archived Documents": 'document_archived',
+  "Documents Archive": 'document_archived',
   "Released Documents": 'document_released',
+  "Forwarded Documents": 'document_forwarded',
+  "Documents Reprinted": 'document_reprinted',
 };
 
 const ADMIN_FILTER_TO_TYPE: Record<AdminActivityFilter, AuditActionType | null> = {
@@ -139,6 +125,8 @@ const TYPE_LABELS: Record<AuditActionType, string> = {
   document_voided: "Document Voided",
   document_archived: "Document Archived",
   document_released: "Document Released",
+  document_forwarded: "Document Forwarded",
+  document_reprinted: "Document Reprinted",
   approval: "Account Request Approved",
   decline: "Account Request Declined",
   account_activate: "Staff Account Activated",
@@ -146,42 +134,6 @@ const TYPE_LABELS: Record<AuditActionType, string> = {
   staff_promote: "Staff Promoted",
   staff_demote: "Admin Demoted",
   system: "System Event",
-};
-
-const ICON_MAP: Record<AuditActionType, React.ReactNode> = {
-  login: <LogIn size={16} />,
-  logout: <LogOut size={16} />,
-  document_upload: <UploadCloud size={16} />,
-  report_print: <Printer size={16} />,
-  document_pending: <Clock size={16} />,
-  document_voided: <FileX size={16} />,
-  document_archived: <Archive size={16} />,
-  document_released: <Send size={16} />,
-  approval: <CheckCircle2 size={16} />,
-  decline: <XCircle size={16} />,
-  account_activate: <UserCheck size={16} />,
-  account_deactivate: <UserX size={16} />,
-  staff_promote: <ArrowUpCircle size={16} />,
-  staff_demote: <ArrowDownCircle size={16} />,
-  system: <Settings2 size={16} />,
-};
-
-const ICON_CLASS_MAP: Record<AuditActionType, string> = {
-  login: "audit-icon--login",
-  logout: "audit-icon--logout",
-  document_upload: "audit-icon--document-upload",
-  report_print: "audit-icon--report-print",
-  document_pending: "audit-icon--document-pending",
-  document_voided: "audit-icon--document-voided",
-  document_archived: "audit-icon--document-archived",
-  document_released: "audit-icon--document-released",
-  approval: "audit-icon--approval",
-  decline: "audit-icon--decline",
-  account_activate: "audit-icon--account-activate",
-  account_deactivate: "audit-icon--account-deactivate",
-  staff_promote: "audit-icon--staff-promote",
-  staff_demote: "audit-icon--staff-demote",
-  system: "audit-icon--system",
 };
 
 /* ------------------------------------------------------------------ */
@@ -247,9 +199,7 @@ function getEntrySortValue(entry: AuditLogEntry): number {
 function AuditRow({ entry, onSelect }: { entry: AuditLogEntry; onSelect: (entry: AuditLogEntry) => void }) {
   return (
     <button type="button" className="audit-row audit-row--clickable" onClick={() => onSelect(entry)}>
-      <div className={`audit-icon ${ICON_CLASS_MAP[entry.type]}`}>
-        {ICON_MAP[entry.type]}
-      </div>
+      <AuditTypeIcon type={entry.type} />
       <div className="audit-row-body">
         <p className="audit-row-title">
           <span className="audit-row-actor">{entry.actor}</span> {entry.description}
@@ -301,9 +251,7 @@ function AuditDetailModal({ entry, onClose }: { entry: AuditLogEntry; onClose: (
       <div className="audit-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div className="audit-modal-header">
           <div className="audit-modal-header-info">
-            <div className={`audit-icon ${ICON_CLASS_MAP[entry.type]}`}>
-              {ICON_MAP[entry.type]}
-            </div>
+            <AuditTypeIcon type={entry.type} />
             <div>
               <p className="audit-modal-title">{TYPE_LABELS[entry.type]}</p>
               <p className="audit-modal-timestamp">{entry.date}, {entry.time}</p>
@@ -684,12 +632,12 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
                   className="audit-select"
                 >
                   <option>All Staff Activity</option>
-                  <option>Document Uploads</option>
-                  <option>Reports Printed</option>
                   <option>Pending Documents</option>
                   <option>Voided Documents</option>
-                  <option>Archived Documents</option>
+                  <option>Documents Archive</option>
                   <option>Released Documents</option>
+                  <option>Forwarded Documents</option>
+                  <option>Documents Reprinted</option>
                 </select>
                 <ChevronDown size={14} className="audit-select-chevron" />
               </div>

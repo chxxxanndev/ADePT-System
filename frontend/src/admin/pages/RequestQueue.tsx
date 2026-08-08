@@ -8,7 +8,7 @@ import { api, requestService } from '../../users/services/requestService';
 
 // 2. Removed hardcoded API_BASE
 
-type RequestStatus = 'Pending' | 'Processing' | 'Payment Verified' | 'Released' | 'Void' | 'Cancelled';
+type RequestStatus = 'Pending' | 'Processing' | 'Payment Verified' | 'Released' | 'Void' | 'Cancelled' | 'Archived';
 
 interface DocumentRequest {
     id: string;
@@ -17,6 +17,9 @@ interface DocumentRequest {
     documentType: string;
     assignedStaff: string;
     releasedStaff: string;
+    releasedAt?: string | null;
+    archiveReason?: string | null;
+    archivedAt?: string | null;
     status: RequestStatus;
     date: string;
     isReprint: boolean;
@@ -27,7 +30,7 @@ interface DocumentRequest {
     amendedFromId?: string | null;
 }
 
-type TabKey = 'all' | 'pending' | 'processing' | 'released' | 'void' | 'amend';
+type TabKey = 'all' | 'pending' | 'processing' | 'released' | 'archive' | 'void' | 'amend';
 
 interface RequestQueueProps {
     user: User;
@@ -38,6 +41,7 @@ const STATUS_TAB_MAP: Record<TabKey, RequestStatus[]> = {
     pending: ['Pending', 'Payment Verified'],
     processing: ['Processing'],
     released: ['Released'],
+    archive: ['Archived'],
     void: ['Void', 'Cancelled'],
     amend: [],
 };
@@ -49,6 +53,7 @@ function statusPillClass(status: RequestStatus): string {
         case 'Payment Verified': return 'rq-status-paid';
         case 'Void':
         case 'Cancelled': return 'rq-status-void';
+        case 'Archived': return 'rq-status-archived';
         default: return 'rq-status-pending';
     }
 }
@@ -119,6 +124,9 @@ export function RequestQueue({ user }: RequestQueueProps) {
                 documentType: r.documentType || 'N/A',
                 assignedStaff: r.assignedStaff || 'Unassigned',
                 releasedStaff: r.releasedStaff || 'Not Released',
+                releasedAt: r.releasedAt ?? r.released_at ?? null,
+                archiveReason: r.archiveReason ?? r.archive_reason ?? null,
+                archivedAt: r.archivedAt ?? r.archived_at ?? null,
                 status: (r.status || 'Pending') as RequestStatus,
                 date: r.date || '',
                 isReprint: !!r.isReprint,
@@ -156,6 +164,7 @@ export function RequestQueue({ user }: RequestQueueProps) {
         { key: 'pending', label: 'Pending / Payment' },
         { key: 'processing', label: 'Processing' },
         { key: 'released', label: 'Released' },
+        { key: 'archive', label: 'Archived' },
         { key: 'void', label: 'Void / Cancelled' },
         { key: 'amend', label: 'Amend' },
     ];
@@ -180,6 +189,10 @@ export function RequestQueue({ user }: RequestQueueProps) {
     const startIndex = (currentPage - 1) * rowsPerPage;
     const endIndex = Math.min(startIndex + rowsPerPage, filteredRequests.length);
     const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
+
+    // Requests that are not yet released have no released staff — show the
+    // assigned staff column instead on those tabs.
+    const showAssignedStaff = activeTab === 'pending' || activeTab === 'processing' || activeTab === 'void' || activeTab === 'archive';
 
     useEffect(() => { setCurrentPage(1); }, [activeTab, searchQuery, rowsPerPage]);
 
@@ -272,7 +285,7 @@ export function RequestQueue({ user }: RequestQueueProps) {
                                 <tr>
                                     <th>Reference No.</th>
                                     <th>Declarant</th>
-                                    <th>Released Staff</th>
+                                    <th>{showAssignedStaff ? 'Assigned Staff' : 'Released Staff'}</th>
                                     <th>Status</th>
                                     <th>Date</th>
                                 </tr>
@@ -282,24 +295,17 @@ export function RequestQueue({ user }: RequestQueueProps) {
                                     <tr key={req.id}>
                                         <td className="rq-control-no">{req.referenceNo}</td>
                                         <td><strong>{req.clientName}</strong></td>
-                                        <td>{req.releasedStaff}</td>
+                                        <td>{showAssignedStaff ? req.assignedStaff : req.releasedStaff}</td>
                                         <td>
-                                            {req.status === 'Void' || req.status === 'Cancelled' ? (
-                                                <button
-                                                    type="button"
-                                                    className={`status-indicator rq-status-link ${statusPillClass(req.status)}`}
-                                                    onClick={() => openReasonPopup(req)}
-                                                    title={`View reason for ${req.status}`}
-                                                >
-                                                    <span className="status-dot" />
-                                                    {req.status}
-                                                </button>
-                                            ) : (
-                                                <span className={`status-indicator ${statusPillClass(req.status)}`}>
-                                                    <span className="status-dot" />
-                                                    {req.status}
-                                                </span>
-                                            )}
+                                            <button
+                                                type="button"
+                                                className={`status-indicator rq-status-link ${statusPillClass(req.status)}`}
+                                                onClick={() => openReasonPopup(req)}
+                                                title={`View details for ${req.status}`}
+                                            >
+                                                <span className="status-dot" />
+                                                {req.status}
+                                            </button>
                                         </td>
                                         <td className="rq-date-cell">{req.date}</td>
                                     </tr>
@@ -380,13 +386,13 @@ export function RequestQueue({ user }: RequestQueueProps) {
                         className="rq-modal"
                         role="dialog"
                         aria-modal="true"
-                        aria-label={`${selectedRequest.status} reason`}
+                        aria-label={`${selectedRequest.status} details`}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="rq-modal-header">
                             <div>
                                 <h2 className="rq-modal-title">
-                                    {selectedRequest.status === 'Void' ? 'Voided Request' : 'Cancelled Request'}
+                                    {selectedRequest.status === 'Void' ? 'Voided Request' : selectedRequest.status === 'Released' ? 'Released Request' : selectedRequest.status === 'Archived' ? 'Archived Request' : selectedRequest.status === 'Cancelled' ? 'Cancelled Request' : selectedRequest.status === 'Processing' ? 'Processing Request' : selectedRequest.status === 'Payment Verified' ? 'Payment Verified Request' : 'Pending Request'}
                                 </h2>
                                 <p className="rq-modal-subtitle">
                                     {selectedRequest.referenceNo} · {selectedRequest.clientName}
@@ -402,16 +408,20 @@ export function RequestQueue({ user }: RequestQueueProps) {
                             </button>
                         </div>
 
-                        <div className="rq-modal-section">
-                            <p className="rq-modal-label">Reason</p>
-                            <p className="rq-modal-reason">
-                                {selectedRequest.voidReason || (
-                                    selectedRequest.status === 'Cancelled'
-                                        ? 'Cancelled from pending payment.'
-                                        : 'No reason provided.'
-                                )}
-                            </p>
-                        </div>
+                        {selectedRequest.status === 'Void' || selectedRequest.status === 'Cancelled' || selectedRequest.status === 'Archived' ? (
+                            <div className="rq-modal-section">
+                                <p className="rq-modal-label">{selectedRequest.status === 'Archived' ? 'Archive Reason' : 'Reason'}</p>
+                                <p className="rq-modal-reason">
+                                    {selectedRequest.status === 'Archived'
+                                        ? (selectedRequest.archiveReason || 'No reason provided.')
+                                        : (selectedRequest.voidReason || (
+                                            selectedRequest.status === 'Cancelled'
+                                                ? 'Cancelled from pending payment.'
+                                                : 'No reason provided.'
+                                        ))}
+                                </p>
+                            </div>
+                        ) : null}
 
                         <div className="rq-modal-fields">
                             <div className="rq-modal-field">
@@ -431,19 +441,32 @@ export function RequestQueue({ user }: RequestQueueProps) {
                                 <p className="rq-modal-label">Assigned Staff</p>
                                 <p className="rq-modal-value">{selectedRequest.assignedStaff}</p>
                             </div>
-                            <div className="rq-modal-field">
-                                <p className="rq-modal-label">Released Staff</p>
-                                <p className="rq-modal-value">{selectedRequest.releasedStaff}</p>
-                            </div>
-                            {(selectedRequest.voidedAt || selectedRequest.cancelledAt) && (
+                            {selectedRequest.status === 'Pending' || selectedRequest.status === 'Payment Verified' || selectedRequest.status === 'Processing' ? (
                                 <div className="rq-modal-field">
-                                    <p className="rq-modal-label">Date {selectedRequest.status === 'Void' ? 'Voided' : 'Cancelled'}</p>
-                                    <p className="rq-modal-value">
-                                        {new Date(selectedRequest.voidedAt || selectedRequest.cancelledAt || '').toLocaleDateString('en-US', {
-                                            month: 'short', day: 'numeric', year: 'numeric',
-                                        })}
-                                    </p>
+                                    <p className="rq-modal-label">Date Requested</p>
+                                    <p className="rq-modal-value">{selectedRequest.date || '—'}</p>
                                 </div>
+                            ) : (
+                                <>
+                                    <div className="rq-modal-field">
+                                        <p className="rq-modal-label">Released Staff</p>
+                                        <p className="rq-modal-value">{selectedRequest.releasedStaff}</p>
+                                    </div>
+                                    {(selectedRequest.voidedAt || selectedRequest.cancelledAt || selectedRequest.releasedAt || selectedRequest.archivedAt) && (
+                                        <div className="rq-modal-field">
+                                            <p className="rq-modal-label">
+                                                {selectedRequest.status === 'Released' ? 'Date Released' : selectedRequest.status === 'Void' ? 'Date Voided' : selectedRequest.status === 'Archived' ? 'Date Archived' : 'Date Cancelled'}
+                                            </p>
+                                            <p className="rq-modal-value">
+                                                {selectedRequest.status === 'Released'
+                                                    ? new Date(selectedRequest.releasedAt || '').toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+                                                    : new Date(selectedRequest.archivedAt || selectedRequest.voidedAt || selectedRequest.cancelledAt || '').toLocaleDateString('en-US', {
+                                                        month: 'short', day: 'numeric', year: 'numeric',
+                                                    })}
+                                            </p>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
 
