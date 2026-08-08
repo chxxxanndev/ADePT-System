@@ -276,8 +276,6 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
                                             { id: 'multiple', label: 'Multiple owners — are / owners / properties' },
                                         ]}
                                         placeholder="Select ownership"
-                                        searchable
-                                        searchPlaceholder="Search ownership..."
                                     />
                                 </div>
                             </div>

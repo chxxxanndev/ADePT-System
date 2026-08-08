@@ -204,8 +204,6 @@ export function NoLandholdingCertificateForm({ user, entryData, onDiscard, onDis
                                             { id: 'Their', label: 'Their' },
                                         ]}
                                         placeholder="Select pronoun"
-                                        searchable
-                                        searchPlaceholder="Search pronoun..."
                                     />
                                 </div>
                                 <div className="lh-field">
@@ -218,8 +216,6 @@ export function NoLandholdingCertificateForm({ user, entryData, onDiscard, onDis
                                             { id: 'plural', label: 'Plural — have / properties / names' },
                                         ]}
                                         placeholder="Select count"
-                                        searchable
-                                        searchPlaceholder="Search..."
                                     />
                                 </div>
                             </div>

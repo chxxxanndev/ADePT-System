@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Transaction } from '../types/transaction';
 import '../styles/VoidConfirmModal.css';
-import '../styles/select.css';
+import { ADePTSelect } from './ADePTSelect';
 
 interface VoidConfirmModalProps {
     open: boolean;
@@ -58,16 +58,13 @@ export function VoidConfirmModal({ open, transaction, onClose, onConfirm }: Void
                 <div className="vam-body">
                     <div className="vam-field">
                         <label className="vam-label">Reason</label>
-                        <div className="adt-select-wrap">
-                            <select
-                                className="adt-select adt-select--block"
-                                value={reasonCode}
-                                onChange={(e) => { setReasonCode(e.target.value); setError(''); }}
-                            >
-                                {VOID_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                            <span className="adt-select-chevron">▾</span>
-                        </div>
+                        <ADePTSelect
+                            value={reasonCode}
+                            onChange={(v) => { setReasonCode(v); setError(''); }}
+                            options={VOID_REASONS.map((r) => ({ value: r, label: r }))}
+                            ariaLabel="Void reason"
+                            variant="block"
+                        />
                     </div>
 
                     <div className="vam-field">
