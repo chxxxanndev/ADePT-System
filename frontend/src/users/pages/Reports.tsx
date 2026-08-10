@@ -18,6 +18,10 @@ import {
   TrendingUp,
   TrendingDown,
   RefreshCw,
+  ClipboardList,
+  Download,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import "../styles/ReportsAnalytics.css";
 import "../styles/select.css";
@@ -28,7 +32,7 @@ import type { DocumentTypeFilterValue } from "../../utils/documentType";
 import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
 import { ADePTSelect } from "../components/ADePTSelect";
 import { SkeletonBox } from "../components/common/Skeleton";
-import type { DeclarantRecord } from "../data/reportsMockData";
+import type { TransactionStatus } from "../types/transaction";
 
 type Period = "daily" | "weekly" | "monthly";
 
@@ -38,24 +42,35 @@ const PERIOD_LABEL: Record<Period, string> = {
   monthly: "This Month",
 };
 
-/** The 5 statuses a declarant row can carry — mirrors the mapping done in useReportsAnalytics. */
-type DeclarantStatus = DeclarantRecord["status"];
-const STATUS_OPTIONS: DeclarantStatus[] = [
+/** Real system statuses shown by the Declarant Records table (TransactionStatus
+ *  passed through verbatim by useReportsAnalytics) — grouped in a logical order
+ *  for the filter dropdown. "Reprinted" is a special pseudo-status: it isn't a
+ *  lifecycle state, it matches transactions whose documents were reprinted
+ *  (reprintedDocuments > 0). */
+type StatusFilterValue = TransactionStatus | "Reprinted" | "All";
+
+const STATUS_OPTIONS: TransactionStatus[] = [
   "Released",
-  "Pending Payment",
-  "Pending Verification",
-  "Voided",
+  "Pending",
+  "For Payment",
+  "Payment Verified",
+  "Processing",
+  "Ready for Release",
+  "Cancelled",
+  "Void",
   "Archived",
-  "Flagged",
 ];
 
-const STATUS_CLASS: Record<DeclarantStatus, string> = {
+const STATUS_CLASS: Record<TransactionStatus, string> = {
   Released: "status-badge--released",
   Archived: "status-badge--archived",
-  Voided: "status-badge--voided",
-  "Pending Payment": "status-badge--pending-payment",
-  "Pending Verification": "status-badge--pending-verification",
-   Flagged: "status-badge--flagged",
+  Cancelled: "status-badge--voided",
+  Void: "status-badge--voided",
+  Pending: "status-badge--pending-payment",
+  "For Payment": "status-badge--pending-payment",
+  "Payment Verified": "status-badge--pending-payment",
+  Processing: "status-badge--pending-payment",
+  "Ready for Release": "status-badge--pending-payment",
 };
 
 // FIX: pagination options for the Declarant Records table, mirroring
@@ -149,7 +164,7 @@ function StatCard({
   );
 }
 
-function StatusBadge({ status }: { status: DeclarantStatus }) {
+function StatusBadge({ status }: { status: TransactionStatus }) {
   return (
     <span className={`reports-status-badge ${STATUS_CLASS[status]}`}>
       <span className="status-dot" />
@@ -180,7 +195,7 @@ function CustomBarTooltip({ active, payload }: any) {
 function ReportsStatsSkeleton() {
   return (
     <div className="stats-grid">
-      {Array.from({ length: 4 }).map((_, i) => (
+      {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="stat-card stat-card--skeleton">
           <div className="stat-card-top">
             <SkeletonBox width="55%" height="10px" />
@@ -202,6 +217,26 @@ function ReportsChartSkeleton() {
       </div>
       <div className="reports-chart-skeleton-body">
         <SkeletonBox width="100%" height="220px" borderRadius="8px" />
+      </div>
+    </div>
+  );
+}
+
+function ReportsReprintSkeleton() {
+  return (
+    <div className="chart-card">
+      <div className="chart-header">
+        <SkeletonBox width="240px" height="16px" />
+      </div>
+      <div className="reports-chart-skeleton-body">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <SkeletonBox
+            key={i}
+            width={i % 3 === 0 ? "58%" : "76%"}
+            height="10px"
+            margin="0 0 12px 0"
+          />
+        ))}
       </div>
     </div>
   );
@@ -271,11 +306,13 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
   const analytics = useReportsAnalytics(docTypeFilter);
   const [period, setPeriod] = useState<Period>("monthly");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<DeclarantStatus | "All">("All");
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("All");
 
   // FIX: pagination state for the Declarant Records table.
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [page, setPage] = useState(1);
+
+  const [isExporting, setIsExporting] = useState(false);
 
   const filteredDeclarants = useMemo(() => {
     return analytics.declarantRows.filter((d) => {
@@ -285,15 +322,21 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
         d.reference.toLowerCase().includes(search.toLowerCase()) ||
         d.documentRequested.toLowerCase().includes(search.toLowerCase());
 
-      const matchesStatus = statusFilter === "All" || d.status === statusFilter;
+      const matchesStatus =
+        statusFilter === "All"
+          ? true
+          : statusFilter === "Reprinted"
+            ? d.reprintedDocuments > 0
+            : d.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
   }, [analytics.declarantRows, search, statusFilter]);
 
-  // FIX: whenever the filtered result set changes (new search term or
-  // status filter), jump back to page 1 — otherwise a user filtering down
-  // to fewer results could get stranded on a now out-of-range page.
+  // FIX: whenever the filtered result set changes (new search term, status
+  // filter, or document-type filter), jump back to page 1 — otherwise a
+  // user filtering down to fewer results could get stranded on a now
+  // out-of-range page.
   useEffect(() => {
     setPage(1);
   }, [search, statusFilter, docTypeFilter]);
@@ -310,6 +353,123 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
     setRowsPerPage(value);
     setPage(1);
   };
+
+  // ── Export to Excel (xlsx, already a dependency — used dynamically so the
+  //    ~420 kB sheet library only loads on first export) ──
+  const handleExportExcel = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.utils.book_new();
+
+      const headers = [
+        "Reference No.",
+        "Declarant",
+        "Document Requested",
+        "Date Released",
+        "Released / Assisted By",
+        "Encoded By",
+        "Status",
+        "Reprinted Docs",
+      ];
+      const aoa: (string | number)[][] = [
+        ["ADePT System — Reports & Analytics"],
+        [
+          `Declarant Records — ${analytics.totalRequestsAll} total requests`,
+          `Exported: ${new Date().toLocaleString()}`,
+        ],
+        [
+          `Filter: ${docTypeFilter === "All" ? "All document types" : docTypeFilter}`,
+          `Subset: ${filteredDeclarants.length} records`,
+        ],
+        [],
+        headers,
+        ...filteredDeclarants.map((d) => [
+          d.reference,
+          d.declarantName,
+          d.documentRequested,
+          d.dateReleased,
+          d.staffReleased,
+          d.encodedBy,
+          d.status,
+          d.reprintedDocuments,
+        ]),
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"] = headers.map((h, i) => ({
+        wch: i === 1 ? 28 : Math.min(Math.max(h.length + 2, 12), 34),
+      }));
+      XLSX.utils.book_append_sheet(wb, ws, "Declarant Records");
+
+      // Second sheet: per-declarant reprint totals (mirrors the card).
+      const reprintAoa: (string | number)[][] = [
+        ["Reprinted Documents by Declarant"],
+        [`Exported: ${new Date().toLocaleString()}`],
+        [],
+        ["Declarant", "Reprinted Documents"],
+        ...analytics.reprintedDocumentsByDeclarant.map((r) => [r.declarantName, r.count]),
+        [],
+        ["Total Reprints", analytics.reprintedCount],
+      ];
+      const wsReprints = XLSX.utils.aoa_to_sheet(reprintAoa);
+      wsReprints["!cols"] = [{ wch: 30 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, wsReprints, "Reprinted Documents");
+
+      const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([out], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `adept-reports-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // FIX: pagination for the Reprinted Documents by Declarant card — the
+  // list can grow large (one row per declarant with reprints), so cap the
+  // visible rows and page through the rest. Bar widths stay relative to
+  // the GLOBAL maximum (not the current page's max) so bars remain
+  // comparable across pages.
+  const REPRINTS_PER_PAGE = 8;
+  const [reprintsPage, setReprintsPage] = useState(1);
+
+  const reprintTotalPages = Math.max(
+    1,
+    Math.ceil(analytics.reprintedDocumentsByDeclarant.length / REPRINTS_PER_PAGE)
+  );
+  const currentReprintPage = Math.min(reprintsPage, reprintTotalPages);
+
+  const reprintPageItems = useMemo(() => {
+    const start = (currentReprintPage - 1) * REPRINTS_PER_PAGE;
+    return analytics.reprintedDocumentsByDeclarant.slice(start, start + REPRINTS_PER_PAGE);
+  }, [analytics.reprintedDocumentsByDeclarant, currentReprintPage]);
+
+  const maxReprintCount = analytics.reprintedDocumentsByDeclarant[0]?.count ?? 0;
+
+  // Numbered page window: "1 … (current ±2) … N" — the total page count can
+  // grow large with many declarants, so far pages collapse into ellipses.
+  const reprintPageNumbers: (number | "…")[] = [];
+  for (let p = 1; p <= reprintTotalPages; p++) {
+    if (p === 1 || p === reprintTotalPages || Math.abs(p - currentReprintPage) <= 2) {
+      reprintPageNumbers.push(p);
+    } else if (reprintPageNumbers[reprintPageNumbers.length - 1] !== "…") {
+      reprintPageNumbers.push("…");
+    }
+  }
+
+  // FIX: when the document-type filter changes the reprint list, return to
+  // page 1 so the user isn't stranded on an out-of-range page.
+  useEffect(() => {
+    setReprintsPage(1);
+  }, [docTypeFilter]);
 
   return (
     <div className="reports-page">
@@ -335,7 +495,8 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
           <div>
             <h1 className="reports-title">Reports &amp; Analytics</h1>
             <p className="reports-subtitle">
-              Document registry activity — {PERIOD_LABEL[period]}
+              Track document requests, releases, pending items, and reprints —{" "}
+              {PERIOD_LABEL[period]}
             </p>
           </div>
           <div className="reports-header-actions">
@@ -346,6 +507,7 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
               aria-label="Refresh reports"
             >
               <RefreshCw size={16} />
+              <span className="refresh-btn-label">Refresh</span>
             </button>
             <PeriodToggle period={period} onChange={setPeriod} />
           </div>
@@ -354,6 +516,7 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
         {analytics.loading ? (
           <>
             <ReportsStatsSkeleton />
+            <ReportsReprintSkeleton />
             <ReportsChartSkeleton />
             <ReportsTableSkeleton />
           </>
@@ -401,6 +564,97 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
                 value={analytics.pendingCount}
                 sublabel="Live queue"
               />
+              <StatCard
+                icon={<ClipboardList size={18} />}
+                iconClass="stat-icon--success"
+                label="Total Requests"
+                value={analytics.totalRequestsAll}
+                sublabel="All time"
+              />
+            </div>
+
+            {/* Reprinted Documents by Declarant — per-declarant reprint
+                totals (summed across all of a declarant's transactions)
+                so the head can track total issuance. The grand total in
+                the header comes from the same reprintCounts. */}
+            <div className="chart-card">
+              <div className="chart-header">
+                <h2 className="chart-title">Reprinted Documents by Declarant</h2>
+                <span className="chart-period">
+                  {analytics.reprintedCount.toLocaleString()} total reprint
+                  {analytics.reprintedCount === 1 ? "" : "s"}
+                </span>
+              </div>
+              {analytics.reprintedDocumentsByDeclarant.length === 0 ? (
+                <p className="reprints-empty">No reprinted documents recorded.</p>
+              ) : (
+                <>
+                  <div className="reprints-list">
+                    {reprintPageItems.map((r) => (
+                      <div key={r.declarantName} className="reprints-row">
+                        <span className="reprints-name" title={r.declarantName}>
+                          {r.declarantName}
+                        </span>
+                        <span className="reprints-bar-track">
+                          <span
+                            className="reprints-bar-fill"
+                            style={{
+                              width: `${maxReprintCount > 0
+                                ? Math.round((r.count / maxReprintCount) * 100)
+                                : 0}%`,
+                            }}
+                          />
+                        </span>
+                        <span className="reprints-count">{r.count.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {analytics.reprintedDocumentsByDeclarant.length > REPRINTS_PER_PAGE && (
+                    <div className="reprints-pagination">
+                      <button
+                        type="button"
+                        className="reprints-page-btn"
+                        disabled={currentReprintPage <= 1}
+                        onClick={() => setReprintsPage((p) => Math.max(1, p - 1))}
+                        aria-label="Previous page"
+                        title="Previous page"
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                      {reprintPageNumbers.map((p, i) =>
+                        p === "…" ? (
+                          <span key={`ellipsis-${i}`} className="reprints-page-ellipsis">
+                            …
+                          </span>
+                        ) : (
+                          <button
+                            key={p}
+                            type="button"
+                            className={`reprints-page-btn${p === currentReprintPage ? " active" : ""}`}
+                            onClick={() => setReprintsPage(p)}
+                            aria-label={`Page ${p}`}
+                            aria-current={p === currentReprintPage ? "page" : undefined}
+                          >
+                            {p}
+                          </button>
+                        )
+                      )}
+                      <button
+                        type="button"
+                        className="reprints-page-btn"
+                        disabled={currentReprintPage >= reprintTotalPages}
+                        onClick={() =>
+                          setReprintsPage((p) => Math.min(reprintTotalPages, p + 1))
+                        }
+                        aria-label="Next page"
+                        title="Next page"
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Chart */}
@@ -450,6 +704,24 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
                   </p>
                 </div>
                 <div className="table-controls">
+                  <button
+                    type="button"
+                    className="export-btn"
+                    onClick={handleExportExcel}
+                    disabled={isExporting || filteredDeclarants.length === 0}
+                    title={
+                      filteredDeclarants.length === 0
+                        ? "No records to export"
+                        : "Download Declarant Records as Excel"
+                    }
+                  >
+                    {isExporting ? (
+                      <RefreshCw size={14} className="is-spinning" />
+                    ) : (
+                      <Download size={14} />
+                    )}
+                    {isExporting ? "Exporting…" : "Export Excel"}
+                  </button>
                   <div className="search-field">
                     <Search size={16} className="search-icon" />
                     <input
@@ -462,10 +734,11 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
                   <ADePTSelect
                     ariaLabel="Filter by status"
                     value={statusFilter}
-                    onChange={(v) => setStatusFilter(v as DeclarantStatus | "All")}
+                    onChange={(v) => setStatusFilter(v as StatusFilterValue)}
                     options={[
                       { value: "All", label: "All Statuses" },
                       ...STATUS_OPTIONS.map((s) => ({ value: s, label: s })),
+                      { value: "Reprinted", label: "Reprinted" },
                     ]}
                   />
 

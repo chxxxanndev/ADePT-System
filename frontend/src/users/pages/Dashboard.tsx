@@ -778,10 +778,11 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onNavigateToVoidAmend={() => setActiveView('void-amend')}
                             onNavigateToPendingRequests={() => setActiveView('document-request')}
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
+                            onNavigateToArchive={() => setActiveView('archive-management')}
                         />
                     ) : activeView === 'archive-management' ? (
                         <ArchiveManagement
-                            onNavigateToDashboard={() => setActiveView('dashboard')}
+                            onNavigateToPendingRequests={() => setActiveView('document-request')}
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
                         />
                     ) : activeView === 'about-adept' ? (
@@ -933,6 +934,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
                             onNavigateToReprint={() => setActiveView('certified-true-copy')}
                             onNavigateToPendingRequests={() => setActiveView('document-request')}
+                            onNavigateToArchive={() => setActiveView('archive-management')}
                         />
                     ) : activeView === 'void-amend' ? (
                         <VoidAndAmend
@@ -946,6 +948,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onNavigateToReprint={() => setActiveView('certified-true-copy')}
                             onNavigateToPendingRequests={() => setActiveView('document-request')}
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
+                            onNavigateToArchive={() => setActiveView('archive-management')}
                         />
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>

@@ -50,23 +50,34 @@
 }
 
 .arc-refresh-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
-    border: 1px solid var(--db-glass-border-alt);
-    background-color: rgba(255, 255, 255, 0.6);
+    background-color: rgba(255, 252, 249, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(41, 35, 122, 0.08);
     color: var(--db-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 700;
     cursor: pointer;
-    transition: background-color 0.2s, transform 0.4s ease;
+    font-size: 0.85rem;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 8px 32px 0 rgba(41, 35, 122, 0.04);
     flex-shrink: 0;
     margin-top: 30px;
 }
 
+.arc-refresh-btn .refresh-btn-label {
+    white-space: nowrap;
+}
+
 .arc-refresh-btn:hover {
-    background-color: #ffffff;
+    background-color: var(--db-primary);
+    color: #ffffff;
+    border-color: var(--db-primary);
+    transform: translateY(-1px);
 }
 
 .arc-refresh-btn.is-spinning svg {
@@ -393,6 +404,33 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
+}
+
+/* View action — icon-only square, mirrors the registry's tr-action-btn
+   so the Archive table actions read uniformly across the app. */
+.arc-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(41, 35, 122, 0.06);
+    border: none;
+    color: var(--db-primary);
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+}
+
+.arc-action-btn:hover {
+    background: rgba(41, 35, 122, 0.12);
+}
+
+.arc-action-btn:focus-visible {
+    outline: 2px solid var(--db-secondary, #00bcd4);
+    outline-offset: 2px;
 }
 
 .arc-restore-btn {

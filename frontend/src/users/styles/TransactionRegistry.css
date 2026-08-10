@@ -50,22 +50,33 @@
 }
 
 .tr-refresh-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
-    border: 1px solid var(--db-glass-border-alt);
-    background-color: rgba(255, 255, 255, 0.6);
+    background-color: rgba(255, 252, 249, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(41, 35, 122, 0.08);
     color: var(--db-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 700;
     cursor: pointer;
-    transition: background-color 0.2s, transform 0.4s ease;
+    font-size: 0.85rem;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 8px 32px 0 rgba(41, 35, 122, 0.04);
     flex-shrink: 0;
 }
 
+.tr-refresh-btn .refresh-btn-label {
+    white-space: nowrap;
+}
+
 .tr-refresh-btn:hover {
-    background-color: #ffffff;
+    background-color: var(--db-primary);
+    color: #ffffff;
+    border-color: var(--db-primary);
+    transform: translateY(-1px);
 }
 
 .tr-refresh-btn.is-spinning svg {
@@ -654,14 +665,6 @@
     min-width: 0;
 }
 
-/* Void & Amend: the status badge and the amend button share one flex
-   row, so give them a clear, consistent gap (unlike the registry's
-   icon-only button clusters). Applied to the container, not the button,
-   so Amended (badge only) and Voided (badge + button) stay balanced. */
-.tr-actions--gapped {
-    gap: 12px;
-}
-
 .tr-action-btn {
     background: rgba(41, 35, 122, 0.06);
     border: none;
@@ -784,6 +787,27 @@
 .tr-badge--amend {
     color: #4338CA;
     background-color: #E0E7FF;
+}
+
+/* Clickable status badge (Void & Amend's "Amended" pill jumps straight to
+   the amended copy in the details drawer) — strips the default button
+   chrome so it keeps looking like the plain .tr-badge pill beside it. */
+.tr-badge--btn {
+    border: none;
+    font-family: inherit;
+    letter-spacing: 0.02em;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+}
+
+.tr-badge--btn:hover {
+    filter: brightness(0.94);
+}
+
+.tr-badge--btn:focus-visible {
+    outline: 2px solid var(--db-secondary, #00bcd4);
+    outline-offset: 2px;
 }
 
 .tr-badge--archived {
@@ -1102,6 +1126,73 @@
 .td-header-void-btn:hover {
     background: rgba(239, 68, 68, 0.35);
     color: #FEE2E2;
+}
+
+/* Cross-link banner between the drawer header and the request details —
+   rendered by TransactionDetails when a `banner` prop is passed (Void &
+   Amend's "View" action uses it to link the voided record ⇄ its amended
+   copy, so tracking either side is one click away). */
+.td-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 12px 20px 0;
+    padding: 10px 14px;
+    background: #EEF2FF;
+    border: 1px solid #C7D2FE;
+    border-radius: 10px;
+}
+
+.td-banner-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #3730A3;
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+
+.td-banner-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #4338CA;
+    background: #FFFFFF;
+    border: 1px solid #C7D2FE;
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.td-banner-link:hover {
+    background: #E0E7FF;
+    border-color: #A5B4FC;
+}
+
+.td-banner-link:focus-visible {
+    outline: 2px solid var(--db-secondary, #00bcd4);
+    outline-offset: 2px;
+}
+
+.td-banner-ref {
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #29237A;
+    background: #EEF2FF;
+    border-radius: 5px;
+    padding: 2px 7px;
 }
 
 .td-body {

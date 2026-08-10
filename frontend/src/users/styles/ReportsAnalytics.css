@@ -201,11 +201,18 @@
   background-color: var(--color-secondary-hover);
 }
 
+.export-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* ---------- Stat cards ---------- */
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* 5 slots: the 4 periodized cards + the all-time Total Requests card.
+     The 2-col / 1-col breakpoints below handle narrow widths. */
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
   width: 100%;
 }
@@ -325,6 +332,117 @@
 .stat-icon--success {
   background-color: var(--color-success-bg);
   color: var(--color-success);
+}
+
+/* ---------- Reprinted Documents by Declarant ---------- */
+
+.reprints-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.reprints-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 280px) 40px;
+  align-items: center;
+  gap: 16px;
+}
+
+.reprints-name {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reprints-bar-track {
+  height: 8px;
+  border-radius: 9999px;
+  background-color: var(--table-header-bg);
+  overflow: hidden;
+}
+
+.reprints-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--color-secondary), var(--color-secondary-hover));
+  min-width: 4px;
+}
+
+.reprints-count {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.reprints-empty {
+  margin: 20px 0 4px;
+  padding: 28px 24px;
+  text-align: center;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--color-muted-light);
+  border: 1px dashed var(--glass-border);
+  border-radius: 12px;
+}
+
+/* Reprint-pagination: numbered page buttons with prev/next chevrons,
+   centered under the list. */
+.reprints-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.reprints-page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.reprints-page-btn:hover:not(:disabled):not(.active) {
+  background-color: var(--table-header-bg);
+}
+
+.reprints-page-btn.active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.reprints-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.reprints-page-ellipsis {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-muted-light);
+  padding: 0 2px;
+  user-select: none;
 }
 
 /* ---------- Chart card ---------- */
@@ -595,14 +713,12 @@
   color: var(--color-success);
 }
 
-.status-badge--pending-payment,
-.status-badge--pending-verification {
+.status-badge--pending-payment {
   background-color: var(--color-pending-bg);
   color: var(--color-pending-text);
 }
 
-.status-badge--voided,
-.status-badge--flagged {
+.status-badge--voided {
   background-color: var(--color-error-bg);
   color: var(--color-error);
 }

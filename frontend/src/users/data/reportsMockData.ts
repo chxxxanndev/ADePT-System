@@ -109,13 +109,10 @@ export const staffReleaseSummary: StaffReleaseSummary[] = [
 ];
 
 // ── Declarant Records (per-transaction rows for the Reports table) ──
-export type DeclarantStatus =
-    | 'Released'
-    | 'Pending Payment'
-    | 'Pending Verification'
-    | 'Voided'
-    | 'Flagged'
-    | 'Archived';
+// Status values are the ACTUAL system statuses (TransactionStatus) — the
+// Reports filter/badges display these verbatim so the table always reflects
+// the real document status rather than derived labels.
+import type { TransactionStatus } from '../types/transaction';
 
 export interface DeclarantRecord {
     reference: string;
@@ -126,7 +123,19 @@ export interface DeclarantRecord {
     dateReleased: string;
     staffReleased: string;
     encodedBy: string;
-    status: DeclarantStatus;
+    status: TransactionStatus;
+    /** Number of reprinted documents for THIS transaction (sum of
+     *  reprintCount across its requested documents). Lets the Reports page
+     *  filter/export per-transaction reprint details. */
+    reprintedDocuments: number;
+}
+
+// ── Reprinted Documents (per-declarant reprint totals for issuance
+//    transparency — aggregating reprintCount across all of a declarant's
+//    transactions, see useReportsAnalytics) ──
+export interface DeclarantReprint {
+    declarantName: string;
+    count: number;
 }
 
 export const declarantRecords: DeclarantRecord[] = [
@@ -140,6 +149,7 @@ export const declarantRecords: DeclarantRecord[] = [
         staffReleased: 'Maria Lopez',
         encodedBy: 'Ana Marquez',
         status: 'Released',
+        reprintedDocuments: 3,
     },
     {
         reference: 'LH-2026-04791',
@@ -151,6 +161,7 @@ export const declarantRecords: DeclarantRecord[] = [
         staffReleased: 'John Cruz',
         encodedBy: 'Dennis Cruz',
         status: 'Released',
+        reprintedDocuments: 0,
     },
     {
         reference: 'NLH-2026-05553',
@@ -162,6 +173,7 @@ export const declarantRecords: DeclarantRecord[] = [
         staffReleased: 'Anne Reyes',
         encodedBy: 'Ana Marquez',
         status: 'Released',
+        reprintedDocuments: 0,
     },
     {
         reference: 'CTC-2026-02342',
@@ -172,7 +184,8 @@ export const declarantRecords: DeclarantRecord[] = [
         dateReleased: '—',
         staffReleased: '—',
         encodedBy: 'Ana Marquez',
-        status: 'Pending Payment',
+        status: 'For Payment',
+        reprintedDocuments: 0,
     },
     {
         reference: 'TD-2026-09437',
@@ -183,7 +196,8 @@ export const declarantRecords: DeclarantRecord[] = [
         dateReleased: '—',
         staffReleased: '—',
         encodedBy: 'Dennis Cruz',
-        status: 'Pending Verification',
+        status: 'Processing',
+        reprintedDocuments: 0,
     },
     {
         reference: 'CTC-2026-05155',
@@ -194,7 +208,8 @@ export const declarantRecords: DeclarantRecord[] = [
         dateReleased: '23 Jun 2026 · 12:18 AM',
         staffReleased: 'Maria Lopez',
         encodedBy: 'Dennis Cruz',
-        status: 'Voided',
+        status: 'Void',
+        reprintedDocuments: 2,
     },
     {
         reference: 'TD-2026-08169',
@@ -205,7 +220,8 @@ export const declarantRecords: DeclarantRecord[] = [
         dateReleased: '—',
         staffReleased: '—',
         encodedBy: 'John Cruz',
-        status: 'Flagged',
+        status: 'Cancelled',
+        reprintedDocuments: 0,
     },
     {
         reference: 'NLH-2026-00423',
@@ -217,6 +233,7 @@ export const declarantRecords: DeclarantRecord[] = [
         staffReleased: 'Anne Reyes',
         encodedBy: 'Ana Marquez',
         status: 'Archived',
+        reprintedDocuments: 0,
     },
     {
         reference: 'LH-2026-09725',
@@ -228,6 +245,7 @@ export const declarantRecords: DeclarantRecord[] = [
         staffReleased: 'John Cruz',
         encodedBy: 'Ana Marquez',
         status: 'Released',
+        reprintedDocuments: 0,
     },
     {
         reference: 'CTC-2026-06657',
@@ -239,6 +257,7 @@ export const declarantRecords: DeclarantRecord[] = [
         staffReleased: 'Maria Lopez',
         encodedBy: 'Dennis Cruz',
         status: 'Released',
+        reprintedDocuments: 0,
     },
 ];
 

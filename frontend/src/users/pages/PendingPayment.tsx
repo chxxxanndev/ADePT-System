@@ -307,6 +307,7 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                         aria-label="Refresh queue"
                     >
                         <RefreshIcon />
+                        <span className="refresh-btn-label">Refresh</span>
                     </button>
                 </div>
 
@@ -415,7 +416,7 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                                 <th style={{ width: '15%' }}>Encoded By Staff</th>
                                 <th style={{ width: '10%', textAlign: 'right' }}>Total Fee</th>
                                 <th style={{ width: '16%', textAlign: 'center' }}>Date &amp; Time</th>
-                                <th style={{ width: '15%', textAlign: 'right' }}>Actions</th>
+                                <th style={{ width: '15%', textAlign: 'center' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -534,7 +535,7 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
                                                     )}
 
                                                     {docIndex === 0 && (
-                                                        <td className="pp-cell pp-cell-top" style={{ textAlign: 'right', paddingRight: '24px' }} rowSpan={docCount}>
+                                                        <td className="pp-cell pp-cell-top" style={{ textAlign: 'center' }} rowSpan={docCount}>
                                                             <div className="pp-actions">
                                                                 <button
                                                                     className="pp-btn-archive"

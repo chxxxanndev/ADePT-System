@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { AssessmentRow, DeclarantGroup, LandholdingRow, PropertyInfo, Transaction } from '../types/transaction';
 import { ReprintConfirmModal } from '../components/ReprintConfirmModal';
 import { HomeIcon, PrinterIcon, UserIcon, VoidIcon, DocIcon, CashIcon } from '../components/icons';
@@ -9,9 +9,20 @@ export interface TransactionDetailsProps {
     group: DeclarantGroup;
     transactionsByRef: Map<string, Transaction>;
     onClose: () => void;
-    onReprint: (transactionId: string, docId: string) => void | Promise<void>;
-    onVoid: (transaction: Transaction) => void;
-    onVoidAll: () => void;
+    /** Omit to open the drawer read-only: the per-document "Reprint"
+        buttons are hidden (Void & Amend's "View" action uses this). */
+    onReprint?: (transactionId: string, docId: string) => void | Promise<void>;
+    /** Omit to hide the "Void this transaction" action card. */
+    onVoid?: (transaction: Transaction) => void;
+    /** Omit to hide the header void-all button. */
+    onVoidAll?: () => void;
+    /** Optional override for the header sub-line (default: "N released
+        transactions") — e.g. "Voided record" / "Amended copy replacing …". */
+    subtitle?: string;
+    /** Optional cross-link banner rendered between the sticky header and
+        the request details — e.g. Void & Amend's "View Amended Copy →"
+        link, so voided ⇄ amended tracking is one click away. */
+    banner?: ReactNode;
 }
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
@@ -41,16 +52,32 @@ const PROPERTY_SOURCE_LABEL: Record<string, string> = {
 };
 
 /** Small pill next to each document's Reprint button — replaces the old
-    plain-text "Reprinted N× / Not reprinted" line with something scannable. */
+    plain-text "Reprinted N× / Not reprinted" line with something scannable.
+    When the transaction itself is a reprint (-R{n} reference, e.g. opened
+    from the Reprint/CTC registry), its own reprintCount is 0 — showing
+    "Not reprinted" there would be wrong, so it renders an informative
+    "Reprinted copy" badge instead. */
 function ReprintCountBadge({
     count,
     expanded,
     onToggle,
+    isReprintCopy,
 }: {
     count: number;
     expanded: boolean;
     onToggle: () => void;
+    isReprintCopy?: boolean;
 }) {
+    if (count <= 0 && isReprintCopy) {
+        return (
+            <span
+                className="td-reprint-badge"
+                title="This document is a certified true copy / reprint issued from the original."
+            >
+                <PrinterIcon size={10} /> Reprinted copy
+            </span>
+        );
+    }
     if (count <= 0) {
         return <span className="td-docitem-meta">Not reprinted</span>;
     }
@@ -482,6 +509,8 @@ export function TransactionDetails({
     onReprint,
     onVoid,
     onVoidAll,
+    subtitle,
+    banner,
 }: TransactionDetailsProps) {
     const { transactions } = group;
 
@@ -505,22 +534,26 @@ export function TransactionDetails({
                             {group.declarantName}
                         </div>
                         <div className="td-header-sub">
-                            {transactions.length} released {transactions.length === 1 ? 'transaction' : 'transactions'}
+                            {subtitle ?? `${transactions.length} released ${transactions.length === 1 ? 'transaction' : 'transactions'}`}
                         </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                         <button className="td-close-btn" onClick={onClose} aria-label="Close details">✕</button>
-                        <button
-                            type="button"
-                            className="td-header-void-btn"
-                            onClick={onVoidAll}
-                            title="Void all documents for this declarant"
-                            aria-label="Void all documents"
-                        >
-                            <VoidIcon />
-                        </button>
+                        {onVoidAll && (
+                            <button
+                                type="button"
+                                className="td-header-void-btn"
+                                onClick={onVoidAll}
+                                title="Void all documents for this declarant"
+                                aria-label="Void all documents"
+                            >
+                                <VoidIcon />
+                            </button>
+                        )}
                     </div>
                 </div>
+
+                {banner && <div className="td-banner">{banner}</div>}
 
                 <div className="td-body">
                     {transactions.map((t) => {
@@ -620,18 +653,21 @@ export function TransactionDetails({
                                                         <ReprintCountBadge
                                                             count={doc.reprintCount}
                                                             expanded={expandedDocId === doc.id}
+                                                            isReprintCopy={/-R\d+$/.test(t.referenceNumber)}
                                                             onToggle={() =>
                                                                 setExpandedDocId((cur) => (cur === doc.id ? null : doc.id))
                                                             }
                                                         />
-                                                        <button
-                                                            type="button"
-                                                            className="td-link-btn"
-                                                            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                                                            onClick={() => setReprintTarget({ transaction: t, doc })}
-                                                        >
-                                                            <PrinterIcon size={13} /> Reprint
-                                                        </button>
+                                                        {onReprint && (
+                                                            <button
+                                                                type="button"
+                                                                className="td-link-btn"
+                                                                style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                                onClick={() => setReprintTarget({ transaction: t, doc })}
+                                                            >
+                                                                <PrinterIcon size={13} /> Reprint
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 {expandedDocId === doc.id && (
@@ -689,7 +725,9 @@ export function TransactionDetails({
                                     </div>
                                 </div>
 
-                                {/* ── Card 5: Actions ── */}
+                                {/* ── Card 5: Actions (hidden in read-only mode, e.g. when viewing
+                                       a voided record from Void & Amend — you can't void it again) ── */}
+                                {onVoid && (
                                 <div className="td-section" style={{ background: '#fff8f8', borderColor: '#FECDCA' }}>
                                     <h3 className="td-section-title" style={{ color: '#B0281C', marginBottom: '10px' }}>
                                         Actions
@@ -714,15 +752,18 @@ export function TransactionDetails({
                                         }}>
                                             {t.referenceNumber}
                                         </span>
-                                        <button
-                                            type="button"
-                                            className="td-void-btn"
-                                            onClick={() => onVoid(t)}
-                                        >
-                                            Void this transaction
-                                        </button>
+                                        {onVoid && (
+                                            <button
+                                                type="button"
+                                                className="td-void-btn"
+                                                onClick={() => onVoid(t)}
+                                            >
+                                                Void this transaction
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
+                                )}
 
                             </div>
                         );
@@ -730,7 +771,7 @@ export function TransactionDetails({
                 </div>
             </div>
 
-            {reprintTarget && (
+            {onReprint && reprintTarget && (
                 <ReprintConfirmModal
                     open={!!reprintTarget}
                     documentLabel={`${reprintTarget.doc.documentType} - ${reprintTarget.transaction.referenceNumber}`}

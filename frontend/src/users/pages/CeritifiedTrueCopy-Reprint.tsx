@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Printer, CheckCircle2, Clock } from "lucide-react";
+import { Search, Printer, CheckCircle2, Clock, ArrowLeft, ArrowRight } from "lucide-react";
 import "../styles/TransactionRegistry.css";
 import "../styles/select.css";
-import type { CertifiedCopyRecord, CTCStatus } from "../types/transaction";
-import { fetchCertifiedTrueCopies } from "../services/transactionService";
+import type { CertifiedCopyRecord, CTCStatus, Transaction, DeclarantGroup } from "../types/transaction";
+import { fetchTransactionRegistry } from "../services/transactionService";
+import { TransactionDetails } from "./TransactionDetails";
 import { ExpandableText } from "../components/common/ExpandableText";
 import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
 import { ADePTSelect } from "../components/ADePTSelect";
@@ -32,14 +33,14 @@ function formatDate(dateStr: string): string {
 
 const CTC_COLUMNS = [
   "Reference No.", "Declarant", "Original Doc", "OR Number",
-  "Justification", "Requested", "Released", "Released By", "Status",
+  "Justification", "Requested", "Released", "Released By", "Status", "Action",
 ];
 
 /** Total minimum table width (px) — below this the shared .tr-table-scroll
  *  container scrolls horizontally (the same pattern TransactionRegistry's
- *  REGISTRY_TABLE_MIN_WIDTH uses) instead of cramming all nine columns into
+ *  REGISTRY_TABLE_MIN_WIDTH uses) instead of cramming all ten columns into
  *  the viewport and crushing the reference pills and status badges. */
-const CTC_TABLE_MIN_WIDTH = 1210;
+const CTC_TABLE_MIN_WIDTH = 1300;
 
 /* --- Summary skeleton (three compact cards — mirrors VoidAmendSummarySkeleton
    and uses the same tr-summary-grid--multi sizing as the loaded cards) --- */
@@ -79,6 +80,7 @@ function CTCTableSkeleton({ rows = 8 }: { rows?: number }) {
                 <td><div className="skeleton-item" style={{ width: '55%', height: 12 }} /></td>
                 <td><div className="skeleton-item" style={{ width: '60%', height: 12 }} /></td>
                 <td><div className="skeleton-item" style={{ width: '70px', height: 20, borderRadius: 999 }} /></td>
+                <td style={{ textAlign: 'center' }}><div className="skeleton-item" style={{ width: '72px', height: 30, borderRadius: 7 }} /></td>
               </tr>
             ))}
           </tbody>
@@ -98,6 +100,8 @@ interface CertifiedTrueCopyProps {
    * here matches the registry's exactly. */
   onNavigateToPendingRequests?: () => void;
   onNavigateToPendingPayment?: () => void;
+  /** Breadcrumb → Archive Management. */
+  onNavigateToArchive?: () => void;
 }
 
 export default function CertifiedTrueCopy({
@@ -105,6 +109,7 @@ export default function CertifiedTrueCopy({
   onNavigateToVoidAmend,
   onNavigateToPendingRequests,
   onNavigateToPendingPayment,
+  onNavigateToArchive,
 }: CertifiedTrueCopyProps) {
   const [records, setRecords] = useState<CertifiedCopyRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -115,13 +120,21 @@ export default function CertifiedTrueCopy({
   const [docTypeFilter, setDocTypeFilter] = useState<DocumentTypeFilterValue>("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  // Full registry (reprints AND originals) kept for the View drawer — the
+  // reprint row opens read-only, and a banner cross-links to the original
+  // document it was issued from (same voided ⇄ amended pattern Void & Amend
+  // uses), so tracking reprint → source is one click away.
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [viewId, setViewId] = useState<string | null>(null);
+  const [viewTab, setViewTab] = useState<"reprint" | "original">("reprint");
 
   const loadData = async (isManualRefresh = false) => {
     if (isManualRefresh) setIsRefreshing(true);
     else setIsLoading(true);
     setLoadError(null);
     try {
-      const reprints = await fetchCertifiedTrueCopies();
+      const all = await fetchTransactionRegistry();
+      const reprints = all.filter((t) => t.requestType === "REPRINT");
 
       const mapped = reprints.map((t): CertifiedCopyRecord => ({
         id: t.id,
@@ -139,6 +152,7 @@ export default function CertifiedTrueCopy({
         orJustification: t.payment?.orJustification || "—",
       }));
 
+      setAllTransactions(all);
       setRecords(mapped);
     } catch (err) {
       setLoadError("Failed to fetch reprint records.");
@@ -186,13 +200,45 @@ export default function CertifiedTrueCopy({
     return filteredRecords.slice(start, start + rowsPerPage);
   }, [filteredRecords, safePage, rowsPerPage]);
 
+  // ─── View drawer resolution ─────────────────────────────
+  // The reprint transaction is resolved by the clicked row's id; the
+  // original is looked up by stripping the "-R{n}" suffix, so the banner
+  // cross-link traces the reprint back to its source document (and back).
+  const transactionsByRef = useMemo(() => {
+    const map = new Map<string, Transaction>();
+    for (const t of allTransactions) map.set(t.referenceNumber, t);
+    return map;
+  }, [allTransactions]);
+
+  const openView = (record: CertifiedCopyRecord) => {
+    setViewTab("reprint");
+    setViewId(record.id);
+  };
+
+  const viewReprintTxn = viewId
+    ? allTransactions.find((t) => t.id === viewId) ?? null
+    : null;
+  const viewOriginalTxn = viewReprintTxn
+    ? transactionsByRef.get(viewReprintTxn.referenceNumber.replace(/-R\d+$/, "")) ?? null
+    : null;
+  const viewingOriginal = viewTab === "original" && !!viewOriginalTxn;
+  const viewGroup: DeclarantGroup | null = viewReprintTxn
+    ? {
+        declarantName:
+          viewingOriginal && viewOriginalTxn
+            ? viewOriginalTxn.client.declarantName
+            : viewReprintTxn.client.declarantName,
+        transactions: [viewingOriginal && viewOriginalTxn ? viewOriginalTxn : viewReprintTxn],
+      }
+    : null;
+
   return (
     <div className="tr-page">
       <div className="tr-header">
-        {/* Document Request > Pending Requests > Standing Transaction Management > Reprint/CTC —
-            same breadcrumb chain as TransactionRegistry, just one level deeper. The first two
-            links reuse the same props/wiring TransactionRegistry uses; "Standing Transaction
-            Management" reuses the onNavigateToRegistry prop this component already received. */}
+        {/* Document Request > Pending Requests > Reprint/CTC > Archive Management —
+            same breadcrumb chain as TransactionRegistry, with "Archive Management" as
+            the final crumb. The first two links reuse the same props/wiring
+            TransactionRegistry uses; "Archive Management" routes via onNavigateToArchive. */}
         <nav className="tr-breadcrumb" aria-label="Breadcrumb">
           <button
             type="button"
@@ -210,15 +256,15 @@ export default function CertifiedTrueCopy({
             Pending Requests
           </button>
           <span className="tr-breadcrumb-sep">&gt;</span>
+          <span className="tr-breadcrumb-item--current">Reprint/CTC</span>
+          <span className="tr-breadcrumb-sep">&gt;</span>
           <button
             type="button"
             className="tr-breadcrumb-item--link"
-            onClick={onNavigateToRegistry}
+            onClick={onNavigateToArchive ?? (() => {})}
           >
-            Transaction Management
+            Archive Management
           </button>
-          <span className="tr-breadcrumb-sep">&gt;</span>
-          <span className="tr-breadcrumb-item--current">Reprint/CTC</span>
         </nav>
 
         <div className="tr-header-top">
@@ -233,6 +279,7 @@ export default function CertifiedTrueCopy({
             aria-label="Refresh registry"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            <span className="refresh-btn-label">Refresh</span>
           </button>
         </div>
 
@@ -355,21 +402,22 @@ export default function CertifiedTrueCopy({
               <table className="tr-table" style={{ minWidth: CTC_TABLE_MIN_WIDTH }}>
                 <thead>
                   <tr>
-                    <th style={{ width: '12%' }}>Reference No.</th>
+                    <th style={{ width: '11%' }}>Reference No.</th>
                     <th style={{ width: '11%' }}>Declarant</th>
                     <th style={{ width: '12%' }}>Original Doc</th>
                     <th style={{ width: '11%' }}>OR Number</th>
-                    <th style={{ width: '13%' }}>Justification</th>
-                    <th style={{ width: '11%' }}>Requested</th>
+                    <th style={{ width: '12%' }}>Justification</th>
+                    <th style={{ width: '10%' }}>Requested</th>
                     <th style={{ width: '10%' }}>Released</th>
-                    <th style={{ width: '11%' }}>Released By</th>
-                    <th style={{ width: '9%' }}>Status</th>
+                    <th style={{ width: '10%' }}>Released By</th>
+                    <th style={{ width: '8%' }}>Status</th>
+                    <th style={{ width: '7%', textAlign: 'center' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedRecords.length === 0 ? (
                     <tr>
-                      <td className="tr-table-empty" colSpan={9}>
+                      <td className="tr-table-empty" colSpan={10}>
                         <strong>No records found</strong>
                         No records match your search criteria.
                       </td>
@@ -401,6 +449,18 @@ export default function CertifiedTrueCopy({
                             <span className={`tr-badge tr-badge--${record.status.toLowerCase()}`}>
                               {record.status}
                             </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div className="tr-actions">
+                              <button
+                                type="button"
+                                className="tr-view-details-btn"
+                                onClick={() => openView(record)}
+                                title={`View ${record.reference} details`}
+                              >
+                                View
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -450,6 +510,65 @@ export default function CertifiedTrueCopy({
             )}
           </div>
         </>
+      )}
+
+      {/* ── View drawer ──
+          Reuses the registry's TransactionDetails panel, opened read-only
+          (no Reprint / Void callbacks). When the reprint has a matching
+          original on record, a stuck banner cross-links between the two —
+          "View Original Document →" from the reprint side, "← Back to
+          Reprinted Details" from the original side — so tracing a certified
+          true copy back to its source document is one click away. */}
+      {viewGroup && viewReprintTxn && (
+        <TransactionDetails
+          group={viewGroup}
+          transactionsByRef={transactionsByRef}
+          onClose={() => {
+            setViewId(null);
+            setViewTab("reprint");
+          }}
+          subtitle={
+            viewingOriginal && viewOriginalTxn
+              ? `Original document — reprinted as ${viewReprintTxn.referenceNumber}`
+              : `Certified true copy of ${viewReprintTxn.referenceNumber.replace(/-R\d+$/, "")}`
+          }
+          banner={
+            viewOriginalTxn ? (
+              viewingOriginal ? (
+                <>
+                  <span className="td-banner-note">
+                    <CheckCircle2 size={14} />
+                    This is the original document this reprint was issued from
+                  </span>
+                  <button
+                    type="button"
+                    className="td-banner-link"
+                    onClick={() => setViewTab("reprint")}
+                  >
+                    <ArrowLeft size={13} />
+                    Back to Reprinted Details
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="td-banner-note">
+                    <Printer size={14} />
+                    Certified true copy printed against this original
+                  </span>
+                  <button
+                    type="button"
+                    className="td-banner-link"
+                    onClick={() => setViewTab("original")}
+                  >
+                    View Original Document
+                    <span className="td-banner-ref">{viewOriginalTxn.referenceNumber}</span>
+                    <ArrowRight size={13} />
+                  </button>
+                </>
+              )
+            ) : undefined
+          }
+        />
       )}
     </div>
   );

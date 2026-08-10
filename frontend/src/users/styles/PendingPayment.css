@@ -115,22 +115,33 @@
 }
 
 .pp-refresh-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
-    border: 1px solid var(--db-glass-border-alt);
-    background-color: rgba(255, 255, 255, 0.6);
+    background-color: rgba(255, 252, 249, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(41, 35, 122, 0.08);
     color: var(--db-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 700;
     cursor: pointer;
-    transition: background-color 0.2s, transform 0.4s ease;
+    font-size: 0.85rem;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 8px 32px 0 rgba(41, 35, 122, 0.04);
     flex-shrink: 0;
 }
 
+.pp-refresh-btn .refresh-btn-label {
+    white-space: nowrap;
+}
+
 .pp-refresh-btn:hover {
-    background-color: #ffffff;
+    background-color: var(--db-primary);
+    color: #ffffff;
+    border-color: var(--db-primary);
+    transform: translateY(-1px);
 }
 
 .pp-refresh-btn.is-spinning svg {
@@ -650,12 +661,14 @@
     color: var(--db-text-muted);
 }
 
-/* Actions */
+/* Actions — button group is centered under the column header so the archive
+   icon and Process button always sit clearly beneath the "Actions" label */
 .pp-actions {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
     gap: 8px;
+    min-height: 36px;
 }
 
 .pp-btn-process {

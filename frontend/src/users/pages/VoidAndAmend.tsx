@@ -1,8 +1,9 @@
 import { useMemo, useState, useEffect } from "react";
-import { Search, Ban, PencilLine, Loader2, CheckCircle2 } from "lucide-react";
+import { Search, Ban, PencilLine, Loader2, CheckCircle2, ArrowLeft, ArrowRight } from "lucide-react";
 import { fetchTransactionRegistry } from "../services/transactionService";
 import { requestService } from "../services/requestService";
-import type { Transaction } from "../types/transaction";
+import type { Transaction, DeclarantGroup } from "../types/transaction";
+import { TransactionDetails } from "./TransactionDetails";
 import "../styles/TransactionRegistry.css";
 import "../styles/select.css";
 import { ExpandableText } from "../components/common/ExpandableText";
@@ -59,6 +60,8 @@ interface VoidAndAmendProps {
    * onNavigateToPendingPayment -> 'pending-payment' view). */
   onNavigateToPendingRequests?: () => void;
   onNavigateToPendingPayment?: () => void;
+  /** Breadcrumb → Archive Management. */
+  onNavigateToArchive?: () => void;
 }
 
 type TimeRange = "Today" | "Yesterday" | "This Week" | "This Month" | "All Time";
@@ -168,17 +171,38 @@ function ActionBadge() {
 
 /** Shows the "Amended" state for a voided record that already has an
  *  amended copy — replaces the disabled grey pen button so the status
- *  is readable at a glance instead of being implied by a dimmed icon. */
-function AmendedBadge() {
-  return (
-    <span
-      className="tr-badge tr-badge--amend"
-      title="An amended copy of this document already exists"
-      style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-    >
+ *  is readable at a glance instead of being implied by a dimmed icon.
+ *  Pass onClick to make it a button that jumps straight to the amended
+ *  copy in the view drawer. */
+function AmendedBadge({ onClick }: { onClick?: () => void }) {
+  const content = (
+    <>
       <CheckCircle2 size={14} />
       Amended
-    </span>
+    </>
+  );
+  if (!onClick) {
+    return (
+      <span
+        className="tr-badge tr-badge--amend"
+        title="An amended copy of this document already exists"
+        style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+      >
+        {content}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="tr-badge tr-badge--amend tr-badge--btn"
+      title="View the amended copy"
+      aria-label="View the amended copy"
+      onClick={onClick}
+      style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+    >
+      {content}
+    </button>
   );
 }
 
@@ -206,13 +230,15 @@ function toDisplayRecord(t: Transaction, metadata: VoidMetadataEntry | undefined
   };
 }
 
-const VA_COLUMNS = ["Reference No.", "Declarant", "Reason / Change", "Actioned By", "Date & Time", "Action"];
+const VA_COLUMNS = ["Reference No.", "Declarant", "Reason / Change", "Actioned By", "Date & Time", "Status", "Action"];
 
 /** Total minimum table width (px) — below this the shared .tr-table-scroll
  *  container scrolls horizontally (the same pattern TransactionRegistry's
- *  REGISTRY_TABLE_MIN_WIDTH uses) instead of cramming all six columns into
- *  the viewport and crushing the badges, pills and buttons. */
-const VA_TABLE_MIN_WIDTH = 1040;
+ *  REGISTRY_TABLE_MIN_WIDTH uses) instead of cramming all seven columns into
+ *  the viewport and crushing the badges, pills and buttons. Status badges
+ *  and action icons live in separate columns, mirroring the registry's
+ *  uniform layout. */
+const VA_TABLE_MIN_WIDTH = 1120;
 
 /* --- Summary skeleton (two compact cards — mirrors RegistrySummarySkeleton
    and uses the same tr-summary-grid--multi sizing as the loaded cards) --- */
@@ -237,7 +263,9 @@ function VoidAmendTableSkeleton({ rows = 8 }: { rows?: number }) {
         <table className="tr-table" style={{ minWidth: VA_TABLE_MIN_WIDTH }}>
           <thead>
             <tr>
-              {VA_COLUMNS.map((col) => <th key={col} style={col === "Action" ? { textAlign: "center" } : undefined}>{col}</th>)}
+              {VA_COLUMNS.map((col) => (
+                <th key={col} style={col === "Action" || col === "Status" ? { textAlign: "center" } : undefined}>{col}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -248,7 +276,8 @@ function VoidAmendTableSkeleton({ rows = 8 }: { rows?: number }) {
                 <td><div className="skeleton-item" style={{ width: '80%', height: 12 }} /></td>
                 <td><div className="skeleton-item" style={{ width: '55%', height: 12 }} /></td>
                 <td><div className="skeleton-item" style={{ width: '65%', height: 12 }} /></td>
-                <td style={{ textAlign: "center" }}><div className="skeleton-item" style={{ width: '32px', height: 32, borderRadius: 7, margin: "0 auto" }} /></td>
+                <td style={{ textAlign: "center" }}><div className="skeleton-item" style={{ width: 64, height: 22, borderRadius: 999, margin: "0 auto" }} /></td>
+                <td style={{ textAlign: "center" }}><div className="skeleton-item" style={{ width: '100px', height: 30, borderRadius: 7, margin: "0 auto" }} /></td>
               </tr>
             ))}
           </tbody>
@@ -268,6 +297,7 @@ export default function VoidAndAmend({
   onNavigateToReprint,
   onNavigateToPendingRequests,
   onNavigateToPendingPayment,
+  onNavigateToArchive,
 }: VoidAndAmendProps) {
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("All Time");
@@ -286,6 +316,13 @@ export default function VoidAndAmend({
   // ─── Amend action state ──────────────────────────────────
   const [amendingId, setAmendingId] = useState<string | null>(null);
   const [amendError, setAmendError] = useState<string | null>(null);
+
+  // ─── View (details drawer) state ─────────────────────────
+  // "View" opens the voided record read-only. When the record has been
+  // amended, the drawer shows a cross-link banner to jump to the amended
+  // copy (and back), so tracking voided ⇄ amended is one click away.
+  const [viewId, setViewId] = useState<string | null>(null);
+  const [viewTab, setViewTab] = useState<"voided" | "amended">("voided");
 
   const loadVoidedTransactions = async (isManualRefresh = false) => {
     if (isManualRefresh) setIsRefreshing(true);
@@ -336,6 +373,43 @@ export default function VoidAndAmend({
     () => transactions.map((t) => toDisplayRecord(t, metadataStore[t.id])),
     [transactions, metadataStore]
   );
+
+  // ─── Amended-copy lookup ─────────────────────────────────
+  // The amended copy is a fresh request whose requests.amended_from_id
+  // points at the voided original — the same identifier the backend's
+  // hasBeenAmended uses. Keep the first (newest) copy per original so the
+  // "View Amended Copy →" link always lands on the latest amendment.
+  const transactionsByRef = useMemo(() => {
+    const map = new Map<string, Transaction>();
+    for (const t of allTransactions) map.set(t.referenceNumber, t);
+    return map;
+  }, [allTransactions]);
+
+  const amendedByOriginal = useMemo(() => {
+    const map = new Map<string, Transaction>();
+    for (const t of allTransactions) {
+      if (t.amendedFromId && !map.has(t.amendedFromId)) map.set(t.amendedFromId, t);
+    }
+    return map;
+  }, [allTransactions]);
+
+  const openView = (record: VoidAmendRecord, tab: "voided" | "amended") => {
+    setViewTab(tab);
+    setViewId(record.id);
+  };
+
+  const viewVoidedTxn = viewId ? allTransactions.find((t) => t.id === viewId) ?? null : null;
+  const viewAmendedTxn = viewId ? amendedByOriginal.get(viewId) ?? null : null;
+  const viewRecord = viewId ? records.find((r) => r.id === viewId) ?? null : null;
+  const viewingAmended = viewTab === "amended" && !!viewAmendedTxn;
+  const viewGroup: DeclarantGroup | null = viewVoidedTxn
+    ? {
+        declarantName: viewingAmended && viewAmendedTxn
+          ? viewAmendedTxn.client.declarantName
+          : viewVoidedTxn.client.declarantName,
+        transactions: [viewingAmended && viewAmendedTxn ? viewAmendedTxn : viewVoidedTxn],
+      }
+    : null;
 
   // ─── Summary counts ───────────────────────────────────────
   // Voided: every request whose status is Void (same rule this table and
@@ -442,10 +516,10 @@ export default function VoidAndAmend({
   return (
     <div className="tr-page">
       <div className="tr-header">
-        {/* Document Request > Pending Requests > Standing Transaction Management > Void & Amend —
-            same breadcrumb chain as TransactionRegistry / CertifiedTrueCopy. The first two links
-            reuse the same props/wiring those pages use; "Standing Transaction Management" reuses
-            the onNavigateToRegistry prop this component already received. */}
+        {/* Document Request > Pending Requests > Void & Amend > Archive Management —
+            same breadcrumb chain as TransactionRegistry / CertifiedTrueCopy, with
+            "Archive Management" as the final crumb. The first two links reuse the same
+            props/wiring those pages use; "Archive Management" routes via onNavigateToArchive. */}
         <nav className="tr-breadcrumb" aria-label="Breadcrumb">
           <button
             type="button"
@@ -463,15 +537,15 @@ export default function VoidAndAmend({
             Pending Requests
           </button>
           <span className="tr-breadcrumb-sep">&gt;</span>
+          <span className="tr-breadcrumb-item--current">Void &amp; Amend</span>
+          <span className="tr-breadcrumb-sep">&gt;</span>
           <button
             type="button"
             className="tr-breadcrumb-item--link"
-            onClick={onNavigateToRegistry}
+            onClick={onNavigateToArchive ?? (() => {})}
           >
-            Transaction Management
+            Archive Management
           </button>
-          <span className="tr-breadcrumb-sep">&gt;</span>
-          <span className="tr-breadcrumb-item--current">Void &amp; Amend</span>
         </nav>
 
         <div className="tr-header-top">
@@ -486,6 +560,7 @@ export default function VoidAndAmend({
             aria-label="Refresh registry"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            <span className="refresh-btn-label">Refresh</span>
           </button>
         </div>
 
@@ -625,18 +700,19 @@ export default function VoidAndAmend({
             <table className="tr-table" style={{ minWidth: VA_TABLE_MIN_WIDTH }}>
               <thead>
                 <tr>
-                  <th style={{ width: '16%' }}>Reference No.</th>
-                  <th style={{ width: '16%' }}>Declarant</th>
-                  <th style={{ width: '22%' }}>Reason / Change</th>
-                  <th style={{ width: '16%' }}>Actioned By</th>
-                  <th style={{ width: '15%' }}>Date &amp; Time</th>
+                  <th style={{ width: '15%' }}>Reference No.</th>
+                  <th style={{ width: '14%' }}>Declarant</th>
+                  <th style={{ width: '19%' }}>Reason / Change</th>
+                  <th style={{ width: '14%' }}>Actioned By</th>
+                  <th style={{ width: '13%' }}>Date &amp; Time</th>
+                  <th style={{ width: '11%', textAlign: "center" }}>Status</th>
                   <th style={{ width: '15%', textAlign: "center" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedRecords.length === 0 ? (
                   <tr>
-                    <td className="tr-table-empty" colSpan={6}>
+                    <td className="tr-table-empty" colSpan={7}>
                       <strong>No voided records found</strong>
                       No voided records match your filters.
                     </td>
@@ -661,28 +737,39 @@ export default function VoidAndAmend({
                         <td style={{ whiteSpace: "nowrap" }}>
                           {record.actionedAt ? formatDateTime(record.actionedAt) : "—"}
                         </td>
+                        <td style={{ textAlign: "center" }}>
+                          {record.hasBeenAmended ? (
+                            <AmendedBadge onClick={() => openView(record, "amended")} />
+                          ) : (
+                            <ActionBadge />
+                          )}
+                        </td>
                         <td>
-                          <div className="tr-actions tr-actions--gapped">
-                            {record.hasBeenAmended ? (
-                              <AmendedBadge />
-                            ) : (
-                              <>
-                                <ActionBadge />
-                                <button
-                                  type="button"
-                                  className="tr-action-btn"
-                                  title={`Amend ${record.reference}`}
-                                  aria-label={`Amend ${record.reference}`}
-                                  onClick={() => handleAmendClick(record)}
-                                  disabled={amendingId === record.id}
-                                >
-                                  {amendingId === record.id ? (
-                                    <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-                                  ) : (
-                                    <PencilLine size={14} />
-                                  )}
-                                </button>
-                              </>
+                          <div className="tr-actions">
+                            <button
+                              type="button"
+                              className="tr-view-details-btn"
+                              title={`View ${record.reference}${record.hasBeenAmended ? " voided details" : ""}`}
+                              aria-label={`View ${record.reference}`}
+                              onClick={() => openView(record, "voided")}
+                            >
+                              View
+                            </button>
+                            {!record.hasBeenAmended && (
+                              <button
+                                type="button"
+                                className="tr-action-btn"
+                                title={`Amend ${record.reference}`}
+                                aria-label={`Amend ${record.reference}`}
+                                onClick={() => handleAmendClick(record)}
+                                disabled={amendingId === record.id}
+                              >
+                                {amendingId === record.id ? (
+                                  <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                                ) : (
+                                  <PencilLine size={14} />
+                                )}
+                              </button>
                             )}
                           </div>
                         </td>
@@ -735,6 +822,69 @@ export default function VoidAndAmend({
             </div>
           )}
         </div>
+      )}
+
+      {/* ── View drawer ──
+          Reuses the registry's TransactionDetails panel, opened read-only
+          (no Reprint / Void callbacks) so it can only ever be viewed. When
+          the voided record has an amended copy, a stuck banner under the
+          header links across — "View Amended Copy →" from the voided side,
+          "← Back to Voided Details" from the amended side — since both sides
+          of the amendment share the same declarant, property and documents. */}
+      {viewGroup && viewVoidedTxn && (
+        <TransactionDetails
+          group={viewGroup}
+          transactionsByRef={transactionsByRef}
+          onClose={() => {
+            setViewId(null);
+            setViewTab("voided");
+          }}
+          subtitle={
+            viewingAmended && viewAmendedTxn
+              ? `Amended copy replacing ${viewVoidedTxn.referenceNumber}`
+              : "Voided record"
+          }
+          banner={
+            viewAmendedTxn ? (
+              viewingAmended ? (
+                <>
+                  <span className="td-banner-note">
+                    <CheckCircle2 size={14} />
+                    Amended copy of voided document {viewVoidedTxn.referenceNumber}
+                  </span>
+                  <button
+                    type="button"
+                    className="td-banner-link"
+                    onClick={() => setViewTab("voided")}
+                  >
+                    <ArrowLeft size={13} />
+                    Back to Voided Details
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="td-banner-note">
+                    <Ban size={14} />
+                    Voided on {viewRecord?.actionedAt ? formatDateTime(viewRecord.actionedAt) : "—"}
+                    {viewRecord?.actionedBy && viewRecord.actionedBy !== "—"
+                      ? ` · by ${viewRecord.actionedBy}`
+                      : ""}
+                    {viewRecord?.detail ? ` · ${viewRecord.detail}` : ""}
+                  </span>
+                  <button
+                    type="button"
+                    className="td-banner-link"
+                    onClick={() => setViewTab("amended")}
+                  >
+                    View Amended Copy
+                    <span className="td-banner-ref">{viewAmendedTxn.referenceNumber}</span>
+                    <ArrowRight size={13} />
+                  </button>
+                </>
+              )
+            ) : undefined
+          }
+        />
       )}
     </div>
   );

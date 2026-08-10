@@ -99,7 +99,7 @@ export function Sidebar({
             <div className="sidebar-brand">
                 <div className="sidebar-brand-left">
                     <div className="sidebar-logo-circle">
-                        <img src={logoImg} alt="ADePT" />
+                        <img width={40} height={40} src={logoImg} alt="ADePT" />
                     </div>
                     {!collapsed && <span className="sidebar-brand-name">ADePT</span>}
                 </div>

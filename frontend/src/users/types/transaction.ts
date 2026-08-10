@@ -159,6 +159,8 @@ export interface Transaction {
     voidReason?: string;
     voidedAt?: string;
     cancelledAt?: string;
+    archiveReason?: string | null;
+    archivedAt?: string | null;
     hasBeenAmended?: boolean;
     /** Set when this request is the amended copy of a voided original
      *  (requests.amended_from_id) — the identifier used to count amended

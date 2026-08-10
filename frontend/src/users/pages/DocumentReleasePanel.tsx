@@ -481,6 +481,7 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
     const [isQueuing, setIsQueuing] = useState(false);
     const [queueError, setQueueError] = useState('');
     const iframeRef = useRef<HTMLIFrameElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
     const [isPreviewLoaded, setIsPreviewLoaded] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
 
@@ -625,25 +626,48 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [actionTaken]);
 
-    // --- In-app link clicks --------------------------------------------------
+    // --- Exit attempts (in-app buttons, sidebar, tabs, links, …) -----------
+    // The app switches views statefully (Dashboard's setActiveView), so most
+    // "other page" navigation is plain <button> clicks (sidebar items, tab
+    // pills, breadcrumbs, quick actions) — not anchors, which is why they
+    // used to slip past the guard and out of the release flow silently.
+    // Capture-phase interception runs BEFORE those buttons' own onClick
+    // handlers, so preventDefault + stopPropagation cancels the navigation
+    // entirely and forces staff to resolve the release (Mark as Released /
+    // Save & Release Later / Stay). Everything INSIDE the panel keeps
+    // working normally; only clicks outside it are candidates.
     useEffect(() => {
         const handleClickCapture = (e: MouseEvent) => {
             if (actionTaken) return;
             if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
 
-            const anchor = (e.target as HTMLElement)?.closest('a[href]') as HTMLAnchorElement | null;
-            if (!anchor || anchor.target === '_blank') return;
-            if (anchor.hasAttribute('download')) return;
+            const target = (e.target as HTMLElement) ?? null;
+            if (!target) return;
+            if (panelRef.current?.contains(target)) return;
 
-            const href = anchor.getAttribute('href') || '';
-            if (!href || href.startsWith('#')) return;
+            // Old-style <a href> outside the panel → block the native jump.
+            const anchor = target.closest('a[href]') as HTMLAnchorElement | null;
+            if (anchor) {
+                if (anchor.target === '_blank' || anchor.hasAttribute('download')) return;
+                const href = anchor.getAttribute('href') || '';
+                if (!href || href.startsWith('#')) return;
+                e.preventDefault();
+                e.stopPropagation();
+                pendingNavigationRef.current = () => {
+                    window.location.href = href;
+                };
+                setShowGuardModal(true);
+                return;
+            }
 
-            e.preventDefault();
-            e.stopPropagation();
-            pendingNavigationRef.current = () => {
-                window.location.href = href;
-            };
-            setShowGuardModal(true);
+            // Any in-app navigation control outside the panel (Dashboard
+            // sidebar, header buttons, tabs, breadcrumbs…) → cancel the
+            // click so the view can't change until the release is resolved.
+            if (target.closest('button, [role="button"], a')) {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowGuardModal(true);
+            }
         };
 
         document.addEventListener('click', handleClickCapture, true);
@@ -651,7 +675,7 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
     }, [actionTaken]);
 
     return (
-        <div className="pd-split-layout pd-split-layout--viewer animation-fade-in">
+        <div className="pd-split-layout pd-split-layout--viewer animation-fade-in" ref={panelRef}>
             {/* LEFT COLUMN: PDF VIEWER */}
             <div className="pd-col-left">
                 <div className="pd-pdf-viewer-container">
@@ -1289,7 +1313,10 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                         </div>
                         <h3 id="pd-guard-title">These documents haven't been released yet</h3>
                         <p>
-                            Choose one of the actions below before leaving this page, or stay to finish up.
+                            Leaving this page without an action can cause document mistracking. Resolve
+                            <strong> {documents.length}</strong> {documents.length === 1 ? 'document' : 'documents'} by choosing{' '}
+                            <strong>Mark as Released</strong> or <strong>Save &amp; Release Later</strong> below —
+                            or stay on this page to finish.
                         </p>
                         <div className="pd-guard-actions">
                             {onQueueForRelease && (

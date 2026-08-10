@@ -26,7 +26,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { fetchTransactionRegistry } from '../services/transactionService';
 import type { Transaction } from '../types/transaction';
 import type { WeeklyTrendPoint, DocumentDistributionSlice } from '../types/dashboard';
-import type { DeclarantRecord } from '../data/reportsMockData';
+import type { DeclarantRecord, DeclarantReprint } from '../data/reportsMockData';
 import {
     getDocumentTypeFromReference,
     matchesDocumentType,
@@ -73,6 +73,11 @@ export interface ReportsAnalyticsData {
     /** All transactions in the registry (any status) */
     totalRequests: PeriodMetric;
     totalRequestsTrend: PeriodTrend;
+    /** Grand total of requests across ALL time — period-independent
+     *  (unlike totalRequests, which is bucketed daily/weekly/monthly).
+     *  Still honors the document-type filter for consistency with the
+     *  other cards. */
+    totalRequestsAll: number;
     /** Tax Declaration counts by period */
     taxDeclarationCounts: PeriodMetric;
     /** Live count of non-terminal (pending / processing) transactions */
@@ -83,6 +88,10 @@ export interface ReportsAnalyticsData {
     archivedCount: number;
     /** Reprinted document count (sum of reprintCount across all docs) */
     reprintedCount: number;
+    /** Per-declarant reprinted-document totals (aggregated across all of a
+     *  declarant's transactions, only declarants with at least one reprint,
+     *  sorted by count descending). */
+    reprintedDocumentsByDeclarant: DeclarantReprint[];
 
     /** Weekly bucketed release counts for the Analytics Overview bar chart */
     weeklyTrend: WeeklyTrendPoint[];
@@ -304,6 +313,24 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
             sum + t.requestedDocuments.reduce((s, d) => s + (d.reprintCount || 0), 0), 0
         );
 
+        // Per-declarant reprint totals — keyed by declarant name so the
+        // head can track total issuance (a declarant may hold multiple
+        // transactions; reprints from all of them are combined here).
+        const reprintsByDeclarant = new Map<string, number>();
+        for (const t of filtered) {
+            const reprints = t.requestedDocuments.reduce((s, d) => s + (d.reprintCount || 0), 0);
+            if (reprints > 0) {
+                reprintsByDeclarant.set(
+                    t.client.declarantName,
+                    (reprintsByDeclarant.get(t.client.declarantName) ?? 0) + reprints
+                );
+            }
+        }
+        const reprintedDocumentsByDeclarant: DeclarantReprint[] =
+            [...reprintsByDeclarant.entries()]
+                .map(([declarantName, count]) => ({ declarantName, count }))
+                .sort((a, b) => b.count - a.count);
+
         // ── Weekly trend ──────────────────────────────────────────────
         const weeklyTrend = buildWeeklyTrend(released);
 
@@ -349,24 +376,21 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
                 .map(w => w[0].toUpperCase())
                 .join('');
 
-            // Map TransactionStatus → DeclarantStatus
-            let status: DeclarantRecord['status'] = 'Released';
-            const s = t.status;
-            if (s === 'Void') status = 'Voided';
-            else if (s === 'Archived') status = 'Archived';
-            else if (s === 'For Payment' || s === 'Pending') status = 'Pending Payment';
-            else if (s === 'Payment Verified' || s === 'Processing' || s === 'Ready for Release') status = 'Pending Verification';
-
+            // Status is passed through VERBATIM from TransactionStatus so
+            // the Reports table always reflects the actual system status.
             return {
                 reference: t.referenceNumber,
                 declarantName: t.client.declarantName,
                 initials,
                 avatarColor: '#29237A',
                 documentRequested: docTypes,
-                dateReleased: s === 'Released' ? formatReleaseDate(t.dateRequested) : '—',
+                dateReleased: t.status === 'Released' ? formatReleaseDate(t.dateRequested) : '—',
                 staffReleased: t.assignedStaff || '—',
                 encodedBy: t.assignedStaff || '—',
-                status,
+                status: t.status,
+                reprintedDocuments: t.requestedDocuments.reduce(
+                    (s, d) => s + (d.reprintCount || 0), 0
+                ),
             };
         });
 
@@ -379,6 +403,7 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
                 monthly: computeTrend(releasedMonth, releasedLastMonth, 'last month'),
             },
             totalRequests: { daily: totalToday, weekly: totalWeek, monthly: totalMonth },
+            totalRequestsAll: filtered.length,
             totalRequestsTrend: {
                 daily: computeTrend(totalToday, totalYesterday, 'yesterday'),
                 weekly: computeTrend(totalWeek, totalLastWeek, 'last week'),
@@ -389,6 +414,7 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
             voidedCount: voided.length,
             archivedCount: archived.length,
             reprintedCount,
+            reprintedDocumentsByDeclarant,
             weeklyTrend,
             documentDistribution,
             totalDocuments: tdCount + lhCount + nlhCount,

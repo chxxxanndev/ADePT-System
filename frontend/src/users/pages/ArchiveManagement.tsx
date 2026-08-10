@@ -7,6 +7,7 @@ import {
   RefreshCw,
   X,
   Check,
+  Eye,
 } from "lucide-react";
 import { requestService } from "../services/requestService";
 import { fetchTransactionRegistry } from "../services/transactionService";
@@ -17,8 +18,10 @@ import { RestoreConfirmModal } from "../components/RestoreConfirmModal";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
 import { ADePTSelect } from "../components/ADePTSelect";
-import type { Transaction, RequestedDocumentItem } from "../types/transaction";
+import { TransactionDetails } from "./TransactionDetails";
+import type { Transaction, RequestedDocumentItem, DeclarantGroup } from "../types/transaction";
 import "../styles/ArchiveManagement.css";
+import "../styles/TransactionRegistry.css";
 import "../styles/select.css";
 
 /* ------------------------------------------------------------------ */
@@ -142,7 +145,7 @@ const ARCHIVE_TABLE_COLUMNS = [
   "Declarant",
   "Status",
   "Reason",
-  "Archived By",
+  "Actioned By",
   "Date & Time",
   "Action",
 ];
@@ -182,21 +185,20 @@ function ArchiveTableSkeleton({ rows = 7 }: { rows?: number }) {
 }
 
 /**
- * Transaction has no `archivedAt`/`archivedBy` columns yet — only
- * `dateRequested` and `assignedStaff` are available from the registry.
- * These are used as the best available stand-ins until the backend adds
- * dedicated archive-audit fields (mirrors the same limitation documented
- * for void records in VoidAndAmend.tsx).
+ * Transaction archive metadata (archivedAt / archiveReason) is now
+ * returned by the backend registry and stored when requests are archived
+ * from the queues (Pending Payments / Pending For Release) or cancelled
+ * in Final Verification & Payment.
  *
- * Cancelled requests (cancelled in Final Verification & Payment) land in
- * this queue too — for those, the backend's `cancelledAt` (the moment the
- * status flipped to CANCELLED) is used for the date/time instead of the
- * original request date.
+ * The action timestamp uses, in order: archivedAt (set by the queue's
+ * archive flow), cancelledAt (set when the status flipped to CANCELLED),
+ * and the original request date as a last-resort fallback. The reason
+ * column surfaces the staff-entered archive reason verbatim.
  */
 function toArchivedRecord(t: Transaction): ArchivedRecord {
   const isCancelled = t.status === "Cancelled";
-  const actionedAt = isCancelled ? t.cancelledAt : null;
-  const requested = actionedAt ? new Date(actionedAt) : new Date(t.dateRequested);
+  const actionedAt = t.archivedAt ?? t.cancelledAt ?? t.dateRequested;
+  const requested = new Date(actionedAt);
   return {
     id: t.id,
     reference: t.referenceNumber,
@@ -215,10 +217,8 @@ function toArchivedRecord(t: Transaction): ArchivedRecord {
     }),
     archivedDateISO: `${requested.getFullYear()}-${String(requested.getMonth() + 1).padStart(2, "0")}-${String(requested.getDate()).padStart(2, "0")}`,
     archivedBy: t.assignedStaff || "Staff",
-    // No archive-reason field exists on the backend yet — every archived
-    // transaction is reported as "Manual" until one is added.
-    reasonType: "Manual",
-    reasonDetail: isCancelled ? "Cancelled from pending payment." : "Manually moved from queue.",
+    reasonType: t.archiveReason ? "Manual" : "Auto",
+    reasonDetail: t.archiveReason || (isCancelled ? "Cancelled from pending payment." : "Manually moved from queue."),
   };
 }
 
@@ -229,15 +229,16 @@ interface ArchiveManagementProps {
   // Breadcrumb navigation — mirrors the onNavigateTo* wiring used by
   // TransactionRegistry/CertifiedTrueCopy: the parent (Dashboard) passes
   // the active-view setters so the breadcrumb can jump between screens.
-  onNavigateToDashboard?: () => void;
+  onNavigateToPendingRequests?: () => void;
   onNavigateToPendingPayment?: () => void;
 }
 
 export default function ArchiveManagement({
-  onNavigateToDashboard,
+  onNavigateToPendingRequests,
   onNavigateToPendingPayment,
 }: ArchiveManagementProps) {
   const [records, setRecords] = useState<ArchivedRecord[]>([]);
+  const [archivedTransactions, setArchivedTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -248,6 +249,9 @@ export default function ArchiveManagement({
   const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  // View drawer target — opens the full record read-only so staff can see
+  // exactly what was archived/cancelled (same drawer Void & Amend uses).
+  const [viewId, setViewId] = useState<string | null>(null);
   // Restore confirmation modal target (replaces the native window.confirm).
   const [restoreTarget, setRestoreTarget] = useState<{ id: string; reference: string } | null>(null);
   // Restore feedback — reuses the system's existing .as-toast design
@@ -274,12 +278,13 @@ export default function ArchiveManagement({
       // Cancelled requests (from Final Verification & Payment) also land here.
       const all = await fetchTransactionRegistry();
       const archivedOnly = all
-        .filter((t) => t.status === "Archived" || t.status === "Cancelled")
-        .map(toArchivedRecord);
-      setRecords(archivedOnly);
+        .filter((t) => t.status === "Archived" || t.status === "Cancelled");
+      setArchivedTransactions(archivedOnly);
+      setRecords(archivedOnly.map(toArchivedRecord));
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Failed to fetch archive.");
       setRecords([]);
+      setArchivedTransactions([]);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -296,6 +301,7 @@ export default function ArchiveManagement({
     try {
       await requestService.updateRequest(id, { status: "PENDING_PAYMENT" });
       setRecords((prev) => prev.filter((r) => r.id !== id));
+      setArchivedTransactions((prev) => prev.filter((t) => t.id !== id));
       // Only claim success after the backend confirms the restore.
       showToast("success", `Document ${ref} restored successfully.`);
       // The restored record lands back in the Pending Payments queue —
@@ -307,6 +313,27 @@ export default function ArchiveManagement({
       setRestoringId(null);
     }
   };
+
+  // ── View drawer lookups ─────────────────────────────
+  // The drawer renders the FULL transaction read-only (same as Void &
+  // Amend's View), so keep the live transactions alongside the display
+  // records and resolve the clicked row by id.
+  const transactionsById = useMemo(() => {
+    const map = new Map<string, Transaction>();
+    for (const t of archivedTransactions) map.set(t.id, t);
+    return map;
+  }, [archivedTransactions]);
+
+  const transactionsByRef = useMemo(() => {
+    const map = new Map<string, Transaction>();
+    for (const t of archivedTransactions) map.set(t.referenceNumber, t);
+    return map;
+  }, [archivedTransactions]);
+
+  const viewTxn = viewId ? transactionsById.get(viewId) ?? null : null;
+  const viewGroup: DeclarantGroup | null = viewTxn
+    ? { declarantName: viewTxn.client.declarantName, transactions: [viewTxn] }
+    : null;
 
   const filteredRecords = useMemo(() => {
     return records.filter((record) => {
@@ -379,9 +406,9 @@ export default function ArchiveManagement({
           <button
             type="button"
             className="tr-breadcrumb-item--link"
-            onClick={onNavigateToDashboard ?? (() => {})}
+            onClick={onNavigateToPendingRequests ?? (() => {})}
           >
-            Dashboard
+            Document Request
           </button>
           <span className="tr-breadcrumb-sep">&gt;</span>
           <button
@@ -389,7 +416,7 @@ export default function ArchiveManagement({
             className="tr-breadcrumb-item--link"
             onClick={onNavigateToPendingPayment ?? (() => {})}
           >
-            Pending Payment
+            Pending Requests
           </button>
           <span className="tr-breadcrumb-sep">&gt;</span>
           <span className="tr-breadcrumb-item--current">Archive Management</span>
@@ -406,8 +433,10 @@ export default function ArchiveManagement({
             className={`arc-refresh-btn ${isRefreshing ? "is-spinning" : ""}`}
             onClick={() => fetchArchivedData(true)}
             title="Refresh"
+            aria-label="Refresh"
           >
             <RefreshCw size={16} />
+            <span className="refresh-btn-label">Refresh</span>
           </button>
         </div>
 
@@ -514,7 +543,7 @@ export default function ArchiveManagement({
                 <th>Declarant</th>
                 <th>Status</th>
                 <th>Reason</th>
-                <th>Archived By</th>
+                <th>Actioned By</th>
                 <th>Date &amp; Time</th>
                 <th style={{ textAlign: "center" }}>Action</th>
               </tr>
@@ -552,6 +581,14 @@ export default function ArchiveManagement({
                     </td>
                     <td>
                       <div className="arc-actions">
+                        <button
+                          className="arc-action-btn"
+                          title={`View ${record.reference}`}
+                          aria-label={`View ${record.reference}`}
+                          onClick={() => setViewId(record.id)}
+                        >
+                          <Eye size={15} />
+                        </button>
                         <button
                           className="arc-restore-btn"
                           onClick={() => setRestoreTarget({ id: record.id, reference: record.reference })}
@@ -627,6 +664,19 @@ export default function ArchiveManagement({
           void handleRestore(id, reference);
         }}
       />
+
+      {/* View drawer — full record opened read-only (no Reprint / Void
+          actions), the same TransactionDetails drawer the registry and
+          Void & Amend use. The header notes whether the record was
+          cancelled or archived. */}
+      {viewGroup && viewTxn && (
+        <TransactionDetails
+          group={viewGroup}
+          transactionsByRef={transactionsByRef}
+          onClose={() => setViewId(null)}
+          subtitle={viewTxn.status === "Cancelled" ? "Cancelled record" : "Archived record"}
+        />
+      )}
 
       {/* Restore feedback toast — same .as-toast design as the rest of ADePT
           (bottom-center, dark pill, 2500ms auto-dismiss), with a success/error

@@ -1,5 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import { requestService } from '../services/requestService';
+import { addAdminAuditEntry } from '../../admin/services/auditLogService';
 import '../styles/PendingPayment.css';
 import '../styles/select.css';
 import { ExpandableText } from '../components/common/ExpandableText';
@@ -13,6 +14,8 @@ const RefreshIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="
 const InboxIcon = () => <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>;
 const UserIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
 const ProcessIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>;
+const ArchiveIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>;
+const CheckSquareIcon = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>;
 const XIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 
 // Stat icons
@@ -72,6 +75,13 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
+    // Selection states
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [confirmTarget, setConfirmTarget] = useState<{ groups: any[]; label: string } | null>(null);
+    const [archiveReason, setArchiveReason] = useState('');
+    const [isArchiving, setIsArchiving] = useState(false);
+
     const fetchLiveReleases = async (isManualRefresh = false) => {
         try {
             if (isManualRefresh) setIsRefreshing(true);
@@ -125,6 +135,8 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                 }, {});
 
                 setGroupedReleases(Object.values(grouped));
+                // Only reset selection if it's a hard fresh load, otherwise keep selected (for UX)
+                if (!isManualRefresh) setSelectedIds(new Set());
             }
         } finally {
             setLoading(false);
@@ -152,7 +164,84 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
 
     const totalDocs = groupedReleases.reduce((sum, g) => sum + g.documents.length, 0);
 
-    const columnCount = 7;
+    const columnCount = selectionMode ? 8 : 7;
+
+    const toggleSelect = (groupId: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+            return next;
+        });
+    };
+
+    // SMART SELECT ALL: Only toggles visible items on the current page
+    const toggleSelectCurrentPage = () => {
+        const allVisibleSelected = paginatedGroups.every(g => selectedIds.has(g.groupId));
+
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (allVisibleSelected) {
+                paginatedGroups.forEach(g => next.delete(g.groupId));
+            } else {
+                paginatedGroups.forEach(g => next.add(g.groupId));
+            }
+            return next;
+        });
+    };
+
+    const enterSelectionMode = () => setSelectionMode(true);
+    const exitSelectionMode = () => {
+        setSelectionMode(false);
+        setSelectedIds(new Set());
+    };
+
+    const runArchive = async (groups: any[]) => {
+        setIsArchiving(true);
+        try {
+            const allDocs = groups.flatMap(g => g.documents);
+            await Promise.all(allDocs.map((doc: any) =>
+                requestService.updateRequest(doc.id, { status: 'ARCHIVED', archiveReason: archiveReason.trim() || 'Archived from pending for release.' })
+            ));
+            const archivedIds = new Set(groups.map(g => g.groupId));
+            setGroupedReleases(prev => prev.filter(p => !archivedIds.has(p.groupId)));
+            setSelectedIds(prev => {
+                const next = new Set(prev);
+                archivedIds.forEach(id => next.delete(id));
+                return next;
+            });
+            const archivedDeclarants = [...new Set(allDocs.map((d: any) => d.declarantName || 'N/A'))].join(', ');
+            const archivedDocTypes = [...new Set(allDocs.map((d: any) => d.documentType || 'N/A'))].join(', ');
+            addAdminAuditEntry({
+                type: 'document_archived',
+                description: `Archived ${groups.length} document group(s)`,
+                details: {
+                    Declarant: archivedDeclarants,
+                    'Document Type': archivedDocTypes,
+                },
+            }).catch(() => { });
+        } catch (error) {
+            alert("Archive failed. Please check your connection and try again.");
+        } finally {
+            setIsArchiving(false);
+            setConfirmTarget(null);
+        }
+    };
+
+    const requestArchiveOne = (e: React.MouseEvent, group: any) => {
+        e.stopPropagation();
+        setArchiveReason('');
+        setConfirmTarget({ groups: [group], label: `all ${group.documents.length} pending document(s) for ${group.requesterName}` });
+    };
+
+    const requestArchiveSelected = () => {
+        const groups = groupedReleases.filter(g => selectedIds.has(g.groupId));
+        const docCount = groups.reduce((sum, g) => sum + g.documents.length, 0);
+        setArchiveReason('');
+        setConfirmTarget({ groups, label: `${docCount} document(s) across ${groups.length} client(s)` });
+    };
+
+    const selectedCount = selectedIds.size;
+    const allVisibleSelected = paginatedGroups.length > 0 && paginatedGroups.every(g => selectedIds.has(g.groupId));
 
     return (
         <div className="pp-container page-transition">
@@ -163,6 +252,14 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                 </button>
                 <span className="pp-breadcrumb-sep">›</span>
                 <span className="pp-breadcrumb-current">Pending For Release</span>
+                <span className="pp-breadcrumb-sep">›</span>
+                <button
+                    type="button"
+                    className="pp-breadcrumb-link"
+                    onClick={() => onSwitchView && onSwitchView('transaction-registry')}
+                >
+                    Transaction Management
+                </button>
             </div>
 
             {/* PAGE HEADER */}
@@ -186,8 +283,10 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                         className={`pp-refresh-btn${isRefreshing ? ' is-spinning' : ''}`}
                         onClick={() => fetchLiveReleases(true)}
                         title="Refresh queue"
+                        aria-label="Refresh queue"
                     >
                         <RefreshIcon />
+                        <span className="refresh-btn-label">Refresh</span>
                     </button>
                 </div>
 
@@ -218,7 +317,7 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
 
             {/* TABLE CARD */}
             <div className="pp-table-card">
-                <div className="pp-table-toolbar">
+                <div className={`pp-table-toolbar${selectionMode ? ' is-active' : ''}`}>
                     <div className="pp-toolbar-left">
                         <div className="pp-toolbar-search">
                             <SearchIcon />
@@ -235,6 +334,34 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                 </button>
                             )}
                         </div>
+                        {selectionMode && (
+                            <span className="pp-table-toolbar-text">
+                                {selectedCount > 0
+                                    ? `${selectedCount} client${selectedCount !== 1 ? 's' : ''} selected across all pages`
+                                    : 'Tap a row to select it for archiving'}
+                            </span>
+                        )}
+                    </div>
+                    <div className="pp-table-toolbar-actions">
+                        {selectionMode ? (
+                            <>
+                                <button className="pp-bulk-btn pp-bulk-btn--clear" onClick={exitSelectionMode}>
+                                    Cancel
+                                </button>
+                                <button
+                                    className="pp-bulk-btn pp-bulk-btn--archive"
+                                    onClick={requestArchiveSelected}
+                                    disabled={selectedCount === 0}
+                                >
+                                    <ArchiveIcon /> Archive selected
+                                </button>
+                            </>
+                        ) : (
+                            <button className="pp-select-toggle-btn" onClick={enterSelectionMode}>
+                                <CheckSquareIcon />
+                                Select
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -242,13 +369,25 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                     <table className="pp-table">
                         <thead>
                             <tr>
+                                {selectionMode && (
+                                    <th className="pp-th-checkbox">
+                                        <input
+                                            type="checkbox"
+                                            className="pp-checkbox"
+                                            checked={allVisibleSelected}
+                                            onChange={toggleSelectCurrentPage}
+                                            aria-label="Select visible"
+                                            title="Select all on this page"
+                                        />
+                                    </th>
+                                )}
                                 <th style={{ width: '16%' }}>Reference No.</th>
                                 <th style={{ width: '16%' }}>Declarant(s)</th>
                                 <th style={{ width: '15%' }}>Requested By</th>
                                 <th style={{ width: '14%' }}>Encoded By Staff</th>
                                 <th style={{ width: '13%', textAlign: 'center' }}>O.R. Number</th>
                                 <th style={{ width: '14%', textAlign: 'center' }}>Date &amp; Time</th>
-                                <th style={{ width: '12%', textAlign: 'right' }}>Actions</th>
+                                <th style={{ width: '12%', textAlign: 'center' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -296,8 +435,22 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                             {group.documents.map((d: any, docIndex: number) => (
                                                 <tr
                                                     key={d.id}
-                                                    className={`pp-row${docIndex === docCount - 1 ? '' : ' pp-row-group-mid'}`}
+                                                    className={`pp-row${selectionMode ? ' is-selectable' : ''}${selectedIds.has(group.groupId) ? ' is-selected' : ''}${docIndex === docCount - 1 ? '' : ' pp-row-group-mid'}`}
+                                                    onClick={selectionMode ? () => toggleSelect(group.groupId) : undefined}
                                                 >
+                                                    {selectionMode && docIndex === 0 && (
+                                                        <td className="pp-cell pp-cell-checkbox" rowSpan={docCount}>
+                                                            <input
+                                                                type="checkbox"
+                                                                className="pp-checkbox"
+                                                                checked={selectedIds.has(group.groupId)}
+                                                                onChange={() => toggleSelect(group.groupId)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                aria-label={`Select ${group.requesterName}`}
+                                                            />
+                                                        </td>
+                                                    )}
+
                                                     {/* Reference No. and Declarant share the same <tr> per document,
                                                         so they're always aligned to the same row height */}
                                                     <td className="pp-cell" data-label="Reference No.">
@@ -349,9 +502,17 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                                     )}
 
                                                     {docIndex === 0 && (
-                                                        <td className="pp-cell pp-cell-top" style={{ textAlign: 'right', paddingRight: '24px' }} rowSpan={docCount}>
+                                                        <td className="pp-cell pp-cell-top" style={{ textAlign: 'center' }} rowSpan={docCount}>
                                                             <div className="pp-actions">
-                                                                <button className="pp-btn-process" onClick={() => onSelectPayment(group)}>
+                                                                <button
+                                                                    className="pp-btn-archive"
+                                                                    onClick={(e) => requestArchiveOne(e, group)}
+                                                                    title="Archive group"
+                                                                    aria-label="Archive group"
+                                                                >
+                                                                    <ArchiveIcon />
+                                                                </button>
+                                                                <button className="pp-btn-process" onClick={(e) => { e.stopPropagation(); onSelectPayment(group); }}>
                                                                     Release <ProcessIcon />
                                                                 </button>
                                                             </div>
@@ -376,10 +537,9 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                 <option value={10}>10</option>
                                 <option value={20}>20</option>
                                 <option value={50}>50</option>
-                                <option value={50}>100</option>
-                                <option value={50}>150</option>
-                                <option value={50}>200</option>
-
+                                <option value={100}>100</option>
+                                <option value={150}>150</option>
+                                <option value={200}>200</option>
                             </select>
                         </div>
                         <div className="pp-pagination-center">
@@ -393,6 +553,33 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                     </div>
                 )}
             </div>
+
+            {/* --- ARCHIVE CONFIRM MODAL --- */}
+            {confirmTarget && (
+                <div className="pp-modal-backdrop" onClick={() => !isArchiving && setConfirmTarget(null)}>
+                    <div className="pp-modal" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="pp-modal-title">Archive pending release{confirmTarget.groups.length !== 1 && 's'}?</h3>
+                        <p className="pp-modal-body">
+                            This will archive <strong>{confirmTarget.label}</strong>. They'll be removed from this queue and moved to <strong>Archive Management</strong>, under Transaction Management — you can restore them from there anytime.
+                        </p>
+                        <textarea
+                            className="pp-modal-reason"
+                            placeholder="Reason for archiving (optional)"
+                            value={archiveReason}
+                            onChange={(e) => setArchiveReason(e.target.value)}
+                            rows={2}
+                        />
+                        <div className="pp-modal-actions">
+                            <button className="pp-modal-btn pp-modal-btn--cancel" onClick={() => setConfirmTarget(null)} disabled={isArchiving}>
+                                Cancel
+                            </button>
+                            <button className="pp-modal-btn pp-modal-btn--confirm" onClick={() => runArchive(confirmTarget.groups)} disabled={isArchiving}>
+                                {isArchiving ? 'Archiving...' : 'Archive'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
