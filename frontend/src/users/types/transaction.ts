@@ -148,6 +148,13 @@ export interface Transaction {
     requestedDocuments: RequestedDocumentItem[];
     dateRequested: string;
     dateReleased?: string | null;
+    /** Full-timestamp equivalents of the date-only fields above — the real
+     *  "requested" time (requests.created_at) and "released" time
+     *  (requests.released_at). Used by the UI to render accurate times.
+     *  Prefer these over dateRequested/dateReleased whenever a clock time
+     *  is needed. */
+    requestedAt?: string | null;
+    releasedAt?: string | null;
     releasedBy?: string | null;
     assignedStaff: string;
     status: TransactionStatus;

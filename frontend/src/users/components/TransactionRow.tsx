@@ -2,6 +2,7 @@ import type { DeclarantGroup } from '../types/transaction';
 import { StatusBadge } from './StatusBadge';
 import { ExpandableText } from './common/ExpandableText';
 import { getDocPillMeta, getDocumentTypeFromReference } from '../../utils/documentType';
+import { formatDateTime } from '../../utils/dateTime';
 
 interface TransactionRowProps {
     group: DeclarantGroup;
@@ -69,8 +70,13 @@ export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
                             PendingPayment's Requested By column does. */}
                         <td><ExpandableText text={t.client.requestedBy} /></td>
 
-                        <td>{t.dateRequested}</td>
-                        <td>{t.dateReleased || '—'}</td>
+                        {/* Requested/Released show date + accurate time
+                            (requestedAt = created_at, releasedAt = released_at)
+                            so the request & release instants can be traced;
+                            fall back to the date-only columns when the
+                            timestamps are missing. */}
+                        <td>{formatDateTime(t.requestedAt ?? t.dateRequested)}</td>
+                        <td>{t.releasedAt || t.dateReleased ? formatDateTime(t.releasedAt ?? t.dateReleased) : '—'}</td>
                         <td>{t.assignedStaff}</td>
                         <td>{t.releasedBy || '—'}</td>
                         <td><span className="tr-or-number">{t.payment.orNumber || '—'}</span></td>

@@ -43,6 +43,7 @@ import { useReportsAnalytics } from '../hooks/useReportsAnalytics';
 import type { Transaction } from '../types/transaction';
 import type { TransactionRow, StatCardData, BadgeStatus } from '../types/dashboard';
 import { getDocumentTypeFromReference } from '../../utils/documentType';
+import { formatDateTime } from '../../utils/dateTime';
 
 
 import {
@@ -57,16 +58,6 @@ import type { VoidAmendRecord } from './VoidAndAmend';
 // Summary views). Mirrors the 'adept-active-view' pattern already used
 // below for activeView, so a page refresh doesn't fall back to RequestGuard.
 const COMPLETED_ENTRY_STORAGE_KEY = 'adept-completed-entry';
-
-// Helper to format date as "MM/DD/YYYY hh:mm AM/PM"
-const formatTransactionDateTime = (dateStr: string): string => {
-    try {
-        const d = new Date(dateStr);
-        return `${d.toLocaleDateString('en-US')} ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-    } catch {
-        return dateStr;
-    }
-};
 
 // YYYY-MM-DD (local) for the Dashboard Period date-range state. Defaults to
 // today, mirroring the old period selector's "Today" default.
@@ -89,7 +80,7 @@ const mapTransactionToRow = (t: Transaction): TransactionRow => {
         // The registry emits exactly the statuses in BadgeStatus — see
         // STATUS_MAP in request.service.js.
         status: t.status as BadgeStatus,
-        dateTime: formatTransactionDateTime(t.dateRequested),
+        dateTime: formatDateTime(t.requestedAt ?? t.dateRequested),
     };
 };
 
@@ -174,6 +165,21 @@ const formatLastLogin = (dateString?: string) => {
     } catch (e) {
         return dateString;
     }
+};
+
+// Real "last updated" label for the Analytics Overview card — built from the
+// actual registry fetch time (was hardcoded "Today • 2:45 PM" before).
+const formatLastUpdated = (fetchedAt: Date | null): string => {
+    if (!fetchedAt) return '…';
+    const today = new Date();
+    const isToday =
+        fetchedAt.getFullYear() === today.getFullYear() &&
+        fetchedAt.getMonth() === today.getMonth() &&
+        fetchedAt.getDate() === today.getDate();
+    const label = isToday
+        ? 'Today'
+        : fetchedAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    return `${label} • ${fetchedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
 };
 
 export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
@@ -308,7 +314,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     const recentTransactionsData: TransactionRow[] = useMemo(() => {
         return analytics.transactions
             .filter((t) => t.status === 'Released')
-            .sort((a, b) => new Date(b.dateRequested).getTime() - new Date(a.dateRequested).getTime())
+            .sort((a, b) => new Date(b.requestedAt ?? b.dateRequested).getTime() - new Date(a.requestedAt ?? a.dateRequested).getTime())
             .slice(0, 5)
             .map(mapTransactionToRow);
     }, [analytics.transactions]);
@@ -318,7 +324,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     // instead of only the 5 rows visible by default.
     const allTransactionsData: TransactionRow[] = useMemo(() => {
         return [...analytics.transactions]
-            .sort((a, b) => new Date(b.dateRequested).getTime() - new Date(a.dateRequested).getTime())
+            .sort((a, b) => new Date(b.requestedAt ?? b.dateRequested).getTime() - new Date(a.requestedAt ?? a.dateRequested).getTime())
             .map(mapTransactionToRow);
     }, [analytics.transactions]);
 
@@ -755,7 +761,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                                 isLoading={analytics.loading}
                             />
                             <div className="dashboard-row">
-                                <AnalyticsOverview data={analytics.weeklyTrend} lastUpdated="Today • 2:45 PM" />
+                                <AnalyticsOverview data={analytics.weeklyTrend} lastUpdated={formatLastUpdated(analytics.fetchedAt)} />
                                 <DocumentDistribution
                                     slices={analytics.documentDistribution}
                                     totalDocuments={analytics.totalDocuments}

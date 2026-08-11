@@ -141,6 +141,19 @@
   gap: 12px;
 }
 
+/* Live "Last updated" stamp — real fetch time from the analytics hook
+   (drives the Refresh button's promise of fresh data). */
+.reports-last-updated {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  background-color: var(--table-header-bg);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 9999px;
+  padding: 5px 12px;
+  white-space: nowrap;
+}
+
 /* ---------- Period toggle ---------- */
 
 .period-toggle {

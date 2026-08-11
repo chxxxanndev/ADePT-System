@@ -2,6 +2,20 @@ import { useMemo, useState } from 'react';
 import type { BadgeStatus, TransactionRow } from '../types/dashboard';
 import { SearchIcon } from './icons';
 import { ExpandableText } from './common/ExpandableText';
+import { getDocPillMeta, getDocumentTypeFromReference } from '../../utils/documentType';
+
+// Reference-number pill identical to the registry's tr-doc-pill — same
+// icon + document-type color (TD blue / LH gold / NLH red), so the Recent
+// Transactions card matches the Transaction Registry design.
+function RefNumberPill({ referenceNumber }: { referenceNumber: string }) {
+    const meta = getDocPillMeta(getDocumentTypeFromReference(referenceNumber) ?? '');
+    return (
+        <span className={`tr-doc-pill ${meta.className}`} title={referenceNumber}>
+            <meta.Icon />
+            {referenceNumber}
+        </span>
+    );
+}
 
 // Maps every status the registry emits to its badge bg/text pairing.
 const STATUS_STYLE: Record<BadgeStatus, string> = {
@@ -104,7 +118,9 @@ export function RecentTransactions({ rows, allRows, onViewAll, onRowClick, onSea
                                 title="Open in Transaction Registry"
                                 className={onRowClick ? 'transactions-table-row--clickable' : undefined}
                             >
-                                <td>{row.controlNumber}</td>
+                                <td>
+                                    <RefNumberPill referenceNumber={row.controlNumber} />
+                                </td>
                                 <td>
                                     <ExpandableText text={row.declarant} />
                                 </td>

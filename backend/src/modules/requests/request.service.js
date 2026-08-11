@@ -545,12 +545,20 @@ class RequestService {
                 property,
                 requestedDocuments: documentEntries,
                 dateRequested: r.request_date,
+                // Accurate timestamps for the UI. request_date is a plain
+                // `date` column (no time), so the real "requested" time comes
+                // from created_at (set by the DB at insert), and released_at
+                // is the full timestamptz recorded when status flips to
+                // RELEASED — both are surfaced alongside the date-only fields
+                // so the UI can show "MM/DD/YYYY hh:mm AM/PM" for both.
+                requestedAt: r.created_at || null,
                 // released_at is a timestamptz (e.g. "2026-01-15T08:23:00.000Z"),
                 // trimmed to just the date portion so it displays consistently
                 // alongside dateRequested (a plain `date` column). Set once by
                 // whatever handler flips status → Released via released_by, so
                 // (unlike updated_at) it won't drift on later unrelated edits.
                 dateReleased: r.released_at ? r.released_at.split('T')[0] : null,
+                releasedAt: r.released_at || null,
                 releasedBy: resolvedReleasedBy || null,
                 assignedStaff: r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : 'Unassigned',
                 status: STATUS_MAP[r.status] || 'Pending',

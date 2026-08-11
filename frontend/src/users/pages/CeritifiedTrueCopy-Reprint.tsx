@@ -10,6 +10,7 @@ import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
 import { ADePTSelect } from "../components/ADePTSelect";
 import { getDocPillMeta, getDocumentTypeFromReference, matchesDocumentType } from "../../utils/documentType";
 import type { DocumentTypeFilterValue } from "../../utils/documentType";
+import { formatDateTime } from "../../utils/dateTime";
 
 // Legend icons come from the shared documentType helper — the exact same
 // icons the reference-number pills render, so the legend key always matches
@@ -20,27 +21,16 @@ const NoLandholdingIcon = getDocPillMeta('No Land Holding').Icon;
 
 const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
-/* --- Helper to format dates for table display --- */
-function formatDate(dateStr: string): string {
-  if (!dateStr || dateStr === "—") return "—";
-  try {
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString("en-US", {
-      day: "2-digit", month: "short", year: "numeric"
-    });
-  } catch { return dateStr; }
-}
-
 const CTC_COLUMNS = [
   "Reference No.", "Declarant", "Original Doc", "OR Number",
-  "Justification", "Requested", "Released", "Released By", "Status", "Action",
+  "Justification", "Date Requested", "Date Released", "Released By", "Status", "Action",
 ];
 
 /** Total minimum table width (px) — below this the shared .tr-table-scroll
  *  container scrolls horizontally (the same pattern TransactionRegistry's
  *  REGISTRY_TABLE_MIN_WIDTH uses) instead of cramming all ten columns into
  *  the viewport and crushing the reference pills and status badges. */
-const CTC_TABLE_MIN_WIDTH = 1300;
+const CTC_TABLE_MIN_WIDTH = 1500;
 
 /* --- Summary skeleton (three compact cards — mirrors VoidAmendSummarySkeleton
    and uses the same tr-summary-grid--multi sizing as the loaded cards) --- */
@@ -141,8 +131,8 @@ export default function CertifiedTrueCopy({
         reference: t.referenceNumber,
         declarantName: t.client.declarantName,
         originalDocument: t.referenceNumber.replace(/-R\d+$/, ""),
-        dateRequested: formatDate(t.dateRequested),
-        dateReleased: t.dateReleased ? formatDate(t.dateReleased) : "—",
+        dateRequested: formatDateTime(t.requestedAt ?? t.dateRequested) || "—",
+        dateReleased: formatDateTime(t.releasedAt ?? t.dateReleased) || "—",
         releasedBy: t.releasedBy || "—",
         status: (
           t.status === "Released" ? "Released" :
@@ -402,14 +392,14 @@ export default function CertifiedTrueCopy({
               <table className="tr-table" style={{ minWidth: CTC_TABLE_MIN_WIDTH }}>
                 <thead>
                   <tr>
-                    <th style={{ width: '11%' }}>Reference No.</th>
-                    <th style={{ width: '11%' }}>Declarant</th>
+                    <th style={{ width: '240px' }}>Reference No.</th>
+                    <th style={{ width: '12%' }}>Declarant</th>
                     <th style={{ width: '12%' }}>Original Doc</th>
-                    <th style={{ width: '11%' }}>OR Number</th>
-                    <th style={{ width: '12%' }}>Justification</th>
-                    <th style={{ width: '10%' }}>Requested</th>
-                    <th style={{ width: '10%' }}>Released</th>
-                    <th style={{ width: '10%' }}>Released By</th>
+                    <th style={{ width: '10%' }}>OR Number</th>
+                    <th style={{ width: '11%' }}>Justification</th>
+                    <th style={{ width: '14%' }}>Date Requested</th>
+                    <th style={{ width: '14%' }}>Date Released</th>
+                    <th style={{ width: '9%' }}>Released By</th>
                     <th style={{ width: '8%' }}>Status</th>
                     <th style={{ width: '7%', textAlign: 'center' }}>Action</th>
                   </tr>

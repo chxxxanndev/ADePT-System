@@ -29,6 +29,7 @@ import { useReportsAnalytics } from "../hooks/useReportsAnalytics";
 import { ExpandableText } from "../components/common/ExpandableText";
 import { getDocPillMeta } from "../../utils/documentType";
 import type { DocumentTypeFilterValue } from "../../utils/documentType";
+import { formatDateTime } from "../../utils/dateTime";
 import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
 import { ADePTSelect } from "../components/ADePTSelect";
 import { SkeletonBox } from "../components/common/Skeleton";
@@ -522,6 +523,9 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
             </p>
           </div>
           <div className="reports-header-actions">
+            <span className="reports-last-updated" title="Time the data shown here was last fetched from the registry">
+              Last updated: {analytics.fetchedAt ? formatDateTime(analytics.fetchedAt.toISOString()) : '…'}
+            </span>
             <button
               className={`tr-refresh-btn${analytics.isRefreshing ? " is-spinning" : ""}`}
               onClick={analytics.refetch}

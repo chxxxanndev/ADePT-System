@@ -12,13 +12,21 @@ const COLOR_MAP: Record<DocumentDistributionSlice['color'], { fill: string; dot:
     red: { fill: '#EF4444', dot: '#EF4444' },
 };
 
+// Bigger canvas + thicker ring so every count label fits INSIDE its slice.
+const RADIUS_INNER = 46;
+const RADIUS_OUTER = 112;
+const CENTER = 130;
+
+// A slice this big has enough arc room on the ring for its count label.
+const MIN_PERCENT_FOR_LABEL = 6;
+
 function getThickDonutPath(
     startPercent: number,
     endPercent: number,
-    rInner = 28,
-    rOuter = 82,
-    cx = 100,
-    cy = 100
+    rInner = RADIUS_INNER,
+    rOuter = RADIUS_OUTER,
+    cx = CENTER,
+    cy = CENTER
 ) {
     const slicePercent = endPercent - startPercent;
     if (slicePercent <= 0) return '';
@@ -47,11 +55,6 @@ function getThickDonutPath(
 export function DocumentDistribution({ slices, totalDocuments }: DocumentDistributionProps) {
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-    const rInner = 28;
-    const rOuter = 82;
-    const cx = 100;
-    const cy = 100;
-
     let cumulative = 0;
     const chartSlices = slices.map((slice, index) => {
         const startPercent = cumulative;
@@ -60,21 +63,22 @@ export function DocumentDistribution({ slices, totalDocuments }: DocumentDistrib
         const endPercent = cumulative;
 
         const midAngle = ((startPercent + endPercent) / 2) * 2 * Math.PI - Math.PI / 2;
-        const rMid = (rInner + rOuter) / 2;
-        const textX = cx + rMid * Math.cos(midAngle);
-        const textY = cy + rMid * Math.sin(midAngle);
+        const rMid = (RADIUS_INNER + RADIUS_OUTER) / 2;
 
         return {
             ...slice,
             index,
             startPercent,
             endPercent,
-            path: getThickDonutPath(startPercent, endPercent, rInner, rOuter, cx, cy),
-            textX,
-            textY,
-            showLabel: slice.percentage >= 4,
+            path: getThickDonutPath(startPercent, endPercent),
+            labelX: CENTER + rMid * Math.cos(midAngle),
+            labelY: CENTER + rMid * Math.sin(midAngle),
+            canFitLabel: slice.percentage >= MIN_PERCENT_FOR_LABEL,
         };
     });
+
+    const isEmpty = totalDocuments <= 0;
+    const trackPath = getThickDonutPath(0, 1);
 
     return (
         <div className="dashboard-card donut-card-enhanced">
@@ -83,54 +87,104 @@ export function DocumentDistribution({ slices, totalDocuments }: DocumentDistrib
             </div>
 
             <div className="donut-wrapper">
-                <svg width="200" height="200" viewBox="0 0 200 200" className="donut-svg">
+                <svg width="260" height="260" viewBox="0 0 260 260" className="donut-svg">
                     <filter id="donut-shadow" x="-10%" y="-10%" width="120%" height="120%">
-                        <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#29237A" floodOpacity="0.10" />
+                        <feDropShadow dx="0" dy="5" stdDeviation="5" floodColor="#29237A" floodOpacity="0.12" />
                     </filter>
-                    <g filter="url(#donut-shadow)">
-                        {chartSlices.map((slice) => {
-                            if (!slice.path) return null;
-                            const isHovered = hoveredIndex === slice.index;
-                            const colors = COLOR_MAP[slice.color];
-                            return (
-                                <g key={slice.label}>
-                                    <path
-                                        d={slice.path}
-                                        fill={colors.fill}
-                                        stroke="#ffffff"
-                                        strokeWidth="4"
-                                        strokeLinejoin="round"
-                                        style={{
-                                            transition: 'transform 0.22s ease, opacity 0.22s ease',
-                                            transformOrigin: '100px 100px',
-                                            transform: isHovered ? 'scale(1.04)' : 'scale(1)',
-                                            opacity: hoveredIndex === null || isHovered ? 1 : 0.6,
-                                            cursor: 'pointer',
-                                        }}
-                                        onMouseEnter={() => setHoveredIndex(slice.index)}
-                                        onMouseLeave={() => setHoveredIndex(null)}
-                                    />
-                                    {slice.showLabel && (
-                                        <text
-                                            x={slice.textX}
-                                            y={slice.textY + 4}
-                                            textAnchor="middle"
-                                            fill="#ffffff"
-                                            fontSize="13"
-                                            fontWeight="700"
+
+                    <g>
+                        {/* Neutral track ring — keeps the donut shape even when
+                            one slice dominates or no data exists yet. */}
+                        <path d={trackPath} fill="#EEF1F6" />
+
+                        <g filter="url(#donut-shadow)">
+                            {chartSlices.map((slice) => {
+                                if (!slice.path || slice.percentage <= 0) return null;
+                                const isHovered = hoveredIndex === slice.index;
+                                const colors = COLOR_MAP[slice.color];
+                                const dimmed = hoveredIndex !== null && !isHovered;
+                                return (
+                                    <g key={slice.label}>
+                                        <path
+                                            d={slice.path}
+                                            fill={colors.fill}
+                                            stroke="#ffffff"
+                                            strokeWidth="4"
+                                            strokeLinejoin="round"
                                             style={{
-                                                pointerEvents: 'none',
-                                                userSelect: 'none',
-                                                transition: 'opacity 0.2s ease',
-                                                opacity: hoveredIndex === null || isHovered ? 1 : 0.7,
+                                                transition: 'transform 0.22s ease, opacity 0.22s ease',
+                                                transformOrigin: `${CENTER}px ${CENTER}px`,
+                                                transform: isHovered ? 'scale(1.04)' : 'scale(1)',
+                                                opacity: dimmed ? 0.55 : 1,
+                                                cursor: 'pointer',
                                             }}
-                                        >
-                                            {slice.percentage}%
-                                        </text>
-                                    )}
-                                </g>
-                            );
-                        })}
+                                            onMouseEnter={() => setHoveredIndex(slice.index)}
+                                            onMouseLeave={() => setHoveredIndex(null)}
+                                        />
+
+                                        {/* Count label INSIDE the slice — the thick
+                                            ring + large canvas keeps these legible. */}
+                                        {slice.canFitLabel && (
+                                            <text
+                                                x={slice.labelX}
+                                                y={slice.labelY + 5}
+                                                textAnchor="middle"
+                                                fill="#ffffff"
+                                                fontSize="17"
+                                                fontWeight="800"
+                                                style={{
+                                                    pointerEvents: 'none',
+                                                    userSelect: 'none',
+                                                    transition: 'opacity 0.2s ease',
+                                                    opacity: dimmed ? 0.55 : 1,
+                                                }}
+                                            >
+                                                {slice.count.toLocaleString()}
+                                            </text>
+                                        )}
+                                    </g>
+                                );
+                            })}
+                        </g>
+
+                        {/* Center stat — the overall total sits in the hole,
+                            leaving all slice numbers fully visible. */}
+                        {isEmpty ? (
+                            <text
+                                x={CENTER}
+                                y={CENTER + 5}
+                                textAnchor="middle"
+                                fontSize="11"
+                                fontWeight="600"
+                                fill="#94A3B8"
+                            >
+                                No data yet
+                            </text>
+                        ) : (
+                            <>
+                                <text
+                                    x={CENTER}
+                                    y={CENTER - 2}
+                                    textAnchor="middle"
+                                    fontSize="22"
+                                    fontWeight="800"
+                                    fill="#29237A"
+                                >
+                                    {totalDocuments.toLocaleString()}
+                                </text>
+                                <text
+                                    x={CENTER}
+                                    y={CENTER + 17}
+                                    textAnchor="middle"
+                                    fontSize="9"
+                                    fontWeight="700"
+                                    fill="#94A3B8"
+                                    letterSpacing="1.2"
+                                >
+                                    DOCUMENTS
+                                </text>
+                            </>
+                        )}
                     </g>
                 </svg>
             </div>
@@ -150,7 +204,7 @@ export function DocumentDistribution({ slices, totalDocuments }: DocumentDistrib
                             <span className="legend-label">{slice.label}</span>
                             <span className="legend-badge">
                                 <span className="legend-pct" style={{ color: colors.dot }}>{slice.percentage}%</span>
-                                <span className="legend-count">({slice.count})</span>
+                                <span className="legend-count">{slice.count.toLocaleString()}</span>
                             </span>
                         </div>
                     );
@@ -164,7 +218,3 @@ export function DocumentDistribution({ slices, totalDocuments }: DocumentDistrib
         </div>
     );
 }
-
-
-
-

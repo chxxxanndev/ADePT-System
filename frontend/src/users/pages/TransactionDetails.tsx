@@ -31,7 +31,13 @@ function fmt(dateStr: string | null | undefined): string {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: '2-digit' });
+    const datePart = d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: '2-digit' });
+    // Only append a time when the source actually carries one (full
+    // timestamps like created_at / released_at) — date-only values
+    // mustn't render a fake locale-shifted clock.
+    const hasTime = /[T ]\d{1,2}:\d{2}/.test(dateStr) && !/^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+    if (!hasTime) return datePart;
+    return `${datePart} ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
 }
 
 function dash(val: string | number | null | undefined): string {
@@ -120,7 +126,7 @@ function ReprintHistoryList({
                     <span className="td-reprint-history-status">
                         {reprintTxn
                             ? reprintTxn.status === 'Released'
-                                ? `Released ${fmt(reprintTxn.dateReleased)}`
+                                ? `Released ${fmt(reprintTxn.releasedAt ?? reprintTxn.dateReleased)}`
                                 : reprintTxn.status
                             : 'Not yet on record'}
                     </span>
@@ -579,10 +585,10 @@ export function TransactionDetails({
                                             )}
                                         </div>
                                         <div className="td-header-sub" style={{ color: '#7A76A8' }}>
-                                            Assigned to {t.assignedStaff} &nbsp;·&nbsp; Requested {fmt(t.dateRequested)}
-                                            {t.dateReleased && (
+                                            Assigned to {t.assignedStaff} &nbsp;·&nbsp; Requested {fmt(t.requestedAt ?? t.dateRequested)}
+                                            {(t.releasedAt || t.dateReleased) && (
                                                 <>
-                                                    &nbsp;·&nbsp; Released {fmt(t.dateReleased)}
+                                                    &nbsp;·&nbsp; Released {fmt(t.releasedAt ?? t.dateReleased)}
                                                     {t.releasedBy && <> by {t.releasedBy}</>}
                                                 </>
                                             )}
@@ -705,7 +711,7 @@ export function TransactionDetails({
                                             </div>
                                             <div>
                                                 <div className="td-field-label">Date Requested</div>
-                                                <div className="td-field-value">{fmt(t.dateRequested)}</div>
+                                                <div className="td-field-value">{fmt(t.requestedAt ?? t.dateRequested)}</div>
                                             </div>
                                         </div>
                                         <div>
@@ -715,7 +721,7 @@ export function TransactionDetails({
                                             </div>
                                             <div>
                                                 <div className="td-field-label">Date Released</div>
-                                                <div className="td-field-value">{fmt(t.dateReleased)}</div>
+                                                <div className="td-field-value">{fmt(t.releasedAt ?? t.dateReleased)}</div>
                                             </div>
                                         </div>
                                         <div style={{ gridColumn: '1 / -1' }}>

@@ -32,6 +32,7 @@ import {
     matchesDocumentType,
     type DocumentTypeFilterValue,
 } from '../../utils/documentType';
+import { hasTimeComponent } from '../../utils/dateTime';
 
 // ─── Period-bucketed metric ────────────────────────────────────────────────
 export interface PeriodMetric {
@@ -113,6 +114,9 @@ export interface ReportsAnalyticsData {
      *  mirroring TransactionRegistry's isRefreshing behavior. */
     isRefreshing: boolean;
     error: string | null;
+    /** Wall-clock time the registry data currently on screen was fetched —
+     *  drives the "Last updated" stamps instead of hardcoded labels. */
+    fetchedAt: Date | null;
     /** Re-run the registry fetch (e.g. after an error, or a "Retry" click) */
     refetch: () => void;
 }
@@ -191,12 +195,22 @@ function countByDocType(txns: Transaction[], docType: string, pred: (t: Transact
     )).length;
 }
 
-/** Formats a Date as "DD Mon YYYY · HH:MM AM/PM" matching the Reports table style. */
+/** True "release" timestamp for a transaction: the full released_at when
+    present (accurate time + date), falling back to the date-only columns. */
+function releaseDateOf(t: Transaction): string {
+    return t.releasedAt ?? t.dateReleased ?? t.dateRequested;
+}
+
+/** Formats a release date as "DD Mon YYYY" — with "· HH:MM AM/PM" appended
+    only when the source string actually carries a time (full timestamps like
+    released_at), so a date-only fallback never shows a fake fixed clock
+    (parsing "2026-08-11" as UTC midnight renders 8:00 AM in UTC+8). */
 function formatReleaseDate(iso: string): string {
     const d = new Date(iso);
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-        + ' · '
-        + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    if (isNaN(d.getTime())) return iso;
+    const datePart = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    if (!hasTimeComponent(iso)) return datePart;
+    return datePart + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
 /** Builds a period-over-period trend, guarding against divide-by-zero. */
@@ -228,7 +242,9 @@ function buildWeeklyTrend(released: Transaction[]): WeeklyTrendPoint[] {
     return buckets.map(b => ({
         label: b.label,
         value: released.filter(t => {
-            const d = new Date(t.dateRequested);
+            // Bucket by the actual release time — a document released this
+            // week must count in this week even if its request was older.
+            const d = new Date(releaseDateOf(t));
             return d >= b.start && d <= b.end;
         }).length,
     }));
@@ -241,6 +257,7 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
     const [loading, setLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
     const [refetchToken, setRefetchToken] = useState(0);
     // Mirrors TransactionRegistry: the first fetch shows skeletons; a
     // re-fetch while data is already on screen keeps the data visible.
@@ -257,6 +274,7 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
             .then(data => {
                 if (cancelled) return;
                 setTransactions(data);
+                setFetchedAt(new Date());
                 hasLoadedRef.current = true;
             })
             .catch(err => {
@@ -278,7 +296,7 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
     // declarant rows) reflects the selected type. Detection is purely
     // reference-prefix based (getDocumentTypeFromReference); 'All' matches
     // every record, so the default behavior is unchanged.
-    const data = useMemo((): Omit<ReportsAnalyticsData, 'loading' | 'isRefreshing' | 'error' | 'refetch'> => {
+    const data = useMemo((): Omit<ReportsAnalyticsData, 'loading' | 'isRefreshing' | 'error' | 'refetch' | 'fetchedAt'> => {
         const filtered = transactions.filter(t => matchesDocumentType(t.referenceNumber, documentType));
         const released = filtered.filter(t => t.status === 'Released');
         const voided = filtered.filter(t => t.status === 'Void');
@@ -290,12 +308,16 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
         );
 
         // ── Period metrics ────────────────────────────────────────────
-        const releasedToday = released.filter(t => isToday(t.dateRequested)).length;
-        const releasedYesterday = released.filter(t => isYesterday(t.dateRequested)).length;
-        const releasedWeek = released.filter(t => isThisWeek(t.dateRequested)).length;
-        const releasedLastWeek = released.filter(t => isLastWeek(t.dateRequested)).length;
-        const releasedMonth = released.filter(t => isThisMonth(t.dateRequested)).length;
-        const releasedLastMonth = released.filter(t => isLastMonth(t.dateRequested)).length;
+        // "Released" counts bucket by the real release time (releasedAt /
+        // dateReleased), NOT the request date, so e.g. "Released Today" is
+        // genuinely documents released today even when they were requested
+        // earlier. Pending/total-request figures keep request-date bucketing.
+        const releasedToday = released.filter(t => isToday(releaseDateOf(t))).length;
+        const releasedYesterday = released.filter(t => isYesterday(releaseDateOf(t))).length;
+        const releasedWeek = released.filter(t => isThisWeek(releaseDateOf(t))).length;
+        const releasedLastWeek = released.filter(t => isLastWeek(releaseDateOf(t))).length;
+        const releasedMonth = released.filter(t => isThisMonth(releaseDateOf(t))).length;
+        const releasedLastMonth = released.filter(t => isLastMonth(releaseDateOf(t))).length;
 
         const totalToday = filtered.filter(t => isToday(t.dateRequested)).length;
         const totalYesterday = filtered.filter(t => isYesterday(t.dateRequested)).length;
@@ -304,9 +326,9 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
         const totalMonth = filtered.filter(t => isThisMonth(t.dateRequested)).length;
         const totalLastMonth = filtered.filter(t => isLastMonth(t.dateRequested)).length;
 
-        const tdToday = countByDocType(released, 'Tax Declaration', t => isToday(t.dateRequested));
-        const tdWeek = countByDocType(released, 'Tax Declaration', t => isThisWeek(t.dateRequested));
-        const tdMonth = countByDocType(released, 'Tax Declaration', t => isThisMonth(t.dateRequested));
+        const tdToday = countByDocType(released, 'Tax Declaration', t => isToday(releaseDateOf(t)));
+        const tdWeek = countByDocType(released, 'Tax Declaration', t => isThisWeek(releaseDateOf(t)));
+        const tdMonth = countByDocType(released, 'Tax Declaration', t => isThisMonth(releaseDateOf(t)));
 
         // Reprinted documents: sum all reprintCounts
         const reprintedCount = filtered.reduce((sum, t) =>
@@ -395,7 +417,7 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
                 initials,
                 avatarColor: '#29237A',
                 documentRequested: docTypes,
-                dateReleased: t.status === 'Released' ? formatReleaseDate(t.dateRequested) : '—',
+                dateReleased: t.status === 'Released' ? formatReleaseDate(releaseDateOf(t)) : '—',
                 staffReleased: t.assignedStaff || '—',
                 encodedBy: t.assignedStaff || '—',
                 status: t.status,
@@ -434,5 +456,5 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
         };
     }, [transactions, documentType]);
 
-    return { ...data, loading, isRefreshing, error, refetch };
+    return { ...data, loading, isRefreshing, error, refetch, fetchedAt };
 }
