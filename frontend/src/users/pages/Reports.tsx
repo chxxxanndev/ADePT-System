@@ -265,7 +265,7 @@ function ReportsReprintSkeleton() {
 const REPORTS_TABLE_COLUMNS = [
   "Reference No.",
   "Declarant",
-  "Date Released",
+  "Date & Time Released",
   "Released / Assisted By",
   "Encoded By",
   "Status",
@@ -387,7 +387,7 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
         "Reference No.",
         "Declarant",
         "Document Requested",
-        "Date Released",
+        "Date & Time Released",
         "Released / Assisted By",
         "Encoded By",
         "Status",
@@ -822,7 +822,7 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
                     <tr>
                       <th>Reference No.</th>
                       <th>Declarant</th>
-                      <th>Date Released</th>
+                      <th>Date &amp; Time Released</th>
                       <th>Released / Assisted By</th>
                       <th>Encoded By</th>
                       <th>Status</th>

@@ -23,7 +23,7 @@ const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
 const CTC_COLUMNS = [
   "Reference No.", "Declarant", "Original Doc", "OR Number",
-  "Justification", "Date Requested", "Date Released", "Released By", "Status", "Action",
+  "Justification", "Date & Time Requested", "Date & Time Released", "Released By", "Status", "Action",
 ];
 
 /** Total minimum table width (px) — below this the shared .tr-table-scroll
@@ -397,8 +397,8 @@ export default function CertifiedTrueCopy({
                     <th style={{ width: '12%' }}>Original Doc</th>
                     <th style={{ width: '10%' }}>OR Number</th>
                     <th style={{ width: '11%' }}>Justification</th>
-                    <th style={{ width: '14%' }}>Date Requested</th>
-                    <th style={{ width: '14%' }}>Date Released</th>
+                    <th style={{ width: '14%' }}>Date &amp; Time Requested</th>
+                    <th style={{ width: '14%' }}>Date &amp; Time Released</th>
                     <th style={{ width: '9%' }}>Released By</th>
                     <th style={{ width: '8%' }}>Status</th>
                     <th style={{ width: '7%', textAlign: 'center' }}>Action</th>
