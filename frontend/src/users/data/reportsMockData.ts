@@ -133,9 +133,18 @@ export interface DeclarantRecord {
 // ── Reprinted Documents (per-declarant reprint totals for issuance
 //    transparency — aggregating reprintCount across all of a declarant's
 //    transactions, see useReportsAnalytics) ──
+export interface DeclarantReprintDocument {
+    documentType: string;
+    count: number;
+}
+
 export interface DeclarantReprint {
     declarantName: string;
     count: number;
+    /** Reprint totals broken down by document type (only types with at
+     *  least one reprint, sorted by count descending) so the Reports card
+     *  can show exactly which documents were reprinted per declarant. */
+    documents: DeclarantReprintDocument[];
 }
 
 export const declarantRecords: DeclarantRecord[] = [

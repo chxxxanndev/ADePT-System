@@ -315,20 +315,31 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
 
         // Per-declarant reprint totals — keyed by declarant name so the
         // head can track total issuance (a declarant may hold multiple
-        // transactions; reprints from all of them are combined here).
-        const reprintsByDeclarant = new Map<string, number>();
+        // transactions; reprints from all of them are combined here). Each
+        // declarant's total is also broken down by document type so the
+        // Reports card can show exactly which documents were reprinted.
+        const reprintsByDeclarant = new Map<string, { count: number; byDoc: Map<string, number> }>();
         for (const t of filtered) {
-            const reprints = t.requestedDocuments.reduce((s, d) => s + (d.reprintCount || 0), 0);
-            if (reprints > 0) {
-                reprintsByDeclarant.set(
-                    t.client.declarantName,
-                    (reprintsByDeclarant.get(t.client.declarantName) ?? 0) + reprints
-                );
+            for (const d of t.requestedDocuments) {
+                const reprints = d.reprintCount || 0;
+                if (reprints <= 0) continue;
+                const entry =
+                    reprintsByDeclarant.get(t.client.declarantName) ??
+                    { count: 0, byDoc: new Map<string, number>() };
+                entry.count += reprints;
+                entry.byDoc.set(d.documentType, (entry.byDoc.get(d.documentType) ?? 0) + reprints);
+                reprintsByDeclarant.set(t.client.declarantName, entry);
             }
         }
         const reprintedDocumentsByDeclarant: DeclarantReprint[] =
             [...reprintsByDeclarant.entries()]
-                .map(([declarantName, count]) => ({ declarantName, count }))
+                .map(([declarantName, { count, byDoc }]) => ({
+                    declarantName,
+                    count,
+                    documents: [...byDoc.entries()]
+                        .map(([documentType, c]) => ({ documentType, count: c }))
+                        .sort((a, b) => b.count - a.count),
+                }))
                 .sort((a, b) => b.count - a.count);
 
         // ── Weekly trend ──────────────────────────────────────────────

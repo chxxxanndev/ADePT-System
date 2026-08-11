@@ -73,6 +73,25 @@ const STATUS_CLASS: Record<TransactionStatus, string> = {
   "Ready for Release": "status-badge--pending-payment",
 };
 
+// Per-document-type fill colors for the Reprinted Documents card — each
+// declarant's breakdown bar takes the color of its document-type pill so
+// the composition reads at a glance (matchers getDocPillMeta's classes).
+const REPRINT_FILL_CLASS: Record<string, string> = {
+  "tr-doc-pill--td": "reprints-bar-fill--td",
+  "tr-doc-pill--lh": "reprints-bar-fill--lh",
+  "tr-doc-pill--nlh": "reprints-bar-fill--nlh",
+};
+
+/** Two-letter initials from a declarant name (mirrors the hook's avatar logic). */
+function initialsOf(name: string): string {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join("");
+}
+
 // FIX: pagination options for the Declarant Records table, mirroring
 // TransactionTable.tsx's ROWS_PER_PAGE_OPTIONS so behavior/labels match
 // across the app (see TransactionRegistry's "Rows per page" control).
@@ -402,18 +421,23 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
       }));
       XLSX.utils.book_append_sheet(wb, ws, "Declarant Records");
 
-      // Second sheet: per-declarant reprint totals (mirrors the card).
+      // Second sheet: per-declarant reprint totals broken down by document
+      // type (mirrors the card).
       const reprintAoa: (string | number)[][] = [
         ["Reprinted Documents by Declarant"],
         [`Exported: ${new Date().toLocaleString()}`],
         [],
-        ["Declarant", "Reprinted Documents"],
-        ...analytics.reprintedDocumentsByDeclarant.map((r) => [r.declarantName, r.count]),
+        ["Declarant", "Document Type", "Reprints"],
+        ...analytics.reprintedDocumentsByDeclarant.flatMap((r) =>
+          r.documents.length > 0
+            ? r.documents.map((d) => [r.declarantName, d.documentType, d.count])
+            : [[r.declarantName, "—", r.count]]
+        ),
         [],
-        ["Total Reprints", analytics.reprintedCount],
+        ["Total Reprints", "", analytics.reprintedCount],
       ];
       const wsReprints = XLSX.utils.aoa_to_sheet(reprintAoa);
-      wsReprints["!cols"] = [{ wch: 30 }, { wch: 22 }];
+      wsReprints["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 10 }];
       XLSX.utils.book_append_sheet(wb, wsReprints, "Reprinted Documents");
 
       const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
@@ -435,9 +459,9 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
 
   // FIX: pagination for the Reprinted Documents by Declarant card — the
   // list can grow large (one row per declarant with reprints), so cap the
-  // visible rows and page through the rest. Bar widths stay relative to
-  // the GLOBAL maximum (not the current page's max) so bars remain
-  // comparable across pages.
+  // visible rows and page through the rest. Each row's breakdown bars are
+  // relative to that declarant's own top document type, so bars stay
+  // readable regardless of page size.
   const REPRINTS_PER_PAGE = 8;
   const [reprintsPage, setReprintsPage] = useState(1);
 
@@ -451,8 +475,6 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
     const start = (currentReprintPage - 1) * REPRINTS_PER_PAGE;
     return analytics.reprintedDocumentsByDeclarant.slice(start, start + REPRINTS_PER_PAGE);
   }, [analytics.reprintedDocumentsByDeclarant, currentReprintPage]);
-
-  const maxReprintCount = analytics.reprintedDocumentsByDeclarant[0]?.count ?? 0;
 
   // Numbered page window: "1 … (current ±2) … N" — the total page count can
   // grow large with many declarants, so far pages collapse into ellipses.
@@ -575,8 +597,10 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
 
             {/* Reprinted Documents by Declarant — per-declarant reprint
                 totals (summed across all of a declarant's transactions)
-                so the head can track total issuance. The grand total in
-                the header comes from the same reprintCounts. */}
+                so the head can track total issuance. Each row breaks the
+                reprints down by document type (color-coded bars). The
+                grand total in the header comes from the same
+                reprintCounts. */}
             <div className="chart-card">
               <div className="chart-header">
                 <h2 className="chart-title">Reprinted Documents by Declarant</h2>
@@ -590,24 +614,66 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
               ) : (
                 <>
                   <div className="reprints-list">
-                    {reprintPageItems.map((r) => (
-                      <div key={r.declarantName} className="reprints-row">
-                        <span className="reprints-name" title={r.declarantName}>
-                          {r.declarantName}
-                        </span>
-                        <span className="reprints-bar-track">
-                          <span
-                            className="reprints-bar-fill"
-                            style={{
-                              width: `${maxReprintCount > 0
-                                ? Math.round((r.count / maxReprintCount) * 100)
-                                : 0}%`,
-                            }}
-                          />
-                        </span>
-                        <span className="reprints-count">{r.count.toLocaleString()}</span>
-                      </div>
-                    ))}
+                    {reprintPageItems.map((r) => {
+                      const maxDoc = Math.max(
+                        ...r.documents.map((d) => d.count),
+                        1
+                      );
+                      return (
+                        <div key={r.declarantName} className="reprints-row">
+                          <div className="reprints-head">
+                            <span className="reprints-avatar" aria-hidden="true">
+                              {initialsOf(r.declarantName)}
+                            </span>
+                            <span className="reprints-name" title={r.declarantName}>
+                              {r.declarantName}
+                            </span>
+                            <span className="reprints-total" title="Total reprinted documents">
+                              {r.count.toLocaleString()}
+                              <span className="reprints-total-label">
+                                reprint{r.count === 1 ? "" : "s"}
+                              </span>
+                            </span>
+                          </div>
+                          {r.documents.length > 0 && (
+                            <div className="reprints-docs">
+                              {r.documents.map((doc) => {
+                                const pill = getDocPillMeta(doc.documentType);
+                                const fillClass =
+                                  REPRINT_FILL_CLASS[pill.className] ??
+                                  "reprints-bar-fill--generic";
+                                return (
+                                  <div key={doc.documentType} className="reprints-doc">
+                                    <div className="reprints-doc-top">
+                                      <span
+                                        className={`reprints-doc-pill ${pill.className}`}
+                                        title={doc.documentType}
+                                      >
+                                        <pill.Icon />
+                                        {doc.documentType}
+                                      </span>
+                                      <span className="reprints-doc-count">
+                                        ×{doc.count.toLocaleString()}
+                                      </span>
+                                    </div>
+                                    <span className="reprints-bar-track">
+                                      <span
+                                        className={`reprints-bar-fill ${fillClass}`}
+                                        style={{
+                                          width: `${Math.round(
+                                            (doc.count / maxDoc) * 100
+                                          )}%`,
+                                        }}
+                                      />
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   {analytics.reprintedDocumentsByDeclarant.length > REPRINTS_PER_PAGE && (
                     <div className="reprints-pagination">

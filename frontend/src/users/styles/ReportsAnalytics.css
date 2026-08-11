@@ -339,23 +339,136 @@
 .reprints-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
   margin-top: 16px;
 }
 
 .reprints-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(140px, 280px) 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Declarant header: avatar + name + total reprints */
+.reprints-head {
+  display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
+  min-width: 0;
+}
+
+.reprints-avatar {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, var(--color-primary), #3b3492);
+  color: #ffffff;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .reprints-name {
+  flex: 1;
+  min-width: 0;
   font-size: 0.86rem;
   font-weight: 600;
   color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reprints-total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.reprints-total-label {
+  font-size: 0.64rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted-light);
+}
+
+/* Per-document-type breakdown — chips + color-coded bars. Layout lives
+   here; chip colors come from the shared tr-doc-pill--* variants so a doc
+   type reads the same on the Declarant Records table and in this card.
+   The combined selectors below win over both this file's base rule and
+   TransactionRegistry.css's single-class variants regardless of
+   stylesheet order. */
+.reprints-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-left: 40px;
+}
+
+.reprints-doc {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.reprints-doc-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.reprints-doc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  border: 1px solid var(--glass-border);
+  background-color: var(--color-surface);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.reprints-doc-pill svg {
+  flex-shrink: 0;
+}
+
+.reprints-doc-pill.tr-doc-pill--td {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.reprints-doc-pill.tr-doc-pill--lh {
+  background-color: #fef9c3;
+  color: #854d0e;
+  border-color: #fde68a;
+}
+
+.reprints-doc-pill.tr-doc-pill--nlh {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.reprints-doc-count {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--color-muted);
   white-space: nowrap;
 }
 
@@ -372,14 +485,20 @@
   border-radius: 9999px;
   background: linear-gradient(90deg, var(--color-secondary), var(--color-secondary-hover));
   min-width: 4px;
+  transition: width 0.3s ease;
 }
 
-.reprints-count {
-  font-size: 0.86rem;
-  font-weight: 800;
-  color: var(--color-primary);
-  text-align: right;
-  white-space: nowrap;
+/* Breakdown-bar colors keyed to the doc-type pills above. */
+.reprints-bar-fill--td {
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+}
+
+.reprints-bar-fill--lh {
+  background: linear-gradient(90deg, #facc15, #ca8a04);
+}
+
+.reprints-bar-fill--nlh {
+  background: linear-gradient(90deg, #f87171, #dc2626);
 }
 
 .reprints-empty {
