@@ -7,12 +7,23 @@ import { supabaseAdmin } from '../../config/supabaseAdmin.js';
  * policies, and it never touches session state so it's safe on the shared
  * admin client.
  */
+
+// Staff accounts whose activity should never be written to audit_log
+const EXCLUDED_ACTOR_IDS = new Set([
+  'ad794ba9-1e22-4d49-9523-db5b2c6e7b52', // ADePT Development Team (dev account)
+]);
+
 class AuditLogService {
   /**
    * Resolves the acting staff member's id/name/role, then inserts a row.
    * Accepts EITHER an already-resolved staffId (from a requireAuth that
    * sets req.staffId) OR a raw Supabase auth user id (from a requireAuth
    * that only sets req.user.id) — whichever the calling controller has.
+   *
+   * Accounts listed in EXCLUDED_ACTOR_IDS are resolved as normal (so we
+   * still know who they are) but no row is written to audit_log for them —
+   * this silently no-ops and returns null instead of throwing, since
+   * callers generally fire-and-forget this call.
    */
   async createEntry({ actorStaffId, actorAuthId, type, description, details }) {
     if (!type || !description) {
@@ -34,6 +45,11 @@ class AuditLogService {
     const { data: staff, error: staffErr } = await staffQuery.single();
     if (staffErr || !staff) {
       throw new Error('Could not resolve the acting staff member.');
+    }
+
+    // Skip writing an audit_log row entirely for excluded accounts.
+    if (EXCLUDED_ACTOR_IDS.has(staff.id)) {
+      return null;
     }
 
     const actorName = `${staff.first_name} ${staff.last_name}`.trim();
