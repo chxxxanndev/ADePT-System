@@ -562,6 +562,12 @@ class RequestService {
                 releasedBy: resolvedReleasedBy || null,
                 assignedStaff: r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : 'Unassigned',
                 status: STATUS_MAP[r.status] || 'Pending',
+                // Raw backend status (e.g. PENDING_PAYMENT, DRAFT, PAID) —
+                // the mapped label above collapses several raw statuses into
+                // one word ("Pending" covers both DRAFT and PENDING_PAYMENT),
+                // so consumers that need to count a specific stage exactly
+                // (e.g. the Pending Payments queue) read this instead.
+                statusRaw: r.status,
                 payment: {
                     orNumber: r.or_number || null,
                     amountDue,

@@ -158,6 +158,12 @@ export interface Transaction {
     releasedBy?: string | null;
     assignedStaff: string;
     status: TransactionStatus;
+    /** Raw backend status (e.g. PENDING_PAYMENT, DRAFT, PAID). The mapped
+     *  `status` above collapses several raw statuses into one label
+     *  ("Pending" covers both DRAFT and PENDING_PAYMENT), so consumers that
+     *  need to count a specific stage exactly (e.g. the Pending Payments
+     *  queue) read this instead. Absent on older cached responses. */
+    statusRaw?: string;
     payment: PaymentInfo;
     generatedDocuments: GeneratedDocument[];
     activityTimeline: ActivityLogEntry[];
