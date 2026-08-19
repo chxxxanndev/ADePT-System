@@ -81,7 +81,11 @@ export interface ReportsAnalyticsData {
     totalRequestsAll: number;
     /** Tax Declaration counts by period */
     taxDeclarationCounts: PeriodMetric;
-    /** Live count of non-terminal (pending / processing) transactions */
+    /** Live count of requests currently in the Pending Payments queue
+     *  (raw backend status PENDING_PAYMENT, falling back to the mapped
+     *  'Pending' label on pre-statusRaw responses) — matches the Pending
+     *  Payments page exactly. Drafts, in-progress work, and payment-verified
+     *  records are not part of this queue. */
     pendingCount: number;
     /** Voided transaction count */
     voidedCount: number;
@@ -223,12 +227,17 @@ function computeTrend(current: number, previous: number, comparedTo: string): Tr
 }
 
 /**
- * Bucket Released transactions into weekly groups (last 5 weeks)
- * for the Analytics Overview bar chart.
+ * Bucket transactions into 5 rolling weekly groups (ending today) for the
+ * Analytics Overview bar chart. Two honest series per week:
+ *  - processed: requests whose REQUEST date falls in the bucket (workload)
+ *  - released:  documents whose actual release time falls in the bucket
+ * The labels anchor the most recent weeks ("This Week" / "Last Week") and
+ * fall back to the week-start date for older buckets, with the full date
+ * span available on rangeLabel for the chart tooltip.
  */
-function buildWeeklyTrend(released: Transaction[]): WeeklyTrendPoint[] {
+function buildWeeklyTrend(all: Transaction[], released: Transaction[]): WeeklyTrendPoint[] {
     // Build 5 weekly buckets ending today
-    const buckets: { label: string; start: Date; end: Date }[] = [];
+    const buckets: { label: string; rangeLabel: string; start: Date; end: Date }[] = [];
     for (let i = 4; i >= 0; i--) {
         const end = new Date(NOW);
         end.setDate(NOW.getDate() - i * 7);
@@ -236,14 +245,28 @@ function buildWeeklyTrend(released: Transaction[]): WeeklyTrendPoint[] {
         const start = new Date(end);
         start.setDate(end.getDate() - 6);
         start.setHours(0, 0, 0, 0);
-        buckets.push({ label: `Week ${5 - i}`, start, end });
+
+        const startLabel = start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        const endLabel = end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        const anchor =
+            i === 0 ? 'This Week' :
+            i === 1 ? 'Last Week' :
+            startLabel;
+
+        buckets.push({ label: anchor, rangeLabel: `${startLabel} – ${endLabel}`, start, end });
     }
 
     return buckets.map(b => ({
         label: b.label,
-        value: released.filter(t => {
-            // Bucket by the actual release time — a document released this
-            // week must count in this week even if its request was older.
+        rangeLabel: b.rangeLabel,
+        // Processed buckets by request date (any status); released buckets
+        // by the actual release time so a doc released this week counts
+        // this week even if its request was older.
+        processed: all.filter(t => {
+            const d = new Date(t.dateRequested);
+            return d >= b.start && d <= b.end;
+        }).length,
+        released: released.filter(t => {
             const d = new Date(releaseDateOf(t));
             return d >= b.start && d <= b.end;
         }).length,
@@ -301,10 +324,12 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
         const released = filtered.filter(t => t.status === 'Released');
         const voided = filtered.filter(t => t.status === 'Void');
         const archived = filtered.filter(t => t.status === 'Archived');
+        // Exactly the Pending Payments queue — raw PENDING_PAYMENT status
+        // (mapped 'Pending' only as a fallback for pre-statusRaw responses),
+        // so "Total Pending" always matches the Pending Payments page.
         const pending = filtered.filter(t =>
-            t.status === 'Pending' || t.status === 'For Payment' ||
-            t.status === 'Payment Verified' || t.status === 'Processing' ||
-            t.status === 'Ready for Release'
+            t.statusRaw === 'PENDING_PAYMENT' ||
+            (!t.statusRaw && t.status === 'Pending')
         );
 
         // ── Period metrics ────────────────────────────────────────────
@@ -365,7 +390,7 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
                 .sort((a, b) => b.count - a.count);
 
         // ── Weekly trend ──────────────────────────────────────────────
-        const weeklyTrend = buildWeeklyTrend(released);
+        const weeklyTrend = buildWeeklyTrend(filtered, released);
 
         // ── Document distribution ──────────────────────────────────────
         // The registry passes document_types.name through verbatim, so the
@@ -418,6 +443,7 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
                 avatarColor: '#29237A',
                 documentRequested: docTypes,
                 dateReleased: t.status === 'Released' ? formatReleaseDate(releaseDateOf(t)) : '—',
+                releasedAtISO: t.status === 'Released' ? releaseDateOf(t) : null,
                 staffReleased: t.assignedStaff || '—',
                 encodedBy: t.assignedStaff || '—',
                 status: t.status,

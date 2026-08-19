@@ -9,9 +9,9 @@ export const currentUser: UserProfile = {
 };
 
 export const operationalSummary: StatCardData[] = [
-    { id: 'total-requests', label: 'Total Requests', value: 130, sublabel: '+12% Yesterday', accent: 'teal', icon: 'requests', trend: 'up' },
+    { id: 'total-requests', label: 'Total Requests', value: 130, sublabel: '+12% Yesterday', accent: 'teal', icon: 'requests' },
     { id: 'released-today', label: 'Released Today', value: 29, sublabel: 'Successfully Issued', accent: 'gold', icon: 'released' },
-    { id: 'monthly-issued', label: 'Monthly Issued Docs', value: 697, sublabel: 'Current month', accent: 'green', icon: 'issued' },
+    { id: 'ready-for-release', label: 'Ready for Release', value: 31, sublabel: 'Payment verified', accent: 'green', icon: 'ready' },
     { id: 'active-requests', label: 'Active Requests', value: 12, sublabel: 'Awaiting Completion', accent: 'red', icon: 'active' },
 ];
 
@@ -23,11 +23,11 @@ export const administrativeSummary: StatCardData[] = [
 ];
 
 export const weeklyTrend: WeeklyTrendPoint[] = [
-    { label: 'Week 1', value: 98 },
-    { label: 'Week 2', value: 145 },
-    { label: 'Week 3', value: 112 },
-    { label: 'Week 4', value: 182 },
-    { label: 'Week 5', value: 160 },
+    { label: 'Jul 13', rangeLabel: '13 Jul – 19 Jul', processed: 104, released: 78 },
+    { label: 'Jul 20', rangeLabel: '20 Jul – 26 Jul', processed: 152, released: 114 },
+    { label: 'Jul 27', rangeLabel: '27 Jul – 2 Aug', processed: 118, released: 91 },
+    { label: 'Last Week', rangeLabel: '3 Aug – 9 Aug', processed: 189, released: 142 },
+    { label: 'This Week', rangeLabel: '10 Aug – 16 Aug', processed: 166, released: 125 },
 ];
 
 export const documentDistribution: DocumentDistributionSlice[] = [

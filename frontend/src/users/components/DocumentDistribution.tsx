@@ -12,13 +12,16 @@ const COLOR_MAP: Record<DocumentDistributionSlice['color'], { fill: string; dot:
     red: { fill: '#EF4444', dot: '#EF4444' },
 };
 
-// Bigger canvas + thicker ring so every count label fits INSIDE its slice.
+// Bigger canvas + thicker ring so the donut reads clearly. All count
+// labels sit uniformly OUTSIDE the ring (slice color + white halo, with a
+// thin leader line pointing at the slice) — one consistent style whether
+// the slice is big or small.
 const RADIUS_INNER = 46;
 const RADIUS_OUTER = 112;
-const CENTER = 130;
+const CENTER = 150;
 
-// A slice this big has enough arc room on the ring for its count label.
-const MIN_PERCENT_FOR_LABEL = 6;
+// Distance from the outer ring edge to the outside labels.
+const OUTER_LABEL_GAP = 18;
 
 function getThickDonutPath(
     startPercent: number,
@@ -63,7 +66,7 @@ export function DocumentDistribution({ slices, totalDocuments }: DocumentDistrib
         const endPercent = cumulative;
 
         const midAngle = ((startPercent + endPercent) / 2) * 2 * Math.PI - Math.PI / 2;
-        const rMid = (RADIUS_INNER + RADIUS_OUTER) / 2;
+        const labelRadius = RADIUS_OUTER + OUTER_LABEL_GAP;
 
         return {
             ...slice,
@@ -71,9 +74,16 @@ export function DocumentDistribution({ slices, totalDocuments }: DocumentDistrib
             startPercent,
             endPercent,
             path: getThickDonutPath(startPercent, endPercent),
-            labelX: CENTER + rMid * Math.cos(midAngle),
-            labelY: CENTER + rMid * Math.sin(midAngle),
-            canFitLabel: slice.percentage >= MIN_PERCENT_FOR_LABEL,
+            labelX: CENTER + labelRadius * Math.cos(midAngle),
+            labelY: CENTER + labelRadius * Math.sin(midAngle),
+            leaderFrom: {
+                x: CENTER + (RADIUS_OUTER + 2) * Math.cos(midAngle),
+                y: CENTER + (RADIUS_OUTER + 2) * Math.sin(midAngle),
+            },
+            leaderTo: {
+                x: CENTER + (RADIUS_OUTER + OUTER_LABEL_GAP - 6) * Math.cos(midAngle),
+                y: CENTER + (RADIUS_OUTER + OUTER_LABEL_GAP - 6) * Math.sin(midAngle),
+            },
         };
     });
 
@@ -87,7 +97,7 @@ export function DocumentDistribution({ slices, totalDocuments }: DocumentDistrib
             </div>
 
             <div className="donut-wrapper">
-                <svg width="260" height="260" viewBox="0 0 260 260" className="donut-svg">
+                <svg width="300" height="300" viewBox="0 0 300 300" className="donut-svg">
                     <filter id="donut-shadow" x="-10%" y="-10%" width="120%" height="120%">
                         <feDropShadow dx="0" dy="5" stdDeviation="5" floodColor="#29237A" floodOpacity="0.12" />
                     </filter>
@@ -122,26 +132,38 @@ export function DocumentDistribution({ slices, totalDocuments }: DocumentDistrib
                                             onMouseLeave={() => setHoveredIndex(null)}
                                         />
 
-                                        {/* Count label INSIDE the slice — the thick
-                                            ring + large canvas keeps these legible. */}
-                                        {slice.canFitLabel && (
-                                            <text
-                                                x={slice.labelX}
-                                                y={slice.labelY + 5}
-                                                textAnchor="middle"
-                                                fill="#ffffff"
-                                                fontSize="17"
-                                                fontWeight="800"
-                                                style={{
-                                                    pointerEvents: 'none',
-                                                    userSelect: 'none',
-                                                    transition: 'opacity 0.2s ease',
-                                                    opacity: dimmed ? 0.55 : 1,
-                                                }}
-                                            >
-                                                {slice.count.toLocaleString()}
-                                            </text>
-                                        )}
+                                        {/* Count label — uniformly OUTSIDE the ring for every slice: slice
+                                            color, white halo for legibility, leader line pointing
+                                            at the slice. Consistent for big and small slices alike. */}
+                                        <line
+                                            x1={slice.leaderFrom.x}
+                                            y1={slice.leaderFrom.y}
+                                            x2={slice.leaderTo.x}
+                                            y2={slice.leaderTo.y}
+                                            stroke={colors.fill}
+                                            strokeWidth="1.5"
+                                            strokeLinecap="round"
+                                            opacity={dimmed ? 0.4 : 0.65}
+                                        />
+                                        <text
+                                            x={slice.labelX}
+                                            y={slice.labelY + 4}
+                                            textAnchor="middle"
+                                            fill={colors.fill}
+                                            fontSize="12.5"
+                                            fontWeight="800"
+                                            paintOrder="stroke"
+                                            stroke="#ffffff"
+                                            strokeWidth="3.5"
+                                            style={{
+                                                pointerEvents: 'none',
+                                                userSelect: 'none',
+                                                transition: 'opacity 0.2s ease',
+                                                opacity: dimmed ? 0.55 : 1,
+                                            }}
+                                        >
+                                            {slice.count.toLocaleString()}
+                                        </text>
                                     </g>
                                 );
                             })}

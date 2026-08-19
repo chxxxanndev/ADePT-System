@@ -10,11 +10,14 @@ interface AnalyticsOverviewProps {
 export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps) {
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-    const totalProcessed = data.reduce((sum, d) => sum + d.value, 0);
-    const totalReleased = data.reduce((sum, d) => sum + Math.round(d.value * 0.75), 0);
+    // Both series are real: "Processed" = requests received that week (by
+    // request date), "Released" = documents actually released that week
+    // (by release time) — see buildWeeklyTrend in useReportsAnalytics.
+    const totalProcessed = data.reduce((sum, d) => sum + d.processed, 0);
+    const totalReleased = data.reduce((sum, d) => sum + d.released, 0);
 
     // Compute max for Y-axis scaling
-    const maxVal = Math.max(...data.map((d) => d.value), 10);
+    const maxVal = Math.max(...data.map((d) => Math.max(d.processed, d.released)), 10);
     const yAxisMax = Math.ceil(maxVal / 10) * 10;
     const gridTicks = [yAxisMax, Math.round(yAxisMax * 0.75), Math.round(yAxisMax * 0.5), Math.round(yAxisMax * 0.25), 0];
 
@@ -57,8 +60,8 @@ export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps)
                 {/* Columns Container */}
                 <div className="bar-chart-cols">
                     {data.map((point, index) => {
-                        const processed = point.value;
-                        const released = Math.max(1, Math.round(point.value * 0.75));
+                        const processed = point.processed;
+                        const released = point.released;
                         const isHovered = hoveredIndex === index;
 
                         const heightPctPrimary = (processed / yAxisMax) * 100;
@@ -74,6 +77,9 @@ export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps)
                                 {/* Floating Dark Tooltip on Hover */}
                                 {isHovered && (
                                     <div className="bar-tooltip">
+                                        <div className="tooltip-row tooltip-range">
+                                            {point.rangeLabel ?? point.label}
+                                        </div>
                                         <div className="tooltip-row">
                                             <span className="tooltip-swatch primary" />
                                             <span>Processed: {processed}</span>
@@ -99,7 +105,7 @@ export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps)
 
                                 {/* X-Axis Label */}
                                 <span className="bar-col-label">
-                                    {point.label.replace('Week ', 'W')}
+                                    {point.label}
                                 </span>
                             </div>
                         );
@@ -117,4 +123,3 @@ export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps)
         </div>
     );
 }
-

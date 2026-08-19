@@ -120,7 +120,12 @@ export interface DeclarantRecord {
     initials: string;
     avatarColor: string;
     documentRequested: string;
+    /** Display-formatted release stamp ("DD Mon YYYY" + time when present).
+     *  "—" when the transaction has not been released yet. */
     dateReleased: string;
+    /** Raw ISO release timestamp (or date) for date-range filtering —
+     *  null when the transaction is not released. */
+    releasedAtISO: string | null;
     staffReleased: string;
     encodedBy: string;
     status: TransactionStatus;
@@ -155,6 +160,7 @@ export const declarantRecords: DeclarantRecord[] = [
         avatarColor: PALETTE.primary,
         documentRequested: 'Tax Declaration',
         dateReleased: '10 Jul 2026 · 08:40 AM',
+        releasedAtISO: '2026-07-10T08:40:00',
         staffReleased: 'Maria Lopez',
         encodedBy: 'Ana Marquez',
         status: 'Released',
@@ -167,6 +173,7 @@ export const declarantRecords: DeclarantRecord[] = [
         avatarColor: PALETTE.success,
         documentRequested: 'Certificate of Land Holding',
         dateReleased: '10 Jul 2026 · 08:12 AM',
+        releasedAtISO: '2026-07-10T08:12:00',
         staffReleased: 'John Cruz',
         encodedBy: 'Dennis Cruz',
         status: 'Released',
@@ -179,6 +186,7 @@ export const declarantRecords: DeclarantRecord[] = [
         avatarColor: PALETTE.trueCopy,
         documentRequested: 'Certificate of No Landholding',
         dateReleased: '10 Jul 2026 · 07:55 AM',
+        releasedAtISO: '2026-07-10T07:55:00',
         staffReleased: 'Anne Reyes',
         encodedBy: 'Ana Marquez',
         status: 'Released',
@@ -191,6 +199,7 @@ export const declarantRecords: DeclarantRecord[] = [
         avatarColor: PALETTE.trueCopy,
         documentRequested: 'Certified True Copy',
         dateReleased: '—',
+        releasedAtISO: null,
         staffReleased: '—',
         encodedBy: 'Ana Marquez',
         status: 'For Payment',
@@ -203,6 +212,7 @@ export const declarantRecords: DeclarantRecord[] = [
         avatarColor: PALETTE.primary,
         documentRequested: 'Tax Declaration',
         dateReleased: '—',
+        releasedAtISO: null,
         staffReleased: '—',
         encodedBy: 'Dennis Cruz',
         status: 'Processing',
@@ -215,6 +225,7 @@ export const declarantRecords: DeclarantRecord[] = [
         avatarColor: PALETTE.trueCopy,
         documentRequested: 'Certified True Copy',
         dateReleased: '23 Jun 2026 · 12:18 AM',
+        releasedAtISO: '2026-06-23T00:18:00',
         staffReleased: 'Maria Lopez',
         encodedBy: 'Dennis Cruz',
         status: 'Void',
@@ -227,6 +238,7 @@ export const declarantRecords: DeclarantRecord[] = [
         avatarColor: PALETTE.primary,
         documentRequested: 'Tax Declaration',
         dateReleased: '—',
+        releasedAtISO: null,
         staffReleased: '—',
         encodedBy: 'John Cruz',
         status: 'Cancelled',
@@ -239,6 +251,7 @@ export const declarantRecords: DeclarantRecord[] = [
         avatarColor: PALETTE.trueCopy,
         documentRequested: 'Certificate of No Landholding',
         dateReleased: '01 Jun 2026 · 05:50 PM',
+        releasedAtISO: '2026-06-01T17:50:00',
         staffReleased: 'Anne Reyes',
         encodedBy: 'Ana Marquez',
         status: 'Archived',
@@ -251,6 +264,7 @@ export const declarantRecords: DeclarantRecord[] = [
         avatarColor: PALETTE.success,
         documentRequested: 'Certificate of Land Holding',
         dateReleased: '17 May 2026 · 02:29 PM',
+        releasedAtISO: '2026-05-17T14:29:00',
         staffReleased: 'John Cruz',
         encodedBy: 'Ana Marquez',
         status: 'Released',
@@ -263,6 +277,7 @@ export const declarantRecords: DeclarantRecord[] = [
         avatarColor: PALETTE.trueCopy,
         documentRequested: 'Certified True Copy',
         dateReleased: '12 Apr 2026 · 07:32 AM',
+        releasedAtISO: '2026-04-12T07:32:00',
         staffReleased: 'Maria Lopez',
         encodedBy: 'Dennis Cruz',
         status: 'Released',

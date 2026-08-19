@@ -8,8 +8,12 @@ export interface StatCardData {
     value: number | string;
     sublabel: string;
     accent: StatAccent;
-    icon: 'requests' | 'released' | 'issued' | 'active' | 'archived' | 'voided' | 'reprinted' | 'cancelled';
-    trend?: 'up' | 'down';
+    icon: 'requests' | 'released' | 'ready' | 'active' | 'archived' | 'voided' | 'reprinted' | 'cancelled';
+    /** Active-view the card navigates to when clicked (rendered as a button). */
+    view?: string;
+    /** Optional params carried into the destination view, e.g.
+     *  { status: 'Cancelled' } to pre-filter Archive Management. */
+    viewParams?: Record<string, string>;
 }
 
 // The exact status vocabulary the /api/requests/registry endpoint emits
@@ -35,17 +39,14 @@ export interface TransactionRow {
 }
 
 export interface WeeklyTrendPoint {
+    /** Short x-axis label — "This Week", "Last Week", or the week-start
+     *  date ("Aug 10") for older weeks. */
     label: string;
-    value: number;
-}
-
-// ── NEW: dual-series trend point (real processed + real released counts),
-// used by AnalyticsOverview once it became period-selector-aware. Unlike
-// WeeklyTrendPoint (fixed weekly buckets, single value), a TrendPoint's
-// bucket width and count vary based on the active Dashboard Period range.
-export interface TrendPoint {
-    label: string;
+    /** Full week date span for the tooltip, e.g. "3 Aug – 9 Aug". */
+    rangeLabel?: string;
+    /** Requests processed that week (bucketed by request date). */
     processed: number;
+    /** Documents actually released that week (bucketed by release time). */
     released: number;
 }
 
