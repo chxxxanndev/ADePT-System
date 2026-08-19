@@ -25,6 +25,9 @@ interface CustomDateInputProps {
     className?: string;
     placeholder?: string;
     id?: string;
+    /** Screen-reader label for the field (used by filter rows where there
+     *  is no visible <label> element). */
+    ariaLabel?: string;
     /** Anchor the calendar popover to the calendar icon instead of the
      *  input's left edge (used by wide full-width fields like the
      *  Request form's Date of Request). */
@@ -57,7 +60,7 @@ const ChevronRight = () => (
  *  unstylable) with a matching text field — same className passthrough,
  *  same ISO "YYYY-MM-DD" value handling — plus our own calendar panel
  *  rendered in a portal so it is never clipped. */
-export function CustomDateInput({ value, onChange, className, placeholder, id, anchorToIcon = false }: CustomDateInputProps) {
+export function CustomDateInput({ value, onChange, className, placeholder, id, ariaLabel, anchorToIcon = false }: CustomDateInputProps) {
     const [open, setOpen] = useState(false);
     const wrapRef = useRef<HTMLDivElement>(null);
     const iconBtnRef = useRef<HTMLButtonElement>(null);
@@ -101,6 +104,7 @@ export function CustomDateInput({ value, onChange, className, placeholder, id, a
                     id={id}
                     type="text"
                     readOnly
+                    aria-label={ariaLabel}
                     className={`cdi-input ${className ?? ''}`.trim()}
                     value={value}
                     placeholder={placeholder ?? 'YYYY-MM-DD'}

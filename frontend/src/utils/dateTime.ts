@@ -27,3 +27,26 @@ export function formatDateTime(value?: string | null): string {
     if (!hasTimeComponent(value)) return datePart;
     return `${datePart} ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
 }
+
+/** Human label for a date range: "Today" for today, "Aug 19, 2026" for a
+ *  single day, "Aug 1 – Aug 19, 2026" for a range, "All time" when empty.
+ *  Shared by the Dashboard summary cards and the Reports page so a range
+ *  picked on one screen reads identically on the other. */
+export function formatPeriodRange(from?: string | null, to?: string | null): string {
+    if (!from && !to) return 'All time';
+    const fmt = (iso: string) => {
+        const d = new Date(iso + 'T00:00:00');
+        if (isNaN(d.getTime())) return iso;
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    };
+    if (from && to && from !== to) return `${fmt(from)} – ${fmt(to)}`;
+    const day = from || to;
+    if (!day) return 'Selected period';
+    const d = new Date(day + 'T00:00:00');
+    const today = new Date();
+    const isToday =
+        d.getFullYear() === today.getFullYear() &&
+        d.getMonth() === today.getMonth() &&
+        d.getDate() === today.getDate();
+    return isToday ? 'Today' : fmt(day);
+}

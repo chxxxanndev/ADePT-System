@@ -22,6 +22,7 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
+  X,
 } from "lucide-react";
 import "../styles/ReportsAnalytics.css";
 import "../styles/select.css";
@@ -29,9 +30,10 @@ import { useReportsAnalytics } from "../hooks/useReportsAnalytics";
 import { ExpandableText } from "../components/common/ExpandableText";
 import { getDocPillMeta } from "../../utils/documentType";
 import type { DocumentTypeFilterValue } from "../../utils/documentType";
-import { formatDateTime } from "../../utils/dateTime";
+import { formatDateTime, formatPeriodRange } from "../../utils/dateTime";
 import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
 import { ADePTSelect } from "../components/ADePTSelect";
+import { DateRangePicker } from "../components/DateRangePicker";
 import { SkeletonBox } from "../components/common/Skeleton";
 import type { TransactionStatus } from "../types/transaction";
 
@@ -319,14 +321,79 @@ interface ReportsProps {
   // Breadcrumb navigation — the Dashboard link jumps back to the home
   // view (wired by Dashboard.tsx, like the other pages' onNavigateTo*).
   onNavigateToDashboard?: () => void;
+  /** When a Dashboard summary card links here, the card's selected period is
+   *  carried over so the stats render for the SAME range the card showed —
+   *  not the page's own Today/This Week/This Month preset. Clicking any
+   *  preset exits this custom range. */
+  initialDateRange?: { from: string; to: string };
 }
 
-export default function Reports({ onNavigateToDashboard }: ReportsProps) {
+export default function Reports({ onNavigateToDashboard, initialDateRange }: ReportsProps) {
   const [docTypeFilter, setDocTypeFilter] = useState<DocumentTypeFilterValue>("All");
   const analytics = useReportsAnalytics(docTypeFilter);
   const [period, setPeriod] = useState<Period>("monthly");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("All");
+  // Table-scope filter for Declarant Records (tracking): a release-date
+  // window via the shared DateRangePicker (same presets, summary bar and
+  // calendar as the Dashboard). Unlike the page-level Document Type filter —
+  // which re-scopes every stat card on the page — this only narrows the
+  // table below.
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Custom range mode — active when a Dashboard card navigated here with the
+  // dashboard's selected period. Replaces the daily/weekly/monthly preset
+  // buckets with a direct range filter over the same registry data.
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(
+    () =>
+      initialDateRange && (initialDateRange.from || initialDateRange.to)
+        ? initialDateRange
+        : null
+  );
+
+  // Range-bucketed equivalents of the preset stat cards — same counting
+  // rules as useReportsAnalytics (released by release time, requested by
+  // request date), applied against the custom [from, to] window.
+  const rangeStats = useMemo(() => {
+    if (!customRange) return null;
+    const start = customRange.from
+      ? new Date(customRange.from + "T00:00:00").getTime()
+      : -Infinity;
+    const end = customRange.to
+      ? new Date(customRange.to + "T23:59:59.999").getTime()
+      : Infinity;
+    const inRange = (iso: string) => {
+      const t = new Date(iso).getTime();
+      return Number.isFinite(t) && t >= start && t <= end;
+    };
+    const txns = analytics.transactions;
+    const released = txns.filter(
+      (t) =>
+        t.status === "Released" &&
+        inRange(t.releasedAt ?? t.dateReleased ?? t.dateRequested)
+    );
+    const releasedTd = released.filter((t) =>
+      t.requestedDocuments.some((d) =>
+        d.documentType.toLowerCase().includes("tax declaration")
+      )
+    );
+    return {
+      documentsReleased: released.length,
+      documentsRequested: txns.filter((t) => inRange(t.dateRequested)).length,
+      taxDeclarations: releasedTd.length,
+    };
+  }, [analytics.transactions, customRange]);
+
+  const activePeriodLabel = customRange
+    ? formatPeriodRange(customRange.from, customRange.to)
+    : PERIOD_LABEL[period];
+  const cardSublabel = customRange ? activePeriodLabel : PERIOD_LABEL[period];
+
+  const handlePeriodChange = (p: Period) => {
+    setCustomRange(null); // leaving custom mode returns to the preset buckets
+    setPeriod(p);
+  };
 
   // FIX: pagination state for the Declarant Records table.
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -334,7 +401,18 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
 
   const [isExporting, setIsExporting] = useState(false);
 
+  // Normalizes an ISO timestamp to a local "YYYY-MM-DD" for lexical
+  // range comparison — avoids UTC-vs-local drift on date-only values.
+  const localDateOf = (iso: string): string => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
   const filteredDeclarants = useMemo(() => {
+    const fromT = dateFrom || "";
+    const toT = dateTo || "";
+    const hasDateFilter = !!(fromT || toT);
     return analytics.declarantRows.filter((d) => {
       const matchesSearch =
         search.trim() === "" ||
@@ -349,17 +427,35 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
             ? d.reprintedDocuments > 0
             : d.status === statusFilter;
 
-      return matchesSearch && matchesStatus;
+      const releasedDate = d.releasedAtISO ? localDateOf(d.releasedAtISO) : null;
+      const matchesDate =
+        !hasDateFilter ||
+        (releasedDate !== null &&
+          (!fromT || releasedDate >= fromT) &&
+          (!toT || releasedDate <= toT));
+
+      return matchesSearch && matchesStatus && matchesDate;
     });
-  }, [analytics.declarantRows, search, statusFilter]);
+  }, [analytics.declarantRows, search, statusFilter, dateFrom, dateTo]);
 
   // FIX: whenever the filtered result set changes (new search term, status
-  // filter, or document-type filter), jump back to page 1 — otherwise a
-  // user filtering down to fewer results could get stranded on a now
-  // out-of-range page.
+  // filter, document-type filter, or date window), jump back to page 1 —
+  // otherwise a user filtering down to fewer results could get stranded on
+  // a now out-of-range page.
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, docTypeFilter]);
+  }, [search, statusFilter, docTypeFilter, dateFrom, dateTo]);
+
+  const hasActiveTableFilters = Boolean(
+    search.trim() || statusFilter !== "All" || dateFrom || dateTo
+  );
+
+  const clearTableFilters = () => {
+    setSearch("");
+    setStatusFilter("All");
+    setDateFrom("");
+    setDateTo("");
+  };
 
   const totalPages = Math.max(1, Math.ceil(filteredDeclarants.length / rowsPerPage));
   const currentPage = Math.min(page, totalPages);
@@ -400,8 +496,12 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
           `Exported: ${new Date().toLocaleString()}`,
         ],
         [
-          `Filter: ${docTypeFilter === "All" ? "All document types" : docTypeFilter}`,
+          `Document type: ${docTypeFilter === "All" ? "All document types" : docTypeFilter}`,
+          `Released: ${dateFrom || "any date"} → ${dateTo || "any date"}`,
+        ],
+        [
           `Subset: ${filteredDeclarants.length} records`,
+          `Generated: ${new Date().toLocaleString()}`,
         ],
         [],
         headers,
@@ -519,7 +619,7 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
             <h1 className="reports-title">Reports &amp; Analytics</h1>
             <p className="reports-subtitle">
               Track document requests, releases, pending items, and reprints —{" "}
-              {PERIOD_LABEL[period]}
+              {activePeriodLabel}
             </p>
           </div>
           <div className="reports-header-actions">
@@ -535,7 +635,19 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
               <RefreshCw size={16} />
               <span className="refresh-btn-label">Refresh</span>
             </button>
-            <PeriodToggle period={period} onChange={setPeriod} />
+            <PeriodToggle period={period} onChange={handlePeriodChange} />
+            {customRange && (
+              <button
+                type="button"
+                className="reports-range-chip"
+                onClick={() => setCustomRange(null)}
+                title="Back to Today / This Week / This Month presets"
+                aria-label="Clear custom date range"
+              >
+                Custom Range
+                <X size={12} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -564,24 +676,24 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
                 icon={<FileText size={18} />}
                 iconClass="stat-icon--primary"
                 label="Documents Released"
-                value={analytics.documentsReleased[period]}
-                sublabel={PERIOD_LABEL[period]}
-                trend={analytics.documentsReleasedTrend[period]}
+                value={customRange ? rangeStats?.documentsReleased ?? 0 : analytics.documentsReleased[period]}
+                sublabel={cardSublabel}
+                trend={customRange ? undefined : analytics.documentsReleasedTrend[period]}
               />
               <StatCard
                 icon={<FileStack size={18} />}
                 iconClass="stat-icon--secondary"
                 label="Documents Requested"
-                value={analytics.totalRequests[period]}
-                sublabel={PERIOD_LABEL[period]}
-                trend={analytics.totalRequestsTrend[period]}
+                value={customRange ? rangeStats?.documentsRequested ?? 0 : analytics.totalRequests[period]}
+                sublabel={cardSublabel}
+                trend={customRange ? undefined : analytics.totalRequestsTrend[period]}
               />
               <StatCard
                 icon={<ListChecks size={18} />}
                 iconClass="stat-icon--truecopy"
                 label="Tax Declarations"
-                value={analytics.taxDeclarationCounts[period]}
-                sublabel={PERIOD_LABEL[period]}
+                value={customRange ? rangeStats?.taxDeclarations ?? 0 : analytics.taxDeclarationCounts[period]}
+                sublabel={cardSublabel}
               />
               <StatCard
                 icon={<ShieldCheck size={18} />}
@@ -814,6 +926,49 @@ export default function Reports({ onNavigateToDashboard }: ReportsProps) {
 
                   <DocumentTypeFilter value={docTypeFilter} onChange={setDocTypeFilter} />
                 </div>
+              </div>
+
+              {/* Tracking filter — release-date window via the shared DateRangePicker
+                  (presets, summary bar and calendar, same as the Dashboard).
+                  Only narrows the Declarant Records table below (unlike the
+                  Document Type filter, which also re-scopes the stat cards). */}
+              <div className="table-filter-row">
+                <span className="filter-row-title">Released</span>
+
+                <div className="filter-field">
+                  <DateRangePicker
+                    dateFrom={dateFrom}
+                    dateTo={dateTo}
+                    align="left"
+                    onChange={(from, to) => {
+                      setDateFrom(from);
+                      setDateTo(to);
+                    }}
+                  />
+                </div>
+
+                {(dateFrom || dateTo) && (
+                  <button
+                    type="button"
+                    className="date-reset-btn"
+                    onClick={() => {
+                      setDateFrom("");
+                      setDateTo("");
+                    }}
+                    title="Clear the release-date filter"
+                    aria-label="Clear the release-date filter"
+                  >
+                    <X size={13} />
+                    Reset
+                  </button>
+                )}
+
+                {hasActiveTableFilters && (
+                  <button type="button" className="clear-filters-btn" onClick={clearTableFilters}>
+                    <X size={13} />
+                    Clear filters
+                  </button>
+                )}
               </div>
 
               <div className="table-scroll">
