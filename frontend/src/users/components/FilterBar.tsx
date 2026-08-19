@@ -1,6 +1,7 @@
 import type { TransactionFilters } from '../types/transaction';
 import { DateRangePicker } from './DateRangePicker';
 import { DocumentTypeFilter } from './DocumentTypeFilter';
+import { X } from 'lucide-react';
 
 interface FilterBarProps {
     filters: TransactionFilters;
@@ -9,6 +10,11 @@ interface FilterBarProps {
 }
 
 export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
+    // The Reset button only appears once a specific period is picked in the
+    // date-range picker — with no dates chosen the picker already reads as
+    // "no filter", so a permanent reset button would just add noise.
+    const hasPeriod = !!(filters.dateFrom || filters.dateTo);
+
     return (
         <>
             <DocumentTypeFilter
@@ -22,9 +28,18 @@ export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
                 onChange={(dateFrom, dateTo) => onChange({ ...filters, dateFrom, dateTo })}
             />
 
-            <button type="button" className="tr-filter-reset" onClick={onReset}>
-                Reset Filters
-            </button>
+            {hasPeriod && (
+                <button
+                    type="button"
+                    className="tr-filter-reset tr-filter-reset--danger"
+                    onClick={onReset}
+                    title="Clear the date range"
+                    aria-label="Clear the date range"
+                >
+                    <X size={13} />
+                    Reset
+                </button>
+            )}
         </>
     );
 }

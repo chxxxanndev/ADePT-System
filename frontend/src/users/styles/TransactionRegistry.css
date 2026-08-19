@@ -348,10 +348,22 @@
     cursor: pointer;
     flex: 0 0 auto;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .tr-filter-reset:hover {
     background-color: rgba(41, 35, 122, 0.12);
+}
+
+/* Danger variant for the X Reset buttons beside the DateRangePicker —
+   same red hover treatment Reports' date-reset-btn uses, so the reset
+   affordance reads identically across every page. */
+.tr-filter-reset--danger:hover {
+    border-color: rgba(220, 38, 38, 0.4);
+    color: #b91c1c;
+    background-color: rgba(220, 38, 38, 0.05);
 }
 
 /* ---- Table card ---- */

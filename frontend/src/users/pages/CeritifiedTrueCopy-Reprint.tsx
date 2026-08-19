@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Printer, CheckCircle2, Clock, ArrowLeft, ArrowRight } from "lucide-react";
+import { Search, Printer, CheckCircle2, Clock, ArrowLeft, ArrowRight, X } from "lucide-react";
 import "../styles/TransactionRegistry.css";
 import "../styles/select.css";
 import type { CertifiedCopyRecord, CTCStatus, Transaction, DeclarantGroup } from "../types/transaction";
@@ -7,6 +7,7 @@ import { fetchTransactionRegistry } from "../services/transactionService";
 import { TransactionDetails } from "./TransactionDetails";
 import { ExpandableText } from "../components/common/ExpandableText";
 import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
+import { DateRangePicker } from "../components/DateRangePicker";
 import { ADePTSelect } from "../components/ADePTSelect";
 import { getDocPillMeta, getDocumentTypeFromReference, matchesDocumentType } from "../../utils/documentType";
 import type { DocumentTypeFilterValue } from "../../utils/documentType";
@@ -31,6 +32,16 @@ const CTC_COLUMNS = [
  *  REGISTRY_TABLE_MIN_WIDTH uses) instead of cramming all ten columns into
  *  the viewport and crushing the reference pills and status badges. */
 const CTC_TABLE_MIN_WIDTH = 1500;
+
+/** Normalizes an ISO timestamp to a local "YYYY-MM-DD" for lexical range
+ *  comparison — the same helper pattern TransactionRegistry's
+ *  toComparableDate uses, so the date window never drifts from UTC. */
+function toComparableDate(iso?: string | null): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 /* --- Summary skeleton (three compact cards — mirrors VoidAmendSummarySkeleton
    and uses the same tr-summary-grid--multi sizing as the loaded cards) --- */
@@ -111,6 +122,10 @@ export default function CertifiedTrueCopy({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All statuses");
   const [docTypeFilter, setDocTypeFilter] = useState<DocumentTypeFilterValue>("All");
+  // Date-range window via the shared DateRangePicker — same pill, presets
+  // and calendar as TransactionRegistry / Reports / Archive Management.
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   // Full registry (reprints AND originals) kept for the View drawer — the
@@ -135,7 +150,9 @@ export default function CertifiedTrueCopy({
         declarantName: t.client.declarantName,
         originalDocument: t.referenceNumber.replace(/-R\d+$/, ""),
         dateRequested: formatDateTime(t.requestedAt ?? t.dateRequested) || "—",
+        requestedAtISO: toComparableDate(t.requestedAt ?? t.dateRequested),
         dateReleased: formatDateTime(t.releasedAt ?? t.dateReleased) || "—",
+        releasedAtISO: toComparableDate(t.releasedAt ?? t.dateReleased),
         releasedBy: t.releasedBy || "—",
         status: (
           t.status === "Released" ? "Released" :
@@ -159,24 +176,31 @@ export default function CertifiedTrueCopy({
 
   // Reset to page 1 whenever the filter criteria change, so you don't
   // get stranded on e.g. page 4 of a filtered result set that only has 2 pages.
-  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, docTypeFilter, rowsPerPage]);
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, docTypeFilter, dateFrom, dateTo, rowsPerPage]);
 
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
       const matchesStatus = statusFilter === "All statuses" || r.status === statusFilter;
       const matchesDocType = matchesDocumentType(r.reference, docTypeFilter);
 
+      // Release-date window, exactly like the registry: released rows
+      // bucket by when they were released, unreleased rows fall back to
+      // their request date so they can never vanish from the date filter.
+      const comparable = r.releasedAtISO || r.requestedAtISO;
+      const matchesDateFrom = !dateFrom || comparable >= dateFrom;
+      const matchesDateTo = !dateTo || comparable <= dateTo;
+
       const term = search.toLowerCase().trim();
-      if (!term) return matchesStatus && matchesDocType;
+      if (!term) return matchesStatus && matchesDocType && matchesDateFrom && matchesDateTo;
 
       const matchesSearch = [
         r.reference, r.declarantName, r.originalDocument, r.orNumber,
         r.orJustification, r.dateRequested, r.dateReleased, r.releasedBy
       ].some(value => value.toLowerCase().includes(term));
 
-      return matchesStatus && matchesSearch && matchesDocType;
+      return matchesStatus && matchesSearch && matchesDocType && matchesDateFrom && matchesDateTo;
     });
-  }, [records, search, statusFilter, docTypeFilter]);
+  }, [records, search, statusFilter, docTypeFilter, dateFrom, dateTo]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / rowsPerPage));
   const safePage = Math.min(currentPage, totalPages);
@@ -397,6 +421,29 @@ export default function CertifiedTrueCopy({
                 ]}
               />
               <DocumentTypeFilter value={docTypeFilter} onChange={setDocTypeFilter} />
+              <DateRangePicker
+                dateFrom={dateFrom}
+                dateTo={dateTo}
+                onChange={(from, to) => {
+                  setDateFrom(from);
+                  setDateTo(to);
+                }}
+              />
+              {(dateFrom || dateTo) && (
+                <button
+                  type="button"
+                  className="tr-filter-reset tr-filter-reset--danger"
+                  onClick={() => {
+                    setDateFrom("");
+                    setDateTo("");
+                  }}
+                  title="Clear the date range"
+                  aria-label="Clear the date range"
+                >
+                  <X size={13} />
+                  Reset
+                </button>
+              )}
             </div>
 
             <div className="tr-table-scroll">

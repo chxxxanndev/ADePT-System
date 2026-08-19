@@ -190,7 +190,12 @@ export interface CertifiedCopyRecord {
     declarantName: string;
     originalDocument: string;   // The parent ref (base)
     dateRequested: string;
+    /** Raw ISO request timestamp (or date) for date-range filtering. */
+    requestedAtISO: string;
     dateReleased: string;
+    /** Raw ISO release timestamp (or date) for date-range filtering —
+     *  empty string when not released yet. */
+    releasedAtISO: string;
     releasedBy: string;
     status: CTCStatus;
     orNumber: string;

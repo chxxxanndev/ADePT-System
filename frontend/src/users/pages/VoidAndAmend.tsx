@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Search, Ban, PencilLine, Loader2, CheckCircle2, ArrowLeft, ArrowRight } from "lucide-react";
+import { Search, Ban, PencilLine, Loader2, CheckCircle2, ArrowLeft, ArrowRight, X } from "lucide-react";
 import { fetchTransactionRegistry } from "../services/transactionService";
 import { requestService } from "../services/requestService";
 import type { Transaction, DeclarantGroup } from "../types/transaction";
@@ -8,6 +8,7 @@ import "../styles/TransactionRegistry.css";
 import "../styles/select.css";
 import { ExpandableText } from "../components/common/ExpandableText";
 import { DocumentTypeFilter } from "../components/DocumentTypeFilter";
+import { DateRangePicker } from "../components/DateRangePicker";
 import { ADePTSelect } from "../components/ADePTSelect";
 import { getDocPillMeta, getDocumentTypeFromReference, matchesDocumentType } from "../../utils/documentType";
 import type { DocumentTypeFilterValue } from "../../utils/documentType";
@@ -66,7 +67,14 @@ interface VoidAndAmendProps {
   onNavigateToDashboard?: () => void;
 }
 
-type TimeRange = "Today" | "Yesterday" | "This Week" | "This Month" | "All Time";
+/** Normalizes an ISO timestamp to a local "YYYY-MM-DD" for lexical range
+ *  comparison — the same helper pattern TransactionRegistry / Reports /
+ *  CertifiedTrueCopy use, so the date window never drifts from UTC. */
+function toComparableDate(iso: string): string {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 // ─── Constants ──────────────────────────────────────────────
 // This no longer stores the void records themselves — the registry (via
@@ -118,48 +126,6 @@ function formatDateTime(isoString: string): string {
     hour12: true,
   });
   return `${datePart}, ${timePart}`;
-}
-
-const NOW = new Date();
-
-function isSameCalendarDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
-function matchesTimeRange(isoString: string | null, range: TimeRange): boolean {
-  if (range === "All Time") return true;
-  // If we don't actually know when this was voided (no voidedAt from the
-  // backend and no cached metadata for it), it can only ever match
-  // "All Time" rather than guessing.
-  if (!isoString) return false;
-
-  const actionedDate = new Date(isoString);
-  const msPerDay = 24 * 60 * 60 * 1000;
-  const dayDiff = Math.floor(
-    (new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate()).getTime() -
-      new Date(actionedDate.getFullYear(), actionedDate.getMonth(), actionedDate.getDate()).getTime()) /
-    msPerDay
-  );
-
-  switch (range) {
-    case "Today":
-      return isSameCalendarDay(actionedDate, NOW);
-    case "Yesterday":
-      return dayDiff === 1;
-    case "This Week":
-      return dayDiff >= 0 && dayDiff <= 6;
-    case "This Month":
-      return (
-        actionedDate.getFullYear() === NOW.getFullYear() &&
-        actionedDate.getMonth() === NOW.getMonth()
-      );
-    default:
-      return true;
-  }
 }
 
 function ActionBadge() {
@@ -303,7 +269,11 @@ export default function VoidAndAmend({
   onNavigateToDashboard,
 }: VoidAndAmendProps) {
   const [search, setSearch] = useState("");
-  const [timeRange, setTimeRange] = useState<TimeRange>("All Time");
+  // Date-range window via the shared DateRangePicker — same pill, presets
+  // and calendar as TransactionRegistry / Reports / CertifiedTrueCopy.
+  // Empty range behaves exactly like the old "All Time" option.
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [statusFilter, setStatusFilter] = useState("All statuses");
   const [docTypeFilter, setDocTypeFilter] = useState<DocumentTypeFilterValue>("All");
   const [currentPage, setCurrentPage] = useState(1);
@@ -436,13 +406,23 @@ export default function VoidAndAmend({
           record.documentType.toLowerCase().includes(search.toLowerCase()) ||
           record.detail.toLowerCase().includes(search.toLowerCase()) ||
           record.actionedBy.toLowerCase().includes(search.toLowerCase());
-        const matchesTime = matchesTimeRange(record.actionedAt || null, timeRange);
+
+        // Action-date window. Records with no known actionedAt (no voidedAt
+        // from the backend and no cached metadata) only match an empty
+        // range — the same "don't guess" rule the old time-range filter used.
+        const comparable = record.actionedAt ? toComparableDate(record.actionedAt) : "";
+        const matchesDate =
+          (!dateFrom && !dateTo) ||
+          (comparable !== "" &&
+            (!dateFrom || comparable >= dateFrom) &&
+            (!dateTo || comparable <= dateTo));
+
         const matchesStatus =
           statusFilter === "All statuses" ||
           (statusFilter === "Voided" && !record.hasBeenAmended) ||
           (statusFilter === "Amended" && record.hasBeenAmended);
         const matchesDocType = matchesDocumentType(record.reference, docTypeFilter);
-        return matchesSearch && matchesTime && matchesStatus && matchesDocType;
+        return matchesSearch && matchesDate && matchesStatus && matchesDocType;
       })
       .sort((a, b) => {
         // Records with a known actionedAt sort newest-first; unknown ones sink to the bottom.
@@ -451,7 +431,7 @@ export default function VoidAndAmend({
         if (!b.actionedAt) return -1;
         return new Date(b.actionedAt).getTime() - new Date(a.actionedAt).getTime();
       });
-  }, [records, search, timeRange, statusFilter, docTypeFilter]);
+  }, [records, search, dateFrom, dateTo, statusFilter, docTypeFilter]);
 
   // ─── Pagination ───────────────────────────────────────────
   const totalRecords = filteredRecords.length;
@@ -460,7 +440,7 @@ export default function VoidAndAmend({
   // Reset to page 1 when filters or page size change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, timeRange, statusFilter, docTypeFilter, pageSize]);
+  }, [search, dateFrom, dateTo, statusFilter, docTypeFilter, pageSize]);
 
   const start = (currentPage - 1) * pageSize;
   const end = Math.min(start + pageSize, totalRecords);
@@ -683,18 +663,6 @@ export default function VoidAndAmend({
               </div>
             </div>
             <ADePTSelect
-              ariaLabel="Filter by time range"
-              value={timeRange}
-              onChange={(v) => setTimeRange(v as TimeRange)}
-              options={[
-                { value: "All Time", label: "All Time" },
-                { value: "Today", label: "Today" },
-                { value: "Yesterday", label: "Yesterday" },
-                { value: "This Week", label: "This Week" },
-                { value: "This Month", label: "This Month" },
-              ]}
-            />
-            <ADePTSelect
               ariaLabel="Filter by status"
               value={statusFilter}
               onChange={setStatusFilter}
@@ -705,6 +673,29 @@ export default function VoidAndAmend({
               ]}
             />
             <DocumentTypeFilter value={docTypeFilter} onChange={setDocTypeFilter} />
+            <DateRangePicker
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onChange={(from, to) => {
+                setDateFrom(from);
+                setDateTo(to);
+              }}
+            />
+            {(dateFrom || dateTo) && (
+              <button
+                type="button"
+                className="tr-filter-reset tr-filter-reset--danger"
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+                title="Clear the date range"
+                aria-label="Clear the date range"
+              >
+                <X size={13} />
+                Reset
+              </button>
+            )}
           </div>
 
           <div className="tr-table-scroll">
