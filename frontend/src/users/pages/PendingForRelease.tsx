@@ -67,7 +67,7 @@ function splitQueueDateTime(raw: string | null | undefined, fallback: string): {
     };
 }
 
-export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchView }: any) {
+export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchView, onNavigateToDashboard }: any) {
     const [groupedReleases, setGroupedReleases] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
@@ -247,6 +247,14 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
         <div className="pp-container page-transition">
             {/* BREADCRUMB */}
             <div className="pp-breadcrumb">
+                <button
+                    type="button"
+                    className="pp-breadcrumb-link"
+                    onClick={() => onNavigateToDashboard && onNavigateToDashboard()}
+                >
+                    Dashboard
+                </button>
+                <span className="pp-breadcrumb-sep">›</span>
                 <button type="button" className="pp-breadcrumb-link" onClick={() => onNavigateBack && onNavigateBack()}>
                     Document Request
                 </button>

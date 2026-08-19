@@ -43,7 +43,7 @@ import { useReportsAnalytics } from '../hooks/useReportsAnalytics';
 import type { Transaction } from '../types/transaction';
 import type { TransactionRow, StatCardData, BadgeStatus } from '../types/dashboard';
 import { getDocumentTypeFromReference } from '../../utils/documentType';
-import { formatDateTime } from '../../utils/dateTime';
+import { formatDateTime, formatPeriodRange } from '../../utils/dateTime';
 
 
 import {
@@ -203,6 +203,10 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
     const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
     const [pendingVoidItems, setPendingVoidItems] = useState<VoidAmendRecord[]>([]);
+    // Params carried by the last guardedSetActiveView navigation (e.g. the
+    // dashboard summary cards pre-filtering Archive Management by status).
+    // Cleared on every navigation that doesn't provide params.
+    const [viewParams, setViewParams] = useState<Record<string, string> | null>(null);
     const [navigationWarning, setNavigationWarning] = useState<
         | { type: 'cart' }
         | { type: 'entry-form' }
@@ -229,8 +233,17 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         setDateTo(to);
     };
 
+    // Human-readable label for the currently selected Dashboard Period —
+    // used as the sublabel of every summary card so the number shown always
+    // states exactly which range it covers ("Today", "Aug 1 – Aug 19, 2026",
+    // "All time", ...). Truthful regardless of which preset was picked.
+    const periodSublabel = formatPeriodRange(dateFrom, dateTo);
+
     // The Operational + Administrative Summary cards, computed live from the
-    // registry transactions that fall inside the selected date range.
+    // registry transactions that fall inside the selected date range. Every
+    // count mirrors the same registry fetch (and the same bucketing rules)
+    // useReportsAnalytics uses for the Reports & Analytics page, so a card
+    // always agrees with the Reports page for the same period.
     const { operationalSummaryItems, administrativeSummaryItems } = useMemo(() => {
         const start = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : -Infinity;
         const end = dateTo ? new Date(dateTo + 'T23:59:59.999').getTime() : Infinity;
@@ -240,37 +253,63 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
             return Number.isFinite(t) && t >= start && t <= end;
         };
 
-        const inPeriod = analytics.transactions.filter((t) => inRange(t.dateRequested));
-        const released = inPeriod.filter((t) => t.status === 'Released');
-        const pending = inPeriod.filter((t) =>
-            t.status === 'Pending' || t.status === 'For Payment' ||
-            t.status === 'Payment Verified' || t.status === 'Processing' ||
-            t.status === 'Ready for Release'
+        // "Released" buckets by the real release time (releasedAt /
+        // dateReleased) — exactly like Reports' "Documents Released" — so a
+        // document released inside the period counts even if it was
+        // requested earlier. Pending / total-request figures keep
+        // request-date bucketing, also matching Reports.
+        const releaseDateOf = (t: Transaction) => t.releasedAt ?? t.dateReleased ?? t.dateRequested;
+        const released = analytics.transactions.filter(
+            (t) => t.status === 'Released' && inRange(releaseDateOf(t))
         );
-        const issuedDocuments = released.reduce((sum, t) => sum + t.requestedDocuments.length, 0);
-        const reprinted = inPeriod.reduce(
-            (sum, t) => sum + t.requestedDocuments.reduce((s, d) => s + (d.reprintCount || 0), 0),
+        // "Active" = exactly the Pending Payments queue: transactions whose
+        // RAW backend status is PENDING_PAYMENT (mapped 'Pending' only as a
+        // fallback for pre-statusRaw responses). Drafts, in-progress work,
+        // and payment-verified records are NOT counted — they live on the
+        // Document Request / Pending For Release screens, not in the queue
+        // this card opens, so the card always matches the page it links to.
+        const pending = analytics.transactions.filter((t) =>
+            (t.statusRaw === 'PENDING_PAYMENT' ||
+                (!t.statusRaw && t.status === 'Pending')) &&
+            inRange(t.dateRequested)
+        );
+        const totalInPeriod = analytics.transactions.filter((t) => inRange(t.dateRequested));
+        // "Ready for Release" = exactly the Pending For Release queue: raw
+        // PAID status (mapped 'Payment Verified' only as a fallback for
+        // pre-statusRaw responses), so this card always matches the page it
+        // links to — the same exactness rule as the Pending Payments card.
+        const readyForRelease = analytics.transactions.filter((t) =>
+            (t.statusRaw === 'PAID' ||
+                (!t.statusRaw && t.status === 'Payment Verified')) &&
+            inRange(t.dateRequested)
+        );
+        const reprinted = analytics.transactions.reduce(
+            (sum, t) => inRange(t.dateRequested)
+                ? sum + t.requestedDocuments.reduce((s, d) => s + (d.reprintCount || 0), 0)
+                : sum,
             0
         );
+        const countInPeriod = (pred: (t: Transaction) => boolean, dateOf: (t: Transaction) => string) =>
+            analytics.transactions.filter((t) => pred(t) && inRange(dateOf(t))).length;
 
         const operationalSummaryItems: StatCardData[] = [
-            { id: 'total-requests', label: 'Total Requests', value: inPeriod.length, sublabel: 'In selected period', accent: 'teal', icon: 'requests', trend: 'up' },
-            { id: 'released-today', label: 'Released Today', value: released.length, sublabel: 'Successfully Issued', accent: 'gold', icon: 'released' },
-            { id: 'monthly-issued', label: 'Monthly Issued Docs', value: issuedDocuments, sublabel: 'In selected period', accent: 'green', icon: 'issued' },
-            { id: 'active-requests', label: 'Active Requests', value: pending.length, sublabel: 'Awaiting Completion', accent: 'red', icon: 'active' },
+            { id: 'total-requests', label: 'Total Requests', value: totalInPeriod.length, sublabel: periodSublabel, accent: 'teal', icon: 'requests', view: 'reports', viewParams: { from: dateFrom, to: dateTo } },
+            { id: 'released-today', label: 'Released', value: released.length, sublabel: periodSublabel, accent: 'gold', icon: 'released', view: 'transaction-registry' },
+            { id: 'ready-for-release', label: 'Ready for Release', value: readyForRelease.length, sublabel: periodSublabel, accent: 'green', icon: 'ready', view: 'pending-for-release' },
+            { id: 'active-requests', label: 'Pending Payments', value: pending.length, sublabel: periodSublabel, accent: 'red', icon: 'active', view: 'pending-payment' },
         ];
 
         const administrativeSummaryItems: StatCardData[] = [
-            { id: 'archived', label: 'Archived', value: inPeriod.filter((t) => t.status === 'Archived').length, sublabel: 'Inactive Requests', accent: 'teal', icon: 'archived' },
-            { id: 'voided', label: 'Voided', value: inPeriod.filter((t) => t.status === 'Void').length, sublabel: 'Amended records', accent: 'gold', icon: 'voided' },
-            { id: 'reprinted', label: 'Reprinted', value: reprinted, sublabel: 'CTCs Issued', accent: 'green', icon: 'reprinted' },
-            { id: 'cancelled', label: 'Cancelled', value: inPeriod.filter((t) => t.status === 'Cancelled').length, sublabel: 'Processing discontinued', accent: 'red', icon: 'cancelled' },
+            { id: 'archived', label: 'Archived', value: countInPeriod((t) => t.status === 'Archived', (t) => t.archivedAt ?? t.dateRequested), sublabel: periodSublabel, accent: 'teal', icon: 'archived', view: 'archive-management', viewParams: { status: 'Archived' } },
+            { id: 'voided', label: 'Voided', value: countInPeriod((t) => t.status === 'Void', (t) => t.voidedAt ?? t.dateRequested), sublabel: periodSublabel, accent: 'gold', icon: 'voided', view: 'void-amend' },
+            { id: 'reprinted', label: 'Reprinted', value: reprinted, sublabel: periodSublabel, accent: 'green', icon: 'reprinted', view: 'certified-true-copy' },
+            { id: 'cancelled', label: 'Cancelled', value: countInPeriod((t) => t.status === 'Cancelled', (t) => t.cancelledAt ?? t.dateRequested), sublabel: periodSublabel, accent: 'red', icon: 'cancelled', view: 'archive-management', viewParams: { status: 'Cancelled' } },
         ];
 
         return { operationalSummaryItems, administrativeSummaryItems };
-    }, [analytics.transactions, dateFrom, dateTo]);
+    }, [analytics.transactions, dateFrom, dateTo, periodSublabel]);
 
-    const guardedSetActiveView = (view: string) => {
+    const guardedSetActiveView = (view: string, params?: Record<string, string>) => {
         if (cartItems.length > 0 && view !== 'transaction-summary') {
             setNavigationWarning({ type: 'cart' });
             return;
@@ -294,7 +333,15 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
             return;
         }
 
+        setViewParams(params ?? null);
         setActiveView(view);
+    };
+
+    // Breadcrumb "Archive Management" links land on the unfiltered page —
+    // any pre-filter carried from a summary card click is dropped.
+    const navigateToArchive = () => {
+        setViewParams(null);
+        setActiveView('archive-management');
     };
 
     const handleAcknowledgeNavigationWarning = () => {
@@ -753,12 +800,14 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                                 items={operationalSummaryItems}
                                 iconType="operational"
                                 isLoading={analytics.loading}
+                                onNavigate={guardedSetActiveView}
                             />
                             <DashboardSummary
                                 title="Administrative Summary"
                                 items={administrativeSummaryItems}
                                 iconType="admin"
                                 isLoading={analytics.loading}
+                                onNavigate={guardedSetActiveView}
                             />
                             <div className="dashboard-row">
                                 <AnalyticsOverview data={analytics.weeklyTrend} lastUpdated={formatLastUpdated(analytics.fetchedAt)} />
@@ -777,19 +826,33 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             </div>
                         </>
                     ) : activeView === 'reports' ? (
-                        <Reports onNavigateToDashboard={() => setActiveView('dashboard')} />
+                        <Reports
+                            onNavigateToDashboard={() => setActiveView('dashboard')}
+                            initialDateRange={
+                                viewParams?.from || viewParams?.to
+                                    ? { from: viewParams.from, to: viewParams.to }
+                                    : undefined
+                            }
+                        />
                     ) : activeView === 'certified-true-copy' ? (
                         <CertifiedTrueCopy
                             onNavigateToRegistry={() => setActiveView('transaction-registry')}
                             onNavigateToVoidAmend={() => setActiveView('void-amend')}
                             onNavigateToPendingRequests={() => setActiveView('document-request')}
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
-                            onNavigateToArchive={() => setActiveView('archive-management')}
+                            onNavigateToArchive={navigateToArchive}
+                            onNavigateToDashboard={() => setActiveView('dashboard')}
                         />
                     ) : activeView === 'archive-management' ? (
                         <ArchiveManagement
                             onNavigateToPendingRequests={() => setActiveView('document-request')}
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
+                            onNavigateToDashboard={() => setActiveView('dashboard')}
+                            initialStatusFilter={
+                                viewParams?.status === 'Cancelled' || viewParams?.status === 'Archived'
+                                    ? viewParams.status
+                                    : undefined
+                            }
                         />
                     ) : activeView === 'about-adept' ? (
                         <AboutADePT onNavigateToDashboard={() => guardedSetActiveView('dashboard')} />
@@ -909,6 +972,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onSelectPayment={handleSelectPayment}
                             onNavigateBack={() => setActiveView('document-request')}
                             onSwitchView={(view: string) => setActiveView(view)}
+                            onNavigateToDashboard={() => setActiveView('dashboard')}
                         />
                     ) : activeView === 'payment-details' ? (
                         <PaymentDetails
@@ -932,6 +996,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onSelectPayment={handleSelectPayment}
                             onNavigateBack={() => setActiveView('document-request')} /* ADD THIS */
                             onSwitchView={(view: string) => setActiveView(view)} /* ADD THIS */
+                            onNavigateToDashboard={() => setActiveView('dashboard')}
                         />
                     ) : activeView === 'transaction-registry' ? (
                         <TransactionRegistry
@@ -940,7 +1005,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
                             onNavigateToReprint={() => setActiveView('certified-true-copy')}
                             onNavigateToPendingRequests={() => setActiveView('document-request')}
-                            onNavigateToArchive={() => setActiveView('archive-management')}
+                            onNavigateToArchive={navigateToArchive}
+                            onNavigateToDashboard={() => setActiveView('dashboard')}
                         />
                     ) : activeView === 'void-amend' ? (
                         <VoidAndAmend
@@ -954,7 +1020,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                             onNavigateToReprint={() => setActiveView('certified-true-copy')}
                             onNavigateToPendingRequests={() => setActiveView('document-request')}
                             onNavigateToPendingPayment={() => guardedSetActiveView('pending-payment')}
-                            onNavigateToArchive={() => setActiveView('archive-management')}
+                            onNavigateToArchive={navigateToArchive}
+                            onNavigateToDashboard={() => setActiveView('dashboard')}
                         />
                     ) : REQUEST_PROCESSING_VIEWS.has(activeView) ? (
                         <div className="placeholder-view" style={{ padding: '40px', textAlign: 'center' }}>

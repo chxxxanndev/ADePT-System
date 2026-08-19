@@ -231,11 +231,19 @@ interface ArchiveManagementProps {
   // the active-view setters so the breadcrumb can jump between screens.
   onNavigateToPendingRequests?: () => void;
   onNavigateToPendingPayment?: () => void;
+  /** Breadcrumb → Dashboard. */
+  onNavigateToDashboard?: () => void;
+  /** One-time initial status filter applied when the page opens (e.g. the
+   *  Dashboard "Cancelled" summary card opens this page pre-filtered to
+   *  Cancelled records). The user can still change it afterwards. */
+  initialStatusFilter?: "Cancelled" | "Archived" | "All statuses";
 }
 
 export default function ArchiveManagement({
   onNavigateToPendingRequests,
   onNavigateToPendingPayment,
+  onNavigateToDashboard,
+  initialStatusFilter = "All statuses",
 }: ArchiveManagementProps) {
   const [records, setRecords] = useState<ArchivedRecord[]>([]);
   const [archivedTransactions, setArchivedTransactions] = useState<Transaction[]>([]);
@@ -243,7 +251,7 @@ export default function ArchiveManagement({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [reasonFilter, setReasonFilter] = useState<StatusFilter>("All statuses");
+  const [reasonFilter, setReasonFilter] = useState<StatusFilter>(initialStatusFilter);
   const [docTypeFilter, setDocTypeFilter] = useState<DocumentTypeFilterValue>("All");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -403,6 +411,14 @@ export default function ArchiveManagement({
             TransactionRegistry.css (same classes Void & Amend and
             Reprint/CTC use), so this reads identically to the registry. */}
         <nav className="tr-breadcrumb" aria-label="Breadcrumb">
+          <button
+            type="button"
+            className="tr-breadcrumb-item--link"
+            onClick={onNavigateToDashboard ?? (() => {})}
+          >
+            Dashboard
+          </button>
+          <span className="tr-breadcrumb-sep">&gt;</span>
           <button
             type="button"
             className="tr-breadcrumb-item--link"

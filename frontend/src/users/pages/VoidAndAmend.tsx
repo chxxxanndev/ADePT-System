@@ -62,6 +62,8 @@ interface VoidAndAmendProps {
   onNavigateToPendingPayment?: () => void;
   /** Breadcrumb → Archive Management. */
   onNavigateToArchive?: () => void;
+  /** Breadcrumb → Dashboard. */
+  onNavigateToDashboard?: () => void;
 }
 
 type TimeRange = "Today" | "Yesterday" | "This Week" | "This Month" | "All Time";
@@ -298,6 +300,7 @@ export default function VoidAndAmend({
   onNavigateToPendingRequests,
   onNavigateToPendingPayment,
   onNavigateToArchive,
+  onNavigateToDashboard,
 }: VoidAndAmendProps) {
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("All Time");
@@ -516,11 +519,19 @@ export default function VoidAndAmend({
   return (
     <div className="tr-page">
       <div className="tr-header">
-        {/* Document Request > Pending Requests > Void & Amend > Archive Management —
+        {/* Dashboard > Document Request > Pending Requests > Void & Amend > Archive Management —
             same breadcrumb chain as TransactionRegistry / CertifiedTrueCopy, with
-            "Archive Management" as the final crumb. The first two links reuse the same
+            "Archive Management" as the final crumb. The first three links reuse the same
             props/wiring those pages use; "Archive Management" routes via onNavigateToArchive. */}
         <nav className="tr-breadcrumb" aria-label="Breadcrumb">
+          <button
+            type="button"
+            className="tr-breadcrumb-item--link"
+            onClick={onNavigateToDashboard}
+          >
+            Dashboard
+          </button>
+          <span className="tr-breadcrumb-sep">&gt;</span>
           <button
             type="button"
             className="tr-breadcrumb-item--link"

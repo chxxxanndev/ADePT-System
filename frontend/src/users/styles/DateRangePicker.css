@@ -35,6 +35,27 @@
     transition: all 0.15s ease;
 }
 
+.tr-daterange-btn-label {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Optional contextual prefix ("Dashboard period: …") — bold and dark so it
+   reads as the pill's heading; the selection that follows stays emphasized.
+   It never truncates: the ellipsis applies to the selection after it. */
+.tr-daterange-btn-prefix {
+    flex: 0 0 auto;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+/* Custom (manually picked) ranges drop the 260px cap so the pill always
+   shows the full dates — e.g. "Dashboard period: 5 Aug 2026 – 19 Aug 2026". */
+.tr-daterange-btn.is-custom .tr-daterange-btn-label {
+    max-width: none;
+}
+
 .tr-daterange-btn.has-value {
     color: var(--db-primary);
     border-color: var(--db-secondary);
@@ -47,6 +68,7 @@
 /* ── Popup card (redesigned) ────────────────────────────── */
 .tr-daterange-popover {
     display: flex;
+    flex-direction: column;
     background-color: #ffffff;
     border-radius: 16px;
     box-shadow:
@@ -70,11 +92,17 @@
 }
 
 .tr-daterange-popover:not(.tr-daterange-popover--wide) {
-    width: 190px;
+    width: 210px;
 }
 
 .tr-daterange-popover--wide {
-    width: 510px;
+    width: 530px;
+}
+
+/* Body row (preset list + optional calendar). */
+.tr-daterange-body {
+    display: flex;
+    min-height: 0;
 }
 
 /* ── Preset list ────────────────────────────────────────── */
@@ -93,6 +121,10 @@
 }
 
 .tr-preset-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     text-align: left;
     background: transparent;
     border: none;
@@ -113,6 +145,18 @@
 .tr-preset-item--active {
     background-color: rgba(41, 35, 122, 0.08);
     color: var(--db-primary);
+}
+
+.tr-preset-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #29237a, #4f46e5);
+    color: #ffffff;
+    flex-shrink: 0;
 }
 
 .tr-preset-item--divider {
@@ -230,6 +274,43 @@
     background-color: rgba(99, 102, 241, 0.14);
 }
 
+/* Live selection status — states exactly what's picked so far. */
+.tr-cal-selection {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background-color: rgba(41, 35, 122, 0.05);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--db-text-muted);
+    text-align: center;
+}
+
+.tr-cal-selection strong {
+    color: var(--db-primary);
+}
+
+.tr-cal-selection-sep {
+    color: #94a3b8;
+}
+
+.tr-cal-selection-hint {
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.tr-cal-selection.is-incomplete {
+    background-color: rgba(217, 119, 6, 0.08);
+}
+
+.tr-cal-selection.is-incomplete .tr-cal-selection-hint {
+    color: #b45309;
+}
+
 /* ── Calendar footer ────────────────────────────────────── */
 .tr-cal-footer {
     display: flex;
@@ -278,7 +359,7 @@
 /* ---- Responsive behavior (kept from TransactionRegistry.css) ---- */
 @media (max-width: 760px) {
     .tr-daterange-popover--wide {
-        width: min(510px, calc(100vw - 24px));
+        width: min(530px, calc(100vw - 24px));
     }
 
     .tr-cal-panel {
@@ -290,6 +371,10 @@
 
 @media (max-width: 560px) {
     .tr-daterange-popover--wide {
+        width: min(530px, calc(100vw - 24px));
+    }
+
+    .tr-daterange-body {
         flex-direction: column;
     }
 

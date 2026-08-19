@@ -38,6 +38,10 @@ export const ChevronDownIcon = ({ size, className }: IconProps) => (
     <svg {...base(size)} className={className}><polyline points="6 9 12 15 18 9" /></svg>
 );
 
+export const ArrowRightIcon = ({ size, className }: IconProps) => (
+    <svg {...base(size)} className={className}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+);
+
 /* Sidebar / nav icons */
 export const DashboardIcon = ({ size, className }: IconProps) => (
     <svg {...base(size)} className={className}><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></svg>

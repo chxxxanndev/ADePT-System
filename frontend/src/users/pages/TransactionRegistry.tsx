@@ -60,6 +60,7 @@ interface TransactionRegistryProps {
     onNavigateToPendingRequests?: () => void;  // NEW — wire from parent/router
     onNavigateToPendingPayment?: () => void;   // NEW — where "Reprint & Proceed" redirects
     onNavigateToArchive?: () => void;          // breadcrumb → Archive Management
+    onNavigateToDashboard?: () => void;        // breadcrumb → Dashboard
     initialSearchQuery?: string;
 }
 
@@ -70,6 +71,7 @@ export function TransactionRegistry({
     onNavigateToPendingRequests,
     onNavigateToPendingPayment,
     onNavigateToArchive,
+    onNavigateToDashboard,
     initialSearchQuery,
 }: TransactionRegistryProps) {
 
@@ -270,14 +272,23 @@ export function TransactionRegistry({
     return (
         <div className="tr-page">
             <div className="tr-header">
-                {/* Document Request > Pending Requests > Transaction Registry > Archive Management.
+                {/* Dashboard > Document Request > Pending Requests > Transaction Registry > Archive Management.
+                    "Dashboard" routes via onNavigateToDashboard (lands on the dashboard view),
                     "Document Request" routes via onNavigateToPendingRequests (it lands on
                     the document-request view in Dashboard.tsx) and "Pending Requests" routes
                     via onNavigateToPendingPayment (the actual Pending Payment/Requests page) —
-                    matches how Dashboard.tsx already wires these two props today. "Archive
+                    matches how Dashboard.tsx already wires these props today. "Archive
                     Management" is the final crumb, routing via onNavigateToArchive. Styled
                     identically to PendingPayment's pp-breadcrumb (teal on hover/active). */}
                 <nav className="tr-breadcrumb" aria-label="Breadcrumb">
+                    <button
+                        type="button"
+                        className="tr-breadcrumb-item--link"
+                        onClick={onNavigateToDashboard}
+                    >
+                        Dashboard
+                    </button>
+                    <span className="tr-breadcrumb-sep">&gt;</span>
                     <button
                         type="button"
                         className="tr-breadcrumb-item--link"

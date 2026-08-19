@@ -67,7 +67,7 @@ function splitQueueDateTime(raw: string | null | undefined, fallback: string): {
     };
 }
 
-export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }: any) {
+export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, onNavigateToDashboard }: any) {
     const [groupedPayments, setGroupedPayments] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
@@ -263,6 +263,14 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView }
         <div className="pp-container page-transition">
             {/* --- BREADCRUMB NAV --- */}
             <div className="pp-breadcrumb">
+                <button
+                    type="button"
+                    className="pp-breadcrumb-link"
+                    onClick={() => onNavigateToDashboard && onNavigateToDashboard()}
+                >
+                    Dashboard
+                </button>
+                <span className="pp-breadcrumb-sep">&gt;</span>
                 <button
                     type="button"
                     className="pp-breadcrumb-link"

@@ -1,9 +1,10 @@
 import * as Icons from './icons';
+import type { StatCardData } from '../types/dashboard';
 
 const ICON_MAP: Record<string, any> = {
     requests: Icons.FolderIcon,
     released: Icons.FolderIcon,
-    issued: Icons.FolderIcon,
+    ready: Icons.FolderIcon,
     active: Icons.FolderIcon,
     archived: Icons.ArchiveBoxIcon,
     voided: Icons.AlertTriangleIcon,
@@ -14,7 +15,7 @@ const ICON_MAP: Record<string, any> = {
 const SUB_ICON_MAP: Record<string, any> = {
     'total-requests': Icons.TrendUpIcon,
     'released-today': Icons.CheckCircleIcon,
-    'monthly-issued': Icons.CalendarIcon,
+    'ready-for-release': Icons.ClockIcon,
     'active-requests': Icons.ClockIcon,
     'archived': Icons.FilesIcon,
     'voided': Icons.RotateCcwIcon,
@@ -24,16 +25,20 @@ const SUB_ICON_MAP: Record<string, any> = {
 
 interface DashboardSummaryProps {
     title: string;
-    items: any[];
+    items: StatCardData[];
     iconType: 'operational' | 'admin';
     /** While true, renders skeleton placeholders instead of stat cards.
      *  The skeletons use the same .stat-card box (dimensions, padding,
      *  radius, grid placement) as the real cards, so the layout never
      *  jumps when the data arrives. */
     isLoading?: boolean;
+    /** Navigates to a card's `view` target when the card is clicked,
+     *  carrying optional `viewParams` for the destination view.
+     *  Cards without a `view` render as plain boxes. */
+    onNavigate?: (view: string, params?: Record<string, string>) => void;
 }
 
-export function DashboardSummary({ title, items, iconType, isLoading = false }: DashboardSummaryProps) {
+export function DashboardSummary({ title, items, iconType, isLoading = false, onNavigate }: DashboardSummaryProps) {
     return (
         <div className="summary-container">
             <div className="section-heading">
@@ -56,9 +61,10 @@ export function DashboardSummary({ title, items, iconType, isLoading = false }: 
                     items.map((item) => {
                         const MainIcon = ICON_MAP[item.icon];
                         const SubIcon = SUB_ICON_MAP[item.id];
+                        const clickable = !!item.view && !!onNavigate;
 
-                        return (
-                            <div key={item.id} className={`stat-card accent-${item.accent}`}>
+                        const content = (
+                            <>
                                 <div className="stat-card-top">
                                     <span className="stat-card-label">{item.label}</span>
                                     <div className="stat-card-icon-wrap">
@@ -69,7 +75,29 @@ export function DashboardSummary({ title, items, iconType, isLoading = false }: 
                                 <div className="stat-card-sublabel">
                                     <SubIcon size={13} className="sub-icon" />
                                     {item.sublabel}
+                                    {clickable && (
+                                        <span className="stat-card-arrow" aria-hidden="true">
+                                            <Icons.ArrowRightIcon size={12} />
+                                        </span>
+                                    )}
                                 </div>
+                            </>
+                        );
+
+                        return clickable ? (
+                            <button
+                                key={item.id}
+                                type="button"
+                                className={`stat-card accent-${item.accent} stat-card--clickable`}
+                                onClick={() => onNavigate(item.view!, item.viewParams)}
+                                aria-label={`${item.label}: ${item.value} — ${item.sublabel}`}
+                                title={`View ${item.label}`}
+                            >
+                                {content}
+                            </button>
+                        ) : (
+                            <div key={item.id} className={`stat-card accent-${item.accent}`}>
+                                {content}
                             </div>
                         );
                     })

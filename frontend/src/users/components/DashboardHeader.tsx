@@ -172,6 +172,7 @@ export function WelcomeBanner({ dateFrom, dateTo, onDateRangeChange, onReset, on
                     dateFrom={dateFrom}
                     dateTo={dateTo}
                     align="left"
+                    labelPrefix="Dashboard period:"
                     onChange={(from, to) => onDateRangeChange?.(from, to)}
                 />
                 {!isDefaultRange && onReset && (

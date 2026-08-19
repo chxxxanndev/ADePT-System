@@ -767,6 +767,53 @@
     border-color: rgba(41, 35, 122, 0.25) !important;
 }
 
+/* Clickable summary cards — button reset on top of the .stat-card box so
+   the card keeps its exact look while behaving like a link. */
+.stat-card--clickable {
+    width: 100%;
+    font: inherit;
+    text-align: inherit;
+    color: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.stat-card--clickable:hover {
+    box-shadow: 0 12px 28px rgba(41, 35, 122, 0.18) !important;
+}
+
+.stat-card--clickable:focus-visible {
+    outline: 2px solid rgba(41, 35, 122, 0.6);
+    outline-offset: 2px;
+}
+
+/* Hover affordance: a small arrow badge slides in next to the sublabel,
+   signalling the card navigates somewhere. */
+.stat-card-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    flex-shrink: 0;
+    width: 19px;
+    height: 19px;
+    border-radius: 999px;
+    background-color: rgba(41, 35, 122, 0.12);
+    color: var(--db-primary);
+    opacity: 0;
+    transform: translateX(-5px);
+    transition: opacity 0.18s ease, transform 0.18s ease, background-color 0.18s ease;
+    pointer-events: none;
+}
+
+.stat-card--clickable:hover .stat-card-arrow,
+.stat-card--clickable:focus-visible .stat-card-arrow {
+    opacity: 1;
+    transform: translateX(0);
+    background-color: rgba(41, 35, 122, 0.18);
+}
+
 /* Loading placeholder: same .stat-card box (padding, min-height, radius,
    grid cell) as the real cards, so the summary grid doesn't shift when
    the skeleton is replaced by the loaded card. */
@@ -837,10 +884,6 @@
     font-size: 11px;
     font-weight: 600;
     color: var(--db-text-muted);
-}
-
-.stat-card-sublabel.trend-up {
-    color: var(--db-success);
 }
 
 /* Two-column analytics row */
@@ -1073,6 +1116,16 @@
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+/* Week date span at the top of the tooltip — plain text, muted. */
+.tooltip-range {
+    color: #A5B4FC;
+    font-size: 10.5px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    padding-bottom: 2px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .tooltip-swatch {
