@@ -151,15 +151,19 @@ export function DateRangePicker({ dateFrom, dateTo, align = 'right', labelPrefix
     // Literal dates for the current selection, long-form — "August 21, 2026"
     // for a single day; "August 17 – August 21" when both ends share a year
     // (the year is only spelled out once the range crosses a year boundary).
+    // Coerced into plain strings up front so the guards below narrow cleanly
+    // under the strict `tsc -b` build.
     const datesLabel = useMemo(() => {
-        if (!dateFrom && !dateTo) return '';
-        if (!dateTo || dateFrom === dateTo) return formatLongDate(dateFrom!);
-        const f = fromISO(dateFrom);
-        const t = fromISO(dateTo);
+        const from = dateFrom ?? '';
+        const to = dateTo ?? '';
+        if (!from) return '';
+        if (!to || from === to) return formatLongDate(from);
+        const f = fromISO(from);
+        const t = fromISO(to);
         if (f.getFullYear() === t.getFullYear()) {
-            return `${formatDayMonth(dateFrom)} – ${formatLongDate(dateTo)}`;
+            return `${formatDayMonth(from)} – ${formatLongDate(to)}`;
         }
-        return `${formatLongDate(dateFrom)} – ${formatLongDate(dateTo)}`;
+        return `${formatLongDate(from)} – ${formatLongDate(to)}`;
     }, [dateFrom, dateTo]);
 
     // Trigger shows the friendly preset name when one applies ("Today",
