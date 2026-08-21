@@ -623,7 +623,7 @@
     isolation: isolate;
 }
 
-/* The Dashboard Period control is the shared Transaction Registry
+/* The Summary period control is the shared Transaction Registry
    DateRangePicker. The picker's popover is now portaled and positioned by
    the shared FloatingPopover; DashboardHeader passes align="left" so the
    popover opens into open space next to the welcome row instead of

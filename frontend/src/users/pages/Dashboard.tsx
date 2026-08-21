@@ -59,7 +59,7 @@ import type { VoidAmendRecord } from './VoidAndAmend';
 // below for activeView, so a page refresh doesn't fall back to RequestGuard.
 const COMPLETED_ENTRY_STORAGE_KEY = 'adept-completed-entry';
 
-// YYYY-MM-DD (local) for the Dashboard Period date-range state. Defaults to
+// YYYY-MM-DD (local) for the Summary period date-range state. Defaults to
 // today, mirroring the old period selector's "Today" default.
 const toISODate = (d: Date): string =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -220,11 +220,13 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     const analytics = useReportsAnalytics();
     const { items: cartItems } = useCart();
 
-    // ── Dashboard Period (drives the 8 summary stat cards) ──────────────
+    // ── Summary period (drives the 8 summary stat cards) ────────────────
     // Selected via the shared DateRangePicker in the WelcomeBanner. Defaults
     // to today; every preset (This Week / This Month / Custom Range…) re-runs
     // the filters below against the same registry fetch `analytics` already
-    // pulled — no extra network calls.
+    // pulled — no extra network calls. Scoped to the summary cards only —
+    // the Analytics Overview / Recent Transactions widgets are not affected,
+    // which is why the pill reads "Summary period", not "Dashboard period".
     const [dateFrom, setDateFrom] = useState(TODAY_ISO);
     const [dateTo, setDateTo] = useState(TODAY_ISO);
 
@@ -233,7 +235,7 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         setDateTo(to);
     };
 
-    // Human-readable label for the currently selected Dashboard Period —
+    // Human-readable label for the currently selected Summary period —
     // used as the sublabel of every summary card so the number shown always
     // states exactly which range it covers ("Today", "Aug 1 – Aug 19, 2026",
     // "All time", ...). Truthful regardless of which preset was picked.

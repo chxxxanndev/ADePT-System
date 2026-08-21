@@ -245,9 +245,12 @@
 
 .stats-grid {
   display: grid;
-  /* 5 slots: the 4 periodized cards + the all-time Total Requests card.
-     The 2-col / 1-col breakpoints below handle narrow widths. */
-  grid-template-columns: repeat(5, 1fr);
+  /* 7 slots in two deliberate rows: row 1 = the four general cards
+     (Documents Released, Documents Requested, Pending Payments, All-Time
+     Requests); row 2 = the three per-document-type release cards (Tax
+     Declaration, No Landholding, Landholding) grouped as one unit. The
+     2-col / 1-col breakpoints below handle narrow widths. */
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   width: 100%;
 }
@@ -312,10 +315,11 @@
 }
 
 /* Bottom slot rendered by every card (see StatCard in Reports.tsx): it is
-   as tall as the trend tag so cards WITHOUT a trend line (Tax Declarations,
-   Total Pending) reserve exactly the same space — the number row above it
-   stays at the same vertical level and every card's bottom boundary
-   matches, with no per-card margin hacks. */
+   as tall as the trend tag so cards WITHOUT a trend line (the three
+   per-document-type cards, Pending Payments, All-Time Requests) reserve
+   exactly the same space — the number row above it stays at the same
+   vertical level and every card's bottom boundary matches, with no
+   per-card margin hacks. */
 .stat-card-footer {
   min-height: 18px;
   display: flex;
@@ -367,6 +371,19 @@
 .stat-icon--success {
   background-color: var(--color-success-bg);
   color: var(--color-success);
+}
+
+/* Landholding card — gold family, matching the gold used for Landholding in
+   the Document Distribution chart and the reprint breakdown bars. */
+.stat-icon--landholding {
+  background-color: var(--color-pending-bg);
+  color: var(--color-pending-text);
+}
+
+/* No Landholding card — red family, matching its distribution color. */
+.stat-icon--noland {
+  background-color: rgba(209, 57, 63, 0.09);
+  color: var(--color-error);
 }
 
 /* ---------- Reprinted Documents by Declarant ---------- */

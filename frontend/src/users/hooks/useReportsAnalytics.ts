@@ -81,6 +81,11 @@ export interface ReportsAnalyticsData {
     totalRequestsAll: number;
     /** Tax Declaration counts by period */
     taxDeclarationCounts: PeriodMetric;
+    /** Released Certificate-of-Landholding counts by period (same bucketing
+     *  rule as taxDeclarationCounts: by real release time) */
+    landholdingCounts: PeriodMetric;
+    /** Released Certificate-of-No-Landholding counts by period */
+    noLandholdingCounts: PeriodMetric;
     /** Live count of requests currently in the Pending Payments queue
      *  (raw backend status PENDING_PAYMENT, falling back to the mapped
      *  'Pending' label on pre-statusRaw responses) — matches the Pending
@@ -191,13 +196,29 @@ function isLastMonth(iso: string): boolean {
 
 /**
  * Given a list of transactions and a predicate, counts how many of them
- * (a) satisfy `pred` and (b) have at least one document of `docType`.
+ * (a) satisfy `pred` and (b) have at least one requested document accepted
+ * by `match`.
  */
-function countByDocType(txns: Transaction[], docType: string, pred: (t: Transaction) => boolean): number {
-    return txns.filter(t => pred(t) && t.requestedDocuments.some(d =>
-        d.documentType.toLowerCase().includes(docType.toLowerCase())
-    )).length;
+function countByDocMatcher(
+    txns: Transaction[],
+    match: (d: { documentType: string }) => boolean,
+    pred: (t: Transaction) => boolean
+): number {
+    return txns.filter(t => pred(t) && t.requestedDocuments.some(match)).length;
 }
+
+/** Document-type matchers for the per-type release counters. Tax Declaration
+ *  keeps the historical fuzzy substring match; the two certificates match the
+ *  exact registry names (both spellings, mirroring the distribution slices)
+ *  so a "No Landholding" record can never be counted as "Landholding". */
+const isTaxDeclarationDoc = (d: { documentType: string }) =>
+    d.documentType.toLowerCase().includes('tax declaration');
+const isLandholdingDoc = (d: { documentType: string }) =>
+    d.documentType === 'Certificate of Landholding' ||
+    d.documentType === 'Certificate of Land Holding';
+const isNoLandholdingDoc = (d: { documentType: string }) =>
+    d.documentType === 'Certificate of No Landholding' ||
+    d.documentType === 'Certificate of No Land Holding';
 
 /** True "release" timestamp for a transaction: the full released_at when
     present (accurate time + date), falling back to the date-only columns. */
@@ -351,9 +372,19 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
         const totalMonth = filtered.filter(t => isThisMonth(t.dateRequested)).length;
         const totalLastMonth = filtered.filter(t => isLastMonth(t.dateRequested)).length;
 
-        const tdToday = countByDocType(released, 'Tax Declaration', t => isToday(releaseDateOf(t)));
-        const tdWeek = countByDocType(released, 'Tax Declaration', t => isThisWeek(releaseDateOf(t)));
-        const tdMonth = countByDocType(released, 'Tax Declaration', t => isThisMonth(releaseDateOf(t)));
+        // Per-document-type release counts share one bucketing rule: a
+        // released transaction counts toward every document type it
+        // contains, bucketed by its real release time (same rule as
+        // documentsReleased — NOT the request date).
+        const tdToday = countByDocMatcher(released, isTaxDeclarationDoc, t => isToday(releaseDateOf(t)));
+        const tdWeek = countByDocMatcher(released, isTaxDeclarationDoc, t => isThisWeek(releaseDateOf(t)));
+        const tdMonth = countByDocMatcher(released, isTaxDeclarationDoc, t => isThisMonth(releaseDateOf(t)));
+        const lhToday = countByDocMatcher(released, isLandholdingDoc, t => isToday(releaseDateOf(t)));
+        const lhWeek = countByDocMatcher(released, isLandholdingDoc, t => isThisWeek(releaseDateOf(t)));
+        const lhMonth = countByDocMatcher(released, isLandholdingDoc, t => isThisMonth(releaseDateOf(t)));
+        const nlhToday = countByDocMatcher(released, isNoLandholdingDoc, t => isToday(releaseDateOf(t)));
+        const nlhWeek = countByDocMatcher(released, isNoLandholdingDoc, t => isThisWeek(releaseDateOf(t)));
+        const nlhMonth = countByDocMatcher(released, isNoLandholdingDoc, t => isThisMonth(releaseDateOf(t)));
 
         // Reprinted documents: sum all reprintCounts
         const reprintedCount = filtered.reduce((sum, t) =>
@@ -469,6 +500,8 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
                 monthly: computeTrend(totalMonth, totalLastMonth, 'last month'),
             },
             taxDeclarationCounts: { daily: tdToday, weekly: tdWeek, monthly: tdMonth },
+            landholdingCounts: { daily: lhToday, weekly: lhWeek, monthly: lhMonth },
+            noLandholdingCounts: { daily: nlhToday, weekly: nlhWeek, monthly: nlhMonth },
             pendingCount: pending.length,
             voidedCount: voided.length,
             archivedCount: archived.length,

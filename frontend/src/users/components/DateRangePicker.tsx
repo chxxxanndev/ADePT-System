@@ -25,6 +25,16 @@ function formatDisplay(s: string): string {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// Long-form variants for the trigger pill's literal dates — e.g.
+// "August 21, 2026" (single day) / "August 17 – August 21" (same-year span).
+function formatLongDate(s: string): string {
+    return fromISO(s).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatDayMonth(s: string): string {
+    return fromISO(s).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+}
+
 function startOfWeek(d: Date): Date {
     const out = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     out.setDate(out.getDate() - out.getDay());
@@ -87,12 +97,16 @@ interface DateRangePickerProps {
      * popover opens into open space next to the welcome row. */
     align?: 'left' | 'right';
     /** Optional prefix shown inside the trigger pill before the selection
-     * (e.g. "Dashboard period: Today"). Only the dashboard passes this. */
+     * (e.g. "Summary period: Today"). Only the dashboard passes this. */
     labelPrefix?: string;
+    /** Spell the literal dates out inside the pill after the preset name —
+     * "Today · August 21, 2026", "This Week · August 17 – August 21".
+     * Only the dashboard passes this; filter bars keep the compact label. */
+    appendDates?: boolean;
     onChange: (dateFrom: string, dateTo: string) => void;
 }
 
-export function DateRangePicker({ dateFrom, dateTo, align = 'right', labelPrefix, onChange }: DateRangePickerProps) {
+export function DateRangePicker({ dateFrom, dateTo, align = 'right', labelPrefix, appendDates, onChange }: DateRangePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
     // Two-page layout: the popover opens as a single-column preset list;
     // choosing "Custom Range..." expands it into a two-pane spread
@@ -134,18 +148,37 @@ export function DateRangePicker({ dateFrom, dateTo, align = 'right', labelPrefix
         return null;
     }, [dateFrom, dateTo]);
 
+    // Literal dates for the current selection, long-form — "August 21, 2026"
+    // for a single day; "August 17 – August 21" when both ends share a year
+    // (the year is only spelled out once the range crosses a year boundary).
+    const datesLabel = useMemo(() => {
+        if (!dateFrom && !dateTo) return '';
+        if (!dateTo || dateFrom === dateTo) return formatLongDate(dateFrom!);
+        const f = fromISO(dateFrom);
+        const t = fromISO(dateTo);
+        if (f.getFullYear() === t.getFullYear()) {
+            return `${formatDayMonth(dateFrom)} – ${formatLongDate(dateTo)}`;
+        }
+        return `${formatLongDate(dateFrom)} – ${formatLongDate(dateTo)}`;
+    }, [dateFrom, dateTo]);
+
     // Trigger shows the friendly preset name when one applies ("Today",
     // "This Week", ...), and the exact dates otherwise — so what the user
     // sees matches the Dashboard card sublabels ("Today", "Aug 1 – Aug 19").
+    // With appendDates (dashboard), the preset name is followed by the
+    // literal date(s): "This Week · August 17 – August 21".
     const triggerLabel = useMemo(() => {
-        if (activePresetKey) {
-            return PRESETS.find((p) => p.key === activePresetKey)?.label ?? 'Select date range';
-        }
         if (!dateFrom && !dateTo) return 'Select date range';
-        return dateTo
+        const presetName = activePresetKey
+            ? PRESETS.find((p) => p.key === activePresetKey)?.label
+            : null;
+        if (presetName) {
+            return appendDates ? `${presetName} · ${datesLabel}` : presetName;
+        }
+        return appendDates ? datesLabel : (dateTo
             ? `${formatDisplay(dateFrom!)} – ${formatDisplay(dateTo)}`
-            : formatDisplay(dateFrom!);
-    }, [activePresetKey, dateFrom, dateTo]);
+            : formatDisplay(dateFrom!));
+    }, [activePresetKey, appendDates, datesLabel, dateFrom, dateTo]);
 
     // True when the range was picked manually (calendar / presets that
     // don't map back to a preset name) — the pill then shows the full
@@ -202,7 +235,7 @@ export function DateRangePicker({ dateFrom, dateTo, align = 'right', labelPrefix
         <div className="tr-daterange" ref={wrapperRef}>
             <button
                 type="button"
-                className={`tr-daterange-btn${dateFrom || dateTo ? ' has-value' : ''}${isCustomRange ? ' is-custom' : ''}`}
+                className={`tr-daterange-btn${dateFrom || dateTo ? ' has-value' : ''}${isCustomRange ? ' is-custom' : ''}${appendDates ? ' shows-dates' : ''}`}
                 onClick={() => setIsOpen((o) => !o)}
                 title={triggerLabel}
             >

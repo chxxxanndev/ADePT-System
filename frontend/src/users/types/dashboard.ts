@@ -92,7 +92,7 @@ export interface UserProfile {
     avatarUrl?: string;
 }
 
-// Date range produced by the Dashboard Period selector
+// Date range produced by the dashboard's Summary period selector
 export interface PeriodRange {
     from: Date;
     to: Date;

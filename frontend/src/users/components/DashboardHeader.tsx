@@ -131,11 +131,13 @@ export function DashboardHeader({
 }
 
 /**
- * Welcome banner for the dashboard home view. The "Dashboard Period"
+ * Welcome banner for the dashboard home view. The "Summary period"
  * selector reuses the same DateRangePicker the Transaction Registry uses,
  * so the calendar UX matches across screens. The selected range flows up
- * to Dashboard.tsx via onDateRangeChange, which filters the summary stat
- * cards to the chosen period.
+ * to Dashboard.tsx via onDateRangeChange, which filters ONLY the 8 summary
+ * stat cards to the chosen period (the Analytics Overview / Recent
+ * Transactions widgets below are not scoped by it — hence the label says
+ * "Summary", not "Dashboard").
  */
 interface WelcomeBannerProps {
     dateFrom?: string;
@@ -172,11 +174,16 @@ export function WelcomeBanner({ dateFrom, dateTo, onDateRangeChange, onReset, on
                     dateFrom={dateFrom}
                     dateTo={dateTo}
                     align="left"
-                    labelPrefix="Dashboard period:"
+                    labelPrefix="Summary period:"
+                    appendDates
                     onChange={(from, to) => onDateRangeChange?.(from, to)}
                 />
                 {!isDefaultRange && onReset && (
-                    <button type="button" className="tr-filter-reset" onClick={onReset}>
+                    <button
+                        type="button"
+                        className="tr-filter-reset tr-filter-reset--danger"
+                        onClick={onReset}
+                    >
                         Reset
                     </button>
                 )}

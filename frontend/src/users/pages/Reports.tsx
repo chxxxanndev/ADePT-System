@@ -12,6 +12,8 @@ import {
 import {
   FileText,
   FileStack,
+  FileX,
+  Landmark,
   ShieldCheck,
   Search,
   ListChecks,
@@ -251,7 +253,7 @@ function ReportsReprintSkeleton() {
         <SkeletonBox width="240px" height="16px" />
       </div>
       <div className="reports-chart-skeleton-body">
-        {Array.from({ length: 5 }).map((_, i) => (
+      {Array.from({ length: 7 }).map((_, i) => (
           <SkeletonBox
             key={i}
             width={i % 3 === 0 ? "58%" : "76%"}
@@ -373,15 +375,23 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
         t.status === "Released" &&
         inRange(t.releasedAt ?? t.dateReleased ?? t.dateRequested)
     );
-    const releasedTd = released.filter((t) =>
-      t.requestedDocuments.some((d) =>
-        d.documentType.toLowerCase().includes("tax declaration")
-      )
-    );
+    // Same document-type matching as useReportsAnalytics: fuzzy substring
+    // for Tax Declaration, exact registry spellings (both variants) for the
+    // two certificates so "No Landholding" can never count as "Landholding".
+    const isTdDoc = (d: { documentType: string }) =>
+      d.documentType.toLowerCase().includes("tax declaration");
+    const isLhDoc = (d: { documentType: string }) =>
+      d.documentType === "Certificate of Landholding" ||
+      d.documentType === "Certificate of Land Holding";
+    const isNlhDoc = (d: { documentType: string }) =>
+      d.documentType === "Certificate of No Landholding" ||
+      d.documentType === "Certificate of No Land Holding";
     return {
       documentsReleased: released.length,
       documentsRequested: txns.filter((t) => inRange(t.dateRequested)).length,
-      taxDeclarations: releasedTd.length,
+      taxDeclarations: released.filter((t) => t.requestedDocuments.some(isTdDoc)).length,
+      landholdings: released.filter((t) => t.requestedDocuments.some(isLhDoc)).length,
+      noLandholdings: released.filter((t) => t.requestedDocuments.some(isNlhDoc)).length,
     };
   }, [analytics.transactions, customRange]);
 
@@ -389,6 +399,10 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
     ? formatPeriodRange(customRange.from, customRange.to)
     : PERIOD_LABEL[period];
   const cardSublabel = customRange ? activePeriodLabel : PERIOD_LABEL[period];
+  // The three per-document-type cards count RELEASED transactions containing
+  // that type (bucketed by release time) — the "Released ·" prefix keeps that
+  // honest next to the request-based volume cards above them.
+  const releasedSublabel = `Released · ${cardSublabel}`;
 
   const handlePeriodChange = (p: Period) => {
     setCustomRange(null); // leaving custom mode returns to the preset buckets
@@ -670,8 +684,18 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
           </div>
         ) : (
           <>
-            {/* Stats Grid */}
+            {/* Stats Grid — two deliberate rows: row 1 leads with the
+                all-time registry total, then the periodized volume cards and
+                the live queue; row 2 groups the three per-document-type
+                release cards together so the breakdown reads as one unit. */}
             <div className="stats-grid">
+              <StatCard
+                icon={<ClipboardList size={18} />}
+                iconClass="stat-icon--success"
+                label="All-Time Requests"
+                value={analytics.totalRequestsAll}
+                sublabel="All statuses"
+              />
               <StatCard
                 icon={<FileText size={18} />}
                 iconClass="stat-icon--primary"
@@ -689,25 +713,37 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
                 trend={customRange ? undefined : analytics.totalRequestsTrend[period]}
               />
               <StatCard
+                icon={<ShieldCheck size={18} />}
+                iconClass="stat-icon--pending"
+                label="Pending Payments"
+                value={analytics.pendingCount}
+                sublabel="Live queue"
+              />
+              {/* Per-document-type releases — one card per certificate type,
+                  each counting released transactions that include that type
+                  in the selected period (same bucketing as Documents
+                  Released). A transaction holding several types counts in
+                  each of its cards, so these need not sum to the total. */}
+              <StatCard
                 icon={<ListChecks size={18} />}
                 iconClass="stat-icon--truecopy"
                 label="Tax Declarations"
                 value={customRange ? rangeStats?.taxDeclarations ?? 0 : analytics.taxDeclarationCounts[period]}
-                sublabel={cardSublabel}
+                sublabel={releasedSublabel}
               />
               <StatCard
-                icon={<ShieldCheck size={18} />}
-                iconClass="stat-icon--pending"
-                label="Total Pending"
-                value={analytics.pendingCount}
-                sublabel="Live queue"
+                icon={<FileX size={18} />}
+                iconClass="stat-icon--noland"
+                label="No Landholding Certificates"
+                value={customRange ? rangeStats?.noLandholdings ?? 0 : analytics.noLandholdingCounts[period]}
+                sublabel={releasedSublabel}
               />
               <StatCard
-                icon={<ClipboardList size={18} />}
-                iconClass="stat-icon--success"
-                label="Total Requests"
-                value={analytics.totalRequestsAll}
-                sublabel="All time"
+                icon={<Landmark size={18} />}
+                iconClass="stat-icon--landholding"
+                label="Landholding Certificates"
+                value={customRange ? rangeStats?.landholdings ?? 0 : analytics.landholdingCounts[period]}
+                sublabel={releasedSublabel}
               />
             </div>
 
