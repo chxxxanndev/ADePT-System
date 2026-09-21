@@ -11,7 +11,6 @@ export function AuthBanner({ view }: AuthBannerProps) {
     return (
         <div
             className="auth-banner"
-            // 2. Apply the image and the ADePT blue overlay gradient here inline
             style={{
                 backgroundImage: `linear-gradient(rgba(41, 35, 122, 0.85), rgba(41, 35, 122, 0.85)), url(${bgImg})`,
                 backgroundSize: 'cover',
@@ -33,7 +32,6 @@ export function AuthBanner({ view }: AuthBannerProps) {
                 </div>
 
                 <div className="banner-branding-area">
-                    {/* LOGIN / FORGOT: Left-aligned ADePT + vertical divider + taglines */}
                     <div className={`banner-branding-content ${view === 'login' || view === 'forgotPassword' || view === 'resetPassword' ? 'active' : ''}`}>
                         <div className="banner-branding-signup">
                             <h1 className="branding-title-signup">ADePT</h1>
@@ -46,7 +44,6 @@ export function AuthBanner({ view }: AuthBannerProps) {
                         </div>
                     </div>
 
-                    {/* SIGNUP: Centered ADePT + system subtitle */}
                     <div className={`banner-branding-content ${view === 'signup' ? 'active' : ''}`}>
                         <div className="banner-branding-login">
                             <h1 className="branding-title">ADePT</h1>

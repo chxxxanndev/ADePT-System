@@ -3,7 +3,6 @@ import type { ReactElement } from 'react';
 import { useCart } from '../hooks/TransactionCartContext';
 import '../styles/TransactionProgressPanel.css';
 
-// ── Small inline icon set (replaces emoji) ─────────────────────────
 function FolderCheckIcon({ size = 18 }: { size?: number }) {
     return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -64,7 +63,6 @@ function FileIcon({ size = 14 }: { size?: number }) {
     );
 }
 
-// ── Color + icon tokens by document type ───────────────────────────
 const DOCTYPE_STYLE: Record<string, { bg: string; border: string; text: string; accent: string; iconBg: string }> = {
     'Tax Declaration': { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', accent: '#3b82f6', iconBg: '#dbeafe' },
     'Certificate of Landholding': { bg: '#fffbeb', border: '#fde68a', text: '#b45309', accent: '#f59e0b', iconBg: '#fef3c7' },
@@ -83,10 +81,6 @@ function docIcon(t: string) {
     return DOCTYPE_ICON[t] ?? FileIcon;
 }
 
-// Best-effort relative time. Reads item.savedAt defensively via a cast —
-// TransactionCartContext's CartItem type doesn't carry this field yet, so
-// this renders nothing until the context is updated to stamp items with a
-// savedAt ISO string when they're added. Safe no-op until then.
 function relativeTime(iso?: string): string | null {
     if (!iso) return null;
     const then = new Date(iso).getTime();
@@ -100,7 +94,6 @@ function relativeTime(iso?: string): string | null {
     return new Date(iso).toLocaleDateString();
 }
 
-// ── Shared logic: group cart items by documentType ────────────────
 function useGroupedCart() {
     const { items } = useCart();
     const grouped: { documentType: string; declarants: { name: string; savedAt?: string }[]; count: number }[] = [];
@@ -117,15 +110,11 @@ function useGroupedCart() {
     return { grouped, total: items.length };
 }
 
-// A document currently being filled out but not yet saved to the cart.
 export interface InProgressInfo {
     documentType: string;
     label: string;
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  1. COMPACT BAR — for RequestFormEntry (top of card)
-// ═══════════════════════════════════════════════════════════════
 interface TransactionProgressBarProps {
     referenceNumber?: string;
     currentDeclarant?: string;
@@ -151,7 +140,6 @@ export function TransactionProgressBar({ referenceNumber, currentDeclarant, empt
 
     return (
         <div className="txp-bar-wrapper">
-            {/* ── Collapsed top strip ── */}
             <button
                 type="button"
                 className="txp-bar-strip"
@@ -179,7 +167,6 @@ export function TransactionProgressBar({ referenceNumber, currentDeclarant, empt
                 <span className={`txp-bar-chevron ${expanded ? 'is-up' : ''}`}>▾</span>
             </button>
 
-            {/* ── Expanded full card ── */}
             {expanded && (
                 <div className="txp-bar-expanded">
                     <TransactionProgressPanel
@@ -193,14 +180,8 @@ export function TransactionProgressBar({ referenceNumber, currentDeclarant, empt
     );
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  2. FULL CARD — for certificate processing forms
-// ═══════════════════════════════════════════════════════════════
 interface TransactionProgressPanelProps {
     referenceNumber?: string;
-    // Name of the declarant whose document is being filled out on THIS page
-    // right now (Tax Declaration / Landholding / No-Landholding form).
-    // Shown as "Processing now: <name>" next to the session ref.
     currentDeclarant?: string;
     inProgress?: InProgressInfo;
 }
@@ -213,7 +194,6 @@ export function TransactionProgressPanel({ referenceNumber, currentDeclarant, in
 
     return (
         <div className="txp-card">
-            {/* Header */}
             <div className="txp-card-header">
                 <div className="txp-card-header-left">
                     <span className="txp-card-icon"><ClipboardListIcon size={20} /></span>
@@ -228,7 +208,6 @@ export function TransactionProgressPanel({ referenceNumber, currentDeclarant, in
                 </div>
             </div>
 
-            {/* Ref tag + "Processing now" status */}
             {(referenceNumber || currentDeclarant) && (
                 <div className="txp-card-ref">
                     {referenceNumber && <span>Session ref: <strong>{referenceNumber}</strong></span>}
@@ -240,7 +219,6 @@ export function TransactionProgressPanel({ referenceNumber, currentDeclarant, in
                 </div>
             )}
 
-            {/* Groups */}
             <div className="txp-card-groups">
                 {grouped.map((g) => {
                     const s = docStyle(g.documentType);
@@ -304,7 +282,6 @@ export function TransactionProgressPanel({ referenceNumber, currentDeclarant, in
                 )}
             </div>
 
-            {/* Footer hint */}
             <div className="txp-card-footer">
                 <span>All saved documents appear in Review Transaction. Use <strong>Save &amp; Add Another Doc</strong> to add more, or <strong>Review Transaction</strong> to finalise.</span>
             </div>

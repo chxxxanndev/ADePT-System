@@ -1,15 +1,3 @@
-/* ============================================================
-   Custom Date Input (CustomDateInput.tsx) — redesigned calendar
-   card shown by the Date Given / Date of Request fields in the
-   Tax Declaration, Landholding, and No-Landholding forms.
-
-   Same visual language as the DateRangePicker calendar: white
-   rounded card, ADePT navy/indigo selected day, soft hover,
-   muted today ring, pill action buttons. The field itself keeps
-   the passed-through input class (lh-input / rfe-input) so the
-   form layout stays identical to the old native date field.
-   ============================================================ */
-
 .cdi-wrap {
     position: relative;
     width: 100%;
@@ -44,7 +32,7 @@
     color: var(--db-primary, #29237a);
 }
 
-/* ── Calendar popup card ─────────────────────────────────── */
+/* Calendar popup card */
 .cdi-popover {
     background: #ffffff;
     border: 1px solid #eef0f6;

@@ -24,19 +24,10 @@ import "../styles/ArchiveManagement.css";
 import "../styles/TransactionRegistry.css";
 import "../styles/select.css";
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
-// The system supports exactly three document types (see the shared
-// documentType.tsx prefix map: TD / NLH / LH). The archive filter list
-// and row labels must only ever surface these three.
 type DocumentType = "Tax Declaration" | "No Land Holding" | "Landholding";
 
 type ArchiveReason = "Auto" | "Manual";
 
-// Whether this record landed here because the transaction was manually
-// archived (pending payment → Archive Management) or because it was
-// cancelled (cancel button in Final Verification & Payment).
 type ArchiveStatus = "Cancelled" | "Archived";
 
 interface ArchivedRecord {
@@ -55,17 +46,7 @@ interface ArchivedRecord {
 
 type StatusFilter = "All statuses" | ArchiveStatus;
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                           */
-/* ------------------------------------------------------------------ */
 
-/**
- * Maps a transaction onto one of the three canonical document types.
- * The reference-number prefix (TD / NLH / LH — via the shared
- * documentType.tsx util) is the most reliable signal; the registry
- * document name is used as a fallback (it also covers the CTC variant
- * of Tax Declarations, which shares the TD prefix family).
- */
 function resolveArchiveDocName(docs: RequestedDocumentItem[], referenceNumber: string): DocumentType {
   const fromReference = getDocumentTypeFromReference(referenceNumber);
   if (fromReference) return fromReference as DocumentType;
@@ -101,14 +82,6 @@ function ReferenceBadge({ reference, type }: { reference: string; type: Document
     </span>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Skeleton loading — mirrors TransactionRegistry's lazy-load pattern */
-/*  (components/common/Skeleton.tsx + the .tr-lazy-load wrapper): the  */
-/*  summary cards and the toolbar/table are ghost skeletons while the  */
-/*  first fetch runs, then the real cards mount in the same spots, so  */
-/*  nothing jumps on load.                                             */
-/* ------------------------------------------------------------------ */
 
 function ArchiveSummarySkeleton() {
   return (
@@ -184,17 +157,6 @@ function ArchiveTableSkeleton({ rows = 7 }: { rows?: number }) {
   );
 }
 
-/**
- * Transaction archive metadata (archivedAt / archiveReason) is now
- * returned by the backend registry and stored when requests are archived
- * from the queues (Pending Payments / Pending For Release) or cancelled
- * in Final Verification & Payment.
- *
- * The action timestamp uses, in order: archivedAt (set by the queue's
- * archive flow), cancelledAt (set when the status flipped to CANCELLED),
- * and the original request date as a last-resort fallback. The reason
- * column surfaces the staff-entered archive reason verbatim.
- */
 function toArchivedRecord(t: Transaction): ArchivedRecord {
   const isCancelled = t.status === "Cancelled";
   const actionedAt = t.archivedAt ?? t.cancelledAt ?? t.dateRequested;
@@ -222,20 +184,10 @@ function toArchivedRecord(t: Transaction): ArchivedRecord {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Page component                                                    */
-/* ------------------------------------------------------------------ */
 interface ArchiveManagementProps {
-  // Breadcrumb navigation — mirrors the onNavigateTo* wiring used by
-  // TransactionRegistry/CertifiedTrueCopy: the parent (Dashboard) passes
-  // the active-view setters so the breadcrumb can jump between screens.
   onNavigateToPendingRequests?: () => void;
   onNavigateToPendingPayment?: () => void;
-  /** Breadcrumb → Dashboard. */
   onNavigateToDashboard?: () => void;
-  /** One-time initial status filter applied when the page opens (e.g. the
-   *  Dashboard "Cancelled" summary card opens this page pre-filtered to
-   *  Cancelled records). The user can still change it afterwards. */
   initialStatusFilter?: "Cancelled" | "Archived" | "All statuses";
 }
 
@@ -257,16 +209,10 @@ export default function ArchiveManagement({
   const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  // View drawer target — opens the full record read-only so staff can see
-  // exactly what was archived/cancelled (same drawer Void & Amend uses).
   const [viewId, setViewId] = useState<string | null>(null);
-  // Restore confirmation modal target (replaces the native window.confirm).
   const [restoreTarget, setRestoreTarget] = useState<{ id: string; reference: string } | null>(null);
-  // Restore feedback — reuses the system's existing .as-toast design
-  // (accountSettings.css): bottom-center, dark pill, 2500ms auto-dismiss.
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const toastTimer = useRef<number | null>(null);
-  // Prevents duplicate restore requests while one is in flight.
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
   const showToast = (type: "success" | "error", message: string) => {
@@ -280,10 +226,6 @@ export default function ArchiveManagement({
       if (isManualRefresh) setIsRefreshing(true);
       else setLoading(true);
       setLoadError(null);
-      // Reads from the same registry endpoint as Reports, Transaction Registry,
-      // and Void and Amend, so this page's archived count always matches the
-      // "Archived" figure shown in Reports & Analytics and on the Dashboard.
-      // Cancelled requests (from Final Verification & Payment) also land here.
       const all = await fetchTransactionRegistry();
       const archivedOnly = all
         .filter((t) => t.status === "Archived" || t.status === "Cancelled");
@@ -310,10 +252,11 @@ export default function ArchiveManagement({
       await requestService.updateRequest(id, { status: "PENDING_PAYMENT" });
       setRecords((prev) => prev.filter((r) => r.id !== id));
       setArchivedTransactions((prev) => prev.filter((t) => t.id !== id));
+
       // Only claim success after the backend confirms the restore.
       showToast("success", `Document ${ref} restored successfully.`);
-      // The restored record lands back in the Pending Payments queue —
-      // navigate there so the user sees the request back in the queue.
+
+      // The restored record lands back in the Pending Payments queue — navigate there so the user sees the request back in the queue.
       onNavigateToPendingPayment?.();
     } catch {
       showToast("error", "Failed to restore document. Please try again.");
@@ -322,10 +265,7 @@ export default function ArchiveManagement({
     }
   };
 
-  // ── View drawer lookups ─────────────────────────────
-  // The drawer renders the FULL transaction read-only (same as Void &
-  // Amend's View), so keep the live transactions alongside the display
-  // records and resolve the clicked row by id.
+  // The drawer renders the FULL transaction read-only (same as Void & Amend's View), so keep the live transactions alongside the display records and resolve the clicked row by id.
   const transactionsById = useMemo(() => {
     const map = new Map<string, Transaction>();
     for (const t of archivedTransactions) map.set(t.id, t);
@@ -352,10 +292,8 @@ export default function ArchiveManagement({
         record.declarantName.toLowerCase().includes(search.toLowerCase()) ||
         record.archivedBy.toLowerCase().includes(search.toLowerCase()) ||
         record.reasonDetail.toLowerCase().includes(search.toLowerCase());
-      // Same ISO-string date comparison the Transaction Registry uses.
       const matchesDateFrom = !dateFrom || record.archivedDateISO >= dateFrom;
       const matchesDateTo = !dateTo || record.archivedDateISO <= dateTo;
-      // Same reference-prefix document-type check the Registry uses.
       const matchesDocType = matchesDocumentType(record.reference, docTypeFilter);
       return matchesReason && matchesSearch && matchesDateFrom && matchesDateTo && matchesDocType;
     });
@@ -365,14 +303,11 @@ export default function ArchiveManagement({
   const totalRecords = filteredRecords.length;
   const totalPages = Math.ceil(totalRecords / pageSize) || 1;
 
-  // Reset to page 1 when filters, search, or page size change
   useEffect(() => {
     setCurrentPage(1);
   }, [search, reasonFilter, docTypeFilter, dateFrom, dateTo, pageSize]);
 
-  // Same clamp the Registry/Reports use: if data shrinks (e.g. Restoring
-  // the last row of the last page, or a filter narrowing the list) the
-  // view falls back to the last valid page instead of an empty page.
+  // If data shrinks (e.g. Restoring the last row of the last page, or a filter narrowing the list) the view falls back to the last valid page instead of an empty page.
   const activePage = Math.min(currentPage, totalPages);
 
   const start = (activePage - 1) * pageSize;
@@ -405,11 +340,7 @@ export default function ArchiveManagement({
 
   return (
     <div className="arc-page">
-      {/* ---- Header card ---- */}
       <div className="arc-header">
-        {/* Breadcrumb — reuses the shared .tr-breadcrumb styles from
-            TransactionRegistry.css (same classes Void & Amend and
-            Reprint/CTC use), so this reads identically to the registry. */}
         <nav className="tr-breadcrumb" aria-label="Breadcrumb">
           <button
             type="button"
@@ -491,7 +422,6 @@ export default function ArchiveManagement({
         )}
       </div>
 
-      {/* ---- Table card ---- */}
       {loading ? (
         <div className="tr-lazy-load">
           <ArchiveTableSkeleton />
@@ -667,8 +597,7 @@ export default function ArchiveManagement({
       </div>
       )}
 
-      {/* Restore confirmation modal — system rc-modal design (same as the
-          logout confirm), replacing the old native window.confirm(). */}
+      {/* Restore confirmation modal — system rc-modal design (same as the logout confirm) */}
       <RestoreConfirmModal
         open={!!restoreTarget}
         reference={restoreTarget?.reference ?? ""}
@@ -681,10 +610,7 @@ export default function ArchiveManagement({
         }}
       />
 
-      {/* View drawer — full record opened read-only (no Reprint / Void
-          actions), the same TransactionDetails drawer the registry and
-          Void & Amend use. The header notes whether the record was
-          cancelled or archived. */}
+      {/* View drawer — full record opened read-only (no Reprint / Void actions), the same TransactionDetails drawer the registry and Void & Amend use.*/}
       {viewGroup && viewTxn && (
         <TransactionDetails
           group={viewGroup}
@@ -694,9 +620,6 @@ export default function ArchiveManagement({
         />
       )}
 
-      {/* Restore feedback toast — same .as-toast design as the rest of ADePT
-          (bottom-center, dark pill, 2500ms auto-dismiss), with a success/error
-          icon variant. */}
       {toast && (
         <div
           className={`as-toast as-toast--${toast.type}`}

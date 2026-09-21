@@ -1,11 +1,3 @@
-/* ==================================================================
-   ReportsAnalytics.css
-   Styles for src/users/pages/Reports.tsx
-   Responsive pattern matches PendingPayment.css (single 720px breakpoint)
-   Page shell mirrors .tr-page / .arc-page: full-width, no own padding
-   (inset comes from the shared .dashboard-content parent)
-   ================================================================== */
-
 .reports-page {
   --color-primary: #29237a;
   --color-primary-hover: #201c61;
@@ -56,9 +48,6 @@
   box-sizing: border-box;
 }
 
-/* Full-width page shell. Horizontal/top/bottom inset is delegated to the
-   shared .dashboard-content parent (20px 28px 40px), exactly like
-   .tr-page and .arc-page — no double padding here. */
 .reports-container {
   width: 100%;
   padding: 0;
@@ -66,8 +55,6 @@
   flex-direction: column;
   gap: 40px;
 }
-
-/* ---------- Breadcrumb (matches tr-breadcrumb exactly) ---------- */
 
 .reports-breadcrumb {
   display: flex;
@@ -107,8 +94,6 @@
   font-weight: 800;
 }
 
-/* ---------- Header ---------- */
-
 .reports-header {
   display: flex;
   align-items: center;
@@ -118,8 +103,6 @@
 }
 
 .reports-title {
-  /* Matches TransactionRegistry's .tr-header-titles h2 (28px / 800 /
-     -0.02em / navy) so the two pages' headers read identically. */
   font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -141,8 +124,6 @@
   gap: 12px;
 }
 
-/* Live "Last updated" stamp — real fetch time from the analytics hook
-   (drives the Refresh button's promise of fresh data). */
 .reports-last-updated {
   font-size: 0.78rem;
   font-weight: 600;
@@ -153,8 +134,6 @@
   padding: 5px 12px;
   white-space: nowrap;
 }
-
-/* ---------- Period toggle ---------- */
 
 .period-toggle {
   display: inline-flex;
@@ -213,8 +192,6 @@
   background-color: rgba(41, 35, 122, 0.14);
 }
 
-/* ---------- Buttons ---------- */
-
 .export-btn {
   display: inline-flex;
   align-items: center;
@@ -245,11 +222,6 @@
 
 .stats-grid {
   display: grid;
-  /* 7 slots in two deliberate rows: row 1 = the four general cards
-     (Documents Released, Documents Requested, Pending Payments, All-Time
-     Requests); row 2 = the three per-document-type release cards (Tax
-     Declaration, No Landholding, Landholding) grouped as one unit. The
-     2-col / 1-col breakpoints below handle narrow widths. */
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   width: 100%;
@@ -272,8 +244,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  /* Same height as the fixed 36px icon box, so the number row below
-     starts at the exact same Y position in every card. */
   min-height: 36px;
 }
 
@@ -308,18 +278,10 @@
 .stat-value {
   font-size: 30px;
   font-weight: 800;
-  /* Fixed line box so every card's number occupies the same height and
-     sits on the same baseline — uniform across all four stat cards. */
   line-height: 1;
   color: var(--color-text);
 }
 
-/* Bottom slot rendered by every card (see StatCard in Reports.tsx): it is
-   as tall as the trend tag so cards WITHOUT a trend line (the three
-   per-document-type cards, Pending Payments, All-Time Requests) reserve
-   exactly the same space — the number row above it stays at the same
-   vertical level and every card's bottom boundary matches, with no
-   per-card margin hacks. */
 .stat-card-footer {
   min-height: 18px;
   display: flex;
@@ -373,20 +335,15 @@
   color: var(--color-success);
 }
 
-/* Landholding card — gold family, matching the gold used for Landholding in
-   the Document Distribution chart and the reprint breakdown bars. */
 .stat-icon--landholding {
   background-color: var(--color-pending-bg);
   color: var(--color-pending-text);
 }
 
-/* No Landholding card — red family, matching its distribution color. */
 .stat-icon--noland {
   background-color: rgba(209, 57, 63, 0.09);
   color: var(--color-error);
 }
-
-/* ---------- Reprinted Documents by Declarant ---------- */
 
 .reprints-list {
   display: flex;
@@ -402,7 +359,6 @@
   min-width: 0;
 }
 
-/* Declarant header: avatar + name + total reprints */
 .reprints-head {
   display: flex;
   align-items: center;
@@ -454,12 +410,6 @@
   color: var(--color-muted-light);
 }
 
-/* Per-document-type breakdown — chips + color-coded bars. Layout lives
-   here; chip colors come from the shared tr-doc-pill--* variants so a doc
-   type reads the same on the Declarant Records table and in this card.
-   The combined selectors below win over both this file's base rule and
-   TransactionRegistry.css's single-class variants regardless of
-   stylesheet order. */
 .reprints-docs {
   display: flex;
   flex-direction: column;
@@ -564,8 +514,6 @@
   border-radius: 12px;
 }
 
-/* Reprint-pagination: numbered page buttons with prev/next chevrons,
-   centered under the list. */
 .reprints-pagination {
   display: flex;
   align-items: center;
@@ -615,8 +563,6 @@
   padding: 0 2px;
   user-select: none;
 }
-
-/* ---------- Chart card ---------- */
 
 .chart-card {
   background-color: var(--color-surface);
@@ -792,8 +738,6 @@
   color: var(--color-muted);
 }
 
-/* Reset button for the DateRangePicker — clears just the release-date
-   window (the separate "Clear filters" resets every table filter). */
 .date-reset-btn {
   display: inline-flex;
   align-items: center;
@@ -844,8 +788,6 @@
   color: #b91c1c;
   background-color: rgba(220, 38, 38, 0.05);
 }
-
-/* ---------- Table ---------- */
 
 .table-scroll {
   overflow-x: auto;
@@ -900,15 +842,9 @@
   font-weight: 600;
   font-size: 0.86rem;
   color: var(--color-text);
-  /* FIX: long declarant names wrap inside the cell instead of stretching
-     the auto-layout table (the .table-scroll overflow-x:auto stays as the
-     fallback). */
   overflow-wrap: break-word;
 }
 
-/* See more/See less for long declarant names — driven by the shared
-   components/common/ExpandableText.tsx (28-char truncation, its own
-   state). This rule keeps the toggle reading as part of the cell. */
 .reports-table .expandable-text-toggle {
   white-space: nowrap;
   color: var(--color-secondary);
@@ -926,10 +862,6 @@
   text-align: center;
   color: var(--color-muted-light);
 }
-
-/* ---------- Status badge ---------- */
-/* Namespaced (.reports-status-badge) so the base rule can never collide
-   with dashboard.css's own .status-badge used by Recent Transactions. */
 
 .reports-status-badge {
   display: inline-flex;
@@ -969,12 +901,6 @@
   background-color: var(--color-archived-bg);
   color: var(--color-archived);
 }
-
-/* ---------- Pagination ----------
-   FIX: added to support the Declarant Records pagination bar in
-   Reports.tsx. Mirrors .tr-pagination / .tr-pagination-* from
-   TransactionRegistry.css so both tables look and behave the same way,
-   just re-themed with this file's own CSS variables. */
 
 .reports-pagination {
   display: flex;
@@ -1040,8 +966,6 @@
   white-space: nowrap;
 }
 
-/* ---------- Responsive (single breakpoint, matches PendingPayment.css) ---------- */
-
 @media (max-width: 720px) {
   .chart-card,
   .table-card {
@@ -1106,10 +1030,6 @@
   }
 }
 
-/* ---------- Loading skeletons (mirrors TransactionRegistry's kit) ---------- */
-
-/* Occupies the exact same box as the real .stat-card so the stats grid
-   doesn't shift when data replaces the skeleton. */
 .stat-card--skeleton {
   justify-content: center;
   gap: 14px;

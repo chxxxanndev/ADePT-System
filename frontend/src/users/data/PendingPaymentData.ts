@@ -1,7 +1,5 @@
 import type { PendingPaymentRequest } from '../types/PendingPayment';
 
-// TODO: Remove this mock data once PendingPayment.tsx is wired up to the
-// real API (see requestService.ts / taxDeclarationService.ts).
 export const pendingPaymentData: PendingPaymentRequest[] = [
     {
         id: 'td-mock-1',

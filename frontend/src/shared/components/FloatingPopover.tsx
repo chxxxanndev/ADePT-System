@@ -7,13 +7,10 @@ const VIEWPORT_MARGIN = 8;
 
 interface FloatingPopoverProps {
     open: boolean;
-    /** The trigger element (button or its wrapper) the popover anchors to. */
     triggerRef: RefObject<HTMLElement | null>;
-    /** Which edge of the trigger the popover aligns to. Defaults to 'right'. */
     align?: 'left' | 'right';
     className?: string;
     style?: CSSProperties;
-    /** Called on outside click or Escape. */
     onClose?: () => void;
     children: ReactNode;
 }
@@ -24,16 +21,6 @@ interface PopoverRect {
     maxHeight?: number;
 }
 
-/**
- * Renders the popover in a portal on <body> so it can never be clipped by
- * `overflow: hidden/auto/scroll` on intermediate containers (cards, table
- * scroll wrappers, sticky headers) or trapped inside their stacking
- * contexts. Position is `fixed` and computed from the trigger's live
- * bounding rect: the popover opens directly below the trigger aligned to
- * its left/right edge, flips upward when there is not enough room below,
- * clamps horizontally inside the viewport, and falls back to an internal
- * scroll when the viewport is too short to fit it at all.
- */
 export function FloatingPopover({
     open,
     triggerRef,
@@ -72,7 +59,6 @@ export function FloatingPopover({
         } else if (spaceAbove >= height) {
             top = tr.top - GAP - height;
         } else {
-            // Neither side fits: open downward and scroll internally.
             top = Math.max(VIEWPORT_MARGIN, tr.bottom + GAP);
             maxHeight = Math.max(VIEWPORT_MARGIN, vh - top - VIEWPORT_MARGIN);
         }
@@ -80,14 +66,11 @@ export function FloatingPopover({
         setRect({ top, left, maxHeight });
     }, [triggerRef, align]);
 
-    // Position before paint so there is no visible "wrong position" frame.
     useLayoutEffect(() => {
         if (open) update();
         else setRect(null);
     }, [open, update]);
 
-    // Reposition while open: the page may scroll or resize underneath a
-    // fixed-position portal element.
     useEffect(() => {
         if (!open) return;
         window.addEventListener('resize', update);
@@ -98,8 +81,6 @@ export function FloatingPopover({
         };
     }, [open, update]);
 
-    // Reposition when the popover itself changes size (e.g. the date-range
-    // popover expanding from the preset list into the two-pane calendar).
     useEffect(() => {
         if (!open || !popoverRef.current) return;
         const observer = new ResizeObserver(update);

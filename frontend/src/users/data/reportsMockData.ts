@@ -1,12 +1,3 @@
-// TODO: replace with real data from a useReportsAnalytics hook / API call,
-// mirroring the pattern used for dashboardMockData / PendingPaymentData elsewhere.
-// Each PeriodMetric represents counts for Today (daily), This Week (weekly),
-// and This Month (monthly) — swap these for real aggregation queries later.
-//
-// All colors below are pulled directly from the ADePT Official Design System
-// palette (see ReportsAnalytics.css for the same tokens as CSS variables).
-// Keep these two files in sync if the palette ever changes.
-
 export interface PeriodMetric {
     daily: number;
     weekly: number;
@@ -32,7 +23,6 @@ export interface SimpleMetric {
     color: string;
 }
 
-// ── ADePT palette tokens (mirrors ReportsAnalytics.css --color-*) ──
 const PALETTE = {
     primary: '#29237A',       // Deep Indigo
     secondary: '#00BCD4',     // Marine Teal
@@ -108,10 +98,6 @@ export const staffReleaseSummary: StaffReleaseSummary[] = [
     },
 ];
 
-// ── Declarant Records (per-transaction rows for the Reports table) ──
-// Status values are the ACTUAL system statuses (TransactionStatus) — the
-// Reports filter/badges display these verbatim so the table always reflects
-// the real document status rather than derived labels.
 import type { TransactionStatus } from '../types/transaction';
 
 export interface DeclarantRecord {
@@ -120,24 +106,14 @@ export interface DeclarantRecord {
     initials: string;
     avatarColor: string;
     documentRequested: string;
-    /** Display-formatted release stamp ("DD Mon YYYY" + time when present).
-     *  "—" when the transaction has not been released yet. */
     dateReleased: string;
-    /** Raw ISO release timestamp (or date) for date-range filtering —
-     *  null when the transaction is not released. */
     releasedAtISO: string | null;
     staffReleased: string;
     encodedBy: string;
     status: TransactionStatus;
-    /** Number of reprinted documents for THIS transaction (sum of
-     *  reprintCount across its requested documents). Lets the Reports page
-     *  filter/export per-transaction reprint details. */
     reprintedDocuments: number;
 }
 
-// ── Reprinted Documents (per-declarant reprint totals for issuance
-//    transparency — aggregating reprintCount across all of a declarant's
-//    transactions, see useReportsAnalytics) ──
 export interface DeclarantReprintDocument {
     documentType: string;
     count: number;
@@ -146,9 +122,6 @@ export interface DeclarantReprintDocument {
 export interface DeclarantReprint {
     declarantName: string;
     count: number;
-    /** Reprint totals broken down by document type (only types with at
-     *  least one reprint, sorted by count descending) so the Reports card
-     *  can show exactly which documents were reprinted per declarant. */
     documents: DeclarantReprintDocument[];
 }
 
@@ -285,6 +258,5 @@ export const declarantRecords: DeclarantRecord[] = [
     },
 ];
 
-// ── Performance Insights (added beyond the original request — see notes below) ──
 export const completionRate = 93; // % of requests successfully released vs total requested
 export const avgTurnaroundHours = 2.4; // average time from request intake to release

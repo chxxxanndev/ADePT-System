@@ -37,8 +37,6 @@ interface SummaryCardsProps {
     noLandholdings: number;
 }
 
-/** Five stat chips (Total, Released Today, per-document-type breakdown) —
- *  exactly what RegistrySummarySkeleton renders while the registry loads. */
 export function SummaryCards({
     total,
     releasedToday,

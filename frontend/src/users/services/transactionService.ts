@@ -23,10 +23,6 @@ export async function fetchTransactionRegistry(): Promise<Transaction[]> {
 
     return raw.map((t): Transaction => ({
         ...t,
-        // Backend may send this as dateReleased (already camelCase, like
-        // dateRequested) or as release_date/releaseDate depending on which
-        // endpoint version served the request — normalize to dateReleased
-        // so the registry table/sort always has one field to read.
         requestType: t.requestType ?? t.request_type ?? 'ORIGINAL', 
         dateReleased: t.dateReleased ?? t.releaseDate ?? t.release_date ?? null,
         payment: {
@@ -36,8 +32,6 @@ export async function fetchTransactionRegistry(): Promise<Transaction[]> {
         },
         requestedDocuments: (t.requestedDocuments ?? []).map(
             (doc: any, idx: number): RequestedDocumentItem => {
-                // Backward compatible: older backend responses (or any other
-                // caller) may still send plain document-name strings.
                 if (typeof doc === 'string') {
                     return { id: `${t.id}-doc-${idx}`, documentType: doc, reprintCount: 0 };
                 }
@@ -116,7 +110,6 @@ export async function fetchCertifiedTrueCopies(): Promise<Transaction[]> {
         .filter(t => t.requestType === 'REPRINT') 
         .map((t): Transaction => ({
             ...t,
-            // Ensure payment fields are mapped for the OR/Justification columns
             payment: {
                 ...t.payment,
                 orNumber: t.payment?.orNumber || null,

@@ -1,9 +1,3 @@
-/* =========================================================
-   LandholdingCertificate.css — Certificate of Landholding form
-   Province of Zamboanga del Norte | ADePT Design System
-   ========================================================= */
-
-/* Reuse the same page shell as TaxDeclaration */
 .lh-page {
     display: flex;
     flex-direction: column;
@@ -23,7 +17,7 @@
     gap: 0;
 }
 
-/* ── Main card ──────────────────────────────────────────────── */
+/* Main card */
 .lh-card {
     background: #ffffff;
     border-radius: 16px;
@@ -34,7 +28,6 @@
     flex-direction: column;
 }
 
-/* ── Card header ────────────────────────────────────────────── */
 .lh-card-header {
     background: linear-gradient(135deg, #29237a 0%, #3730a3 100%);
     padding: 22px 32px;
@@ -103,7 +96,6 @@
     color: #065f46;
 }
 
-/* ── Form body ──────────────────────────────────────────────── */
 .lh-form-body {
     padding: 28px 32px;
     display: flex;
@@ -113,7 +105,6 @@
     flex: 1;
 }
 
-/* ── Sections ───────────────────────────────────────────────── */
 .lh-section {
     margin-bottom: 28px;
 }
@@ -142,7 +133,7 @@
     flex-shrink: 0;
 }
 
-/* ── Grid layouts ───────────────────────────────────────────── */
+
 .lh-row {
     display: grid;
     gap: 16px;
@@ -157,7 +148,6 @@
     grid-template-columns: 1fr 1fr 1fr;
 }
 
-/* ── Field group ────────────────────────────────────────────── */
 .lh-field {
     display: flex;
     flex-direction: column;
@@ -178,7 +168,6 @@
     font-style: italic;
 }
 
-/* ── Inputs ─────────────────────────────────────────────────── */
 .lh-input {
     width: 100%;
     padding: 11px 14px;
@@ -234,10 +223,7 @@
     box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
 }
 
-/* ── Searchable dropdowns (CustomSelect) in the Landholding / No
-   Landholding forms are styled to match the native .lh-select field look
-   (padding, 1.5px border, radius, font) so they read as the same control
-   family. Both forms share the .lh-* classes. ── */
+/* ── Searchable dropdowns (CustomSelect) in the Landholding / NoLandholding forms are styled to match the native */
 .lh-card .cs-trigger {
     padding: 11px 14px;
     font-size: 0.98rem;
@@ -272,7 +258,6 @@
     box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
 }
 
-/* ── Preview card — simulates official certificate layout ────── */
 .lh-preview-card {
     background: #fafbff;
     border: 1.5px solid #e8eaf6;
@@ -314,7 +299,6 @@
     text-transform: uppercase;
 }
 
-/* ── Property table section ─────────────────────────────────── */
 .lh-table-section {
     background: #fafbff;
     border: 1.5px solid #e2e8f0;
@@ -427,7 +411,7 @@
     cursor: default;
 }
 
-/* ── Signatories section ────────────────────────────────────── */
+/* Signatories section */
 .lh-sig-section {
     background: #f8fafc;
     border: 1.5px solid #e2e8f0;
@@ -479,7 +463,7 @@
     margin: 8px auto 6px;
 }
 
-/* ── Payment / cert fee section ─────────────────────────────── */
+/* Payment / cert fee section */
 .lh-payment-section {
     background: #fafbff;
     border: 1.5px solid #e8eaf6;
@@ -502,7 +486,6 @@
     white-space: nowrap;
 }
 
-/* ── Footer ─────────────────────────────────────────────────── */
 .lh-footer {
     padding: 16px 32px;
     display: flex;
@@ -526,7 +509,6 @@
     flex-wrap: wrap;
 }
 
-/* ── Shared button base ─────────────────────────────────────── */
 .lh-btn {
     display: inline-flex;
     align-items: center;
@@ -590,7 +572,6 @@
     transform: translateY(-1px);
 }
 
-/* ── Spinner ────────────────────────────────────────────────── */
 .lh-spinner {
     display: inline-block;
     width: 14px;
@@ -607,7 +588,6 @@
     }
 }
 
-/* ── Custom signatory "add" button ─────────────────────────── */
 .lh-add-name-btn {
     padding: 0 12px;
     background: #29237a;

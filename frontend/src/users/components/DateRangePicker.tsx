@@ -25,8 +25,6 @@ function formatDisplay(s: string): string {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-// Long-form variants for the trigger pill's literal dates — e.g.
-// "August 21, 2026" (single day) / "August 17 – August 21" (same-year span).
 function formatLongDate(s: string): string {
     return fromISO(s).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
@@ -92,25 +90,14 @@ const PRESETS: Preset[] = [
 interface DateRangePickerProps {
     dateFrom?: string;
     dateTo?: string;
-    /** Which edge of the trigger the popover aligns to. Defaults to 'right'
-     * (correct for filter toolbars); the dashboard passes 'left' so the
-     * popover opens into open space next to the welcome row. */
     align?: 'left' | 'right';
-    /** Optional prefix shown inside the trigger pill before the selection
-     * (e.g. "Summary period: Today"). Only the dashboard passes this. */
     labelPrefix?: string;
-    /** Spell the literal dates out inside the pill after the preset name —
-     * "Today · August 21, 2026", "This Week · August 17 – August 21".
-     * Only the dashboard passes this; filter bars keep the compact label. */
     appendDates?: boolean;
     onChange: (dateFrom: string, dateTo: string) => void;
 }
 
 export function DateRangePicker({ dateFrom, dateTo, align = 'right', labelPrefix, appendDates, onChange }: DateRangePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
-    // Two-page layout: the popover opens as a single-column preset list;
-    // choosing "Custom Range..." expands it into a two-pane spread
-    // (preset list on the left, calendar on the right).
     const [showCalendar, setShowCalendar] = useState(false);
     const [viewDate, setViewDate] = useState(() => (dateFrom ? fromISO(dateFrom) : new Date()));
     const [hoverDate, setHoverDate] = useState<Date | null>(null);
@@ -118,10 +105,6 @@ export function DateRangePicker({ dateFrom, dateTo, align = 'right', labelPrefix
 
     const today = useMemo(() => new Date(), []);
     const todayISO = toISO(today);
-
-    // Hover range preview — same interaction as the dashboard's
-    // CalendarPicker: once the start date is picked, hovering a day
-    // previews the range tint before the second click commits it.
     const startDate = dateFrom ? fromISO(dateFrom) : null;
     const endDate = dateTo ? fromISO(dateTo) : null;
 
@@ -135,9 +118,6 @@ export function DateRangePicker({ dateFrom, dateTo, align = 'right', labelPrefix
         return d > lo && d < hi;
     };
 
-    // Which preset matches the CURRENT values — derived (not stored) so a
-    // range set externally (e.g. the Dashboard defaulting to today) is
-    // recognized and labelled correctly too.
     const activePresetKey = useMemo<PresetKey | null>(() => {
         if (!dateFrom && !dateTo) return null;
         for (const p of PRESETS) {
@@ -148,11 +128,6 @@ export function DateRangePicker({ dateFrom, dateTo, align = 'right', labelPrefix
         return null;
     }, [dateFrom, dateTo]);
 
-    // Literal dates for the current selection, long-form — "August 21, 2026"
-    // for a single day; "August 17 – August 21" when both ends share a year
-    // (the year is only spelled out once the range crosses a year boundary).
-    // Coerced into plain strings up front so the guards below narrow cleanly
-    // under the strict `tsc -b` build.
     const datesLabel = useMemo(() => {
         const from = dateFrom ?? '';
         const to = dateTo ?? '';
@@ -166,11 +141,6 @@ export function DateRangePicker({ dateFrom, dateTo, align = 'right', labelPrefix
         return `${formatLongDate(from)} – ${formatLongDate(to)}`;
     }, [dateFrom, dateTo]);
 
-    // Trigger shows the friendly preset name when one applies ("Today",
-    // "This Week", ...), and the exact dates otherwise — so what the user
-    // sees matches the Dashboard card sublabels ("Today", "Aug 1 – Aug 19").
-    // With appendDates (dashboard), the preset name is followed by the
-    // literal date(s): "This Week · August 17 – August 21".
     const triggerLabel = useMemo(() => {
         if (!dateFrom && !dateTo) return 'Select date range';
         const presetName = activePresetKey
@@ -184,9 +154,6 @@ export function DateRangePicker({ dateFrom, dateTo, align = 'right', labelPrefix
             : formatDisplay(dateFrom!));
     }, [activePresetKey, appendDates, datesLabel, dateFrom, dateTo]);
 
-    // True when the range was picked manually (calendar / presets that
-    // don't map back to a preset name) — the pill then shows the full
-    // dates without truncation.
     const isCustomRange = !activePresetKey && !!(dateFrom || dateTo);
 
     const days = useMemo(() => {
@@ -325,9 +292,6 @@ export function DateRangePicker({ dateFrom, dateTo, align = 'right', labelPrefix
                                 })}
                             </div>
 
-                            {/* Live status of the range being built — so a
-                                half-picked range ("start only") is never
-                                ambiguous. */}
                             <div className={`tr-cal-selection${dateFrom && !dateTo ? ' is-incomplete' : ''}`}>
                                 {dateFrom && dateTo ? (
                                     <>

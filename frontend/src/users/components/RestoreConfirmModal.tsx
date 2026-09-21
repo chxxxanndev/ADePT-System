@@ -7,14 +7,6 @@ interface RestoreConfirmModalProps {
     onConfirm: () => void;
 }
 
-/**
- * Restore confirmation — reuses the exact same modal design as the
- * system's existing confirmation dialogs (ReprintConfirmModal's
- * rc-modal-overlay / rc-modal / rc-btn classes and stylesheet), replacing
- * the previous native window.confirm() prompt. Restore is a positive
- * action, so the confirm button uses the standard primary navy
- * (rc-btn--confirm), matching ReprintConfirmModal.
- */
 export function RestoreConfirmModal({ open, reference, onCancel, onConfirm }: RestoreConfirmModalProps) {
     if (!open) return null;
 

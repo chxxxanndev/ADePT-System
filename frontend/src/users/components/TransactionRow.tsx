@@ -17,9 +17,6 @@ export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
 
     return (
         <>
-            {/* Group label row — always rendered, uniform with PendingPayment's
-            pp-group-header-row ("1 document" / "2 documents" / etc.),
-            regardless of how many transactions are in this group. */}
             <tr className="tr-group-header-row">
                 <td colSpan={COLUMN_COUNT}>
                     {rowCount} document{rowCount !== 1 && 's'}
@@ -27,16 +24,7 @@ export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
             </tr>
 
             {transactions.map((t, idx) => {
-                // The reference prefix is the source of truth for the
-                // document type (TD → Tax Declaration, LH → Landholding,
-                // NLH → No Land Holding). It always wins over the backend's
-                // request_documents name, which can be empty or oddly
-                // spelled — so every row gets the correct icon + color.
                 const typeFromRef = getDocumentTypeFromReference(t.referenceNumber);
-
-                // A single transaction can itself request multiple document
-                // types (e.g. Tax Declaration + Landholding) — that still
-                // stacks inside its own row.
                 const docs = t.requestedDocuments.length > 0 ? t.requestedDocuments : [undefined];
 
                 return (
@@ -60,21 +48,8 @@ export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
                             </div>
                         </td>
 
-                        {/* Declarant varies per transaction within the group
-                            (e.g. Arsenio Noel Jr. vs Spouses Arsenio Noel),
-                            so it repeats per row — not rowSpan'd. */}
                         <td><ExpandableText text={t.client.declarantName} className="tr-declarant" /></td>
-
-                        {/* Requested By is the group key, so it's identical
-                            for every row — repeats per row like
-                            PendingPayment's Requested By column does. */}
                         <td><ExpandableText text={t.client.requestedBy} /></td>
-
-                        {/* Requested/Released show date + accurate time
-                            (requestedAt = created_at, releasedAt = released_at)
-                            so the request & release instants can be traced;
-                            fall back to the date-only columns when the
-                            timestamps are missing. */}
                         <td>{formatDateTime(t.requestedAt ?? t.dateRequested)}</td>
                         <td>{t.releasedAt || t.dateReleased ? formatDateTime(t.releasedAt ?? t.dateReleased) : '—'}</td>
                         <td>{t.assignedStaff}</td>
@@ -87,9 +62,6 @@ export function TransactionRow({ group, onViewDetails }: TransactionRowProps) {
                             />
                         </td>
                         <td><StatusBadge status={t.status} /></td>
-
-                        {/* Actions rowSpan's the group — "View" opens every
-                            transaction in this requester's group. */}
                         {idx === 0 && (
                             <td className="tr-actions-cell" rowSpan={rowCount}>
                                 <div className="tr-actions">

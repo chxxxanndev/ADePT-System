@@ -1,8 +1,3 @@
-/* ==========================================================================
-   ADePT Design System - Document Request Dashboard Stylesheet
-   Color Palette & Typography Compliance
-   ========================================================================== */
-
 @import "./NameTip.css";
 
 :root {
@@ -47,7 +42,6 @@
     position: relative;
 }
 
-/* ---- Breadcrumb (matches tr-breadcrumb exactly: size, weight, teal hover) ---- */
 .doc-req-breadcrumb {
     display: flex;
     align-items: center;
@@ -110,7 +104,6 @@
     margin: 0;
 }
 
-/* Elegant Minimalist Refresh Button */
 .doc-req-refresh-btn {
     background: var(--glass-card-bg);
     backdrop-filter: var(--glass-blur);
@@ -525,8 +518,7 @@
     padding-top: 2px;
 }
 
-/* Reference number + creation date grouped as one cell for a calmer,
-   less fragmented row (previously two separate cramped columns) */
+/* Reference number + creation date grouped */
 .doc-req-draft-ref-group {
     display: flex;
     flex-direction: column;
@@ -560,8 +552,6 @@
     margin-top: 4px;
 }
 
-/* No clamp: long names wrap onto extra lines and the whole row grows
-   with them, instead of being cut off or overlapping neighboring cells */
 .doc-req-draft-declarant {
     font-size: 0.9rem;
     color: var(--brand-text-primary);
@@ -605,8 +595,6 @@
     padding-top: 1px;
 }
 
-/* Dedicated navigation button — this is now the ONLY thing that opens
-   the draft's form. The row itself is no longer clickable. */
 /* NEW Edit Icon Button */
 .doc-req-draft-edit-btn {
     border: 1px solid transparent;
@@ -628,8 +616,7 @@
     transform: scale(1.05);
 }
 
-/* Draft status pill — now sits beside the reference number instead of
-   competing with the action buttons for space */
+/* Draft status pill */
 .doc-req-draft-badge-status {
     background: #FFF8E1;
     color: var(--status-pending-text);
@@ -774,7 +761,6 @@
     margin: 0;
 }
 
-/* responsive structures */
 @media (max-width: 1024px) {
     .doc-req-grid {
         grid-template-columns: repeat(2, 1fr);

@@ -8,14 +8,6 @@ import { noLandholdingService } from '../services/noLandholdingService';
 import { CertOfNoLandholdingPDF } from './templates/NoLandholdingPDF';
 import { CertOfLandholdingPDF } from './templates/LandholdingPDF';
 import { TaxDeclarationPDF } from './templates/TaxDeclarationPDF';
-// FIX: the backend resolves staffAuthId against staff.auth_user_id, which
-// is a Supabase Auth user id — so instead of guessing at a custom
-// useAuth()/context shape, we go straight to the Supabase client your
-// frontend already has for talking to auth. ADJUST THIS IMPORT PATH to
-// wherever your frontend's Supabase client is created (it will NOT be the
-// backend's ../../config/supabase.js — that one likely uses a service
-// role key and must never ship to the browser). Common locations:
-// '../lib/supabaseClient', '../config/supabaseClient', '../supabaseClient'.
 import { supabase } from '../../lib/supabaseClient';
 import { CustomDateInput } from './CustomDateInput';
 import { ADePTSelect } from './ADePTSelect';
@@ -46,10 +38,6 @@ const TrashIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
-// Matches the official Declaration of Real Property rounding convention
-// (round assessed value to nearest ₱10) — same logic as TaxDeclarationForm.tsx's
-// calcAssessedValue, kept in sync here so preview/edit and the main form
-// never disagree on totals.
 function calcAssessedValue(marketValue: number, assessmentLevel: number): number {
   const raw = (marketValue * assessmentLevel) / 100;
   return Math.round(raw / 10) * 10;
@@ -95,8 +83,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
   const [error, setError] = useState<string | null>(null);
 
   const declarantNameEditRef = useRef<HTMLTextAreaElement>(null);
-  // Guards the fetch effect against StrictMode's dev-only double invoke, so
-  // the document data (and its PDF) is only loaded/generated once per open.
   const fetchStartedRef = useRef(false);
 
   const resizeDeclarantNameEdit = () => {
@@ -119,9 +105,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     return { day, monthYear, datePaid };
   };
 
-  // Renders the encoded document as a live PDF (same templates the release
-  // step prints), so "Initial Document Preview" shows the actual document
-  // form instead of a data-field summary.
   const generatePdfPreview = async (data: any, type: 'NO_LANDHOLDING' | 'LANDHOLDING' | 'TAX_DEC') => {
     if (!data) return;
     setIsGeneratingPdf(true);
@@ -193,7 +176,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     }
   };
 
-  // Revoke the generated blob URL when the modal unmounts
   useEffect(() => {
     return () => {
       setPdfUrl(prev => {
@@ -203,7 +185,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     };
   }, []);
 
-  // Fetch the complete form data based on document type AND Metadata for dropdown
   useEffect(() => {
     const fetchFullDetails = async () => {
       setIsLoadingData(true);
@@ -255,10 +236,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
         setFullData(data);
 
         if (data) {
-          // Fix: Normalize the assessment row data so the table can read and preserve it.
-          // Backend returns rows under `assessmentRows` with snake_case fields
-          // (market_value, assessment_level, assessed_value, area_unit) —
-          // read those as primary, fall back to camelCase for safety.
           if (determinedType === 'TAX_DEC') {
             const rawAssessments = data.assessmentRows || data.assessments || [];
             data.assessments = rawAssessments.map((a: any) => ({
@@ -274,19 +251,13 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
             }));
           }
 
-          // The certificate API stores the ownership enum under
-          // `ownership_type` (snake_case), while the edit form options use
-          // `ownershipType` (camelCase) — same mismatch the assessment rows
-          // above had. Normalize on load so the dropdown renders the saved
-          // value instead of showing a blank trigger, and drop the snake_case
-          // key so a later change can't be shadowed by the stale duplicate.
           if (determinedType === 'LANDHOLDING') {
             data.ownershipType = normalizeOwnershipType(data.ownershipType || data.ownership_type);
             delete data.ownership_type;
           }
 
           setFullData(data);
-          setEditData(JSON.parse(JSON.stringify(data))); // Deep copy for editing
+          setEditData(JSON.parse(JSON.stringify(data))); 
           generatePdfPreview(data, determinedType);
         } else {
           setEditData(determinedType === 'TAX_DEC' ? { assessments: [] } : { properties: [] });
@@ -313,7 +284,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     if (fetchStartedRef.current) return;
     fetchStartedRef.current = true;
     fetchFullDetails();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentItem]);
 
   const handleSave = async () => {
@@ -322,7 +292,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     try {
       let finalEditData = { ...editData };
 
-      // Resolved once, used by whichever create branch below needs it.
       const { data: { user: authUser } = { user: null } } = await supabase.auth.getUser();
       const staffAuthId = authUser?.id;
 
@@ -332,8 +301,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
         propertyLocation: docType === 'NO_LANDHOLDING' ? undefined : formData.propertyLocation
       });
 
-      // Compute totals up front so a FIRST-TIME save also persists correct
-      // totals, not just subsequent edits.
       if (docType === 'TAX_DEC' && finalEditData.assessments) {
         let totalMV = 0;
         let totalAV = 0;
@@ -343,22 +310,12 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
           const av = calcAssessedValue(mv, lvl);
           totalMV += mv;
           totalAV += av;
-          // Persist the rounded per-row assessed value too, so it stays
-          // consistent with what TaxDeclarationForm.tsx would have saved.
           return { ...a, marketValue: mv, assessmentLevel: lvl, assessedValue: av };
         });
         finalEditData.totalMarketValue = totalMV;
         finalEditData.totalAssessedValue = totalAV;
       }
 
-      // FIX: this used to be `if (docId) { ...TAX_DEC only... } else if
-      // (docType === 'LANDHOLDING') {...} else if (docType === 'NO_LANDHOLDING')
-      // {...}` — so any Landholding/No-Landholding certificate that ALREADY
-      // had an encoded record (i.e. docId is set) fell into the first
-      // branch, skipped the TAX_DEC inner check, and its edits (added
-      // property rows, ownership type, etc.) were silently NEVER persisted.
-      // Now each document type handles both create (no id yet) and update
-      // (existing id) itself.
       const docId = finalEditData.id;
       if (docType === 'TAX_DEC') {
         if (!staffAuthId) {
@@ -421,10 +378,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
         }
       }
 
-      // Recompute the printed "Area: X has./sqm." line from the edited
-      // assessment rows (same logic as taxDeclarationService's
-      // getTaxDeclaration) so the regenerated preview reflects unit
-      // changes instead of keeping the stale string loaded at open.
       if (docType === 'TAX_DEC' && finalEditData.assessments) {
         const rows = finalEditData.assessments;
         const total = rows.reduce(
@@ -468,7 +421,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     return isNaN(num) ? '0.00' : num.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  // --- ARRAY UPDATERS FOR EDIT MODE ---
   const updateProperty = (index: number, field: string, value: any) => {
     const newProps = [...(editData?.properties || [])];
     newProps[index] = { ...newProps[index], [field]: value };
@@ -491,7 +443,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     setEditData({ ...editData, assessments: newAss });
   };
 
-  // --- ADD ROW FUNCTIONS ---
   const addAssessmentRow = () => {
     const newAssessments = [...(editData?.assessments || [])];
     newAssessments.push({
@@ -518,7 +469,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     setEditData({ ...editData, properties: newProps });
   };
 
-  // --- REMOVE ROW FUNCTIONS ---
   const removeAssessmentRow = (index: number) => {
     const newAssessments = [...(editData?.assessments || [])];
     newAssessments.splice(index, 1);
@@ -541,11 +491,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     return `${b.name}, ${m ? m.name : 'Unknown'}`;
   };
 
-  // The certificate API stores the ownership enum under `ownership_type`
-  // (snake_case) with values like 'single' | 'multiple', while the edit
-  // options use the same lowercase ids. Older/mock records may carry
-  // casing or spacing variants ('Single owner', etc.), so fold everything
-  // down to the canonical option ids instead of leaving the dropdown blank.
   const normalizeOwnershipType = (val?: string | null) => {
     const s = String(val || '').toLowerCase().trim();
     if (s.includes('multiple') || s.includes('co-owner') || s.includes('co owner')) return 'multiple';
@@ -553,7 +498,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     return s;
   };
 
-  // --- RENDERING SPECIFIC EDITORS ---
   const renderNoLandholdingEdit = () => (
     <div className="idpm-grid idpm-grid-2">
       <div className="idpm-field">
@@ -906,9 +850,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
     </div>
   );
 
-  // Full Document Edit form — rendered beside the document preview so staff
-  // can edit without switching modes, and also used for the full-screen
-  // edit mode.
   const renderEditForm = () => (
     <div className="idpm-form">
       <div className="idpm-note-edit">
@@ -1036,7 +977,6 @@ export const InitialDocumentPreviewModal: React.FC<InitialDocumentPreviewModalPr
           )}
         </div>
 
-        {/* Footer Actions */}
         <div className="idpm-footer">
           {!isEditing ? (
             <>

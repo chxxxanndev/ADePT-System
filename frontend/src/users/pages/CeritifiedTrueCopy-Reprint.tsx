@@ -13,9 +13,6 @@ import { getDocPillMeta, getDocumentTypeFromReference, matchesDocumentType } fro
 import type { DocumentTypeFilterValue } from "../../utils/documentType";
 import { formatDateTime } from "../../utils/dateTime";
 
-// Legend icons come from the shared documentType helper — the exact same
-// icons the reference-number pills render, so the legend key always matches
-// the table (no duplicate SVG copies here), exactly like TransactionRegistry.
 const TaxDeclarationIcon = getDocPillMeta('Tax Declaration').Icon;
 const LandholdingIcon = getDocPillMeta('Landholding').Icon;
 const NoLandholdingIcon = getDocPillMeta('No Land Holding').Icon;
@@ -27,15 +24,8 @@ const CTC_COLUMNS = [
   "Justification", "Date & Time Requested", "Date & Time Released", "Released By", "Status", "Action",
 ];
 
-/** Total minimum table width (px) — below this the shared .tr-table-scroll
- *  container scrolls horizontally (the same pattern TransactionRegistry's
- *  REGISTRY_TABLE_MIN_WIDTH uses) instead of cramming all ten columns into
- *  the viewport and crushing the reference pills and status badges. */
 const CTC_TABLE_MIN_WIDTH = 1500;
 
-/** Normalizes an ISO timestamp to a local "YYYY-MM-DD" for lexical range
- *  comparison — the same helper pattern TransactionRegistry's
- *  toComparableDate uses, so the date window never drifts from UTC. */
 function toComparableDate(iso?: string | null): string {
     if (!iso) return '';
     const d = new Date(iso);
@@ -43,8 +33,6 @@ function toComparableDate(iso?: string | null): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/* --- Summary skeleton (three compact cards — mirrors VoidAmendSummarySkeleton
-   and uses the same tr-summary-grid--multi sizing as the loaded cards) --- */
 function CTCSummarySkeleton() {
   return (
     <div className="tr-summary-grid tr-summary-grid--multi">
@@ -58,7 +46,6 @@ function CTCSummarySkeleton() {
   );
 }
 
-/* --- Skeleton (mirrors PendingPayment/TransactionRegistry's shimmer pattern) --- */
 function CTCTableSkeleton({ rows = 8 }: { rows?: number }) {
   return (
     <div className="tr-card">
@@ -94,16 +81,9 @@ function CTCTableSkeleton({ rows = 8 }: { rows?: number }) {
 interface CertifiedTrueCopyProps {
   onNavigateToRegistry?: () => void;
   onNavigateToVoidAmend?: () => void;
-  /** Same two props TransactionRegistry uses for its first two breadcrumb
-   * links — wire these from Dashboard.tsx the same way
-   * (onNavigateToPendingRequests -> 'document-request' view,
-   * onNavigateToPendingPayment -> 'pending-payment' view) so the breadcrumb
-   * here matches the registry's exactly. */
   onNavigateToPendingRequests?: () => void;
   onNavigateToPendingPayment?: () => void;
-  /** Breadcrumb → Archive Management. */
   onNavigateToArchive?: () => void;
-  /** Breadcrumb → Dashboard. */
   onNavigateToDashboard?: () => void;
 }
 
@@ -122,16 +102,10 @@ export default function CertifiedTrueCopy({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All statuses");
   const [docTypeFilter, setDocTypeFilter] = useState<DocumentTypeFilterValue>("All");
-  // Date-range window via the shared DateRangePicker — same pill, presets
-  // and calendar as TransactionRegistry / Reports / Archive Management.
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  // Full registry (reprints AND originals) kept for the View drawer — the
-  // reprint row opens read-only, and a banner cross-links to the original
-  // document it was issued from (same voided ⇄ amended pattern Void & Amend
-  // uses), so tracking reprint → source is one click away.
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [viewId, setViewId] = useState<string | null>(null);
   const [viewTab, setViewTab] = useState<"reprint" | "original">("reprint");
@@ -174,18 +148,12 @@ export default function CertifiedTrueCopy({
 
   useEffect(() => { loadData(); }, []);
 
-  // Reset to page 1 whenever the filter criteria change, so you don't
-  // get stranded on e.g. page 4 of a filtered result set that only has 2 pages.
   useEffect(() => { setCurrentPage(1); }, [search, statusFilter, docTypeFilter, dateFrom, dateTo, rowsPerPage]);
 
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
       const matchesStatus = statusFilter === "All statuses" || r.status === statusFilter;
       const matchesDocType = matchesDocumentType(r.reference, docTypeFilter);
-
-      // Release-date window, exactly like the registry: released rows
-      // bucket by when they were released, unreleased rows fall back to
-      // their request date so they can never vanish from the date filter.
       const comparable = r.releasedAtISO || r.requestedAtISO;
       const matchesDateFrom = !dateFrom || comparable >= dateFrom;
       const matchesDateTo = !dateTo || comparable <= dateTo;
@@ -205,7 +173,6 @@ export default function CertifiedTrueCopy({
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / rowsPerPage));
   const safePage = Math.min(currentPage, totalPages);
 
-  // ─── Summary counts ───────────────────────────────────────
   const releasedCount = useMemo(
     () => records.filter((r) => r.status === "Released").length,
     [records]
@@ -217,10 +184,6 @@ export default function CertifiedTrueCopy({
     return filteredRecords.slice(start, start + rowsPerPage);
   }, [filteredRecords, safePage, rowsPerPage]);
 
-  // ─── View drawer resolution ─────────────────────────────
-  // The reprint transaction is resolved by the clicked row's id; the
-  // original is looked up by stripping the "-R{n}" suffix, so the banner
-  // cross-link traces the reprint back to its source document (and back).
   const transactionsByRef = useMemo(() => {
     const map = new Map<string, Transaction>();
     for (const t of allTransactions) map.set(t.referenceNumber, t);
@@ -252,10 +215,6 @@ export default function CertifiedTrueCopy({
   return (
     <div className="tr-page">
       <div className="tr-header">
-        {/* Dashboard > Document Request > Pending Requests > Reprint/CTC > Archive Management —
-            same breadcrumb chain as TransactionRegistry, with "Archive Management" as
-            the final crumb. The first three links reuse the same props/wiring
-            TransactionRegistry uses; "Archive Management" routes via onNavigateToArchive. */}
         <nav className="tr-breadcrumb" aria-label="Breadcrumb">
           <button
             type="button"
@@ -308,10 +267,6 @@ export default function CertifiedTrueCopy({
           </button>
         </div>
 
-        {/* Pill tab nav — inlined directly here (no separate TransactionTabs.tsx
-            import), matching how TransactionRegistry and PendingPayment render
-            their own tabs in-page. "reprint" is always the active tab since
-            this IS the reprint page. */}
         <div className="tr-tabs" role="tablist" aria-label="Transaction sections">
           <button
             type="button"
@@ -336,12 +291,6 @@ export default function CertifiedTrueCopy({
           </button>
         </div>
 
-        {/* Summary cards — same position inside tr-header as TransactionRegistry's
-            summary grid (right after the tabs), so the pill → card spacing matches
-            the registry exactly (tr-tabs margin-bottom 10px + tr-summary-grid
-            margin-top 18px). tr-summary-grid--multi applies the same compact
-            card sizing as the registry's single card (flex: 0 0 auto, 220–320px),
-            so the three cards sit side-by-side. */}
         {isLoading ? (
           <CTCSummarySkeleton />
         ) : (
@@ -376,8 +325,6 @@ export default function CertifiedTrueCopy({
               </div>
             </div>
 
-            {/* Legend — same key TransactionRegistry shows under its summary
-                cards, explaining the reference pill colors in this table. */}
             <div className="tr-legend-row">
               <div className="tr-legend-item tr-legend-item--td"><TaxDeclarationIcon />Tax Declaration</div>
               <div className="tr-legend-item tr-legend-item--lh"><LandholdingIcon />Landholding</div>
@@ -387,8 +334,6 @@ export default function CertifiedTrueCopy({
         )}
       </div>
 
-      {/* Search + status filter toolbar, styled identically to
-          TransactionRegistry's tr-table-toolbar (search left, filter right). */}
       {isLoading ? (
         <CTCTableSkeleton />
       ) : loadError ? (
@@ -560,13 +505,6 @@ export default function CertifiedTrueCopy({
         </>
       )}
 
-      {/* ── View drawer ──
-          Reuses the registry's TransactionDetails panel, opened read-only
-          (no Reprint / Void callbacks). When the reprint has a matching
-          original on record, a stuck banner cross-links between the two —
-          "View Original Document →" from the reprint side, "← Back to
-          Reprinted Details" from the original side — so tracing a certified
-          true copy back to its source document is one click away. */}
       {viewGroup && viewReprintTxn && (
         <TransactionDetails
           group={viewGroup}

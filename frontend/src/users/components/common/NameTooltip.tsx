@@ -3,26 +3,14 @@ import { createPortal } from 'react-dom';
 import "../../styles/NameTip.css";
 
 interface NameTooltipProps {
-    /** Full value shown in the tooltip on hover. */
+    //Full value shown in the tooltip on hover. 
     value: string;
-    /** The visible text/children that act as the hover target. */
+    //The visible text/children that act as the hover target. 
     children: React.ReactNode;
-    /** Optional class applied to the hover target (e.g. "expandable-text-label"). */
+    // Optional class applied to the hover target (e.g. "expandable-text-label"). 
     className?: string;
 }
 
-/**
- * Hover tooltip for name/declarant cells. Rendered through a portal with
- * fixed positioning so table containers with overflow: hidden/auto (cards,
- * scroll wrappers, cells) can never clip it — unlike CSS-only ::after
- * tooltips, which silently vanish inside any clipped table (the root cause
- * of the Transaction Registry's broken name hover).
- *
- * The tooltip is a wide rectangle (width-oriented) using the ADePT indigo
- * surface + readable white text, with pointer-events: none so it never
- * interferes with the hover target or causes flicker. It hides while the
- * page scrolls (a fixed tooltip would otherwise drift away from the name).
- */
 export function NameTooltip({ value, children, className = '' }: NameTooltipProps) {
     const hostRef = useRef<HTMLSpanElement>(null);
     const tipRef = useRef<HTMLDivElement>(null);
@@ -37,10 +25,6 @@ export function NameTooltip({ value, children, className = '' }: NameTooltipProp
 
     const hide = () => setAnchor(null);
 
-    // Keep the tooltip fully inside the viewport — flip it above the name
-    // when it would overflow the bottom edge, clamp it against the right
-    // edge. Re-measuring converges (no loop) because once the values match
-    // the anchor, the state is left untouched.
     useLayoutEffect(() => {
         if (!anchor || !tipRef.current) return;
         const tip = tipRef.current.getBoundingClientRect();
@@ -53,8 +37,6 @@ export function NameTooltip({ value, children, className = '' }: NameTooltipProp
         }
     }, [anchor]);
 
-    // A fixed-position tooltip drifts away from the name while the page or
-    // table scrolls — hide it on any scroll/resize instead of chasing it.
     useEffect(() => {
         if (!anchor) return;
         const hideOnScroll = () => setAnchor(null);

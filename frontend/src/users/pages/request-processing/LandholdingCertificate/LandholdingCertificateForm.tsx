@@ -88,15 +88,6 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
         return { ...EMPTY_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '' };
     });
 
-    // Captured ONCE, at first render, before the "auto-persist to
-    // localStorage" effect below has a chance to run and write the (still
-    // empty) `form` back into LS_KEY. If we instead re-read
-    // localStorage.getItem(LS_KEY) live inside the hydrate-from-backend
-    // effect, it would always find a draft — the one the persist effect
-    // just wrote a moment earlier on mount — and would skip fetching the
-    // real backend data every time. That's exactly why Amend (which relies
-    // on this fetch to pull in the deep-copied certificate) was showing up
-    // blank.
     const [hadLocalDraftOnMount] = useState(() => !!localStorage.getItem(LS_KEY));
 
     const { addItem, items: cartItems } = useCart();
@@ -108,7 +99,6 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
     const [discardError, setDiscardError] = useState('');
     const [showNextStepChoice, setShowNextStepChoice] = useState(false);
 
-    // Auto-persist to localStorage on every change
     useEffect(() => {
         try { localStorage.setItem(LS_KEY, JSON.stringify(form)); } catch { }
     }, [form, LS_KEY]);
@@ -143,15 +133,9 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
         return () => { isMounted = false; };
     }, [entryData?.propertyLocation]);
 
-    // If this request already has saved document data on the backend (e.g.
-    // it was cloned from a voided original during an Amend) and the staff
-    // hasn't started a local draft yet, hydrate the form instead of leaving
-    // it blank.
     useEffect(() => {
         let isMounted = true;
         const hydrateFromBackend = async () => {
-            // Use the value captured on mount, NOT a fresh localStorage
-            // read — see the comment where hadLocalDraftOnMount is declared.
             if (hadLocalDraftOnMount) return;
             try {
                 const result = await requestService.getDocumentData(entryData.requestId);
@@ -165,12 +149,11 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
                     }));
                 }
             } catch {
-                // No existing data to prefill — fine, form just stays as-is.
+                // No existing data to prefill — form just stays as-is.
             }
         };
         hydrateFromBackend();
         return () => { isMounted = false; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [entryData.requestId, hadLocalDraftOnMount]);
 
     const set = (field: keyof LandholdingFormData, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
@@ -259,7 +242,6 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
                     )}
 
                     <div className="lh-form-body">
-                        {/* ══ SECTION 1: Declarant Details ══ */}
                         <div className="lh-section">
                             <div className="lh-section-title">Declarant Details</div>
                             <div className="lh-row lh-row-2">
@@ -282,7 +264,6 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
                             </div>
                         </div>
 
-                        {/* ══ SECTION 2: Property Details ══ */}
                         <div className="lh-table-section">
                             <div className="lh-table-header-bar">
                                 <span>Property Details</span>
@@ -312,7 +293,6 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
                             </div>
                         </div>
 
-                        {/* ══ SECTION 3: Certification Details ══ */}
                         <div className="lh-section" style={{ borderBottom: 'none', marginBottom: 0 }}>
                             <div className="lh-section-title">Certification Details</div>
                             <div className="lh-row lh-row-3">
@@ -330,7 +310,6 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
 
                     </div>
 
-                    {/* ── Session progress card ── */}
                     <div className="txp-form-wrapper">
                         <TransactionProgressPanel
                             referenceNumber={entryData.referenceNumber}
@@ -338,7 +317,6 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
                         />
                     </div>
 
-                    {/* ── Footer actions ── */}
                     <div className="lh-footer">
                         <div className="lh-footer-left">
                             <button
@@ -366,7 +344,6 @@ export function LandholdingCertificateForm({ user, entryData, onDiscard, onDisca
                 </div>
             </div>
 
-            {/* ── Discard Modal ── */}
             {showDiscardModal && (
                 <div
                     style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}

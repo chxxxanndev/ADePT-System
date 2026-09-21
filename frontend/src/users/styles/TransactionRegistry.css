@@ -1,7 +1,3 @@
-/* ===== Transaction Registry =====
-   Restyled to match PendingPayment.css's glass-card design language
-   (var(--db-*) tokens, glass cards, stat chips, chip colors, pagination). */
-
 .tr-page {
     background-color: transparent;
     width: 100%;
@@ -14,7 +10,6 @@
     min-width: 0;
 }
 
-/* ---- Header card (title, refresh, summary stats, legend) ---- */
 .tr-header {
     display: flex;
     flex-direction: column;
@@ -88,8 +83,6 @@
         transform: rotate(360deg);
     }
 }
-
-/* ---- Summary stat chips (icon-led, matches pp-stat-chip) ---- */
 
 .tr-summary-grid {
     display: flex;
@@ -192,9 +185,6 @@
     line-height: 1.25;
 }
 
-/* The registry summary grid now renders five chips (Total, Released Today,
-   and the per-document-type breakdown), so cards stretch evenly across the
-   header — no --single modifier needed. */
 .tr-summary-grid--single {
     justify-content: flex-start;
 }
@@ -205,9 +195,7 @@
     max-width: 320px;
 }
 
-/* Multi-card variant (e.g. Void & Amend's Amended/Voided pair): identical
-   compact sizing to the single card above, so N cards sit side-by-side at
-   the registry card's width instead of stretching across the page. */
+/* Multi-card variant (e.g. Void & Amend's Amended/Voided pair): identical compact sizing to the single card above, so N cards sit side-by-side at the registry card's width instead of stretching across the page. */
 .tr-summary-grid--multi {
     justify-content: flex-start;
 }
@@ -217,8 +205,6 @@
     min-width: 220px;
     max-width: 320px;
 }
-
-/* ---- Legend row ---- */
 
 .tr-legend-row {
     display: flex;
@@ -240,8 +226,6 @@
 .tr-legend-item svg {
     flex-shrink: 0;
 }
-
-/* ---- Toolbar: search + filters (rendered inside the table card now) ---- */
 
 .tr-table-toolbar {
     display: flex;
@@ -357,16 +341,11 @@
     background-color: rgba(41, 35, 122, 0.12);
 }
 
-/* Danger variant for the X Reset buttons beside the DateRangePicker —
-   same red hover treatment Reports' date-reset-btn uses, so the reset
-   affordance reads identically across every page. */
 .tr-filter-reset--danger:hover {
     border-color: rgba(220, 38, 38, 0.4);
     color: #b91c1c;
     background-color: rgba(220, 38, 38, 0.05);
 }
-
-/* ---- Table card ---- */
 
 .tr-card {
     background-color: var(--db-glass-card-bg);
@@ -386,12 +365,6 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
 }
-
-/* The registry has 11 data-dense columns: the table keeps a computed
-   minimum width (REGISTRY_TABLE_MIN_WIDTH, applied inline from
-   TransactionTable.tsx / Skeleton.tsx) so every column stays readable,
-   and this scroll container takes over on narrower screens — the page
-   itself never overflows horizontally. */
 
 .tr-table {
     width: 100%;
@@ -425,17 +398,6 @@
     overflow-wrap: break-word;
 }
 
-/* ---- Registry table column polish ----
-   Scoped under .tr-table--registry so the Void & Amend and Certified True
-   Copy tables (which reuse .tr-table with different column sets) are
-   untouched. Date/staff/OR cells are metadata: smaller and muted so the
-   Declarant, Reference and Status columns carry the visual weight. Every
-   nowrap cell also gets overflow + ellipsis so a long value clips with "…"
-   instead of spilling into the neighboring column. */
-/* The Declarant cell hosts ExpandableText (See more / See less) with the
-   portal-based NameTooltip — the tooltip is fixed-positioned outside the
-   table, and the cell must not clip overflow (a previous overflow: hidden
-   here silently killed the name hover by clipping the tooltip). */
 .tr-table--registry tbody td:nth-child(4),
 .tr-table--registry tbody td:nth-child(5) {
     font-size: 12.5px;
@@ -486,8 +448,6 @@
     transition: background-color 0.15s ease;
 }
 
-/* The registry had no row hover at all — without it the eye loses the row
-   being read the moment it looks away. Soft indigo tint, brand-consistent. */
 .tr-table tbody tr.tr-row:hover td {
     background-color: rgba(41, 35, 122, 0.035);
 }
@@ -496,8 +456,6 @@
     background-color: rgba(41, 35, 122, 0.045);
 }
 
-/* Void & Amend — records that already have an amended copy get a soft
-   indigo tint so the "Amended" status reads instantly across the row. */
 .tr-table tbody tr.tr-row--amended td {
     background-color: rgba(79, 70, 229, 0.04);
 }
@@ -505,8 +463,6 @@
 .tr-table tbody tr.tr-row--amended:hover td {
     background-color: rgba(79, 70, 229, 0.08);
 }
-
-/* ---- Stacked per-document columns ---- */
 
 .tr-stack-count-label {
     font-size: 10.5px;
@@ -563,8 +519,7 @@
     flex-shrink: 0;
 }
 
-/* Document-type color variants — matches PendingPayment's pp-ref-chip
-   variants exactly so a reference number reads the same color on both screens. */
+/* Document-type color variants */
 .tr-doc-pill--td {
     background-color: #DBEAFE;
     color: #1D4ED8;
@@ -601,13 +556,6 @@
     font-style: italic;
 }
 
-/* ---- Expandable text (See more / See less) ----
-   Long cell values (declarant, requested-by, OR justification) are truncated
-   at the shared 28-char limit by components/common/ExpandableText.tsx and get
-   a "See more"/"See less" toggle. The toggle button's base styling lives in
-   ExpandableText.css (imported by the component); these rules keep it reading
-   as part of this page's cells. */
-
 .tr-table .expandable-text-toggle {
     white-space: nowrap;
     color: var(--db-secondary);
@@ -639,11 +587,6 @@
     white-space: nowrap;
 }
 
-/* Cells that pair .tr-declarant with the shared ExpandableText component
-   must drop the ellipsis/nowrap clipping so the "See more"/"See less"
-   toggle stays visible and expanded text can wrap. (Certified True Copy
-   and Void & Amend use this combo; the registry's plain declarant spans
-   keep the default ellipsis above.) */
 .tr-table .expandable-text.tr-declarant {
     white-space: normal;
     overflow: visible;
@@ -660,9 +603,6 @@
 
 /* ---- Actions ---- */
 
-/* The Actions cell is rowSpan'd across a group's document rows (same as
-   PendingPayment's Process button). Top-aligned so the View button sits
-   anchored against the group's FIRST row — never floating mid-cell. */
 .tr-actions-cell {
     vertical-align: top;
     padding-top: 10px;
@@ -709,10 +649,6 @@
     background: #F9D2CE;
 }
 
-/* View button — a plain, stable table action button. No absolute
-   positioning, transforms, or hover-driven layout changes: it stays
-   inside its Actions cell at all times and hover only shifts colors /
-   adds a subtle shadow, exactly like the rest of the app's buttons. */
 .tr-view-details-btn {
     display: inline-flex;
     align-items: center;
@@ -747,8 +683,6 @@
     outline-offset: 2px;
 }
 
-/* ---- Status badge ---- */
-
 .tr-badge {
     display: inline-block;
     padding: 5px 10px;
@@ -759,8 +693,6 @@
     border-radius: 999px;
 }
 
-/* Status pills: soft tinted backgrounds make the current state scannable
-   at a glance instead of floating colored text. */
 .tr-badge--pending {
     color: #8A6A00;
     background-color: #FEF9C3;
@@ -801,9 +733,6 @@
     background-color: #E0E7FF;
 }
 
-/* Clickable status badge (Void & Amend's "Amended" pill jumps straight to
-   the amended copy in the details drawer) — strips the default button
-   chrome so it keeps looking like the plain .tr-badge pill beside it. */
 .tr-badge--btn {
     border: none;
     font-family: inherit;
@@ -832,8 +761,6 @@
     background-color: #EDE9FE;
     margin-left: 6px;
 }
-
-/* ---- Pagination footer ---- */
 
 .tr-pagination-footer {
     display: flex;
@@ -1051,8 +978,6 @@
     white-space: nowrap;
 }
 
-/* ===== Transaction Details ===== */
-
 .td-overlay {
     position: fixed;
     inset: 0;
@@ -1090,10 +1015,6 @@
     font-size: 1.05rem;
     font-weight: 800;
     letter-spacing: 0.02em;
-    /* FIX: long declarant names could overflow this flex item and run
-       underneath/behind the sticky close + void buttons. min-width:0 lets
-       the text div shrink inside the flex header; break-word wraps long
-       names onto extra lines instead of overflowing. */
     min-width: 0;
     overflow-wrap: break-word;
 }
@@ -1140,10 +1061,6 @@
     color: #FEE2E2;
 }
 
-/* Cross-link banner between the drawer header and the request details —
-   rendered by TransactionDetails when a `banner` prop is passed (Void &
-   Amend's "View" action uses it to link the voided record ⇄ its amended
-   copy, so tracking either side is one click away). */
 .td-banner {
     display: flex;
     align-items: center;
@@ -1280,8 +1197,6 @@
     font-size: 0.9rem;
     color: #1e293b;
     font-weight: 600;
-    /* FIX: same long-name protection as .td-header-ref — an unbroken
-       name could overflow its grid cell. */
     overflow-wrap: break-word;
 }
 
@@ -1317,8 +1232,6 @@
     color: #94a3b8;
     font-style: italic;
 }
-
-/* Timeline */
 
 .td-timeline {
     position: relative;
@@ -1375,8 +1288,6 @@
     margin-top: 2px;
 }
 
-/* ---- Responsive ---- */
-
 @media (max-width: 1440px) {
 
     .tr-table thead th,
@@ -1420,8 +1331,6 @@
         gap: 10px;
     }
 
-    /* The search field owns the full toolbar row on small screens — drop
-       its fixed minimums so it never forces the card (or page) to overflow. */
     .tr-search {
         min-width: 0;
         max-width: none;
@@ -1634,7 +1543,6 @@
     transform: translateX(2px);
 }
 
-/* ---- Breadcrumb (matches pp-breadcrumb exactly: size, weight, teal hover) ---- */
 .tr-breadcrumb {
     display: flex;
     align-items: center;
@@ -1673,7 +1581,6 @@
     font-weight: 800;
 }
 
-/* ---- Pill tab nav (matches pp-tab-btn exactly: size, radius, colors) ---- */
 .tr-tabs {
     display: flex;
     gap: 12px;
@@ -1709,9 +1616,6 @@
     cursor: default;
 }
 
-/* ---- Legend icon colors — exact same shades as the tr-doc-pill--*
-   text colors, so the legend key and the table badges are the same
-   design system (blue / orange / red). ---- */
 .tr-legend-item--td svg {
     color: #1D4ED8;
 }
@@ -1723,11 +1627,6 @@
 .tr-legend-item--nlh svg {
     color: #B91C1C;
 }
-
-/* ---- Date range picker ---- */
-/* Date range picker styles now live in the shared DateRangePicker.css
-   (imported by the DateRangePicker component) so the Transaction
-   Registry, Archive Management, and Dashboard all share one design. */
 
 .td-reprint-badge--btn {
     border: none;
@@ -1767,13 +1666,7 @@
     color: #64748b;
 }
 
-/* ---- Multi-transaction group header row ----
-   Higher specificity than `.tr-table tbody td` (0,1,2) is required here —
-   a plain `.tr-group-header-cell` (0,1,0) or `.tr-group-header-row td`
-   (0,1,1) both LOSE that cascade fight and get silently overridden by the
-   table's own 13.5px body cell rule, which is why this label was rendering
-   at full body size instead of the small "1 DOCUMENT" label PendingPayment
-   uses. This selector is (0,2,3) — high enough to always win. */
+/* ---- Multi-transaction group header row ---- */
 .tr-table tbody tr.tr-group-header-row td {
     padding: 10px 20px;
     background-color: #F8FAFC;

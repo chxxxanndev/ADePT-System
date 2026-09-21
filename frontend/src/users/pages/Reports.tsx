@@ -47,11 +47,6 @@ const PERIOD_LABEL: Record<Period, string> = {
   monthly: "This Month",
 };
 
-/** Real system statuses shown by the Declarant Records table (TransactionStatus
- *  passed through verbatim by useReportsAnalytics) — grouped in a logical order
- *  for the filter dropdown. "Reprinted" is a special pseudo-status: it isn't a
- *  lifecycle state, it matches transactions whose documents were reprinted
- *  (reprintedDocuments > 0). */
 type StatusFilterValue = TransactionStatus | "Reprinted" | "All";
 
 const STATUS_OPTIONS: TransactionStatus[] = [
@@ -78,16 +73,12 @@ const STATUS_CLASS: Record<TransactionStatus, string> = {
   "Ready for Release": "status-badge--pending-payment",
 };
 
-// Per-document-type fill colors for the Reprinted Documents card — each
-// declarant's breakdown bar takes the color of its document-type pill so
-// the composition reads at a glance (matchers getDocPillMeta's classes).
 const REPRINT_FILL_CLASS: Record<string, string> = {
   "tr-doc-pill--td": "reprints-bar-fill--td",
   "tr-doc-pill--lh": "reprints-bar-fill--lh",
   "tr-doc-pill--nlh": "reprints-bar-fill--nlh",
 };
 
-/** Two-letter initials from a declarant name (mirrors the hook's avatar logic). */
 function initialsOf(name: string): string {
   return name
     .split(" ")
@@ -97,14 +88,8 @@ function initialsOf(name: string): string {
     .join("");
 }
 
-// FIX: pagination options for the Declarant Records table, mirroring
-// TransactionTable.tsx's ROWS_PER_PAGE_OPTIONS so behavior/labels match
-// across the app (see TransactionRegistry's "Rows per page" control).
 const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
-/* ------------------------------------------------------------------ */
-/*  Small building blocks                                             */
-/* ------------------------------------------------------------------ */
 function PeriodToggle({
   period,
   onChange,
@@ -171,10 +156,7 @@ function StatCard({
         <span className="stat-value">{value.toLocaleString()}</span>
         {sublabel && <span className="stat-sublabel">{sublabel}</span>}
       </div>
-      {/* Bottom slot exists in EVERY card so the number row sits at the same
-          vertical level across the grid: the trend tag fills it when present,
-          and cards without a trend keep the reserved space (no per-card
-          margins). */}
+
       <div className="stat-card-footer">
         {trend && (
           <TrendTag
@@ -209,12 +191,6 @@ function CustomBarTooltip({ active, payload }: any) {
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Skeleton sections — mirror the Transaction Registry loading kit   */
-/*  (common/Skeleton.tsx): real containers + shimmer bars, so the     */
-/*  page keeps its full layout (no jump) while the first fetch runs.  */
-/* ------------------------------------------------------------------ */
 
 function ReportsStatsSkeleton() {
   return (
@@ -316,17 +292,10 @@ function ReportsTableSkeleton({ rows = 6 }: { rows?: number }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Page component                                                    */
-/* ------------------------------------------------------------------ */
 interface ReportsProps {
-  // Breadcrumb navigation — the Dashboard link jumps back to the home
-  // view (wired by Dashboard.tsx, like the other pages' onNavigateTo*).
+
   onNavigateToDashboard?: () => void;
-  /** When a Dashboard summary card links here, the card's selected period is
-   *  carried over so the stats render for the SAME range the card showed —
-   *  not the page's own Today/This Week/This Month preset. Clicking any
-   *  preset exits this custom range. */
+  /*When a Dashboard summary card links here, the card's selected period is carried over so the stats render for the SAME range the card showed — not the page's own Today/This Week/This Month preset. Clicking any preset exits this custom range. */
   initialDateRange?: { from: string; to: string };
 }
 
@@ -336,17 +305,9 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
   const [period, setPeriod] = useState<Period>("monthly");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("All");
-  // Table-scope filter for Declarant Records (tracking): a release-date
-  // window via the shared DateRangePicker (same presets, summary bar and
-  // calendar as the Dashboard). Unlike the page-level Document Type filter —
-  // which re-scopes every stat card on the page — this only narrows the
-  // table below.
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  // Custom range mode — active when a Dashboard card navigated here with the
-  // dashboard's selected period. Replaces the daily/weekly/monthly preset
-  // buckets with a direct range filter over the same registry data.
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(
     () =>
       initialDateRange && (initialDateRange.from || initialDateRange.to)
@@ -354,9 +315,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
         : null
   );
 
-  // Range-bucketed equivalents of the preset stat cards — same counting
-  // rules as useReportsAnalytics (released by release time, requested by
-  // request date), applied against the custom [from, to] window.
   const rangeStats = useMemo(() => {
     if (!customRange) return null;
     const start = customRange.from
@@ -375,9 +333,7 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
         t.status === "Released" &&
         inRange(t.releasedAt ?? t.dateReleased ?? t.dateRequested)
     );
-    // Same document-type matching as useReportsAnalytics: fuzzy substring
-    // for Tax Declaration, exact registry spellings (both variants) for the
-    // two certificates so "No Landholding" can never count as "Landholding".
+
     const isTdDoc = (d: { documentType: string }) =>
       d.documentType.toLowerCase().includes("tax declaration");
     const isLhDoc = (d: { documentType: string }) =>
@@ -399,24 +355,18 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
     ? formatPeriodRange(customRange.from, customRange.to)
     : PERIOD_LABEL[period];
   const cardSublabel = customRange ? activePeriodLabel : PERIOD_LABEL[period];
-  // The three per-document-type cards count RELEASED transactions containing
-  // that type (bucketed by release time) — the "Released ·" prefix keeps that
-  // honest next to the request-based volume cards above them.
   const releasedSublabel = `Released · ${cardSublabel}`;
 
   const handlePeriodChange = (p: Period) => {
-    setCustomRange(null); // leaving custom mode returns to the preset buckets
+    setCustomRange(null); 
     setPeriod(p);
   };
 
-  // FIX: pagination state for the Declarant Records table.
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [page, setPage] = useState(1);
 
   const [isExporting, setIsExporting] = useState(false);
 
-  // Normalizes an ISO timestamp to a local "YYYY-MM-DD" for lexical
-  // range comparison — avoids UTC-vs-local drift on date-only values.
   const localDateOf = (iso: string): string => {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
@@ -452,10 +402,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
     });
   }, [analytics.declarantRows, search, statusFilter, dateFrom, dateTo]);
 
-  // FIX: whenever the filtered result set changes (new search term, status
-  // filter, document-type filter, or date window), jump back to page 1 —
-  // otherwise a user filtering down to fewer results could get stranded on
-  // a now out-of-range page.
   useEffect(() => {
     setPage(1);
   }, [search, statusFilter, docTypeFilter, dateFrom, dateTo]);
@@ -484,8 +430,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
     setPage(1);
   };
 
-  // ── Export to Excel (xlsx, already a dependency — used dynamically so the
-  //    ~420 kB sheet library only loads on first export) ──
   const handleExportExcel = async () => {
     if (isExporting) return;
     setIsExporting(true);
@@ -536,8 +480,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
       }));
       XLSX.utils.book_append_sheet(wb, ws, "Declarant Records");
 
-      // Second sheet: per-declarant reprint totals broken down by document
-      // type (mirrors the card).
       const reprintAoa: (string | number)[][] = [
         ["Reprinted Documents by Declarant"],
         [`Exported: ${new Date().toLocaleString()}`],
@@ -572,11 +514,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
     }
   };
 
-  // FIX: pagination for the Reprinted Documents by Declarant card — the
-  // list can grow large (one row per declarant with reprints), so cap the
-  // visible rows and page through the rest. Each row's breakdown bars are
-  // relative to that declarant's own top document type, so bars stay
-  // readable regardless of page size.
   const REPRINTS_PER_PAGE = 8;
   const [reprintsPage, setReprintsPage] = useState(1);
 
@@ -591,8 +528,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
     return analytics.reprintedDocumentsByDeclarant.slice(start, start + REPRINTS_PER_PAGE);
   }, [analytics.reprintedDocumentsByDeclarant, currentReprintPage]);
 
-  // Numbered page window: "1 … (current ±2) … N" — the total page count can
-  // grow large with many declarants, so far pages collapse into ellipses.
   const reprintPageNumbers: (number | "…")[] = [];
   for (let p = 1; p <= reprintTotalPages; p++) {
     if (p === 1 || p === reprintTotalPages || Math.abs(p - currentReprintPage) <= 2) {
@@ -602,8 +537,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
     }
   }
 
-  // FIX: when the document-type filter changes the reprint list, return to
-  // page 1 so the user isn't stranded on an out-of-range page.
   useEffect(() => {
     setReprintsPage(1);
   }, [docTypeFilter]);
@@ -611,9 +544,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
   return (
     <div className="reports-page">
       <div className="reports-container">
-        {/* Breadcrumb — uses the page's own .reports-breadcrumb classes
-            (ReportsAnalytics.css), which mirror the shared tr-breadcrumb
-            styling used by Transaction Registry and Archive Management. */}
         <nav className="reports-breadcrumb" aria-label="Breadcrumb">
           <button
             type="button"
@@ -626,8 +556,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
           <span className="reports-breadcrumb-item--current">Reports &amp; Analytics</span>
         </nav>
 
-        {/* Header — always mounted (same as TransactionRegistry: the page
-            shell stays visible while content swaps between skeleton/error/data) */}
         <div className="reports-header">
           <div>
             <h1 className="reports-title">Reports &amp; Analytics</h1>
@@ -684,10 +612,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
           </div>
         ) : (
           <>
-            {/* Stats Grid — two deliberate rows: row 1 leads with the
-                all-time registry total, then the periodized volume cards and
-                the live queue; row 2 groups the three per-document-type
-                release cards together so the breakdown reads as one unit. */}
             <div className="stats-grid">
               <StatCard
                 icon={<ClipboardList size={18} />}
@@ -719,11 +643,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
                 value={analytics.pendingCount}
                 sublabel="Live queue"
               />
-              {/* Per-document-type releases — one card per certificate type,
-                  each counting released transactions that include that type
-                  in the selected period (same bucketing as Documents
-                  Released). A transaction holding several types counts in
-                  each of its cards, so these need not sum to the total. */}
               <StatCard
                 icon={<ListChecks size={18} />}
                 iconClass="stat-icon--truecopy"
@@ -747,12 +666,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
               />
             </div>
 
-            {/* Reprinted Documents by Declarant — per-declarant reprint
-                totals (summed across all of a declarant's transactions)
-                so the head can track total issuance. Each row breaks the
-                reprints down by document type (color-coded bars). The
-                grand total in the header comes from the same
-                reprintCounts. */}
             <div className="chart-card">
               <div className="chart-header">
                 <h2 className="chart-title">Reprinted Documents by Declarant</h2>
@@ -875,7 +788,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
               )}
             </div>
 
-            {/* Chart */}
             <div className="chart-card">
               <div className="chart-header">
                 <h2 className="chart-title">Document Status Distribution</h2>
@@ -911,7 +823,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
               </div>
             </div>
 
-            {/* Table */}
             <div className="table-card">
               <div className="table-toolbar">
                 <div>
@@ -964,10 +875,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
                 </div>
               </div>
 
-              {/* Tracking filter — release-date window via the shared DateRangePicker
-                  (presets, summary bar and calendar, same as the Dashboard).
-                  Only narrows the Declarant Records table below (unlike the
-                  Document Type filter, which also re-scopes the stat cards). */}
               <div className="table-filter-row">
                 <span className="filter-row-title">Released</span>
 
@@ -1052,10 +959,6 @@ export default function Reports({ onNavigateToDashboard, initialDateRange }: Rep
               </div>
             </div>
 
-            {/* FIX: pagination controls for Declarant Records, mirroring
-                TransactionTable.tsx's .tr-pagination layout/behavior. Hidden
-                when there are no matching records so the empty-state message
-                in the table isn't crowded by a redundant "0 of 0" bar. */}
             {filteredDeclarants.length > 0 && (
               <div className="reports-pagination">
                 <div className="reports-pagination-rows">

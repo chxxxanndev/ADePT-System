@@ -8,7 +8,6 @@ import { NameTooltip } from '../components/common/NameTooltip';
 
 const RELEASE_QUEUE_STATUS = 'PAID';
 
-// --- ICONS ---
 const SearchIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
 const RefreshIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>;
 const InboxIcon = () => <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>;
@@ -18,11 +17,9 @@ const ArchiveIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="
 const CheckSquareIcon = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>;
 const XIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 
-// Stat icons
 const ClientsIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
 const DocumentsIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
 
-// Doc Icons
 const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="21" x2="21" y2="21"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 3 21 9 3 9"></polygon></svg>;
 const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
 const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>;
@@ -53,10 +50,6 @@ function resolveDocTypeName(req: any): string {
     return 'Certified True Tax Declaration';
 }
 
-// Splits a queue timestamp (timestamptz from the DB) into a date part and
-// a time part ("Aug 5, 2026" / "2:35 PM") so the UI can render the time
-// on its own line below the date. Falls back to the plain request date
-// when the timestamp is missing (older records) or unparseable.
 function splitQueueDateTime(raw: string | null | undefined, fallback: string): { date: string; time: string } {
     if (!raw) return { date: fallback, time: '' };
     const d = new Date(raw);
@@ -75,7 +68,6 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
-    // Selection states
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [confirmTarget, setConfirmTarget] = useState<{ groups: any[]; label: string } | null>(null);
@@ -95,10 +87,6 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                     const requester = req.requested_by_name || req.requestedByName || 'Unknown Client';
                     const orNumber = req.or_number || '';
 
-                    // Group by O.R. Number, since that's what actually ties documents
-                    // together as "one transaction, released together". Falling back to
-                    // requester+date+id when there's no OR number yet keeps unrelated
-                    // requests from being merged just because they share a client name.
                     const groupKey = orNumber
                         ? `OR-${orNumber}`
                         : `${requester}__${req.request_date || 'N/A'}__${req.id}`;
@@ -111,9 +99,6 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                         acc[groupKey] = {
                             groupId: req.id,
                             requesterName: requester,
-                            // Show the time the payment was verified and the
-                            // documents entered this queue (payment_date is a
-                            // timestamptz set on PAID), not just the request date.
                             dateRequested: queueDt.date,
                             timeRequested: queueDt.time,
                             orNumber: orNumber,
@@ -135,7 +120,6 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                 }, {});
 
                 setGroupedReleases(Object.values(grouped));
-                // Only reset selection if it's a hard fresh load, otherwise keep selected (for UX)
                 if (!isManualRefresh) setSelectedIds(new Set());
             }
         } finally {
@@ -174,7 +158,6 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
         });
     };
 
-    // SMART SELECT ALL: Only toggles visible items on the current page
     const toggleSelectCurrentPage = () => {
         const allVisibleSelected = paginatedGroups.every(g => selectedIds.has(g.groupId));
 
@@ -245,7 +228,6 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
 
     return (
         <div className="pp-container page-transition">
-            {/* BREADCRUMB */}
             <div className="pp-breadcrumb">
                 <button
                     type="button"
@@ -270,14 +252,12 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                 </button>
             </div>
 
-            {/* PAGE HEADER */}
             <div className="pp-page-header">
                 <div className="pp-header-top">
                     <div className="pp-header-titles">
                         <h1 className="pp-title">Pending For Release Queue</h1>
                         <p className="pp-subtitle">Payments verified and documents generated — awaiting physical release to the client.</p>
 
-                        {/* TAB SEGMENTED CONTROL */}
                         <div className="pp-tabs-wrapper">
                             <button className="pp-tab-btn" onClick={() => onSwitchView && onSwitchView('pending-payment')}>
                                 Pending Payments
@@ -313,7 +293,6 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                             <span>Documents</span>
                         </div>
                     </div>
-                    {/* Empty div for layout alignment with pending payments stats */}
                     <div className="pp-stat-chip" style={{ opacity: 0, pointerEvents: 'none' }}></div>
                 </div>
                 <div className="pp-legend-row">
@@ -323,7 +302,6 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                 </div>
             </div>
 
-            {/* TABLE CARD */}
             <div className="pp-table-card">
                 <div className={`pp-table-toolbar${selectionMode ? ' is-active' : ''}`}>
                     <div className="pp-toolbar-left">
@@ -432,8 +410,6 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                     const docCount = group.documents.length;
                                     return (
                                         <Fragment key={group.groupId}>
-                                            {/* Group label row — real full-width row directly above the group's
-                                                first document row, matching Pending Payments */}
                                             <tr className="pp-group-header-row">
                                                 <td colSpan={columnCount} className="pp-group-header-cell">
                                                     {docCount} document{docCount !== 1 && 's'}
@@ -459,8 +435,6 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                                         </td>
                                                     )}
 
-                                                    {/* Reference No. and Declarant share the same <tr> per document,
-                                                        so they're always aligned to the same row height */}
                                                     <td className="pp-cell" data-label="Reference No.">
                                                         <span className={`pp-ref-chip ${getRefChipClass(d.referenceNumber)}`} title={d.documentType}>
                                                             {getRefTypeIcon(d.referenceNumber)}
@@ -475,8 +449,6 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                                         </span>
                                                     </td>
 
-                                                    {/* Requested By repeats per row, same as Encoded By Staff, so
-                                                        each row reads as a complete, self-contained line */}
                                                     <td className="pp-cell" data-label="Requested By">
                                                         <span className="pp-client-name">
                                                             <ExpandableText text={group.requesterName} />
@@ -491,9 +463,6 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                                                         </span>
                                                     </td>
 
-                                                    {/* O.R. Number, Date, and Actions are one value per group, so they
-                                                        rowSpan across the group and top-align next to the first
-                                                        document row — no scrolling needed to find the Release button */}
                                                     {docIndex === 0 && (
                                                         <td className="pp-cell pp-cell-top" data-label="O.R. Number" style={{ textAlign: 'center' }} rowSpan={docCount}>
                                                             <span className="pp-amount" style={{ color: '#0ea5e9' }}>{group.orNumber || '—'}</span>
@@ -562,7 +531,6 @@ export function PendingForRelease({ onSelectPayment, onNavigateBack, onSwitchVie
                 )}
             </div>
 
-            {/* --- ARCHIVE CONFIRM MODAL --- */}
             {confirmTarget && (
                 <div className="pp-modal-backdrop" onClick={() => !isArchiving && setConfirmTarget(null)}>
                     <div className="pp-modal" onClick={(e) => e.stopPropagation()}>

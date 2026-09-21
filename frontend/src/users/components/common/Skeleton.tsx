@@ -1,14 +1,9 @@
-
-// Base component
 import { REGISTRY_COLUMNS, REGISTRY_TABLE_MIN_WIDTH } from '../TransactionTable';
 
 export const SkeletonBox = ({ width = '100%', height = '20px', borderRadius = '4px', margin = '0' }) => (
     <div className="skeleton-item" style={{ width, height, borderRadius, margin }} />
 );
 
-// 1. CARDS: mirrors the registry's five summary chips (Total, Released Today,
-// Tax Declaration, Landholding, No Landholding) — one ghost card each, sized
-// like the loaded .tr-summary-card.
 export const RegistrySummarySkeleton = () => {
     return (
         <div className="tr-summary-grid">
@@ -22,11 +17,6 @@ export const RegistrySummarySkeleton = () => {
     );
 };
 
-// 2 + 3. TABLE CARD (toolbar + table in one ghost card, mirroring how
-// Reports & Analytics lazy-loads its Declarant Records card): the same
-// real .tr-table with REGISTRY_COLUMNS headers and min-width as the loaded
-// registry table, so the skeleton column layout can never drift from the
-// real table — no layout jump when the data lands.
 export const RegistryTableSkeleton = ({ rows = 6 }: { rows?: number }) => (
     <div className="tr-card">
         <div className="tr-table-toolbar">

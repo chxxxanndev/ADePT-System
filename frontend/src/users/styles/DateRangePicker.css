@@ -1,19 +1,4 @@
-/* ============================================================
-   Date Range Picker — shared stylesheet for the DateRangePicker
-   component (preset list + calendar popup).
-
-   Used by the Transaction Registry (FilterBar), Archive
-   Management, and the Dashboard period selector. Imported from
-   the component itself so every page gets the same design.
-
-   The trigger pill (#tr-daterange-btn) rules are kept identical
-   to the previous TransactionRegistry.css values; only the
-   opened popup/calendar card was redesigned: modern rounded
-   light card, ADePT navy/indigo selected state, soft hover,
-   muted range tint, pill action buttons.
-   ============================================================ */
-
-/* ── Trigger (unchanged design) ─────────────────────────── */
+/* ── Trigger */
 .tr-daterange {
     position: relative;
     flex: 0 0 auto;
@@ -41,24 +26,16 @@
     text-overflow: ellipsis;
 }
 
-/* Optional contextual prefix ("Summary period: …") — bold and dark so it
-   reads as the pill's heading; the selection that follows stays emphasized.
-   It never truncates: the ellipsis applies to the selection after it. */
 .tr-daterange-btn-prefix {
     flex: 0 0 auto;
     font-weight: 700;
     color: #1e293b;
 }
 
-/* Custom (manually picked) ranges drop the 260px cap so the pill always
-   shows the full dates — e.g. "Summary period: 5 Aug 2026 – 19 Aug 2026". */
 .tr-daterange-btn.is-custom .tr-daterange-btn-label {
     max-width: none;
 }
 
-/* Same for the dashboard pill, which spells the literal dates out after the
-   preset name ("Summary period: This Week · August 17 – August 21") —
-   too long for the compact filter-bar cap. */
 .tr-daterange-btn.shows-dates .tr-daterange-btn-label {
     max-width: none;
 }
@@ -72,12 +49,6 @@
     background-color: rgba(41, 35, 122, 0.04);
 }
 
-/* ── Companion Reset button ─────────────────────────────── */
-/* Styles the optional reset button rendered next to the picker (dashboard
-   welcome row, registry filter bars). Values mirror TransactionRegistry.css's
-   .tr-filter-reset so every page looks identical — duplicated here because
-   that stylesheet only loads on the registry-family pages, while this file
-   ships with the component itself (the dashboard never imports it). */
 .tr-filter-reset {
     background-color: rgba(41, 35, 122, 0.06);
     border: 1px solid var(--db-glass-border-alt);
@@ -99,16 +70,13 @@
     background-color: rgba(41, 35, 122, 0.12);
 }
 
-/* Danger variant for the X Reset buttons beside the DateRangePicker — same
-   red hover treatment Reports' date-reset-btn uses, so the reset affordance
-   reads identically across every page (dashboard included). */
 .tr-filter-reset--danger:hover {
     border-color: rgba(220, 38, 38, 0.4);
     color: #b91c1c;
     background-color: rgba(220, 38, 38, 0.05);
 }
 
-/* ── Popup card (redesigned) ────────────────────────────── */
+/* ── Popup card */
 .tr-daterange-popover {
     display: flex;
     flex-direction: column;
@@ -148,7 +116,7 @@
     min-height: 0;
 }
 
-/* ── Preset list ────────────────────────────────────────── */
+/* Preset list */
 .tr-preset-list {
     display: flex;
     flex-direction: column;
@@ -208,7 +176,7 @@
     border-top: 1px solid #eef0f6;
 }
 
-/* ── Calendar panel (redesigned) ────────────────────────── */
+/* Calendar panel */
 .tr-cal-panel {
     padding: 18px 20px 16px;
     width: 320px;

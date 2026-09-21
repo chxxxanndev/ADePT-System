@@ -1,4 +1,3 @@
-// FIX: Added 'type' keyword to satisfy verbatimModuleSyntax
 import type { NavSection } from '../types/dashboard';
 
 export const navSections: NavSection[] = [

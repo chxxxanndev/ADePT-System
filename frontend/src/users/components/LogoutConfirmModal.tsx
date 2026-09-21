@@ -6,13 +6,6 @@ interface LogoutConfirmModalProps {
     onConfirm: () => void;
 }
 
-/**
- * Logout confirmation — reuses the exact same modal design as the
- * system's existing confirmation dialogs (ReprintConfirmModal's
- * rc-modal-overlay / rc-modal / rc-btn classes and stylesheet), with the
- * confirm button in the established destructive color (#e11d48 — the same
- * rose used by the session-expired banner and audit entries).
- */
 export function LogoutConfirmModal({ open, onCancel, onConfirm }: LogoutConfirmModalProps) {
     if (!open) return null;
 

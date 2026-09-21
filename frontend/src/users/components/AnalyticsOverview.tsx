@@ -9,14 +9,8 @@ interface AnalyticsOverviewProps {
 
 export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps) {
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-
-    // Both series are real: "Processed" = requests received that week (by
-    // request date), "Released" = documents actually released that week
-    // (by release time) — see buildWeeklyTrend in useReportsAnalytics.
     const totalProcessed = data.reduce((sum, d) => sum + d.processed, 0);
     const totalReleased = data.reduce((sum, d) => sum + d.released, 0);
-
-    // Compute max for Y-axis scaling
     const maxVal = Math.max(...data.map((d) => Math.max(d.processed, d.released)), 10);
     const yAxisMax = Math.ceil(maxVal / 10) * 10;
     const gridTicks = [yAxisMax, Math.round(yAxisMax * 0.75), Math.round(yAxisMax * 0.5), Math.round(yAxisMax * 0.25), 0];
@@ -33,7 +27,6 @@ export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps)
                 </div>
             </div>
 
-            {/* Custom chart legend */}
             <div className="bar-chart-legend">
                 <div className="chart-legend-item">
                     <span className="chart-legend-swatch primary" />
@@ -45,7 +38,6 @@ export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps)
                 </div>
             </div>
 
-            {/* Chart Area with Y-axis and Gridlines */}
             <div className="bar-chart-container">
                 {/* Y-Axis Gridlines */}
                 <div className="chart-gridlines">
@@ -57,7 +49,6 @@ export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps)
                     ))}
                 </div>
 
-                {/* Columns Container */}
                 <div className="bar-chart-cols">
                     {data.map((point, index) => {
                         const processed = point.processed;
@@ -74,7 +65,6 @@ export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps)
                                 onMouseEnter={() => setHoveredIndex(index)}
                                 onMouseLeave={() => setHoveredIndex(null)}
                             >
-                                {/* Floating Dark Tooltip on Hover */}
                                 {isHovered && (
                                     <div className="bar-tooltip">
                                         <div className="tooltip-row tooltip-range">
@@ -91,7 +81,6 @@ export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps)
                                     </div>
                                 )}
 
-                                {/* Grouped Twin Bars */}
                                 <div className="bar-pair">
                                     <div
                                         className="bar-item bar-primary"
@@ -103,7 +92,6 @@ export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps)
                                     />
                                 </div>
 
-                                {/* X-Axis Label */}
                                 <span className="bar-col-label">
                                     {point.label}
                                 </span>
@@ -113,7 +101,6 @@ export function AnalyticsOverview({ data, lastUpdated }: AnalyticsOverviewProps)
                 </div>
             </div>
 
-            {/* Summary Footer */}
             <div className="analytics-footer">
                 <div className="analytics-footer-summary">
                     <span className="analytics-footer-total">{totalProcessed.toLocaleString()} Processed</span>

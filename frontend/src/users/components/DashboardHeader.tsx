@@ -1,13 +1,8 @@
 import { useState } from 'react';
 import type { KeyboardEvent } from 'react';
-// REMOVED the conflicting UserProfile import from here
 import { MenuIcon, UserIcon, RefreshIcon } from './icons';
 import { DateRangePicker } from './DateRangePicker';
 
-/**
- * Updated interface to support the connected database fields
- * Defining it here locally fixes the "conflict" error.
- */
 export interface UserProfile {
     name: string;
     email: string;
@@ -130,15 +125,6 @@ export function DashboardHeader({
     );
 }
 
-/**
- * Welcome banner for the dashboard home view. The "Summary period"
- * selector reuses the same DateRangePicker the Transaction Registry uses,
- * so the calendar UX matches across screens. The selected range flows up
- * to Dashboard.tsx via onDateRangeChange, which filters ONLY the 8 summary
- * stat cards to the chosen period (the Analytics Overview / Recent
- * Transactions widgets below are not scoped by it — hence the label says
- * "Summary", not "Dashboard").
- */
 interface WelcomeBannerProps {
     dateFrom?: string;
     dateTo?: string;
@@ -156,13 +142,10 @@ export function WelcomeBanner({ dateFrom, dateTo, onDateRangeChange, onReset, on
         try {
             await onRefresh?.();
         } finally {
-            // Keep the spin visible briefly even on instant refreshes
             setTimeout(() => setRefreshing(false), 500);
         }
     };
 
-    // The dashboard period defaults to today — show the reset button only
-    // when the selected range has drifted from that default.
     const now = new Date();
     const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const isDefaultRange = dateFrom === todayISO && dateTo === todayISO;

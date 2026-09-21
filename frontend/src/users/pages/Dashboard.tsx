@@ -35,10 +35,6 @@ import { ROLES } from '../constants/roles';
 import { useNotifications } from '../hooks/useNotifications';
 import { useCart } from '../hooks/TransactionCartContext';
 import { useOnlinePresence } from '../../admin/services/useOnlinePresence';
-
-// Single shared source of truth for registry-derived analytics — also used
-// by Reports.tsx, so the Analytics Overview / Document Distribution here and
-// the numbers on the Reports page never drift apart.
 import { useReportsAnalytics } from '../hooks/useReportsAnalytics';
 import type { Transaction } from '../types/transaction';
 import type { TransactionRow, StatCardData, BadgeStatus } from '../types/dashboard';
@@ -53,14 +49,8 @@ import {
 import VoidAndAmend from './VoidAndAmend';
 import type { VoidAmendRecord } from './VoidAndAmend';
 
-// sessionStorage key for the in-progress "completed entry" (the data that
-// gates the Tax Declaration / Landholding / No-Landholding / Transaction
-// Summary views). Mirrors the 'adept-active-view' pattern already used
-// below for activeView, so a page refresh doesn't fall back to RequestGuard.
 const COMPLETED_ENTRY_STORAGE_KEY = 'adept-completed-entry';
 
-// YYYY-MM-DD (local) for the Summary period date-range state. Defaults to
-// today, mirroring the old period selector's "Today" default.
 const toISODate = (d: Date): string =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -77,8 +67,6 @@ const mapTransactionToRow = (t: Transaction): TransactionRow => {
         controlNumber: t.referenceNumber,
         declarant: t.client.declarantName,
         document: docTypes,
-        // The registry emits exactly the statuses in BadgeStatus — see
-        // STATUS_MAP in request.service.js.
         status: t.status as BadgeStatus,
         dateTime: formatDateTime(t.requestedAt ?? t.dateRequested),
     };
@@ -108,9 +96,6 @@ const DOCUMENT_PROCESSING_VIEWS = new Set([
     'certificate-no-landholding', 'no-land-holding',
 ]);
 
-// Mirrors RequestFormEntry's own localStorage key ('adept-rfe') and its
-// definition of "meaningfully filled in" — checked from outside that
-// component so Dashboard can guard navigation without prop drilling.
 function hasUnsavedRequestFormEntry(): boolean {
     try {
         const raw = localStorage.getItem('adept-rfe');
@@ -127,9 +112,6 @@ function hasUnsavedRequestFormEntry(): boolean {
     }
 }
 
-// Mirrors the per-document localStorage keys written by
-// TaxDeclarationForm / LandholdingCertificateForm / NoLandholdingCertificateForm
-// ('adept-td-{id}', 'adept-lh-{id}', 'adept-nlh-{id}').
 function hasUnsavedDocumentForm(requestId?: string): boolean {
     if (!requestId) return false;
     try {
@@ -167,8 +149,6 @@ const formatLastLogin = (dateString?: string) => {
     }
 };
 
-// Real "last updated" label for the Analytics Overview card — built from the
-// actual registry fetch time (was hardcoded "Today • 2:45 PM" before).
 const formatLastUpdated = (fetchedAt: Date | null): string => {
     if (!fetchedAt) return '…';
     const today = new Date();
@@ -203,9 +183,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
     const [selectedPayment, setSelectedPayment] = useState<PendingPaymentRequest | null>(null);
     const [prefilledRequestData, setPrefilledRequestData] = useState<any | null>(null);
     const [pendingVoidItems, setPendingVoidItems] = useState<VoidAmendRecord[]>([]);
-    // Params carried by the last guardedSetActiveView navigation (e.g. the
-    // dashboard summary cards pre-filtering Archive Management by status).
-    // Cleared on every navigation that doesn't provide params.
     const [viewParams, setViewParams] = useState<Record<string, string> | null>(null);
     const [navigationWarning, setNavigationWarning] = useState<
         | { type: 'cart' }
@@ -214,19 +191,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         | null
     >(null);
 
-    // --- Live registry analytics (weekly trend, document distribution, recent transactions) ---
-    // Called unconditionally (rules-of-hooks) even though it's only rendered
-    // for the 'dashboard' view, mirroring how useNotifications is used below.
     const analytics = useReportsAnalytics();
     const { items: cartItems } = useCart();
-
-    // ── Summary period (drives the 8 summary stat cards) ────────────────
-    // Selected via the shared DateRangePicker in the WelcomeBanner. Defaults
-    // to today; every preset (This Week / This Month / Custom Range…) re-runs
-    // the filters below against the same registry fetch `analytics` already
-    // pulled — no extra network calls. Scoped to the summary cards only —
-    // the Analytics Overview / Recent Transactions widgets are not affected,
-    // which is why the pill reads "Summary period", not "Dashboard period".
     const [dateFrom, setDateFrom] = useState(TODAY_ISO);
     const [dateTo, setDateTo] = useState(TODAY_ISO);
 
@@ -235,17 +201,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         setDateTo(to);
     };
 
-    // Human-readable label for the currently selected Summary period —
-    // used as the sublabel of every summary card so the number shown always
-    // states exactly which range it covers ("Today", "Aug 1 – Aug 19, 2026",
-    // "All time", ...). Truthful regardless of which preset was picked.
     const periodSublabel = formatPeriodRange(dateFrom, dateTo);
 
-    // The Operational + Administrative Summary cards, computed live from the
-    // registry transactions that fall inside the selected date range. Every
-    // count mirrors the same registry fetch (and the same bucketing rules)
-    // useReportsAnalytics uses for the Reports & Analytics page, so a card
-    // always agrees with the Reports page for the same period.
     const { operationalSummaryItems, administrativeSummaryItems } = useMemo(() => {
         const start = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : -Infinity;
         const end = dateTo ? new Date(dateTo + 'T23:59:59.999').getTime() : Infinity;
@@ -255,31 +212,18 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
             return Number.isFinite(t) && t >= start && t <= end;
         };
 
-        // "Released" buckets by the real release time (releasedAt /
-        // dateReleased) — exactly like Reports' "Documents Released" — so a
-        // document released inside the period counts even if it was
-        // requested earlier. Pending / total-request figures keep
-        // request-date bucketing, also matching Reports.
         const releaseDateOf = (t: Transaction) => t.releasedAt ?? t.dateReleased ?? t.dateRequested;
         const released = analytics.transactions.filter(
             (t) => t.status === 'Released' && inRange(releaseDateOf(t))
         );
-        // "Active" = exactly the Pending Payments queue: transactions whose
-        // RAW backend status is PENDING_PAYMENT (mapped 'Pending' only as a
-        // fallback for pre-statusRaw responses). Drafts, in-progress work,
-        // and payment-verified records are NOT counted — they live on the
-        // Document Request / Pending For Release screens, not in the queue
-        // this card opens, so the card always matches the page it links to.
+
         const pending = analytics.transactions.filter((t) =>
             (t.statusRaw === 'PENDING_PAYMENT' ||
                 (!t.statusRaw && t.status === 'Pending')) &&
             inRange(t.dateRequested)
         );
         const totalInPeriod = analytics.transactions.filter((t) => inRange(t.dateRequested));
-        // "Ready for Release" = exactly the Pending For Release queue: raw
-        // PAID status (mapped 'Payment Verified' only as a fallback for
-        // pre-statusRaw responses), so this card always matches the page it
-        // links to — the same exactness rule as the Pending Payments card.
+
         const readyForRelease = analytics.transactions.filter((t) =>
             (t.statusRaw === 'PAID' ||
                 (!t.statusRaw && t.status === 'Payment Verified')) &&
@@ -339,8 +283,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         setActiveView(view);
     };
 
-    // Breadcrumb "Archive Management" links land on the unfiltered page —
-    // any pre-filter carried from a summary card click is dropped.
     const navigateToArchive = () => {
         setViewParams(null);
         setActiveView('archive-management');
@@ -357,9 +299,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         setActiveView(target);
     };
 
-    // Recent transactions is just the 5 most-recently-requested Released
-    // transactions out of the same registry fetch the rest of this hook
-    // already pulled — no second network call needed.
     const recentTransactionsData: TransactionRow[] = useMemo(() => {
         return analytics.transactions
             .filter((t) => t.status === 'Released')
@@ -368,16 +307,12 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
             .map(mapTransactionToRow);
     }, [analytics.transactions]);
 
-    // The FULL mapped transaction list — this is what actually connects
-    // the Recent Transaction search box to the whole registry dataset
-    // instead of only the 5 rows visible by default.
     const allTransactionsData: TransactionRow[] = useMemo(() => {
         return [...analytics.transactions]
             .sort((a, b) => new Date(b.requestedAt ?? b.dateRequested).getTime() - new Date(a.requestedAt ?? a.dateRequested).getTime())
             .map(mapTransactionToRow);
     }, [analytics.transactions]);
 
-    // Single shared notifications state + realtime subscription
     const {
         notifications,
         unreadCount,
@@ -471,9 +406,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         setActiveView('document-request');
     };
 
-    // Used when the user discards their current (unsaved/in-progress) document
-    // but chooses to proceed to Transaction Summary for whatever they've
-    // already saved, rather than starting a new one.
     const handleDiscardToTransactionSummary = () => {
         setCompletedEntryData(null);
         setPrefilledRequestData(null);
@@ -522,8 +454,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [cartItems, activeView, completedEntryData]);
 
-    // Fetch the latest profile from the backend when viewing account settings,
-    // so changes made by an admin (e.g. title) are reflected immediately.
     useEffect(() => {
         if (activeView === 'account-settings') {
             accountService.getProfile().then((profile) => {
@@ -541,10 +471,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         }
     }, [activeView]);
 
-    // FIX: keep sessionStorage in sync with completedEntryData so a refresh
-    // rehydrates it (see the lazy useState initializer above). When it's
-    // cleared (e.g. handleAddAnother sets it back to null), remove the key
-    // entirely rather than persisting "null".
     useEffect(() => {
         try {
             if (completedEntryData) {
@@ -593,29 +519,6 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
         lockedDocType: false,
         referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
     });
-
-    // const handleAddAnother = () => {
-    //     if (completedEntryData) {
-    //         setPrefilledRequestData({
-    //             declarantName: completedEntryData.declarantName,
-    //             requestedByName: completedEntryData.requestedByName,
-    //             requestDate: new Date().toISOString().split('T')[0],
-    //             purposeId: completedEntryData.purposeId,
-    //             authRequired: completedEntryData.authRequired,
-    //             actionTaken: completedEntryData.actionTaken || 'PENDING',
-    //             propertyLocation: completedEntryData.propertyLocation,
-    //             id: undefined,
-    //             requestId: undefined,
-    //             documentTypeIds: [],
-    //             lockedDocType: false,
-    //             referenceNumber: `REF-${new Date().getFullYear()}-XXXX`,
-    //         });
-    //         const base = completedEntryData || cartItems[0];
-    //         setPrefilledRequestData(buildAddAnotherPrefill(base || {}));
-    //         setCompletedEntryData(null);
-    //         setActiveView('new-request');
-    //     }
-    // };
 
     const isAmendEntry = !!completedEntryData?.amendedFromReference || !!(prefilledRequestData as any)?.amendedFromReference;
 
@@ -996,8 +899,8 @@ export function Dashboard({ user, onLogout, onUserUpdate }: DashboardProps) {
                     ) : activeView === 'pending-for-release' ? (
                         <PendingForRelease
                             onSelectPayment={handleSelectPayment}
-                            onNavigateBack={() => setActiveView('document-request')} /* ADD THIS */
-                            onSwitchView={(view: string) => setActiveView(view)} /* ADD THIS */
+                            onNavigateBack={() => setActiveView('document-request')} 
+                            onSwitchView={(view: string) => setActiveView(view)} 
                             onNavigateToDashboard={() => setActiveView('dashboard')}
                         />
                     ) : activeView === 'transaction-registry' ? (

@@ -1,20 +1,7 @@
 import { useEffect, useState } from 'react';
 
-// ---------------------------------------------------------------------------
-// Text auto-fit helpers for @react-pdf/renderer templates.
-//
-// react-pdf has no built-in "shrink-to-fit": long text just wraps, which grows
-// a fixed-height underline box and pushes the rest of an official form down.
-// These helpers measure text against the browser's canvas (1pt = 96/72 CSS px)
-// and binary-search the largest font size that still fits the available width
-// on one line (or the available line count for free-wrapping fields), so the
-// data shrinks while the form geometry never moves.
-// ---------------------------------------------------------------------------
-
 const PT_TO_PX = 96 / 72;
 
-// The same font files the templates register with react-pdf, loaded into the
-// browser's FontFace set so canvas.measureText() can measure the real glyphs.
 const FONT_SOURCES: Record<string, Array<{ weight: string; style: string; src: string }>> = {
     BookmanOldStyle: [
         { weight: 'normal', style: 'normal', src: '/fonts/bookos.ttf' },
@@ -24,9 +11,6 @@ const FONT_SOURCES: Record<string, Array<{ weight: string; style: string; src: s
     ],
 };
 
-// react-pdf's built-in Times family maps to the browser's Times New Roman for
-// measurement (metrically near-identical); the two registered families map
-// straight to their FontFace names.
 const CSS_FAMILY: Record<string, string> = {
     'Times-Roman': '"Times New Roman", "Liberation Serif", serif',
     'Times-Bold': '"Times New Roman", "Liberation Serif", serif',
@@ -78,14 +62,8 @@ const getCtx = (): CanvasRenderingContext2D | null => {
 const normalizeWeight = (weight: string | number): string =>
     weight === 'bold' || weight === 700 ? 'bold' : 'normal';
 
-// Rough fallback used before the real fonts are ready (or if canvas/FF is
-// unavailable). BookmanOldStyle is noticeably wider than a generic serif, so
-// this deliberately over-estimates to err on the safe side.
 export const estimateWidth = (text: string, sizePt: number): number => text.length * sizePt * 0.62;
 
-/**
- * Width of `text` in PDF points at the given size/weight/style.
- */
 export function measureTextWidth(
     text: string,
     family: string,
@@ -113,12 +91,6 @@ export interface FitToWidthOptions {
     safety?: number;    // pt subtracted from maxWidth (flex/rounding slack)
 }
 
-/**
- * Largest font size ≤ `base` that keeps `text` on one line within maxWidthPt.
- * Returns `base` when the text already fits. When it doesn't fit at `min`, the
- * search keeps going down to `absMin` (graceful degradation) so a very long
- * value still fits on one line instead of wrapping and growing its box.
- */
 export function fitFontSizeToWidth(
     text: string,
     maxWidthPt: number,
@@ -126,9 +98,6 @@ export function fitFontSizeToWidth(
     opts: FitToWidthOptions,
 ): number {
     const { base, min, absMin, weight = 'normal', style = 'normal', safety = 2 } = opts;
-    // Guard: never honour a base below the caller's own floor — a base like
-    // 1pt would render invisible text instead of fitting (min is the smallest
-    // size the layout is willing to show).
     const effBase = Math.max(base, min);
     if (!text) return effBase;
 
@@ -157,10 +126,6 @@ export interface FitToLinesOptions {
     style?: string;
 }
 
-/**
- * Largest font size ≤ `base` that keeps `text` wrapped within `maxLines` lines
- * inside maxWidthPt (used by free-wrapping fields like the Memoranda block).
- */
 export function fitFontSizeToLines(
     text: string,
     maxWidthPt: number,
@@ -169,7 +134,6 @@ export function fitFontSizeToLines(
     opts: FitToLinesOptions,
 ): number {
     const { base, min, absMin, weight = 'normal', style = 'normal' } = opts;
-    // Guard: never honour a base below the caller's own floor (see above).
     const effBase = Math.max(base, min);
     if (!text) return effBase;
 
@@ -208,11 +172,6 @@ export function fitFontSizeToLines(
     return Math.max(floor, lo);
 }
 
-/**
- * Re-render flag: stays false until the measure fonts are loaded, so templates
- * can fall back to base sizes on the first pass and snap to fitted sizes once
- * the real metrics are available.
- */
 export function useTextMeasureReady(): boolean {
     const [ready, setReady] = useState(false);
 

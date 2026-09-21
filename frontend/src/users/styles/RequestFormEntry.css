@@ -1,8 +1,3 @@
-/* =========================================================
-   RequestFormEntry.css — Request Form Entry
-   Matches the premium theme of Tax Declaration / Landholding forms
-   ========================================================= */
-
 .rfe-page {
     display: flex;
     flex-direction: column;
@@ -14,7 +9,6 @@
     margin-top: -18px;
 }
 
-/* ── Breadcrumb ───────────────────────────────────────────── */
 .rfe-breadcrumb {
     display: flex;
     align-items: center;
@@ -22,7 +16,6 @@
     font-size: 0.9rem;
     font-weight: 600;
     padding: 28px 28px 25px 35px;
-    /* Aligned exactly with form card, nice top spacing */
     margin: 0;
 }
 
@@ -40,7 +33,6 @@
 
 .rfe-breadcrumb-separator {
     color: #94a3b8;
-    /* Softer color for the separator */
     font-size: 0.9rem;
     font-weight: 700;
     display: flex;
@@ -56,13 +48,11 @@
 .rfe-page-inner {
     flex: 1;
     padding: 0 28px 24px 28px;
-    /* Removed top padding, perfectly aligned sides */
     display: flex;
     flex-direction: column;
     gap: 0;
 }
 
-/* ── Main card ────────────────────────────────────────────── */
 .rfe-card {
     background: #ffffff;
     border-radius: 16px;
@@ -73,7 +63,6 @@
     flex-direction: column;
 }
 
-/* ── Card header ──────────────────────────────────────────── */
 .rfe-card-header {
     background: linear-gradient(135deg, #29237a 0%, #3730a3 100%);
     padding: 22px 32px;
@@ -118,7 +107,6 @@
     backdrop-filter: blur(4px);
 }
 
-/* ── Form body ────────────────────────────────────────────── */
 .rfe-form-body {
     padding: 28px 32px;
     display: flex;
@@ -128,7 +116,6 @@
     flex: 1;
 }
 
-/* ── Sections ─────────────────────────────────────────────── */
 .rfe-section {
     margin-bottom: 28px;
 }
@@ -157,7 +144,6 @@
     flex-shrink: 0;
 }
 
-/* ── Grid layouts ─────────────────────────────────────────── */
 .rfe-row {
     display: grid;
     gap: 16px;
@@ -168,7 +154,6 @@
     grid-template-columns: 1fr 1fr;
 }
 
-/* ── Field group ──────────────────────────────────────────── */
 .rfe-field {
     display: flex;
     flex-direction: column;
@@ -182,7 +167,6 @@
     letter-spacing: 0.2px;
 }
 
-/* ── Inputs (Matches TD EXACTLY) ──────────────────────────── */
 .rfe-input {
     width: 100%;
     padding: 11px 14px;
@@ -208,7 +192,6 @@
     font-style: italic;
 }
 
-/* ── Inline Field Errors ──────────────────────────────────── */
 .rfe-field-error {
     color: #dc2626;
     font-size: 0.78rem;
@@ -228,7 +211,6 @@
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
 }
 
-/* ── Custom Selects (re-mapped to look like rfe-input) ────── */
 .custom-select {
     position: relative;
     width: 100%;
@@ -329,7 +311,6 @@
     text-align: center;
 }
 
-/* ── Toggle button pairs ─────────────────────────────────── */
 .toggle-pair {
     display: flex;
     gap: 12px;
@@ -376,7 +357,6 @@
     color: #fff;
 }
 
-/* ── Footer ─────────────────────────────────────────────────── */
 .rfe-footer {
     padding: 16px 32px;
     display: flex;
@@ -471,7 +451,6 @@
     cursor: not-allowed;
 }
 
-/* ── Warnings / Notice ─────────────────────────────────────── */
 .form-reuse-notice {
     background: #fffbeb;
     border: 1.5px solid #fde68a;
@@ -501,14 +480,12 @@
     font-size: 0.85rem;
 }
 
-/* Wrapper for input + clear button */
 .input-with-clear {
     position: relative;
     display: flex;
     align-items: center;
 }
 
-/* Quick Clear (X) Button */
 .input-clear-btn {
     position: absolute;
     right: 8px;
@@ -531,7 +508,6 @@
     color: #ef4444;
 }
 
-/* Reset New Client Button */
 .btn-reset-form {
     background: rgba(255, 255, 255, 0.15);
     color: #ffffff;
@@ -549,7 +525,6 @@
     background: rgba(255, 255, 255, 0.25);
 }
 
-/* ── Header icon ───────────────────────────────────────────── */
 .rfe-header-icon {
     display: inline-flex;
     align-items: center;
@@ -563,14 +538,12 @@
     height: 28px;
 }
 
-/* ── Section title icons ───────────────────────────────────── */
 .rfe-section-title svg {
     width: 18px;
     height: 18px;
     flex-shrink: 0;
 }
 
-/* ── Return / Archive box ──────────────────────────────────── */
 .rfe-return-archive-box {
     background: #f8fafc;
     border: 1.5px solid #e2e8f0;
@@ -586,7 +559,6 @@
     margin-bottom: 12px;
 }
 
-/* ── Signature block ───────────────────────────────────────── */
 .rfe-signature-block {
     text-align: center;
     margin-top: 24px;
@@ -608,7 +580,6 @@
     margin-top: 2px;
 }
 
-/* ── Template controls ─────────────────────────────────────── */
 .rfe-template-controls {
     display: flex;
     gap: 10px;
@@ -633,7 +604,6 @@
     color: #1e293b;
 }
 
-/* ── Native select (for SingleSelectDropdown) ──────────────── */
 .native-select {
     width: 100%;
     padding: 11px 14px;
@@ -656,7 +626,6 @@
     box-shadow: 0 0 0 3px rgba(41, 35, 122, 0.10);
 }
 
-/* ── Discard Confirmation Modal ────────────────────────────── */
 .rfe-modal-overlay {
     position: fixed;
     inset: 0;

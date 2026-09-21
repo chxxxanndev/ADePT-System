@@ -1,15 +1,3 @@
-/* ============================================================
-   InitialDocumentPreviewModal.css — right-side editing form UI
-   styled to match the three main forms (Tax Declaration,
-   Landholding, No-Landholding): same navy/purple brand colors,
-   input treatment, border radius, spacing, focus states, and
-   button language. Also makes the two-column modal responsive.
-
-   Layout arrangement (PDF left / form right) is unchanged —
-   only styling and responsive behavior live here.
-   ============================================================ */
-
-/* ── Modal shell ──────────────────────────────────────────── */
 .idpm-overlay {
     position: fixed;
     top: 0;
@@ -149,7 +137,7 @@
     color: #64748b;
 }
 
-/* ── Two-column view (PDF left / form right) ──────────────── */
+/* Two-column view (PDF left / form right) */
 .idpm-view {
     display: flex;
     gap: 24px;
@@ -183,7 +171,7 @@
     background: #f8fafc;
 }
 
-/* ── Form scaffolding ─────────────────────────────────────── */
+/* Form scaffolding */
 .idpm-form {
     display: flex;
     flex-direction: column;
@@ -231,7 +219,7 @@
     background: #ffffff;
 }
 
-/* ── Grids ────────────────────────────────────────────────── */
+/* Grids */
 .idpm-grid {
     display: grid;
     gap: 16px 20px;
@@ -263,7 +251,6 @@
     margin-top: 12px;
 }
 
-/* ── Fields / labels / inputs ─────────────────────────────── */
 .idpm-field {
     display: flex;
     flex-direction: column;
@@ -372,7 +359,6 @@ textarea.idpm-input {
     background: rgba(99, 102, 241, 0.1);
 }
 
-/* ── Section titles ───────────────────────────────────────── */
 .idpm-section-head {
     display: flex;
     justify-content: space-between;
@@ -403,7 +389,6 @@ textarea.idpm-input {
     flex-shrink: 0;
 }
 
-/* ── Add / remove row buttons ─────────────────────────────── */
 .idpm-add-row-btn {
     display: inline-flex;
     align-items: center;
@@ -531,7 +516,6 @@ textarea.idpm-input {
     color: #111827;
 }
 
-/* ── Footer / action buttons ──────────────────────────────── */
 .idpm-footer {
     background: #f8fafc;
     padding: 16px 24px;

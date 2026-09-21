@@ -31,9 +31,6 @@ const docTypeLabel = (doc: any) =>
             ? 'Certificate of No Landholding'
             : 'Certificate of Landholding');
 
-// Maps a reference number prefix to a badge variant so ref numbers are
-// scannable at a glance (mirrors the color-coding used in the compact
-// document cards elsewhere in the app).
 const refBadgeVariant = (referenceNumber: string) => {
     if (referenceNumber.startsWith('NLH')) return 'pd-ref-badge--nlh';
     if (referenceNumber.startsWith('LH')) return 'pd-ref-badge--lh';
@@ -80,7 +77,6 @@ export const DocumentVerificationPanel: React.FC<DocumentVerificationPanelProps>
 }) => {
     return (
         <div className="pd-split-layout">
-            {/* LEFT COLUMN: DOCUMENTS ONLY — signatories moved to the release step */}
             <div className="pd-col-left">
                 <div className="pd-section-label">Verify Document Details ({documents.length})</div>
                 <div className="pd-doc-table-wrap">
@@ -139,7 +135,6 @@ export const DocumentVerificationPanel: React.FC<DocumentVerificationPanelProps>
                 </div>
             </div>
 
-            {/* RIGHT COLUMN: RECEIPT + CONFIRM */}
             <div className="pd-col-right">
                 <div className="pd-receipt-card">
                     <div className="pd-section-label">Treasurer Receipt Details</div>

@@ -16,11 +16,6 @@ interface ActivePreview {
     label: string;
 }
 
-// marginLeft / marginRight participate in the SAME 100%-sum pool as the six
-// real columns (dragged from the same width bar below). They don't render
-// as bordered cells — they're blank space that the real columns are fit
-// into, which is what lets the table box shrink/shift instead of always
-// touching the page's left/right content edge.
 interface TableColWidths {
     marginLeft: number;
     td: number;
@@ -43,27 +38,21 @@ interface SignatoryStyle {
     nameFontSize: number;
     titleFontSize: number;
     blockWidth: number;
-    // Per-signatory horizontal nudge (pt) — moves that signatory's whole
-    // block (name + title together) left/right of its default position.
     offsetX1: number;
     offsetX2: number;
 }
 
-// ---------------------------------------------------------------------------
-// NLH Spacing — all layout values staff may need to nudge per NLH document.
-// Exported so the parent can import the type and default for state init/reset.
-// ---------------------------------------------------------------------------
 export interface NLHSpacing {
-    sigMarginTop: number;    // space above the whole signatory block (was 80)
-    sigBlockGap: number;     // gap between sig1 and sig2 (was 60)
-    sigBlockWidth: number;   // width of each signatory block in pt (was 260)
-    nameFontSize: number;    // signatory name font size (was 11)
-    titleFontSize: number;   // signatory title font size (was 10)
-    offsetX1: number;        // horizontal nudge for sig1 — negative = left (was 0)
-    offsetX2: number;        // horizontal nudge for sig2 — negative = left (was 0)
-    receiptBottom: number;   // absolute bottom position of receipt box (was 95)
-    receiptLeft: number;     // absolute left position of receipt box (was 70)
-    receiptRowGap: number;   // marginBottom between Cert Fee / O.R. No. / Dated rows (was 3)
+    sigMarginTop: number;     
+    sigBlockGap: number;    
+    sigBlockWidth: number;   
+    nameFontSize: number;    
+    titleFontSize: number; 
+    offsetX1: number;        
+    offsetX2: number;        
+    receiptBottom: number;  
+    receiptLeft: number;     
+    receiptRowGap: number;  
 }
 
 export const DEFAULT_NLH_SPACING: NLHSpacing = {
@@ -94,8 +83,6 @@ const DEFAULT_SIGNATORY_STYLE: SignatoryStyle = {
     offsetX2: 0,
 };
 
-// The two margin entries sit at either end of this array so they render as
-// the first/last segments of the bar — i.e. the two outer handles.
 const TABLE_COLUMNS: { key: keyof TableColWidths; label: string; isMargin?: boolean }[] = [
     { key: 'marginLeft', label: 'Left Margin', isMargin: true },
     { key: 'td', label: 'TD/ARP No.' },
@@ -126,24 +113,19 @@ interface DocumentReleasePanelProps {
     onReceiptSpacingChange: (docId: string, field: 'bottom' | 'left' | 'rowGap', value: number) => void;
     onResetReceiptSpacing: (docId: string) => void;
 
-    // Property table layout — Landholding certs only (rows/columns/text size).
     docTableSpacing: Record<string, TableSpacing>;
     onTableSpacingChange: (docId: string, field: 'rowHeight' | 'fontSize' | 'headerFontSize', value: number) => void;
     onColWidthsChange: (docId: string, updates: Partial<TableColWidths>) => void;
     onResetTableSpacing: (docId: string) => void;
 
-    // Signatory text sizing / block width — Landholding certs only.
     docSignatoryStyle: Record<string, SignatoryStyle>;
     onSignatoryStyleChange: (docId: string, field: keyof SignatoryStyle, value: number) => void;
     onResetSignatoryStyle: (docId: string) => void;
 
-    // In the props interface, make the three NLH props optional:
     docNLHSpacing?: Record<string, NLHSpacing>;
     onNLHSpacingChange?: (docId: string, field: keyof NLHSpacing, value: number) => void;
     onResetNLHSpacing?: (docId: string) => void;
 
-    // Tax Declaration layout adjustments (base text sizes + auto-fit floor +
-    // Certified Copy block) — the TD equivalent of the LH/NLH accordions.
     docTDSpacing?: Record<string, TDTemplateSpacing>;
     onTDSpacingChange?: (docId: string, field: keyof TDTemplateSpacing, value: number) => void;
     onResetTDSpacing?: (docId: string) => void;
@@ -154,7 +136,6 @@ interface DocumentReleasePanelProps {
     onQueueForRelease?: () => Promise<void> | void;
 }
 
-// Badge styling/icon per document prefix — TD (blue), LH (amber), NLH (red).
 const getDocBadgeConfig = (doc: any) => {
     const ref = doc.referenceNumber || '';
 
@@ -182,7 +163,6 @@ const getDocBadgeConfig = (doc: any) => {
         };
     }
 
-    // LH (Landholding) — plain document-with-text-lines icon.
     return {
         className: 'pd-doc-badge--lh',
         label: doc.documentType || 'Certificate of Landholding',
@@ -196,12 +176,6 @@ const getDocBadgeConfig = (doc: any) => {
     };
 };
 
-// --- AccordionSection --------------------------------------------------
-// Collapsible wrapper for each layout-control group. Closed by default so
-// staff who never touch these controls aren't shown a wall of fields every
-// time they open a document. An optional "Reset" link appears in the header
-// (only while open) so a bad value can be backed out without disturbing
-// the other sections.
 const AccordionSection: React.FC<{
     title: string;
     defaultOpen?: boolean;
@@ -255,8 +229,6 @@ const AccordionSection: React.FC<{
     );
 };
 
-// --- Stepper -------------------------------------------------------------
-// Small shared +/- number input used throughout the accordions.
 const Stepper: React.FC<{
     label: string;
     value: number;
@@ -290,8 +262,6 @@ const Stepper: React.FC<{
     </div>
 );
 
-// --- ColumnWidthBar --------------------------------------------------------
-// Drag-to-resize bar for the Landholding property table columns.
 const ColumnWidthBar: React.FC<{
     colWidths: TableColWidths;
     onChange: (updates: Partial<TableColWidths>) => void;
@@ -439,9 +409,6 @@ const ColumnWidthBar: React.FC<{
     );
 };
 
-// ===========================================================================
-// DocumentReleasePanel
-// ===========================================================================
 export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
     documents,
     orNumber,
@@ -463,7 +430,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
     onResetTableSpacing,
     docSignatoryStyle,
     onSignatoryStyleChange,
-    // onResetSignatoryStyle,
     docNLHSpacing,
     onNLHSpacingChange,
     onResetNLHSpacing,
@@ -485,7 +451,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
     const [isPreviewLoaded, setIsPreviewLoaded] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
 
-    // --- Release guard state -------------------------------------------------
     const [actionTaken, setActionTaken] = useState(false);
     const [showGuardModal, setShowGuardModal] = useState(false);
     const pendingNavigationRef = useRef<(() => void) | null>(null);
@@ -501,12 +466,10 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
 
     const staffOptions = releaseStaffOptions.map(s => ({ id: s.id, label: s.name }));
 
-    // --- Per-doc-type guards — all derived from activeDoc inside the component
     const isLandholdingDoc = !!activeDoc?.referenceNumber?.startsWith('LH');
     const isNLHDoc = !!activeDoc?.referenceNumber?.startsWith('NLH');
     const isTaxDecDoc = !!activeDoc?.referenceNumber?.startsWith('TD');
 
-    // --- Active spacing values (fall back to defaults when not yet customised)
     const activeSpacing = activeDoc
         ? (docSpacing[activeDoc.id] || { top: 60, gap: 65 })
         : { top: 60, gap: 65 };
@@ -531,7 +494,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
         ? ((docTDSpacing ?? {})[activeDoc.id] || DEFAULT_TD_TEMPLATE_SPACING)
         : DEFAULT_TD_TEMPLATE_SPACING;
 
-    // Reset the "loaded" flag every time a new preview URL comes in.
     useEffect(() => {
         setIsPreviewLoaded(false);
     }, [activePreview?.url]);
@@ -615,7 +577,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
         setShowGuardModal(false);
     };
 
-    // --- Native browser exits ------------------------------------------------
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
             if (actionTaken) return;
@@ -626,16 +587,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [actionTaken]);
 
-    // --- Exit attempts (in-app buttons, sidebar, tabs, links, …) -----------
-    // The app switches views statefully (Dashboard's setActiveView), so most
-    // "other page" navigation is plain <button> clicks (sidebar items, tab
-    // pills, breadcrumbs, quick actions) — not anchors, which is why they
-    // used to slip past the guard and out of the release flow silently.
-    // Capture-phase interception runs BEFORE those buttons' own onClick
-    // handlers, so preventDefault + stopPropagation cancels the navigation
-    // entirely and forces staff to resolve the release (Mark as Released /
-    // Save & Release Later / Stay). Everything INSIDE the panel keeps
-    // working normally; only clicks outside it are candidates.
     useEffect(() => {
         const handleClickCapture = (e: MouseEvent) => {
             if (actionTaken) return;
@@ -645,7 +596,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
             if (!target) return;
             if (panelRef.current?.contains(target)) return;
 
-            // Old-style <a href> outside the panel → block the native jump.
             const anchor = target.closest('a[href]') as HTMLAnchorElement | null;
             if (anchor) {
                 if (anchor.target === '_blank' || anchor.hasAttribute('download')) return;
@@ -660,9 +610,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                 return;
             }
 
-            // Any in-app navigation control outside the panel (Dashboard
-            // sidebar, header buttons, tabs, breadcrumbs…) → cancel the
-            // click so the view can't change until the release is resolved.
             if (target.closest('button, [role="button"], a')) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -676,7 +623,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
 
     return (
         <div className="pd-split-layout pd-split-layout--viewer animation-fade-in" ref={panelRef}>
-            {/* LEFT COLUMN: PDF VIEWER */}
             <div className="pd-col-left">
                 <div className="pd-pdf-viewer-container">
                     {activePreview ? (
@@ -706,10 +652,8 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                 </div>
             </div>
 
-            {/* RIGHT COLUMN: SIDEBAR */}
             <div className="pd-col-right pd-sidebar-controls">
 
-                {/* Card 1 — Payment Status */}
                 <div className="pd-sidebar-card pd-payment-verified-card">
                     <div className="pd-payment-details">
                         <div className="pd-success-icon-minimal">
@@ -724,7 +668,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                     </div>
                 </div>
 
-                {/* Card 2 — Documents */}
                 <div className="pd-sidebar-card">
                     <div className="pd-section-label">Documents for Release</div>
                     <div className="pd-print-list-compact">
@@ -765,7 +708,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                     </div>
                 </div>
 
-                {/* Card 3 — Signatories + Layout Controls */}
                 {activeDoc && (
                     <div className="pd-sidebar-card">
                         <div className="pd-section-label">Confirm Signatories</div>
@@ -800,7 +742,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                             )}
                         </div>
 
-                        {/* ── TD ACCORDIONS ─────────────────────────────────── */}
                         {isTaxDecDoc && (
                             <AccordionSection title="Field Text Size (Auto-fit)" onReset={() => onResetTDSpacing?.(activeDoc.id)}>
                                 <div className="pd-sig-selectors">
@@ -962,7 +903,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                             </AccordionSection>
                         )}
 
-                        {/* ── LH ACCORDIONS ─────────────────────────────────── */}
                         {isLandholdingDoc && (
                             <AccordionSection title="Signature Layout" onReset={() => onResetSpacing(activeDoc.id)}>
                                 <div className="pd-sig-selectors">
@@ -1100,7 +1040,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                             </AccordionSection>
                         )}
 
-                        {/* ── NLH ACCORDIONS ────────────────────────────────── */}
                         {isNLHDoc && (
                             <AccordionSection
                                 title="Signature Layout"
@@ -1200,7 +1139,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                     </div>
                 )}
 
-                {/* Card 4 — Released By */}
                 <div className="pd-sidebar-card">
                     <div className="pd-form-group" style={{ marginBottom: 0 }}>
                         <label className="pd-field-label">Released by</label>
@@ -1217,7 +1155,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                     </div>
                 </div>
 
-                {/* Card 5 — Actions */}
                 <div className="pd-sidebar-actions-bottom">
                     <div className="pd-actions-row-compact">
                         <button
@@ -1302,7 +1239,6 @@ export const DocumentReleasePanel: React.FC<DocumentReleasePanelProps> = ({
                 </div>
             </div>
 
-            {/* Release guard modal */}
             {showGuardModal && (
                 <div className="pd-guard-overlay" role="dialog" aria-modal="true" aria-labelledby="pd-guard-title">
                     <div className="pd-guard-modal">

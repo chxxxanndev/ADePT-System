@@ -25,12 +25,7 @@ interface CustomDateInputProps {
     className?: string;
     placeholder?: string;
     id?: string;
-    /** Screen-reader label for the field (used by filter rows where there
-     *  is no visible <label> element). */
     ariaLabel?: string;
-    /** Anchor the calendar popover to the calendar icon instead of the
-     *  input's left edge (used by wide full-width fields like the
-     *  Request form's Date of Request). */
     anchorToIcon?: boolean;
 }
 
@@ -55,11 +50,6 @@ const ChevronRight = () => (
     </svg>
 );
 
-/** Custom date input with the ADePT redesigned calendar card.
- *  Replaces the native <input type="date"> popup (which browsers render
- *  unstylable) with a matching text field — same className passthrough,
- *  same ISO "YYYY-MM-DD" value handling — plus our own calendar panel
- *  rendered in a portal so it is never clipped. */
 export function CustomDateInput({ value, onChange, className, placeholder, id, ariaLabel, anchorToIcon = false }: CustomDateInputProps) {
     const [open, setOpen] = useState(false);
     const wrapRef = useRef<HTMLDivElement>(null);

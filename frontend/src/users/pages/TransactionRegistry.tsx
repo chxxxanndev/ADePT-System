@@ -14,9 +14,6 @@ import type { VoidAmendRecord } from './VoidAndAmend';
 import '../styles/TransactionRegistry.css';
 import { getDocPillMeta, getDocumentTypeFromReference, matchesDocumentType } from '../../utils/documentType';
 
-// Legend icons come from the shared documentType helper — the exact same
-// icons TransactionRow.tsx renders inside the reference-number pills, so
-// the legend key always matches the table (no duplicate SVG copies here).
 const TaxDeclarationIcon = getDocPillMeta('Tax Declaration').Icon;
 const LandholdingIcon = getDocPillMeta('Landholding').Icon;
 const NoLandholdingIcon = getDocPillMeta('No Land Holding').Icon;
@@ -29,32 +26,23 @@ const DEFAULT_FILTERS: TransactionFilters = {
 };
 
 function toComparableDate(dateStr: string): string {
-    // Don't assume the input is zero-padded MM/DD/YYYY — normalize through
-    // Date so "8/1/2026", "08/01/2026", and ISO strings all compare correctly.
     let d: Date;
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        // Already ISO — parse the components directly as local time
-        // (new Date("YYYY-MM-DD") parses as UTC per spec, which can shift
-        // the date by a day depending on timezone).
         const [y, m, day] = dateStr.split('-').map(Number);
         d = new Date(y, m - 1, day);
     } else {
-        d = new Date(dateStr); // handles "8/1/2026", "Aug 1, 2026", etc.
+        d = new Date(dateStr); 
     }
     if (isNaN(d.getTime())) return '';
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// The registry only ever shows Released transactions, so dateReleased should
-// always be populated by the time a row lands here — but fall back to
-// dateRequested for any older/incompletely-migrated backend rows rather than
-// crashing on a missing date or silently sorting them as "oldest".
 function getReleaseSortDate(t: Transaction): string {
     return t.dateReleased || t.dateRequested;
 }
 
 interface TransactionRegistryProps {
-    user: User; // still needed to populate actionedBy
+    user: User; 
     onNavigateToVoidAmend: (newVoidedItems: VoidAmendRecord[]) => void;
     onNavigateToReprint?: () => void;          // NEW — wire from parent/router
     onNavigateToPendingRequests?: () => void;  // NEW — wire from parent/router
@@ -96,7 +84,7 @@ export function TransactionRegistry({
         setLoadError(null);
         try {
             const data = await fetchTransactionRegistry();
-            setTransactions(data);   // backend now returns real counts, no overlay needed
+            setTransactions(data);  
         } catch (err) {
             setLoadError(err instanceof Error ? err.message : 'Failed to load transactions.');
             setTransactions([]);
@@ -127,9 +115,6 @@ export function TransactionRegistry({
         for (const t of releasedTransactions) {
             if (toComparableDate(getReleaseSortDate(t)) === todayKey) releasedToday++;
 
-            // Document-type counts use the same prefix-first resolution the
-            // reference pills in TransactionRow use, so a chip always matches
-            // the pills rendered in the table.
             const meta = getDocPillMeta(
                 getDocumentTypeFromReference(t.referenceNumber) ??
                 t.requestedDocuments[0]?.documentType ??
@@ -173,20 +158,12 @@ export function TransactionRegistry({
     const declarantGroups = useMemo<DeclarantGroup[]>(() => {
         const map = new Map<string, Transaction[]>();
         for (const t of filteredTransactions) {
-            // Group by requester + date — matches PendingPayment's model. A
-            // single requester (agent, relative, attorney-in-fact) can request
-            // documents for several different declarants in one visit, and
-            // those should read as one grouped block, not scattered by
-            // declarant name.
             const key = `${t.client.requestedBy || 'Unknown'}||${getReleaseSortDate(t)}`;
             if (!map.has(key)) map.set(key, []);
             map.get(key)!.push(t);
         }
         return Array.from(map.entries())
             .map(([, txns]) => ({
-                // declarantName field now carries the group's "Requested By"
-                // label (kept as declarantName to avoid touching the shared
-                // type — rename to requestedByLabel later if convenient).
                 declarantName: txns[0].client.requestedBy,
                 transactions: [...txns].sort(
                     (a, b) => new Date(toComparableDate(getReleaseSortDate(b))).getTime() -
@@ -199,12 +176,7 @@ export function TransactionRegistry({
             );
     }, [filteredTransactions]);
 
-    // Creates the -R{n} reprint request on the backend, then hands off to
-    // Pending Payment where staff verifies O.R. and releases it — same as
-    // any other document. No local reprintCount mutation here: the count
-    // shown in the registry reflects released reprints only, and this new
-    // request isn't released yet, so it'll show up correctly once it comes
-    // back through getTransactionRegistry() after being paid + released.
+
     const handleReprint = async (transactionId: string, docId: string) => {
         const reprint = await createReprint(transactionId, docId);
         addAdminAuditEntry({
@@ -219,25 +191,16 @@ export function TransactionRegistry({
 
     const handleVoidGroup = (group: DeclarantGroup) => setVoidGroupTarget(group);
 
-    // ─── modified: persist to backend first, then navigate with state ──
     const confirmVoidGroup = async (transactionIds: string[], reason: string) => {
         const idSet = new Set(transactionIds);
         const voidedTransactions = transactions.filter(t => idSet.has(t.id));
 
         try {
-            // Persist the void to the backend for every selected transaction
-            // BEFORE navigating away — otherwise VoidAndAmend's refetch won't
-            // find these as Void status.
+
             await Promise.all(transactionIds.map((id) => voidTransaction(id, reason)));
         } catch (err) {
             console.error('Failed to void transaction(s):', err);
             alert('Failed to void the selected transaction(s). Please try again.');
-            // Re-throw so VoidDocumentSelectModal's isSubmitting state can
-            // recover (its handleConfirm awaits this function and only
-            // clears the spinner in a catch block) — without this, the
-            // confirm button would be stuck showing "Voiding…" forever
-            // after a failed request, since success is the only path that
-            // normally closes/unmounts the modal.
             throw err;
         }
 
@@ -272,14 +235,7 @@ export function TransactionRegistry({
     return (
         <div className="tr-page">
             <div className="tr-header">
-                {/* Dashboard > Document Request > Pending Requests > Transaction Registry > Archive Management.
-                    "Dashboard" routes via onNavigateToDashboard (lands on the dashboard view),
-                    "Document Request" routes via onNavigateToPendingRequests (it lands on
-                    the document-request view in Dashboard.tsx) and "Pending Requests" routes
-                    via onNavigateToPendingPayment (the actual Pending Payment/Requests page) —
-                    matches how Dashboard.tsx already wires these props today. "Archive
-                    Management" is the final crumb, routing via onNavigateToArchive. Styled
-                    identically to PendingPayment's pp-breadcrumb (teal on hover/active). */}
+    
                 <nav className="tr-breadcrumb" aria-label="Breadcrumb">
                     <button
                         type="button"
@@ -334,10 +290,6 @@ export function TransactionRegistry({
                     </button>
                 </div>
 
-                {/* Pill tab nav — inlined here (not a separate component) so it matches
-                    how PendingPayment renders its own tabs directly in-page. "registry" is
-                    always the active tab since this IS the registry page, so that button
-                    has no onClick (same no-op behavior the old TransactionTabs gave it). */}
                 <div className="tr-tabs" role="tablist" aria-label="Transaction sections">
                     <button
                         type="button"
@@ -360,7 +312,6 @@ export function TransactionRegistry({
                     >
                         Void &amp; Amend
                     </button>
-                    {/* Archive Management pill intentionally left out per Peter's instruction */}
                 </div>
 
                 {isLoading ? (
@@ -382,9 +333,6 @@ export function TransactionRegistry({
                     </>
                 )}
             </div>
-
-            {/* everything below (loading skeleton, error state, TransactionTable,
-            TransactionDetails, VoidDocumentSelectModal) stays exactly as-is */}
 
             {isLoading ? (
                 <RegistryTableSkeleton />

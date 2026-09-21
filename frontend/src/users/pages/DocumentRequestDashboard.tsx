@@ -172,7 +172,6 @@ export function DocumentRequestDashboard({
 
     return (
         <div className="doc-req-container page-transition">
-            {/* Breadcrumb — Dashboard > Document Request */}
             <nav className="doc-req-breadcrumb" aria-label="Breadcrumb">
                 <button
                     type="button"
@@ -185,7 +184,6 @@ export function DocumentRequestDashboard({
                 <span className="doc-req-breadcrumb-item--current">Document Request</span>
             </nav>
 
-            {/* Header Area */}
             <div className="doc-req-header">
                 <div className="doc-req-title-section">
                     <h1>Document Requests Hub</h1>
@@ -201,7 +199,6 @@ export function DocumentRequestDashboard({
                 </button>
             </div>
 
-            {/* Document Selection Grid */}
             <div className="doc-req-types-section">
                 <h2 className="doc-req-section-title">
                     <span className="doc-req-section-icon">
@@ -239,7 +236,6 @@ export function DocumentRequestDashboard({
                 </div>
             </div>
 
-            {/* Saved Request Drafts Registry */}
             <div className="doc-req-drafts-section">
                 <div className="doc-req-drafts-header">
                     <div className="doc-req-drafts-header-title">
@@ -313,7 +309,6 @@ export function DocumentRequestDashboard({
                     </div>
                 ) : (
                     <div className="doc-req-drafts-wrapper">
-                        {/* Table Layout Headers */}
                         <div className={`doc-req-draft-table-header ${selectMode ? 'has-checkbox' : ''}`}>
                             {selectMode && (
                                 <div className="doc-req-checkbox-cell">
@@ -375,7 +370,6 @@ export function DocumentRequestDashboard({
                                             ))}
                                         </div>
                                         <div className="doc-req-draft-actions">
-                                            {/* New Icon Edit Button */}
                                             <button
                                                 className="doc-req-draft-edit-btn"
                                                 onClick={(e) => {

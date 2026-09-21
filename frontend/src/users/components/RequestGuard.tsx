@@ -2,40 +2,26 @@ import { useEffect, useRef } from 'react';
 import '../styles/RequestGuard.css';
 
 interface RequestGuardProps {
-    /** The view that was attempted (e.g. "Tax Declaration") */
     attemptedView: string;
-    /** Called when user clicks "Go to Request Form Entry" */
     onGoToEntry: () => void;
-    /** Called when user clicks "Back to Dashboard" */
     onBackToDashboard: () => void;
 }
 
-/**
- * RequestGuard — shown when a user tries to access a Request Processing
- * sub-view (e.g. Tax Declaration) before completing the Request Form Entry.
- *
- * Design: full-height amber warning card with animated border pulse and
- * two clear CTAs.
- */
 export function RequestGuard({ attemptedView, onGoToEntry, onBackToDashboard }: RequestGuardProps) {
     const cardRef = useRef<HTMLDivElement>(null);
 
-    // Trigger the entrance animation on mount
     useEffect(() => {
         const el = cardRef.current;
         if (!el) return;
-        // Small delay so the animation is visible even on fast renders
         requestAnimationFrame(() => el.classList.add('guard-visible'));
     }, []);
 
     return (
         <div className="guard-page">
             <div className="guard-card" ref={cardRef}>
-                {/* Pulsing accent bar at top */}
                 <div className="guard-accent-bar" />
 
                 <div className="guard-body">
-                    {/* Icon */}
                     <div className="guard-icon-wrap">
                         <svg
                             className="guard-icon"
@@ -52,10 +38,8 @@ export function RequestGuard({ attemptedView, onGoToEntry, onBackToDashboard }: 
                         </svg>
                     </div>
 
-                    {/* Heading */}
                     <h2 className="guard-title">Request Entry Not Completed</h2>
 
-                    {/* Message */}
                     <p className="guard-message">
                         You are trying to access{' '}
                         <strong className="guard-highlight">{attemptedView}</strong> under{' '}
@@ -66,7 +50,6 @@ export function RequestGuard({ attemptedView, onGoToEntry, onBackToDashboard }: 
 
                     <div className="guard-divider" />
 
-                    {/* Steps */}
                     <div className="guard-steps">
                         <div className="guard-step">
                             <span className="guard-step-num">1</span>
@@ -85,7 +68,6 @@ export function RequestGuard({ attemptedView, onGoToEntry, onBackToDashboard }: 
                         </div>
                     </div>
 
-                    {/* Actions */}
                     <div className="guard-actions">
                         <button className="guard-btn-primary" onClick={onGoToEntry}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

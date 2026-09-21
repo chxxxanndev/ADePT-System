@@ -1,8 +1,3 @@
-/* =========================================================
-   ADePT Dashboard — Official Design System Tokens
-   Source: ADePT Official Design System Color Palette
-   Integrated Changes: Fluid Width, Hidden Scrollbars, & Selector Styling
-   ========================================================= */
 :root {
     /* Brand */
     --db-primary: #29237A;
@@ -56,9 +51,6 @@
     --db-shadow-card: 0 4px 20px rgba(41, 35, 122, 0.10);
 }
 
-/* =========================================================
-   Page shell
-   ========================================================= */
 .dashboard-page {
     position: relative;
     display: flex;
@@ -88,9 +80,6 @@
     display: none;
 }
 
-/* =========================================================
-   Sidebar
-   ========================================================= */
 .dashboard-sidebar {
     position: relative;
     z-index: 20;
@@ -134,10 +123,6 @@
     font-size: 13px;
     flex-shrink: 0;
     overflow: hidden;
-    /* The logo PNG's circular edge is alpha-blended, so against the dark
-       sidebar its outline looks jagged. A solid white ring (via padding +
-       border-box) makes the emblem sit inside a clean white circle — the
-       same look the footer's logo has. */
     padding: 3px;
 }
 
@@ -623,16 +608,6 @@
     isolation: isolate;
 }
 
-/* The Summary period control is the shared Transaction Registry
-   DateRangePicker. The picker's popover is now portaled and positioned by
-   the shared FloatingPopover; DashboardHeader passes align="left" so the
-   popover opens into open space next to the welcome row instead of
-   extending off the left edge of the viewport. */
-
-/* =========================================================
-   Refresh button (replaces the old period-selector slot on
-   the right side of the welcome row)
-   ========================================================= */
 .refresh-btn {
     background-color: rgba(255, 252, 249, 0.55);
     backdrop-filter: blur(12px);
@@ -683,9 +658,7 @@
     }
 }
 
-/* =========================================================
-   FLUID CONTENT AREA (OPTIMIZED FOR MULTI-RESOLUTION VIEWPORTS)
-   ========================================================= */
+/* FLUID CONTENT AREA (OPTIMIZED FOR MULTI-RESOLUTION VIEWPORTS)*/
 .dashboard-content {
     display: flex;
     flex-direction: column;
@@ -734,17 +707,12 @@
     gap: 16px;
 }
 
-/* ── Stat cards — uniformed to admin card sizing/icon treatment ───── */
-/* Stat card grid — restyled to match PendingPayment's pp-stat-chip:
-   icon-well on the left, value/label/sublabel stacked to its right,
-   glass card instead of a solid accent fill. */
 .stat-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 16px;
 }
 
-/* ── Stat cards — exact match to Pending Payment image ───── */
 .stat-card {
     display: flex;
     flex-direction: column;
@@ -767,8 +735,6 @@
     border-color: rgba(41, 35, 122, 0.25) !important;
 }
 
-/* Clickable summary cards — button reset on top of the .stat-card box so
-   the card keeps its exact look while behaving like a link. */
 .stat-card--clickable {
     width: 100%;
     font: inherit;
@@ -788,8 +754,6 @@
     outline-offset: 2px;
 }
 
-/* Hover affordance: a small arrow badge slides in next to the sublabel,
-   signalling the card navigates somewhere. */
 .stat-card-arrow {
     display: inline-flex;
     align-items: center;
@@ -814,9 +778,6 @@
     background-color: rgba(41, 35, 122, 0.18);
 }
 
-/* Loading placeholder: same .stat-card box (padding, min-height, radius,
-   grid cell) as the real cards, so the summary grid doesn't shift when
-   the skeleton is replaced by the loaded card. */
 .stat-card--skeleton {
     justify-content: center;
     gap: 12px;
@@ -964,7 +925,7 @@
     margin-bottom: 14px;
 }
 
-/* Bar chart - Enhanced (Matches Reference Design) */
+/* Bar chart */
 .analytics-card-enhanced {
     display: flex;
     flex-direction: column;
@@ -1275,7 +1236,7 @@
     text-align: right;
 }
 
-/* Count pill — echoes the tr-doc-pill look so numbers read as real badges. */
+/* Count pill */
 .legend-count {
     font-weight: 700;
     font-size: 11px;
@@ -1387,19 +1348,13 @@
     background-color: var(--db-hover-highlight);
 }
 
-/* See more/See less for long declarant names — driven by the shared
-   components/common/ExpandableText.tsx (28-char truncation, per-row
-   state, base styling in ExpandableText.css). This rule keeps the toggle
-   reading as part of the declarant cell. */
+/* See more/See less for long declarant names */
 .transactions-table .expandable-text-toggle {
     white-space: nowrap;
     color: var(--db-secondary);
 }
 
-/* Reference-number pills in Recent Transactions — exact copy of the
-   TransactionRegistry.css .tr-doc-pill rules (same colors per document
-   type) so the dashboard matches the registry design even before that
-   stylesheet is loaded. */
+/* Reference-number pills in Recent Transactions */
 .transactions-table .tr-doc-pill,
 .dashboard-card .tr-doc-pill {
     display: inline-flex;
@@ -1501,7 +1456,6 @@
     text-decoration: underline;
 }
 
-/* Quick actions */
 .quick-actions-list {
     display: flex;
     flex-direction: column;
@@ -1550,7 +1504,6 @@
     color: var(--db-text-muted);
 }
 
-/* Footer */
 .dashboard-footer {
     flex-shrink: 0;
     background-color: var(--db-primary);
@@ -1810,11 +1763,6 @@
     background-color: var(--db-primary-hover);
 }
 
-
-/* =========================================================
-   Print (used by Cashier Checkout's "Mark Paid & Print")
-   Hides chrome so window.print() only outputs the receipt panel
-   ========================================================= */
 @media print {
     .dashboard-page {
         display: block;

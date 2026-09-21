@@ -1,7 +1,3 @@
-/* ==========================================================================
-   Document Release Panel Styles
-   ========================================================================== */
-
 .animation-fade-in {
     animation: fadeIn 0.4s ease-out forwards;
 }
@@ -125,8 +121,6 @@
     margin-bottom: 16px;
 }
 
-
-/* --- Card 1: Payment Verified --- */
 .pd-payment-verified-card {
     padding: 18px;
     background-color: #f2fcf5;
@@ -145,9 +139,7 @@
     padding: 6px 12px;
     border-radius: 20px;
     background-color: #ffe4e6;
-    /* Pale pink/red */
     color: #9f1239;
-    /* Dark red */
     border: 1px solid #fecdd3;
     white-space: nowrap;
 }
@@ -202,7 +194,6 @@
     margin: 0 4px;
 }
 
-/* --- Card 2: Document Lists & Color Codes --- */
 .pd-print-list-compact {
     display: flex;
     flex-direction: column;
@@ -346,7 +337,7 @@
     border-color: #94a3b8;
 }
 
-/* --- Dropdown / Select --- */
+/* Dropdown / Select */
 .pd-sig-selectors {
     display: flex;
     flex-direction: column;
@@ -443,7 +434,7 @@
     gap: 12px;
 }
 
-/* --- Print / Download row --- */
+/* Print */
 .pd-actions-row-compact {
     display: flex;
     gap: 12px;
@@ -533,12 +524,7 @@
     letter-spacing: 0.05em;
 }
 
-/* --- "Save & Release Later" block ---
-   A distinct, lower-commitment secondary action that sits between the
-   Print/Download row and the primary Mark as Released button. Indigo
-   outline (echoes the primary color family) rather than red/gray, so it
-   doesn't read as a warning or a cancel — it's a legitimate deliberate
-   choice, just not the final one. */
+/* --- "Save & Release Later" block --- */
 .pd-queue-block {
     display: flex;
     flex-direction: column;

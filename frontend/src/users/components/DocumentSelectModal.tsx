@@ -7,8 +7,6 @@ interface VoidDocumentSelectModalProps {
     open: boolean;
     group: DeclarantGroup | null;
     onClose: () => void;
-    // May be sync or async — the modal awaits it either way so the button
-    // can show a loading state until the void request actually resolves.
     onConfirm: (transactionIds: string[], reason: string) => void | Promise<void>;
 }
 
@@ -74,20 +72,10 @@ export function VoidDocumentSelectModal({ open, group, onClose, onConfirm }: Voi
 
         setIsSubmitting(true);
         try {
-            // Await regardless of whether onConfirm is sync or async — if the
-            // caller's void request fails, it's expected to throw so the
-            // button can recover instead of getting stuck spinning forever.
             await onConfirm(Array.from(selectedIds), reason);
         } catch {
-            // The caller (TransactionRegistry.tsx's confirmVoidGroup) already
-            // surfaces its own error alert and keeps the modal open on
-            // failure — just make sure this button isn't left disabled.
             setIsSubmitting(false);
         }
-        // On success the parent closes the modal (setVoidGroupTarget(null)),
-        // which unmounts/hides this component — no need to reset
-        // isSubmitting here, and doing so could cause a flash if the modal
-        // hasn't unmounted yet on the same tick.
     };
 
     return (

@@ -1,11 +1,3 @@
-/* ==================================================================
-   ArchiveManagement.css
-   Styles for src/users/pages/ArchiveManagement.tsx
-   Restyled to match TransactionRegistry.css's glass-card design language
-   (var(--db-*) tokens, glass cards, stat chips, pill filters/badges,
-   pagination footer). Palette source: ADePT Official Design System.
-   ================================================================== */
-
 .arc-page {
     background-color: transparent;
     width: 100%;
@@ -17,8 +9,6 @@
     gap: 40px;
     min-width: 0;
 }
-
-/* ---- Header card (title, refresh, summary stats) ---- */
 
 .arc-header {
     display: flex;
@@ -295,10 +285,6 @@
     text-align: left;
 }
 
-/* Column widths — table-layout is fixed, so long declarant names get room
-   to wrap cleanly instead of cramming into an equal slice. (8 columns:
-   Reference No., Declarant, Document Type, Status, Reason, Archived By,
-   Date & Time, Action.) */
 .arc-table thead th:nth-child(1) { width: 15%; }
 .arc-table thead th:nth-child(2) { width: 11%; }
 .arc-table thead th:nth-child(3) { width: 13%; }
@@ -337,10 +323,6 @@
     text-wrap: pretty;
 }
 
-/* See more/See less for long declarant names — driven by the shared
-   components/common/ExpandableText.tsx (28-char truncation, per-row
-   state, base styling in ExpandableText.css). This rule only keeps the
-   toggle reading as part of the declarant cell. */
 .arc-table .expandable-text-toggle {
     white-space: nowrap;
     color: var(--db-secondary);
@@ -398,8 +380,6 @@
     border: 1px solid rgba(16, 185, 129, 0.28);
 }
 
-/* ---- Actions ---- */
-
 .arc-actions {
     display: flex;
     align-items: center;
@@ -407,8 +387,7 @@
     gap: 8px;
 }
 
-/* View action — icon-only square, mirrors the registry's tr-action-btn
-   so the Archive table actions read uniformly across the app. */
+
 .arc-action-btn {
     display: inline-flex;
     align-items: center;
@@ -458,7 +437,6 @@
     cursor: not-allowed;
 }
 
-/* ---- Pagination footer (mirrors TransactionRegistry's tr-pagination-*) ---- */
 
 .arc-pagination-footer {
     display: flex;

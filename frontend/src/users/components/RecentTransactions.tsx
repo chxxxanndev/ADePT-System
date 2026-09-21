@@ -4,9 +4,6 @@ import { SearchIcon } from './icons';
 import { ExpandableText } from './common/ExpandableText';
 import { getDocPillMeta, getDocumentTypeFromReference } from '../../utils/documentType';
 
-// Reference-number pill identical to the registry's tr-doc-pill — same
-// icon + document-type color (TD blue / LH gold / NLH red), so the Recent
-// Transactions card matches the Transaction Registry design.
 function RefNumberPill({ referenceNumber }: { referenceNumber: string }) {
     const meta = getDocPillMeta(getDocumentTypeFromReference(referenceNumber) ?? '');
     return (
@@ -17,7 +14,6 @@ function RefNumberPill({ referenceNumber }: { referenceNumber: string }) {
     );
 }
 
-// Maps every status the registry emits to its badge bg/text pairing.
 const STATUS_STYLE: Record<BadgeStatus, string> = {
     'Pending': 'status-gold',
     'For Payment': 'status-gold',
@@ -31,19 +27,10 @@ const STATUS_STYLE: Record<BadgeStatus, string> = {
 };
 
 interface RecentTransactionsProps {
-    // The 5 most-recent rows shown by default when there's no search query.
     rows: TransactionRow[];
-    // The FULL transaction dataset (not just the recent 5) — searched
-    // against whenever the user types something, so this card behaves
-    // like a real connection into the registry rather than a local-only
-    // filter over a handful of rows.
     allRows: TransactionRow[];
     onViewAll?: () => void;
-    // Deep-link into the Transaction Registry: clicking a row opens the
-    // registry pre-filtered to that control number.
     onRowClick?: (controlNumber: string) => void;
-    // Pressing Enter in the search box (or clicking the hint line) opens
-    // the registry with the current query applied.
     onSearchSubmit?: (query: string) => void;
 }
 

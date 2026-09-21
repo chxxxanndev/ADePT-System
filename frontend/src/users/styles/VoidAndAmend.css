@@ -1,9 +1,3 @@
-/* ==================================================================
-   VoidAndAmend.css
-   Styles for src/users/pages/VoidAndAmend.tsx
-   Palette source: ADePT Official Design System
-   ================================================================== */
-
 .va-page {
   --color-primary: #29237a;
   --color-secondary: #00bcd4;
@@ -40,8 +34,6 @@
   gap: 20px;
 }
 
-/* ---------- Header ---------- */
-
 .va-header {
   display: flex;
   flex-direction: column;
@@ -60,8 +52,6 @@
   color: var(--color-muted);
   margin: 0;
 }
-
-/* ---------- Filters ---------- */
 
 .va-filters {
   display: flex;
@@ -129,8 +119,6 @@
   color: var(--color-muted-light);
   pointer-events: none;
 }
-
-/* ---------- Table card ---------- */
 
 .va-card {
   background-color: #ffffff;
@@ -205,13 +193,6 @@
   white-space: nowrap;
 }
 
-/* ---------- Expandable text (See more / See less) ----------
-   Long cell values (declarant, document type, reason) are truncated at the
-   shared 28-char limit by components/common/ExpandableText.tsx and get a
-   "See more"/"See less" toggle. The toggle's base styling lives in
-   ExpandableText.css (imported by the component); this rule keeps it
-   aligned with the page. */
-
 .va-table .expandable-text-toggle {
   white-space: nowrap;
   color: var(--color-secondary);
@@ -222,8 +203,6 @@
   text-align: center;
   color: var(--color-muted-light);
 }
-
-/* ---------- Action badge ---------- */
 
 .va-badge {
   display: inline-flex;
@@ -271,8 +250,6 @@
   background-color: rgba(41, 35, 122, 0.06);
   border-color: var(--color-primary);
 }
-
-/* ---------- Pagination (mirrors Transaction Registry exactly) ---------- */
 
 .va-pagination {
   display: flex;
@@ -333,8 +310,6 @@
   color: #64748b;
   font-weight: 600;
 }
-
-/* ---------- Responsive ---------- */
 
 @media (max-width: 720px) {
   .va-container {

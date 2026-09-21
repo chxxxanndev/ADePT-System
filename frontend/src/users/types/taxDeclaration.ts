@@ -1,9 +1,4 @@
-// ============================================================
-// Tax Declaration — TypeScript type definitions
-// Province of Zamboanga del Norte, Office of the Provincial Assessor
-// ============================================================
-
-/** One row in the Kind of Property / Valuation table */
+// One row in the Kind of Property / Valuation table 
 export interface AssessmentRow {
     id: string;                      // client-side uuid for React key
     kindOfProperty: string;          // e.g. "AGRICULTURAL"
@@ -18,27 +13,23 @@ export interface AssessmentRow {
     assessedValue: string;           // auto-calculated
 }
 
-/** The complete Tax Declaration form state */
+// The complete Tax Declaration form state 
 export interface TaxDeclarationFormData {
-    // — Property Reference (header) —
     taxDeclarationNumber: string;    // Assessment of Real Property No.
     propertyIndexNumber: string;     // Property Index No.
     arpNumber: string;               // This declaration cancels ARP No.
     effectivityYear: string;         // Tax Effectivity Year
 
-    // — Owner —
     ownerName: string;
     ownerAddress: string;
     ownerTin: string;
     ownerTelephone: string;
 
-    // — Administrator (optional) —
     administratorName: string;
     administratorAddress: string;
     administratorTin: string;
     administratorTelephone: string;
 
-    // — Location —
     propertyStreet: string;
     barangayId: string;                // free text (until barangay lookup connected)
     municipalityId: string;            // free text
@@ -50,19 +41,16 @@ export interface TaxDeclarationFormData {
     municipality?: string;
     province: string;                // fixed: Zamboanga del Norte
 
-    // — Land Reference —
     octTctNumber: string;
     surveyNumber: string;
     lotNumber: string;
     blockNumber: string;
 
-    // — Boundaries —
     boundaryNorth: string;
     boundarySouth: string;
     boundaryEast: string;
     boundaryWest: string;
 
-    // — Kind of Property / Valuation table —
     assessmentRows: AssessmentRow[];
 
     // — Total Land Area (document-level; separate from the per-row `area`
@@ -71,15 +59,12 @@ export interface TaxDeclarationFormData {
     area: string;
     areaUnit: 'has.' | 'sqm.';
 
-    // — Totals (computed) —
     totalMarketValue: number;
     totalAssessedValue: number;
     amountInWords: string;
 
-    // — Classification —
     taxability: 'TAXABLE' | 'EXEMPT';
 
-    // — Signatories & Certification —
     verifiedBy: string;              // NOTE: reserved for Document Release Panel signatory wiring — not used by the TD form.
     verifiedByTitle: string;         // NOTE: reserved for Document Release Panel signatory wiring — not used by the TD form.
     // Municipal/Provincial Assessor who signs the Declaration of Real Property.
@@ -90,7 +75,6 @@ export interface TaxDeclarationFormData {
     memoranda: string;
     notes: string;
 
-    // — Certified Copy section —
     certifiedCopyName: string;
     certifiedCopyTitle: string;
     certifiedCopyDesignation: string;
@@ -99,7 +83,7 @@ export interface TaxDeclarationFormData {
     datePaid: string;
 }
 
-/** Data passed from RequestFormEntry after a successful save */
+// Data passed from RequestFormEntry after a successful save 
 export interface CompletedEntryData {
     requestId: string;              // UUID of the saved request
     referenceNumber: string;        // e.g. REF-2026-0001
@@ -111,11 +95,9 @@ export interface CompletedEntryData {
     actionTaken: string;
     authRequired: boolean;
     propertyLocation: string;
-    /** Present when this entry is an amendment of a voided document — edit-only, no adding another */
     amendedFromReference?: string;
 }
 
-/** Default empty state for a new Tax Declaration form */
 export const EMPTY_ASSESSMENT_ROW = (): AssessmentRow => ({
     id: crypto.randomUUID(),
     kindOfProperty: '',

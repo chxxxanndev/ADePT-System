@@ -11,8 +11,6 @@ import {
 
 import '../styles/AboutADePT.css';
 
-// lucide-react 1.0 dropped all brand icons (GitHub included), so the
-// GitHub mark is a small local SVG sized to match the lucide icon set.
 function GithubIcon({ size = 15 }: { size?: number }) {
     return (
         <svg
@@ -33,7 +31,6 @@ import novaPhoto from '../assets/team/nov.png';
 import cheannPhoto from '../assets/team/che.png';
 import sheilaPhoto from '../assets/team/shei.png';
 
-// --- CONTENT: SYSTEM OVERVIEW -------------------------------------------
 const OVERVIEW = {
     lead:
         "ADePT (Assessor Document Processing and Tracking System) is a comprehensive web-based information system developed to modernize and streamline the document processing operations of the Provincial Assessor's Office in the Province of Zamboanga del Norte. Designed to replace time-consuming manual procedures, the platform centralizes document request management into a secure, organized, and efficient digital environment, enabling personnel to process transactions with greater speed, accuracy, and accountability.",
@@ -44,7 +41,6 @@ const OVERVIEW = {
     documentTypes: ['Tax Declarations', 'Certificate of Land Holding', 'Certificate of No Landholding'],
 };
 
-// --- CONTENT: THE ARCHITECTS -------------------------------------------
 const ARCHITECTS = [
     {
         code: 'FE · LEAD',
@@ -103,7 +99,6 @@ const ARCHITECTS = [
     },
 ] as const;
 
-// --- CONTENT: TECHNOLOGY INFRASTRUCTURE --------------------------------
 const STACK = [
     {
         icon: Code2,
@@ -187,7 +182,6 @@ export function AboutADePT({
                 </nav>
             )}
 
-            {/* --- HERO --- */}
             <div className="aa-hero">
                 <span className="aa-hero-eyebrow">System Architecture &amp; Development Team</span>
                 <h1 className="aa-hero-title">ADePT Architecture &amp; Engineering Command</h1>
@@ -196,7 +190,6 @@ export function AboutADePT({
                 </p>
             </div>
 
-            {/* --- SECTION A: SYSTEM OVERVIEW --- */}
             <section className="aa-section">
                 <div className="aa-section-header">
                     <span className="aa-section-label">Section A</span>
@@ -224,7 +217,6 @@ export function AboutADePT({
                 </div>
             </section>
 
-            {/* --- SECTION B: THE ARCHITECTS --- */}
             <section className="aa-section">
                 <div className="aa-section-header">
                     <span className="aa-section-label">Section B</span>
@@ -289,7 +281,6 @@ export function AboutADePT({
                 </div>
             </section>
 
-            {/* --- SECTION C: TECHNOLOGY INFRASTRUCTURE --- */}
             <section className="aa-section">
                 <div className="aa-section-header">
                     <span className="aa-section-label">Section C</span>

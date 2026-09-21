@@ -1,11 +1,3 @@
-/* ══════════════════════════════════════════════════════════════
-   Transaction Progress Panel + Bar
-   Shared CSS for both the compact bar (RequestFormEntry)
-   and the full card (certificate processing forms)
-   ══════════════════════════════════════════════════════════════ */
-
-/* ── COMPACT BAR (RequestFormEntry top of card) ───────────────── */
-
 .txp-bar-wrapper {
     width: 100%;
     border-radius: 10px 10px 0 0;
@@ -56,8 +48,6 @@
     font-weight: 400;
 }
 
-/* ── Pills (replace the old comma-joined summary string) ───────── */
-
 .txp-bar-pills {
     display: flex;
     align-items: center;
@@ -94,8 +84,6 @@
     border-top: 1px solid #312e81;
 }
 
-/* ── Empty state (first visit, nothing saved yet) ──────────────── */
-
 .txp-bar-empty {
     display: flex;
     align-items: center;
@@ -107,8 +95,6 @@
     font-style: italic;
 }
 
-/* ── FULL CARD (certificate forms) ────────────────────────────── */
-
 .txp-card {
     border: 1.5px solid #c7d2fe;
     border-radius: 12px;
@@ -118,7 +104,6 @@
     box-shadow: 0 2px 10px rgba(99, 102, 241, 0.07);
 }
 
-/* When the card is inside the expanded bar, override radius */
 .txp-bar-expanded .txp-card {
     border-radius: 0;
     border: none;
@@ -212,8 +197,6 @@
     color: #312e81;
 }
 
-/* ── Groups ──────────────────────────────────────────────────── */
-
 .txp-card-groups {
     padding: 12px 16px;
     display: flex;
@@ -267,8 +250,6 @@
     flex-shrink: 0;
 }
 
-/* ── Declarant rows ──────────────────────────────────────────── */
-
 .txp-group-declarants {
     padding: 7px 13px;
     display: flex;
@@ -294,9 +275,6 @@
     flex: 1;
     color: #1e293b;
     font-weight: 500;
-    /* FIX: flex:1 without min-width:0 let a long declarant name overflow
-       the row and shove the "Done" chip / relative time off-screen.
-       min-width:0 lets the item shrink, break-word wraps the name instead. */
     min-width: 0;
     overflow-wrap: break-word;
 }
@@ -316,8 +294,6 @@
     letter-spacing: 0.04em;
     flex-shrink: 0;
 }
-
-/* ── In-progress (not yet saved) row ────────────────────────── */
 
 .txp-declarant-row-inprogress {
     opacity: 0.85;
@@ -340,8 +316,6 @@
     flex-shrink: 0;
 }
 
-/* ── Card footer ─────────────────────────────────────────────── */
-
 .txp-card-footer {
     padding: 9px 20px 12px;
     font-size: 0.73rem;
@@ -355,13 +329,9 @@
     color: #4f46e5;
 }
 
-/* ── Wrapper used inside forms (horizontal padding) ─────────── */
-
 .txp-form-wrapper {
     padding: 0 32px 4px;
 }
-
-/* ── Responsive ─────────────────────────────────────────────── */
 
 @media (max-width: 600px) {
     .txp-bar-strip {

@@ -18,7 +18,6 @@ import {
 import { TransactionProgressPanel } from '../../../components/TransactionProgressPanel';
 import { CustomSelect } from '../../../components/CustomSelect';
 
-// 1. HELPER FUNCTIONS
 function numberToWords(num: number): string {
     if (!num || isNaN(num)) return '';
     const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -43,38 +42,17 @@ function formatPeso(val: number): string {
     return val.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Rounds an assessed value to the nearest ₱10 (round-half-up), matching
-// the province's official Declaration of Real Property form convention.
+// Rounds an assessed value to the nearest ₱10 (round-half-up), matching the province's official Declaration of Real Property form convention.
 function calcAssessedValue(marketValue: number, assessmentLevel: number): number {
     const raw = (marketValue * assessmentLevel) / 100;
     return Math.round(raw / 10) * 10;
 }
 
-// ── Total Area (document-level, single field, not addable) ──
-//
-// IMPORTANT (FIX): the "Total Land Area" the user types here CANNOT be
-// persisted on the tax declaration row — encoded_tax_declarations has no
-// `area` column in the schema (verified against the live Supabase DB:
-// selecting `area` returns HTTP 400 "column not found"). The only place
-// an area can be stored is per-assessment-row (encoded_assessment_rows.
-// area / area_unit), and the preview/generation read path
-// (taxDeclarationService.getTaxDeclaration) derives the printed area from
-// the SUM of the per-row areas.
-//
-// So on save (handleSave) the total is pushed onto the FIRST assessment
-// row; on load (hydrateFromBackend) the form's field is re-derived from
-// the rows. Without this round-trip the value typed here was silently
-// dropped, which is why the area never appeared in the Initial Document
-// Preview or the Document Generation & Release PDF (and only showed up
-// after typing it again per-row in the Full Document Edit modal).
 const AREA_UNIT_LABELS: Record<'has.' | 'sqm.', string> = {
     'has.': 'HECTARE',
     'sqm.': 'SQ.M.',
 };
 
-// Maps whatever unit string came back from the database ('HECTARE' /
-// 'SQM' enum values, or 'has.' / 'sqm.') back to the form's internal
-// 'has.' | 'sqm.' literal.
 function dbUnitToFormUnit(raw: string | null | undefined): 'has.' | 'sqm.' {
     return /sq/i.test(String(raw || '')) ? 'sqm.' : 'has.';
 }
@@ -84,7 +62,6 @@ function formatAreaString(value: string, unit: 'has.' | 'sqm.'): string {
     return `${value} ${AREA_UNIT_LABELS[unit] || unit}`;
 }
 
-// ── Sentinel used to represent "Others (specify)" selection ──
 const OTHERS_SENTINEL = '__OTHERS__';
 
 function AssessmentRowItem({
@@ -120,9 +97,6 @@ function AssessmentRowItem({
     const classSelectValue = isClassOthers ? OTHERS_SENTINEL : (row.classificationId || '');
     const kindOtherText = row.kindOfProperty === OTHERS_SENTINEL ? '' : (isKindOthers ? row.kindOfProperty : '');
 
-    // Searchable dropdown options — same values the native selects used
-    // (kind = code, classification = id), plus the "Others (specify)"
-    // sentinel that swaps the dropdown for the free-text input.
     const kindOptions = [
         ...propertyTypeOptions.map((o) => ({ id: o.code, label: o.label })),
         { id: OTHERS_SENTINEL, label: 'Others (specify)' },
@@ -145,7 +119,6 @@ function AssessmentRowItem({
                         onChange={(e) => onUpdate(row.id, 'kindOfProperty', e.target.value || OTHERS_SENTINEL)}
                         autoFocus
                         onBlur={(e) => {
-                            // If they blur with nothing typed, snap back to the dropdown
                             if (!e.target.value.trim()) onUpdate(row.id, 'kindOfProperty', '');
                         }}
                     />
@@ -176,7 +149,6 @@ function AssessmentRowItem({
                         }}
                         autoFocus
                         onBlur={(e) => {
-                            // If they blur with nothing typed, snap back to the dropdown
                             if (!e.target.value.trim()) {
                                 onUpdate(row.id, 'classificationId', '');
                                 onUpdate(row.id, 'classificationLabel', '');
@@ -226,7 +198,6 @@ function AssessmentRowItem({
     );
 }
 
-// 2. PROPS
 interface TaxDeclarationFormProps {
     user: User;
     entryData: CompletedEntryData;
@@ -253,7 +224,6 @@ export function TaxDeclarationForm({
     onAddAnother,
     onGoToSummary,
 }: TaxDeclarationFormProps) {
-    // ═══ ALL HOOKS MUST RUN UNCONDITIONALLY (React Rules of Hooks) ═══
     const LS_KEY = `adept-td-${entryData?.requestId ?? 'tmp'}`;
 
     const [form, setForm] = useState<TaxDeclarationFormData>(() => {
@@ -265,15 +235,6 @@ export function TaxDeclarationForm({
         return { ...EMPTY_TAX_DECLARATION(), ownerName: entryData.declarantName || '' };
     });
 
-    // Captured ONCE, at first render, before the "auto-persist to
-    // localStorage" effect below has a chance to run and write the (still
-    // empty) `form` back into LS_KEY. If we instead re-read
-    // localStorage.getItem(LS_KEY) live inside the hydrate-from-backend
-    // effect, it would always find a draft — the one the persist effect
-    // just wrote a moment earlier on mount — and would skip fetching the
-    // real backend data every time. That's exactly why Amend (which relies
-    // on this fetch to pull in the deep-copied tax declaration) was
-    // showing up blank.
     const [hadLocalDraftOnMount] = useState(() => (entryData ? !!localStorage.getItem(LS_KEY) : true));
 
     const [saving, setSaving] = useState(false);
@@ -357,31 +318,16 @@ export function TaxDeclarationForm({
         if (!entryData) return;
         let isMounted = true;
         const hydrateFromBackend = async () => {
-            // Use the value captured on mount, NOT a fresh localStorage
-            // read — see the comment where hadLocalDraftOnMount is declared.
             if (hadLocalDraftOnMount) return;
             const dbData = await taxDeclarationService.getRawForEdit(entryData.requestId);
             if (!isMounted || !dbData) return;
 
-            // FIX: the backend (getTaxDeclarationByRequestId) attaches the
-            // child rows under the key `assessments` — the old
-            // `encoded_assessment_rows` key never exists on the response, so
-            // Amend always fell back to the (empty) draft rows. Read both
-            // keys, preferring whichever actually carries data.
             const rawRows = dbData.assessments || dbData.encoded_assessment_rows || [];
 
-            // FIX: the declaration row has no `area` column — the total
-            // area is stored on the first assessment row (see handleSave's
-            // row distribution). Re-derive the form's "Total Land Area"
-            // fields from the rows so the value typed on first encode
-            // survives the round-trip back into this form.
             const rowsAreaTotal = rawRows.reduce(
                 (sum: number, r: any) => sum + (parseFloat(String(r.area || '').replace(/,/g, '')) || 0), 0
             );
             const firstAreaRow = rawRows.find((r: any) => r.area);
-            // FIX: sqm values reload with at least two decimals ("1,756.50",
-            // not "1,756.5") so the field mirrors what was typed and what the
-            // PDF prints — the DB numeric column drops trailing zeros.
             const parsedArea = firstAreaRow
                 ? {
                     value: rowsAreaTotal.toLocaleString(undefined, {
@@ -414,8 +360,6 @@ export function TaxDeclarationForm({
                 memoranda: dbData.memoranda || prev.memoranda,
                 assessorName: dbData.assessor_name || prev.assessorName,
                 assessorTitle: dbData.assessor_title || prev.assessorTitle,
-                // Document-level total area — derived from the assessment
-                // rows (see dbUnitToFormUnit / handleSave distribution).
                 area: parsedArea ? parsedArea.value : prev.area,
                 areaUnit: parsedArea ? parsedArea.unit : prev.areaUnit,
                 assessmentRows: rawRows.length
@@ -423,19 +367,8 @@ export function TaxDeclarationForm({
                           .slice()
                           .sort((a: any, b: any) => (a.row_order || 0) - (b.row_order || 0))
                           .map((r: any) => {
-                              // classification_id is stored as a CODE
-                              // (e.g. "AGRICULTURAL"), not a UUID — see
-                              // taxDeclarationService.getTaxDeclaration.
-                              // Resolve it against classificationOptions
-                              // here so classificationLabel is populated
-                              // immediately instead of showing blank/raw
-                              // codes until the user re-picks a value.
                               const rawCode = (r.classification_id || '').trim();
                               const normalizedCode = rawCode.toUpperCase();
-                              // FIX: rows saved by older versions of this
-                              // form stored the lookup_values.id (a number)
-                              // instead of the code — match those by id too
-                              // so the label shows instead of the number.
                               const matched =
                                   classificationOptions.find((o) => o.code === normalizedCode) ||
                                   classificationOptions.find((o) => o.id === rawCode);
@@ -458,7 +391,6 @@ export function TaxDeclarationForm({
         };
         hydrateFromBackend();
         return () => { isMounted = false; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [entryData?.requestId, hadLocalDraftOnMount]);
 
     const amountInWords = numberToWords(totalAssessedValue);
@@ -532,25 +464,6 @@ export function TaxDeclarationForm({
         setSaveError('');
         setSaving(true);
         try {
-            // FIX: the document-level "Total Land Area" cannot be stored on
-            // the declaration row (encoded_tax_declarations has no `area`
-            // column), and the preview/generation read path
-            // (taxDeclarationService.getTaxDeclaration) derives the printed
-            // area from the SUM of the per-assessment-row areas. So push
-            // the total onto the FIRST assessment row on save — otherwise
-            // the value typed here never reaches the Initial Document
-            // Preview or the Document Generation & Release PDF (and only
-            // appeared after typing it again per-row in the Full Document
-            // Edit modal).
-            // FIX: strip thousand separators before parsing. A staff member
-            // typing "123,456.78" into the plain-text Area field would
-            // otherwise parse to 123 (parseFloat stops at the comma), so
-            // "123 sqm" got persisted and printed in the generated PDF.
-            //
-            // The cleaned TEXT (not the parsed float) is what gets saved:
-            // parseFloat drops trailing zeros ("1,756.50" -> 1756.5), and a
-            // Certified True Copy must mirror exactly what was typed from the
-            // physical record.
             const cleanedArea = String(form.area || '').replace(/,/g, '').trim();
             const totalAreaValue = parseFloat(cleanedArea);
 const hasTotalArea = !isNaN(totalAreaValue) && totalAreaValue > 0;
@@ -656,7 +569,6 @@ const payload = {
 
                     <div className="td-form-body">
 
-                        {/* ── Owner Information ── */}
                         <div className="td-section">
                             <div className="td-section-title">Owner Information</div>
                             <div className="td-row td-row-2">
@@ -681,7 +593,6 @@ const payload = {
                             </div>
                         </div>
 
-                        {/* ── Location of Property ── */}
                         <div className="td-section">
                             <div className="td-section-title">Location of Property</div>
                             <div className="td-location-strip">
@@ -700,7 +611,6 @@ const payload = {
                             </div>
                         </div>
 
-                        {/* ── Land Reference Numbers ── */}
                         <div className="td-section">
                             <div className="td-section-title">Land Reference Numbers</div>
                             <div className="td-row td-row-4">
@@ -723,7 +633,6 @@ const payload = {
                             </div>
                         </div>
 
-                        {/* ── Boundaries ── */}
                         <div className="td-section">
                             <div className="td-section-title">Boundaries</div>
                             <div className="td-boundaries-box">
@@ -749,7 +658,6 @@ const payload = {
                             </div>
                         </div>
 
-                        {/* ── Kind of Property & Valuation ── */}
                         <div className="td-assessment-section">
                             <div className="td-table-header-bar">
                                 <span>Kind of Property &amp; Valuation</span>
@@ -793,7 +701,6 @@ const payload = {
                             </div>
                         </div>
 
-                        {/* ── Total Land Area ── */}
                         <div className="td-section">
                             <div className="td-section-title">Total Land Area</div>
                             <div className="td-row td-row-2">
@@ -865,7 +772,6 @@ const payload = {
                             </div>
                         </div>
 
-                        {/* ── Tax Effectivity & Cancellation ── */}
                         <div className="td-section">
                             <div className="td-section-title">Tax Effectivity &amp; Cancellation</div>
                             <div className="td-row td-row-2">
@@ -906,7 +812,6 @@ const payload = {
                             </div>
                         </div>
 
-                        {/* ── Assessor Signatory ── */}
                         <div className="td-section">
                             <div className="td-section-title">Assessor Signatory</div>
                             <div className="td-row td-row-2">
@@ -939,7 +844,6 @@ const payload = {
 
                     </div>
 
-                    {/* ── Session progress (compact card above footer) ── */}
                     <div className="txp-form-wrapper">
                         <TransactionProgressPanel
                             referenceNumber={entryData.referenceNumber}
@@ -947,7 +851,6 @@ const payload = {
                         />
                     </div>
 
-                    {/* ── Footer actions ── */}
                     <div className="td-footer">
                         <div className="td-footer-left">
                             <button
@@ -986,7 +889,6 @@ const payload = {
                 </div>
             </div>
 
-            {/* ── Discard Modal ── */}
             {showDiscardModal && (
                 <div
                     style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}
@@ -1037,7 +939,6 @@ const payload = {
                 </div>
             )}
 
-            {/* ── Next Step Choice Modal (after discard with cart items) ── */}
             {showNextStepChoice && (
                 <div
                     style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}

@@ -13,9 +13,6 @@ import { ADePTSelect } from "../components/ADePTSelect";
 import { getDocPillMeta, getDocumentTypeFromReference, matchesDocumentType } from "../../utils/documentType";
 import type { DocumentTypeFilterValue } from "../../utils/documentType";
 
-// Legend icons come from the shared documentType helper — the exact same
-// icons the reference-number pills render, so the legend key always matches
-// the table (no duplicate SVG copies here), exactly like TransactionRegistry.
 const TaxDeclarationIcon = getDocPillMeta('Tax Declaration').Icon;
 const LandholdingIcon = getDocPillMeta('Landholding').Icon;
 const NoLandholdingIcon = getDocPillMeta('No Land Holding').Icon;
@@ -55,35 +52,20 @@ interface VoidAndAmendProps {
   onPendingItemsConsumed?: () => void;
   onNavigateToRegistry?: () => void;
   onNavigateToReprint?: () => void;
-  /** Same two props TransactionRegistry / CertifiedTrueCopy use for their
-   * first two breadcrumb links — wire these from Dashboard.tsx the same way
-   * (onNavigateToPendingRequests -> 'document-request' view,
-   * onNavigateToPendingPayment -> 'pending-payment' view). */
   onNavigateToPendingRequests?: () => void;
   onNavigateToPendingPayment?: () => void;
-  /** Breadcrumb → Archive Management. */
   onNavigateToArchive?: () => void;
-  /** Breadcrumb → Dashboard. */
   onNavigateToDashboard?: () => void;
 }
 
-/** Normalizes an ISO timestamp to a local "YYYY-MM-DD" for lexical range
- *  comparison — the same helper pattern TransactionRegistry / Reports /
- *  CertifiedTrueCopy use, so the date window never drifts from UTC. */
 function toComparableDate(iso: string): string {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return '';
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// ─── Constants ──────────────────────────────────────────────
-// This no longer stores the void records themselves — the registry (via
-// fetchTransactionRegistry) is the source of truth for *which* transactions
-// are voided, so this list always matches what Reports & Analytics counts.
-// It only caches the "who / when" for each void, since the Transaction type
-// has no voidedBy column yet (only voidReason and voidedAt). Once the
-// backend adds voidedBy too, this cache — and the whole metadata-merge
-// dance below — can be shrunk further / removed entirely.
+// ─── Constants
+
 const METADATA_STORAGE_KEY = "voidAmendMetadata";
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100, 150];
 
@@ -94,7 +76,7 @@ interface VoidMetadataEntry {
 }
 type VoidMetadataStore = Record<string, VoidMetadataEntry>;
 
-// ─── Helpers ──────────────────────────────────────────────
+// ─── Helpers
 
 function loadMetadataStore(): VoidMetadataStore {
   try {
@@ -109,7 +91,7 @@ function saveMetadataStore(store: VoidMetadataStore) {
   try {
     localStorage.setItem(METADATA_STORAGE_KEY, JSON.stringify(store));
   } catch {
-    // best-effort cache only — safe to ignore write failures
+    // best-effort cache only
   }
 }
 
@@ -137,11 +119,6 @@ function ActionBadge() {
   );
 }
 
-/** Shows the "Amended" state for a voided record that already has an
- *  amended copy — replaces the disabled grey pen button so the status
- *  is readable at a glance instead of being implied by a dimmed icon.
- *  Pass onClick to make it a button that jumps straight to the amended
- *  copy in the view drawer. */
 function AmendedBadge({ onClick }: { onClick?: () => void }) {
   const content = (
     <>
@@ -174,16 +151,6 @@ function AmendedBadge({ onClick }: { onClick?: () => void }) {
   );
 }
 
-/**
- * Maps a live Void-status Transaction + whatever metadata we have cached
- * for it into a display record.
- *
- * actionedAt prefers t.voidedAt — the real timestamp the backend recorded
- * (requests.updated_at) at the moment voidRequest() ran — since that's
- * accurate regardless of which browser/session performed the void. The
- * local metadata cache is only used as a fallback for records voided
- * before voidedAt existed on the backend response.
- */
 function toDisplayRecord(t: Transaction, metadata: VoidMetadataEntry | undefined): VoidAmendRecord {
   return {
     id: t.id,
@@ -200,16 +167,9 @@ function toDisplayRecord(t: Transaction, metadata: VoidMetadataEntry | undefined
 
 const VA_COLUMNS = ["Reference No.", "Declarant", "Reason / Change", "Actioned By", "Date & Time", "Status", "Action"];
 
-/** Total minimum table width (px) — below this the shared .tr-table-scroll
- *  container scrolls horizontally (the same pattern TransactionRegistry's
- *  REGISTRY_TABLE_MIN_WIDTH uses) instead of cramming all seven columns into
- *  the viewport and crushing the badges, pills and buttons. Status badges
- *  and action icons live in separate columns, mirroring the registry's
- *  uniform layout. */
 const VA_TABLE_MIN_WIDTH = 1120;
 
-/* --- Summary skeleton (two compact cards — mirrors RegistrySummarySkeleton
-   and uses the same tr-summary-grid--multi sizing as the loaded cards) --- */
+
 function VoidAmendSummarySkeleton() {
   return (
     <div className="tr-summary-grid tr-summary-grid--multi">
@@ -255,7 +215,7 @@ function VoidAmendTableSkeleton({ rows = 8 }: { rows?: number }) {
   );
 }
 
-// ─── Component ─────────────────────────────────────────────
+// ─── Component 
 
 export default function VoidAndAmend({
   onAmend,
@@ -269,9 +229,6 @@ export default function VoidAndAmend({
   onNavigateToDashboard,
 }: VoidAndAmendProps) {
   const [search, setSearch] = useState("");
-  // Date-range window via the shared DateRangePicker — same pill, presets
-  // and calendar as TransactionRegistry / Reports / CertifiedTrueCopy.
-  // Empty range behaves exactly like the old "All Time" option.
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [statusFilter, setStatusFilter] = useState("All statuses");
@@ -286,14 +243,12 @@ export default function VoidAndAmend({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [metadataStore, setMetadataStore] = useState<VoidMetadataStore>(() => loadMetadataStore());
 
-  // ─── Amend action state ──────────────────────────────────
+  // ─── Amend action state 
   const [amendingId, setAmendingId] = useState<string | null>(null);
   const [amendError, setAmendError] = useState<string | null>(null);
 
-  // ─── View (details drawer) state ─────────────────────────
-  // "View" opens the voided record read-only. When the record has been
-  // amended, the drawer shows a cross-link banner to jump to the amended
-  // copy (and back), so tracking voided ⇄ amended is one click away.
+  // ─── View (details drawer) state 
+
   const [viewId, setViewId] = useState<string | null>(null);
   const [viewTab, setViewTab] = useState<"voided" | "amended">("voided");
 
@@ -319,7 +274,6 @@ export default function VoidAndAmend({
     loadVoidedTransactions();
   }, []);
 
-  // ─── Seed the metadata cache from items just voided in this session ─────
   useEffect(() => {
     if (pendingItems && pendingItems.length > 0) {
       setMetadataStore((prev) => {
@@ -335,11 +289,9 @@ export default function VoidAndAmend({
         return next;
       });
       if (onPendingItemsConsumed) onPendingItemsConsumed();
-      // A void was just confirmed elsewhere — make sure our live list reflects it
-      // even if this component was already mounted.
+
       loadVoidedTransactions();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingItems]);
 
   const records: VoidAmendRecord[] = useMemo(
@@ -347,11 +299,7 @@ export default function VoidAndAmend({
     [transactions, metadataStore]
   );
 
-  // ─── Amended-copy lookup ─────────────────────────────────
-  // The amended copy is a fresh request whose requests.amended_from_id
-  // points at the voided original — the same identifier the backend's
-  // hasBeenAmended uses. Keep the first (newest) copy per original so the
-  // "View Amended Copy →" link always lands on the latest amendment.
+  // ─── Amended-copy lookup 
   const transactionsByRef = useMemo(() => {
     const map = new Map<string, Transaction>();
     for (const t of allTransactions) map.set(t.referenceNumber, t);
@@ -384,18 +332,11 @@ export default function VoidAndAmend({
       }
     : null;
 
-  // ─── Summary counts ───────────────────────────────────────
-  // Voided: every request whose status is Void (same rule this table and
-  // the registry use). Amended: every request that is the amended copy of
-  // a voided original (requests.amended_from_id set — the same identifier
-  // the backend's getReportsData amendedCount uses).
+  // ─── Summary counts 
   const amendedCount = allTransactions.filter((t) => t.amendedFromId).length;
   const voidedCount = transactions.length;
 
-  // ─── Filtering & Sorting ─────────────────────────────────
-  // Sorted newest void first — records.actionedAt is now backend-sourced
-  // (t.voidedAt) for any transaction voided after this fix shipped, so this
-  // sort is accurate across sessions/devices, not just the current browser.
+  // ─── Filtering & Sorting 
   const filteredRecords = useMemo(() => {
     return records
       .filter((record) => {
@@ -407,9 +348,6 @@ export default function VoidAndAmend({
           record.detail.toLowerCase().includes(search.toLowerCase()) ||
           record.actionedBy.toLowerCase().includes(search.toLowerCase());
 
-        // Action-date window. Records with no known actionedAt (no voidedAt
-        // from the backend and no cached metadata) only match an empty
-        // range — the same "don't guess" rule the old time-range filter used.
         const comparable = record.actionedAt ? toComparableDate(record.actionedAt) : "";
         const matchesDate =
           (!dateFrom && !dateTo) ||
@@ -425,7 +363,6 @@ export default function VoidAndAmend({
         return matchesSearch && matchesDate && matchesStatus && matchesDocType;
       })
       .sort((a, b) => {
-        // Records with a known actionedAt sort newest-first; unknown ones sink to the bottom.
         if (!a.actionedAt && !b.actionedAt) return 0;
         if (!a.actionedAt) return 1;
         if (!b.actionedAt) return -1;
@@ -433,7 +370,7 @@ export default function VoidAndAmend({
       });
   }, [records, search, dateFrom, dateTo, statusFilter, docTypeFilter]);
 
-  // ─── Pagination ───────────────────────────────────────────
+  // ─── Pagination 
   const totalRecords = filteredRecords.length;
   const totalPages = Math.ceil(totalRecords / pageSize) || 1;
 
@@ -458,7 +395,7 @@ export default function VoidAndAmend({
     setPageSize(size);
   };
 
-  // ─── Amend callback ──────────────────────────────────────
+  // ─── Amend callback 
   const handleAmendClick = async (record: VoidAmendRecord) => {
     if (record.hasBeenAmended || amendingId) return;
 
@@ -494,15 +431,11 @@ export default function VoidAndAmend({
     }
   };
 
-  // ─── Render ──────────────────────────────────────────────
+  // ─── Render 
 
   return (
     <div className="tr-page">
       <div className="tr-header">
-        {/* Dashboard > Document Request > Pending Requests > Void & Amend > Archive Management —
-            same breadcrumb chain as TransactionRegistry / CertifiedTrueCopy, with
-            "Archive Management" as the final crumb. The first three links reuse the same
-            props/wiring those pages use; "Archive Management" routes via onNavigateToArchive. */}
         <nav className="tr-breadcrumb" aria-label="Breadcrumb">
           <button
             type="button"
@@ -555,10 +488,6 @@ export default function VoidAndAmend({
           </button>
         </div>
 
-        {/* Pill tab nav — inlined directly here (no separate TransactionTabs.tsx
-            import), matching how TransactionRegistry and CertifiedTrueCopy render
-            their own tabs in-page. "voidAmend" is always the active tab since
-            this IS the void & amend page. */}
         <div className="tr-tabs" role="tablist" aria-label="Transaction sections">
           <button
             type="button"
@@ -583,13 +512,6 @@ export default function VoidAndAmend({
           </button>
         </div>
 
-        {/* Summary cards — same position inside tr-header as TransactionRegistry's
-            SummaryCards (right after the tabs), so the pill → card spacing matches
-            the registry exactly (tr-tabs margin-bottom 10px + tr-summary-grid
-            margin-top 18px). tr-summary-grid--multi applies the same compact
-            card sizing as tr-summary-grid--single (flex: 0 0 auto, 220–320px),
-            so the two cards sit side-by-side at Transaction Registry's card width
-            instead of stretching across the page. */}
         {loading ? (
           <VoidAmendSummarySkeleton />
         ) : (
@@ -615,8 +537,6 @@ export default function VoidAndAmend({
               </div>
             </div>
 
-            {/* Legend — same key TransactionRegistry shows under its summary
-                cards, explaining the reference pill colors in this table. */}
             <div className="tr-legend-row">
               <div className="tr-legend-item tr-legend-item--td"><TaxDeclarationIcon />Tax Declaration</div>
               <div className="tr-legend-item tr-legend-item--lh"><LandholdingIcon />Landholding</div>
@@ -826,13 +746,6 @@ export default function VoidAndAmend({
         </div>
       )}
 
-      {/* ── View drawer ──
-          Reuses the registry's TransactionDetails panel, opened read-only
-          (no Reprint / Void callbacks) so it can only ever be viewed. When
-          the voided record has an amended copy, a stuck banner under the
-          header links across — "View Amended Copy →" from the voided side,
-          "← Back to Voided Details" from the amended side — since both sides
-          of the amendment share the same declarant, property and documents. */}
       {viewGroup && viewVoidedTxn && (
         <TransactionDetails
           group={viewGroup}

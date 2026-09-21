@@ -34,14 +34,8 @@ const formatCurrency = (value: string | number) => {
 };
 
 // --- Pagination ------------------------------------------------------------
-// A page holds at most this many property rows. Once the table exceeds this,
-// the remaining rows flow onto a new page, which repeats the header image,
-// the background art, and the column headers. Only the LAST page carries the
-// "Given this day..." paragraph, the signatories, and the receipt block.
 const ROWS_PER_PAGE = 15;
 
-// Default column widths (must add up to ~100). Adjustable per-document via
-// the `colWidths` prop (wired to the sidebar steppers in the release panel).
 const DEFAULT_COL_WIDTHS = {
   td: 18,
   location: 26,
@@ -194,22 +188,14 @@ interface CertOfLandholdingPDFProps {
   signatory2Title?: string;
   signatoryTopSpacing?: number;
   signatoryGapSpacing?: number;
-  // --- Signatory text sizing / block width — lets staff shrink the font or
-  // widen the block when a name/title is too long to fit on one line at the
-  // default size. Applies uniformly to both signatory blocks, same pattern
-  // as signatoryTopSpacing/signatoryGapSpacing above. ---
   signatoryNameFontSize?: number;
   signatoryTitleFontSize?: number;
   signatoryBlockWidth?: number;
-  // Per-signatory horizontal nudge (pt). Moves the whole block — name AND
-  // title together — left (negative) or right (positive) of its default
-  // right-aligned position. Independent per signatory.
   signatory1HorizontalOffset?: number;
   signatory2HorizontalOffset?: number;
   receiptBottomPosition?: number;
   receiptLeftPosition?: number;
   receiptRowSpacing?: number;
-  // --- Table layout (rows / columns / text size) — all live-adjustable ---
   tableRowHeight?: number;
   tableFontSize?: number;
   tableHeaderFontSize?: number;
@@ -279,15 +265,12 @@ export const CertOfLandholdingPDF = (props: CertOfLandholdingPDFProps) => {
     }
   }
 
-  // Page size is still picked off the *total* property count, so a
-  // multi-page certificate stays consistent across all of its pages rather
-  // than switching paper size mid-document.
   const selectedPageSize = paperSizeOverride || (properties.length > 4 ? 'LEGAL' : 'LETTER');
   const INDENT = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0';
 
   const dayParts = displayDay ? getOrdinalSuffixParts(displayDay) : null;
 
-  // --- Split properties into pages of ROWS_PER_PAGE ------------------------
+  // Split properties into pages of ROWS_PER_PAGE
   const pages: any[][] = [];
   for (let i = 0; i < properties.length; i += ROWS_PER_PAGE) {
     pages.push(properties.slice(i, i + ROWS_PER_PAGE));
@@ -327,9 +310,7 @@ export const CertOfLandholdingPDF = (props: CertOfLandholdingPDFProps) => {
 
         return (
           <Page key={pageIndex} size={selectedPageSize as any} style={styles.page}>
-            {/* Header/logo image only on the first page — continuation
-                pages skip it per request. Background art still repeats
-                on every page. */}
+            {/* Header/logo image only on the first page. */}
             {isFirstPage && (
                 <Image src={`${getBaseUrl()}/images/landholding_header.png`} style={styles.headerImage} />
             )}

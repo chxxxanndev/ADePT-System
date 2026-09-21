@@ -13,9 +13,6 @@ interface NotificationPageProps {
     onNavigateToDashboard?: () => void;
 }
 
-// Shows only the document-type prefix + current year + "XXXX" — the real
-// unique reference number is only generated once the request is actually
-// proceeded to document fill-out, so it must never be exposed here.
 function toGenericRef(ref?: string): string {
     if (!ref) return '';
     const prefix = ref.split('-')[0] || 'REF';
@@ -35,7 +32,6 @@ export function NotificationPage({
 }: NotificationPageProps) {
     return (
         <div className="notif-container page-transition">
-            {/* Breadcrumb — Dashboard > Notification Center */}
             <nav className="notif-breadcrumb" aria-label="Breadcrumb">
                 <button
                     type="button"

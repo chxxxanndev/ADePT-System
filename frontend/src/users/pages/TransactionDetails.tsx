@@ -3,38 +3,24 @@ import type { AssessmentRow, DeclarantGroup, LandholdingRow, PropertyInfo, Trans
 import { ReprintConfirmModal } from '../components/ReprintConfirmModal';
 import { HomeIcon, PrinterIcon, UserIcon, VoidIcon, DocIcon, CashIcon } from '../components/icons';
 
-/* ── types ──────────────────────────────────────────────────────────────── */
 
 export interface TransactionDetailsProps {
     group: DeclarantGroup;
     transactionsByRef: Map<string, Transaction>;
     onClose: () => void;
-    /** Omit to open the drawer read-only: the per-document "Reprint"
-        buttons are hidden (Void & Amend's "View" action uses this). */
     onReprint?: (transactionId: string, docId: string) => void | Promise<void>;
-    /** Omit to hide the "Void this transaction" action card. */
     onVoid?: (transaction: Transaction) => void;
-    /** Omit to hide the header void-all button. */
     onVoidAll?: () => void;
-    /** Optional override for the header sub-line (default: "N released
-        transactions") — e.g. "Voided record" / "Amended copy replacing …". */
     subtitle?: string;
-    /** Optional cross-link banner rendered between the sticky header and
-        the request details — e.g. Void & Amend's "View Amended Copy →"
-        link, so voided ⇄ amended tracking is one click away. */
     banner?: ReactNode;
 }
 
-/* ── helpers ─────────────────────────────────────────────────────────────── */
 
 function fmt(dateStr: string | null | undefined): string {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     const datePart = d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: '2-digit' });
-    // Only append a time when the source actually carries one (full
-    // timestamps like created_at / released_at) — date-only values
-    // mustn't render a fake locale-shifted clock.
     const hasTime = /[T ]\d{1,2}:\d{2}/.test(dateStr) && !/^\d{4}-\d{2}-\d{2}$/.test(dateStr);
     if (!hasTime) return datePart;
     return `${datePart} ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
@@ -57,12 +43,7 @@ const PROPERTY_SOURCE_LABEL: Record<string, string> = {
     UNKNOWN: '',
 };
 
-/** Small pill next to each document's Reprint button — replaces the old
-    plain-text "Reprinted N× / Not reprinted" line with something scannable.
-    When the transaction itself is a reprint (-R{n} reference, e.g. opened
-    from the Reprint/CTC registry), its own reprintCount is 0 — showing
-    "Not reprinted" there would be wrong, so it renders an informative
-    "Reprinted copy" badge instead. */
+
 function ReprintCountBadge({
     count,
     expanded,
@@ -94,9 +75,6 @@ function ReprintCountBadge({
     );
 }
 
-/** Expandable list of each individual reprint for a document — shows the
-    constructed reference number (base + "-R{n}") and, if that reprint
-    transaction has gone through payment, its OR number and release status. */
 function ReprintHistoryList({
     originalReference,
     reprintCount,
@@ -182,7 +160,6 @@ function LandholdingRowsTable({ rows }: { rows: LandholdingRow[] }) {
     );
 }
 
-/* ── Assessment Rows sub-table ── */
 function AssessmentRowsTable({ rows }: { rows: AssessmentRow[] }) {
     if (!rows.length) return null;
 
@@ -236,7 +213,6 @@ function AssessmentRowsTable({ rows }: { rows: AssessmentRow[] }) {
     );
 }
 
-/* ── Property Information card ── */
 function PropertyCard({ property }: { property: PropertyInfo }) {
     const sourceNote = property.source && PROPERTY_SOURCE_LABEL[property.source];
 
@@ -506,11 +482,9 @@ function PropertyCard({ property }: { property: PropertyInfo }) {
     );
 }
 
-/* ── component ──────────────────────────────────────────────────────────── */
-
 export function TransactionDetails({
     group,
-    transactionsByRef,   // ← was missing
+    transactionsByRef,   
     onClose,
     onReprint,
     onVoid,
@@ -525,7 +499,7 @@ export function TransactionDetails({
         doc: Transaction['requestedDocuments'][number];
     } | null>(null);
 
-    const [expandedDocId, setExpandedDocId] = useState<string | null>(null);   // ← was missing
+    const [expandedDocId, setExpandedDocId] = useState<string | null>(null); 
 
     if (!transactions.length) return null;
 
@@ -533,7 +507,7 @@ export function TransactionDetails({
         <div className="td-overlay" onClick={onClose}>
             <div className="td-panel" onClick={(e) => e.stopPropagation()}>
 
-                {/* ── sticky header ── */}
+      
                 <div className="td-header">
                     <div>
                         <div className="td-header-ref" style={{ fontSize: '1.1rem' }}>
@@ -568,7 +542,7 @@ export function TransactionDetails({
                         return (
                             <div key={t.id} className="td-transaction-block">
 
-                                {/* Per-transaction header: reference number + staff/date + reprint summary */}
+                              
                                 <div className="td-transaction-block-header">
                                     <div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -731,8 +705,7 @@ export function TransactionDetails({
                                     </div>
                                 </div>
 
-                                {/* ── Card 5: Actions (hidden in read-only mode, e.g. when viewing
-                                       a voided record from Void & Amend — you can't void it again) ── */}
+                                {/* ── Card 5: Actions (hidden in read-only mode, e.g. when viewing a voided record from Void & Amend — you can't void it again) ── */}
                                 {onVoid && (
                                 <div className="td-section" style={{ background: '#fff8f8', borderColor: '#FECDCA' }}>
                                     <h3 className="td-section-title" style={{ color: '#B0281C', marginBottom: '10px' }}>

@@ -41,7 +41,6 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
     const [accountDisabled, setAccountDisabled] = useState(user.status === 'DISABLED'); 
     const [togglingStatus, setTogglingStatus] = useState(false);
 
-    // --- 3. MODAL & UI STATES ---
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [showDisableConfirmModal, setShowDisableConfirmModal] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
@@ -54,9 +53,6 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
         window.setTimeout(() => setToast(null), 2500);
     };
 
-    // --- HANDLERS ---
-
-    // Save Name and Username
     const handleSaveProfile = async () => {
         setSaving(true);
         try {
@@ -74,7 +70,6 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
 
     const isFieldReadOnly = (field: string) => readOnlyFields.includes(field);
 
-    // Update Email
     const handleEmailUpdate = async () => {
         if (!isEditingEmail) { 
             setIsEditingEmail(true); 
@@ -90,7 +85,6 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
         finally { setEmailSubmitting(false); }
     };
 
-    // Update Photo (FIXED: Shows Loading and Toast)
     const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -108,7 +102,6 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
         }
     };
 
-    // Toggle Account Status
     const applyDisableStatus = async (next: boolean) => {
         setTogglingStatus(true);
         try {
@@ -122,7 +115,6 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
 
     return (
         <div className="as-page">
-            {/* Breadcrumb — Dashboard > Account Settings */}
             <nav className="as-breadcrumb" aria-label="Breadcrumb">
                 <button
                     type="button"
@@ -140,7 +132,6 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
                 <span className="as-page-subtitle">Manage your profile, login details, and account security.</span>
             </div>
 
-            {/* IDENTITY BANNER */}
             <div className="as-profile-banner">
                 <div className="as-profile-identity">
                     <div className="as-avatar-circle">
@@ -167,7 +158,6 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
                 <input ref={fileInputRef} type="file" hidden accept="image/*" onChange={handlePhotoChange} />
             </div>
 
-            {/* SECTION 1: PUBLIC PROFILE (Staged) */}
             <section className="as-section">
                 <div className="as-section-header">
                     <h2 className="as-section-title">Profile Information</h2>
@@ -210,7 +200,6 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
                 )}
             </section>
 
-            {/* SECTION 2: SECURITY (Instant) */}
             <section className="as-section">
                 <div className="as-section-header"><h2 className="as-section-title">Security Settings</h2></div>
                 <div className="as-info-card">
@@ -254,7 +243,6 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
                             </div>
             </section>
 
-            {/* PASSWORD MODAL */}
             {showPasswordModal && (
                 <div className="as-modal-overlay" onClick={() => setShowPasswordModal(false)}>
                     <div className="as-modal" onClick={e => e.stopPropagation()} role="dialog">
@@ -267,7 +255,6 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
                 </div>
             )}
 
-            {/* DISABLE CONFIRMATION MODAL */}
             {showDisableConfirmModal && (
                 <div className="as-modal-overlay" onClick={() => setShowDisableConfirmModal(false)}>
                     <div className="as-modal" onClick={e => e.stopPropagation()}>
@@ -293,10 +280,6 @@ export function AccountSettings({ user, onSave, onUpdateEmail, onChangePassword,
     );
 }
 
-/**
- * Sub-component: Password Form
- * Features the Red Alert Box using your original CSS variable: as-modal-error
- */
 function PasswordFormContent({ onSave, onClose, showToast }: { onSave: any, onClose: any, showToast: any }) {
     const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
     const [error, setError] = useState<string | null>(null);
@@ -334,7 +317,6 @@ function PasswordFormContent({ onSave, onClose, showToast }: { onSave: any, onCl
                     <label>Confirm new password</label>
                     <PasswordInput value={pwForm.confirm} onChange={v => setPwForm({...pwForm, confirm: v})} id="cfm" />
                 </div>
-                {/* Error Box (Matches your original CSS variables) */}
                 {error && <p className="as-modal-error">{error}</p>}
             </div>
             <div className="as-modal-actions">

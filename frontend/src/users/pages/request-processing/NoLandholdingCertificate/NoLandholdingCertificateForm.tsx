@@ -56,7 +56,9 @@ export function NoLandholdingCertificateForm({ user, entryData, onDiscard, onDis
         try {
             const saved = localStorage.getItem(LS_KEY);
             if (saved) return { ...EMPTY_NO_LANDHOLDING_FORM(), ...JSON.parse(saved) };
-        } catch { }
+        } catch { 
+            
+        }
         return { ...EMPTY_NO_LANDHOLDING_FORM(), declarantName: entryData.declarantName || '' };
     });
 
@@ -69,7 +71,6 @@ export function NoLandholdingCertificateForm({ user, entryData, onDiscard, onDis
     const [discardError, setDiscardError] = useState('');
     const [showNextStepChoice, setShowNextStepChoice] = useState(false);
 
-    // Auto-persist to localStorage on every change
     useEffect(() => {
         try { localStorage.setItem(LS_KEY, JSON.stringify(form)); } catch { }
     }, [form, LS_KEY]);
@@ -103,13 +104,11 @@ export function NoLandholdingCertificateForm({ user, entryData, onDiscard, onDis
 
     const isAmendMode = !!entryData?.amendedFromReference;
 
-    // Support review action
     const handleSave = async (action: 'draft' | 'review' | 'add_another') => {
         if (!form.declarantName.trim()) return setSaveError('Declarant / Owner Name is required.');
         setSaveError('');
         setSaving(true);
         try {
-            // REAL API CALL:
             await noLandholdingService.saveCertificate({
                 requestId: entryData.requestId,
                 declarantName: form.declarantName,
@@ -186,7 +185,6 @@ export function NoLandholdingCertificateForm({ user, entryData, onDiscard, onDis
                     )}
 
                     <div className="lh-form-body">
-                        {/* ══ SECTION 1: Declarant Details ══ */}
                         <div className="lh-section">
                             <div className="lh-section-title">Declarant Details</div>
                             <div className="lh-field" style={{ marginBottom: 14 }}>
@@ -222,7 +220,6 @@ export function NoLandholdingCertificateForm({ user, entryData, onDiscard, onDis
                             </div>
                         </div>
 
-                        {/* ══ SECTION 2: Certification Details ══ */}
                         <div className="lh-section" style={{ borderBottom: 'none', marginBottom: 0 }}>
                             <div className="lh-section-title">Certification Details</div>
                             <div className="lh-row lh-row-3">
@@ -240,14 +237,12 @@ export function NoLandholdingCertificateForm({ user, entryData, onDiscard, onDis
 
                     </div>
 
-                    {/* ── Session progress card ── */}
                     <div className="txp-form-wrapper">
                         <TransactionProgressPanel
                             referenceNumber={entryData.referenceNumber}
                             currentDeclarant={entryData.declarantName} />
                     </div>
 
-                    {/* ── Footer actions ── */}
                     <div className="lh-footer">
                         <div className="lh-footer-left">
                             <button
@@ -275,7 +270,6 @@ export function NoLandholdingCertificateForm({ user, entryData, onDiscard, onDis
                 </div>
             </div>
 
-            {/* ── Discard Modal ── */}
             {showDiscardModal && (
                 <div
                     style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}

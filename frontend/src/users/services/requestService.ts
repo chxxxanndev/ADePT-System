@@ -22,7 +22,6 @@ const BASE_URL = `${API_ROOT}/api`;
 
 export const api = axios.create({ baseURL: BASE_URL });
 
-// Always pull the CURRENT, live session token from Supabase itself
 api.interceptors.request.use(async (config) => {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
@@ -32,21 +31,11 @@ api.interceptors.request.use(async (config) => {
     return config;
 }, (error) => Promise.reject(error));
 
-// Safety net for a request that goes out before the session is fully
-// established (should be rare now that useAuth.ts gates login/restore
-// properly, but this keeps any straggler from surfacing a raw 401 to the
-// UI). Retries exactly once after re-checking for a session, and always
-// resolves or rejects normally — never hangs — so loading states always
-// clear correctly either way.
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
 
-        // No response at all = network failure — almost always means the
-        // backend is down/restarting, not an auth problem. Surface it
-        // immediately rather than letting each widget's .catch(() => {})
-        // silently eat it.
         if (!error.response) {
             window.dispatchEvent(new CustomEvent('app:connection-lost'));
             return Promise.reject(error);
@@ -66,9 +55,6 @@ api.interceptors.response.use(
                 console.error('Session retry failed', refreshErr);
             }
 
-            // Retry didn't produce a usable token — the session is genuinely
-            // gone (expired, revoked, or backend restarted and invalidated
-            // it). This is the case that needs an explicit logout prompt.
             window.dispatchEvent(new CustomEvent('app:session-expired'));
         }
 

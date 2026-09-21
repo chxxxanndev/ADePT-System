@@ -6,12 +6,6 @@ import { API_ROOT } from '../../config';
 
 const BASE_URL = API_ROOT;
 
-// Module-level singleton — ensures the session restore below runs at most
-// ONCE per page load, no matter how many times this effect fires (e.g.
-// React StrictMode's intentional double-invoke in dev). Two concurrent
-// setSession() calls on the same client can race and leave getSession()
-// returning nothing right after — this is what caused the notification/
-// metadata 401s that only "fixed themselves" after a manual retry.
 let sessionInitPromise: Promise<void> | null = null;
 
 function initSessionOnce(): Promise<void> {
@@ -25,8 +19,6 @@ function initSessionOnce(): Promise<void> {
                     try {
                         await supabase.auth.setSession({ access_token: token, refresh_token: refreshToken });
                     } catch {
-                        // Token is stale (e.g. after an outage or expiry) — clear it so
-                        // the app drops to the login screen instead of firing 401s.
                         sessionStorage.removeItem('adept_token');
                         sessionStorage.removeItem('adept_refresh_token');
                         sessionStorage.removeItem('adept_user');
@@ -45,10 +37,6 @@ function useAuthState() {
     });
 
     const [sessionReady, setSessionReady] = useState(false);
-
-    // NOTE: mockDb intentionally stays on localStorage — it's just the
-    // offline-demo-mode fallback account list, not a live session, so
-    // there's no security reason to wipe it when the tab closes.
     const [mockDb, setMockDb] = useState<MockUser[]>(() => {
         const saved = localStorage.getItem('adept_mock_db');
         if (saved) return JSON.parse(saved);
@@ -88,18 +76,6 @@ function useAuthState() {
         checkHealth();
     }, []);
 
-    // Keep sessionStorage tokens in sync with Supabase's session, AND restore
-    // the client's session on load via the module-level singleton above.
-    // sessionReady only flips true once that restore attempt has actually
-    // resolved (successfully or by clearing a stale token) — this is the
-    // ONLY place that drives sessionReady on initial load. Do not add a
-    // second setSession() call anywhere else in a mount-time effect.
-    //
-    // SECURITY: session data lives in sessionStorage (not localStorage) so
-    // closing the tab/browser clears it — staff are forced back to the
-    // login screen next time the app is opened, instead of staying signed
-    // in indefinitely. Supabase's own client storage is likewise set to
-    // sessionStorage in supabaseClient.ts; both must stay in sync.
     useEffect(() => {
         const {
             data: { subscription },
@@ -120,14 +96,6 @@ function useAuthState() {
         return () => subscription.unsubscribe();
     }, []);
 
-    // Realtime role/admin-level sync: when an admin promotes/demotes this
-    // account (or changes its admin level), the backend broadcasts on the
-    // shared "staff-role-updates" channel. On a hit we re-fetch the profile
-    // so the role change takes effect in THIS open session instantly —
-    // App.tsx routes on currentUser.role, so a promoted staff member lands
-    // on the admin pages without logging out first. The staff id is kept in
-    // a ref so the subscription can stay mounted for the whole session
-    // without re-reading (potentially stale) state in its closure.
     const currentUserRef = useRef(currentUser);
     useEffect(() => {
         currentUserRef.current = currentUser;
@@ -141,12 +109,6 @@ function useAuthState() {
 
     const dismissRoleNotice = () => setRoleNotice(null);
 
-    // Re-fetches the account profile and applies it to the session when the
-    // role or admin level actually changed (compared to what the session
-    // currently believes). Used by the realtime broadcast AND as a focus
-    // fallback so a missed broadcast still self-corrects. When `notify` is
-    // true and a change is detected, a popup tells the staff member what
-    // happened — e.g. "You have been promoted to Admin (High access)".
     const applyFreshProfile = useCallback(async ({ notify = false }: { notify?: boolean } = {}) => {
         const prev = currentUserRef.current;
         if (!prev?.staffId) return;
@@ -221,8 +183,6 @@ function useAuthState() {
         }
     }, []);
 
-    // 1) Realtime trigger: the promoting admin's backend broadcasts on this
-    //    channel right after the role change is committed.
     useEffect(() => {
         const channel = supabase
             .channel('staff-role-updates')
@@ -237,8 +197,6 @@ function useAuthState() {
         };
     }, [applyFreshProfile]);
 
-    // 2) Focus fallback: if the realtime broadcast was missed (tab hidden,
-    //    connection hiccup), coming back to the tab re-checks the profile.
     useEffect(() => {
         const onFocus = () => void applyFreshProfile({ notify: true });
         window.addEventListener('focus', onFocus);
@@ -269,9 +227,6 @@ function useAuthState() {
                 }
 
                 if (res.ok) {
-                    // Establish the Supabase session FIRST — Dashboard (and its
-                    // notification/metadata fetches) must not mount until the
-                    // client actually has the token to attach to requests.
                     await supabase.auth.setSession({
                         access_token: data.token,
                         refresh_token: data.refreshToken,
@@ -281,9 +236,9 @@ function useAuthState() {
                     sessionStorage.setItem('adept_refresh_token', data.refreshToken);
                     sessionStorage.setItem('adept_user', JSON.stringify(data.user));
 
-                    setCurrentUser(data.user); // only now does Dashboard get permission to mount
+                    setCurrentUser(data.user); 
                     setSessionReady(true);
-                    setRoleNotice(null); // stale notice must not resurface after a fresh sign-in
+                    setRoleNotice(null); 
 
                     addAdminAuditEntry({ type: 'login', description: 'logged in' }).catch(() => { });
                     return { success: true, message: 'Successfully signed in.' };
@@ -442,11 +397,6 @@ function useAuthState() {
     };
 
     const logout = async () => {
-        // Await the audit entry BEFORE signing out: signOut() clears the
-        // Supabase session synchronously, so a fire-and-forget POST racing
-        // it could go out token-less and land a 401 from the backend.
-        // Bounded with a timeout so a slow/unreachable backend can never
-        // stall the logout.
         try {
             await Promise.race([
                 addAdminAuditEntry({ type: 'logout', description: 'logged out' }),

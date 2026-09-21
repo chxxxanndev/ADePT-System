@@ -1,27 +1,3 @@
-/**
- * useReportsAnalytics
- *
- * Single source of truth for Reports & Analytics data derived from the
- * real Transaction Registry API.  Reports.tsx, Dashboard.tsx (analytics
- * section + recent transactions), VoidAndAmend.tsx, and ArchiveManagement.tsx
- * all read from this same registry fetch (directly or via this hook), so a
- * status change made in one place (e.g. voiding a transaction in the
- * Transaction Registry) is reflected everywhere else the next time that
- * screen mounts.
- *
- * NOTE ON CACHING: each call to this hook performs its own network fetch.
- * Because the app only ever mounts one top-level view at a time (Dashboard's
- * home view XOR Reports XOR VoidAndAmend XOR ArchiveManagement), this does
- * not create simultaneous duplicate requests today — but if two of these
- * are ever mounted at once, wrap this hook in a React Context/Provider (or
- * a lightweight cache like SWR/React Query) to fully dedupe the fetch.
- *
- * All period bucketing (daily / weekly / monthly) is done on the client
- * because the current backend exposes individual transactions, not
- * pre-aggregated counts.  Swap the internals for a dedicated analytics
- * endpoint later without touching any UI component.
- */
-
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { fetchTransactionRegistry } from '../services/transactionService';
 import type { Transaction } from '../types/transaction';
@@ -33,15 +9,13 @@ import {
     type DocumentTypeFilterValue,
 } from '../../utils/documentType';
 import { hasTimeComponent } from '../../utils/dateTime';
-
-// ─── Period-bucketed metric ────────────────────────────────────────────────
+ 
 export interface PeriodMetric {
     daily: number;
     weekly: number;
     monthly: number;
 }
 
-// ─── Trend (period-over-period comparison) ────────────────────────────────
 export interface TrendInfo {
     direction: 'up' | 'down';
     percentage: number;
@@ -54,87 +28,41 @@ export interface PeriodTrend {
     monthly: TrendInfo;
 }
 
-// ─── Status-chart bar ─────────────────────────────────────────────────────
 export interface StatusChartBar {
     label: string;
     count: number;
     color: string;
 }
 
-// ─── Top-level shape returned by the hook ─────────────────────────────────
 export interface ReportsAnalyticsData {
-    /** Raw fetched transactions (all statuses), for consumers that need
-     *  more than the derived aggregates below — e.g. Dashboard's Recent
-     *  Transactions widget. Avoids a second independent fetch. */
     transactions: Transaction[];
-
-    /** Transactions successfully released */
     documentsReleased: PeriodMetric;
     documentsReleasedTrend: PeriodTrend;
-    /** All transactions in the registry (any status) */
     totalRequests: PeriodMetric;
     totalRequestsTrend: PeriodTrend;
-    /** Grand total of requests across ALL time — period-independent
-     *  (unlike totalRequests, which is bucketed daily/weekly/monthly).
-     *  Still honors the document-type filter for consistency with the
-     *  other cards. */
     totalRequestsAll: number;
-    /** Tax Declaration counts by period */
     taxDeclarationCounts: PeriodMetric;
-    /** Released Certificate-of-Landholding counts by period (same bucketing
-     *  rule as taxDeclarationCounts: by real release time) */
     landholdingCounts: PeriodMetric;
-    /** Released Certificate-of-No-Landholding counts by period */
     noLandholdingCounts: PeriodMetric;
-    /** Live count of requests currently in the Pending Payments queue
-     *  (raw backend status PENDING_PAYMENT, falling back to the mapped
-     *  'Pending' label on pre-statusRaw responses) — matches the Pending
-     *  Payments page exactly. Drafts, in-progress work, and payment-verified
-     *  records are not part of this queue. */
     pendingCount: number;
-    /** Voided transaction count */
     voidedCount: number;
-    /** Archived transaction count */
     archivedCount: number;
-    /** Reprinted document count (sum of reprintCount across all docs) */
     reprintedCount: number;
-    /** Per-declarant reprinted-document totals (aggregated across all of a
-     *  declarant's transactions, only declarants with at least one reprint,
-     *  sorted by count descending). */
     reprintedDocumentsByDeclarant: DeclarantReprint[];
-
-    /** Weekly bucketed release counts for the Analytics Overview bar chart */
     weeklyTrend: WeeklyTrendPoint[];
-
-    /** Document-type breakdown for the donut chart */
     documentDistribution: DocumentDistributionSlice[];
-    /** Sum of all distribution counts */
     totalDocuments: number;
-
-    /** Status distribution bars for the Reports bar chart */
     statusChart: StatusChartBar[];
-
-    /** Per-transaction rows for the Reports declarant table */
     declarantRows: DeclarantRecord[];
-
     loading: boolean;
-    /** True while a refresh re-fetches data that is already on screen —
-     *  consumers keep showing the loaded data instead of skeletons,
-     *  mirroring TransactionRegistry's isRefreshing behavior. */
     isRefreshing: boolean;
     error: string | null;
-    /** Wall-clock time the registry data currently on screen was fetched —
-     *  drives the "Last updated" stamps instead of hardcoded labels. */
     fetchedAt: Date | null;
-    /** Re-run the registry fetch (e.g. after an error, or a "Retry" click) */
     refetch: () => void;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────
-
 const NOW = new Date();
 
-/** Returns true if the ISO date-string falls within today (local). */
 function isToday(iso: string): boolean {
     const d = new Date(iso);
     return (
@@ -144,7 +72,6 @@ function isToday(iso: string): boolean {
     );
 }
 
-/** Returns true if the ISO date-string falls within yesterday (local). */
 function isYesterday(iso: string): boolean {
     const d = new Date(iso);
     const yesterday = new Date(NOW);
@@ -156,7 +83,6 @@ function isYesterday(iso: string): boolean {
     );
 }
 
-/** Returns true if the ISO date-string falls within the current calendar week (Mon–Sun). */
 function isThisWeek(iso: string): boolean {
     const d = new Date(iso);
     const startOfWeek = new Date(NOW);
@@ -166,7 +92,6 @@ function isThisWeek(iso: string): boolean {
     return d >= startOfWeek && d <= NOW;
 }
 
-/** Returns true if the ISO date-string falls within the previous calendar week (Mon–Sun). */
 function isLastWeek(iso: string): boolean {
     const d = new Date(iso);
     const day = NOW.getDay();
@@ -176,29 +101,22 @@ function isLastWeek(iso: string): boolean {
 
     const startOfLastWeek = new Date(startOfThisWeek);
     startOfLastWeek.setDate(startOfThisWeek.getDate() - 7);
-    const endOfLastWeek = new Date(startOfThisWeek.getTime() - 1); // 1ms before this week starts
+    const endOfLastWeek = new Date(startOfThisWeek.getTime() - 1); 
 
     return d >= startOfLastWeek && d <= endOfLastWeek;
 }
 
-/** Returns true if the ISO date-string falls within the current calendar month. */
 function isThisMonth(iso: string): boolean {
     const d = new Date(iso);
     return d.getFullYear() === NOW.getFullYear() && d.getMonth() === NOW.getMonth();
 }
 
-/** Returns true if the ISO date-string falls within the previous calendar month. */
 function isLastMonth(iso: string): boolean {
     const d = new Date(iso);
     const lastMonth = new Date(NOW.getFullYear(), NOW.getMonth() - 1, 1);
     return d.getFullYear() === lastMonth.getFullYear() && d.getMonth() === lastMonth.getMonth();
 }
 
-/**
- * Given a list of transactions and a predicate, counts how many of them
- * (a) satisfy `pred` and (b) have at least one requested document accepted
- * by `match`.
- */
 function countByDocMatcher(
     txns: Transaction[],
     match: (d: { documentType: string }) => boolean,
@@ -207,10 +125,6 @@ function countByDocMatcher(
     return txns.filter(t => pred(t) && t.requestedDocuments.some(match)).length;
 }
 
-/** Document-type matchers for the per-type release counters. Tax Declaration
- *  keeps the historical fuzzy substring match; the two certificates match the
- *  exact registry names (both spellings, mirroring the distribution slices)
- *  so a "No Landholding" record can never be counted as "Landholding". */
 const isTaxDeclarationDoc = (d: { documentType: string }) =>
     d.documentType.toLowerCase().includes('tax declaration');
 const isLandholdingDoc = (d: { documentType: string }) =>
@@ -220,16 +134,10 @@ const isNoLandholdingDoc = (d: { documentType: string }) =>
     d.documentType === 'Certificate of No Landholding' ||
     d.documentType === 'Certificate of No Land Holding';
 
-/** True "release" timestamp for a transaction: the full released_at when
-    present (accurate time + date), falling back to the date-only columns. */
 function releaseDateOf(t: Transaction): string {
     return t.releasedAt ?? t.dateReleased ?? t.dateRequested;
 }
 
-/** Formats a release date as "DD Mon YYYY" — with "· HH:MM AM/PM" appended
-    only when the source string actually carries a time (full timestamps like
-    released_at), so a date-only fallback never shows a fake fixed clock
-    (parsing "2026-08-11" as UTC midnight renders 8:00 AM in UTC+8). */
 function formatReleaseDate(iso: string): string {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;
@@ -238,7 +146,6 @@ function formatReleaseDate(iso: string): string {
     return datePart + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
-/** Builds a period-over-period trend, guarding against divide-by-zero. */
 function computeTrend(current: number, previous: number, comparedTo: string): TrendInfo {
     if (previous === 0) {
         return { direction: current > 0 ? 'up' : 'down', percentage: current > 0 ? 100 : 0, comparedTo };
@@ -247,17 +154,7 @@ function computeTrend(current: number, previous: number, comparedTo: string): Tr
     return { direction: pct >= 0 ? 'up' : 'down', percentage: Math.abs(pct), comparedTo };
 }
 
-/**
- * Bucket transactions into 5 rolling weekly groups (ending today) for the
- * Analytics Overview bar chart. Two honest series per week:
- *  - processed: requests whose REQUEST date falls in the bucket (workload)
- *  - released:  documents whose actual release time falls in the bucket
- * The labels anchor the most recent weeks ("This Week" / "Last Week") and
- * fall back to the week-start date for older buckets, with the full date
- * span available on rangeLabel for the chart tooltip.
- */
 function buildWeeklyTrend(all: Transaction[], released: Transaction[]): WeeklyTrendPoint[] {
-    // Build 5 weekly buckets ending today
     const buckets: { label: string; rangeLabel: string; start: Date; end: Date }[] = [];
     for (let i = 4; i >= 0; i--) {
         const end = new Date(NOW);
@@ -280,9 +177,6 @@ function buildWeeklyTrend(all: Transaction[], released: Transaction[]): WeeklyTr
     return buckets.map(b => ({
         label: b.label,
         rangeLabel: b.rangeLabel,
-        // Processed buckets by request date (any status); released buckets
-        // by the actual release time so a doc released this week counts
-        // this week even if its request was older.
         processed: all.filter(t => {
             const d = new Date(t.dateRequested);
             return d >= b.start && d <= b.end;
@@ -294,7 +188,6 @@ function buildWeeklyTrend(all: Transaction[], released: Transaction[]): WeeklyTr
     }));
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────
 
 export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All'): ReportsAnalyticsData {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -303,8 +196,6 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
     const [error, setError] = useState<string | null>(null);
     const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
     const [refetchToken, setRefetchToken] = useState(0);
-    // Mirrors TransactionRegistry: the first fetch shows skeletons; a
-    // re-fetch while data is already on screen keeps the data visible.
     const hasLoadedRef = useRef(false);
 
     const refetch = useCallback(() => setRefetchToken(n => n + 1), []);
@@ -334,30 +225,15 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
         return () => { cancelled = true; };
     }, [refetchToken]);
 
-    // ── Derived analytics ────────────────────────────────────────────────
-    // The Document Type filter is applied here, at the source, so every
-    // aggregate below (stat cards, trends, status chart, distribution,
-    // declarant rows) reflects the selected type. Detection is purely
-    // reference-prefix based (getDocumentTypeFromReference); 'All' matches
-    // every record, so the default behavior is unchanged.
     const data = useMemo((): Omit<ReportsAnalyticsData, 'loading' | 'isRefreshing' | 'error' | 'refetch' | 'fetchedAt'> => {
         const filtered = transactions.filter(t => matchesDocumentType(t.referenceNumber, documentType));
         const released = filtered.filter(t => t.status === 'Released');
         const voided = filtered.filter(t => t.status === 'Void');
         const archived = filtered.filter(t => t.status === 'Archived');
-        // Exactly the Pending Payments queue — raw PENDING_PAYMENT status
-        // (mapped 'Pending' only as a fallback for pre-statusRaw responses),
-        // so "Total Pending" always matches the Pending Payments page.
         const pending = filtered.filter(t =>
             t.statusRaw === 'PENDING_PAYMENT' ||
             (!t.statusRaw && t.status === 'Pending')
         );
-
-        // ── Period metrics ────────────────────────────────────────────
-        // "Released" counts bucket by the real release time (releasedAt /
-        // dateReleased), NOT the request date, so e.g. "Released Today" is
-        // genuinely documents released today even when they were requested
-        // earlier. Pending/total-request figures keep request-date bucketing.
         const releasedToday = released.filter(t => isToday(releaseDateOf(t))).length;
         const releasedYesterday = released.filter(t => isYesterday(releaseDateOf(t))).length;
         const releasedWeek = released.filter(t => isThisWeek(releaseDateOf(t))).length;
@@ -371,11 +247,6 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
         const totalLastWeek = filtered.filter(t => isLastWeek(t.dateRequested)).length;
         const totalMonth = filtered.filter(t => isThisMonth(t.dateRequested)).length;
         const totalLastMonth = filtered.filter(t => isLastMonth(t.dateRequested)).length;
-
-        // Per-document-type release counts share one bucketing rule: a
-        // released transaction counts toward every document type it
-        // contains, bucketed by its real release time (same rule as
-        // documentsReleased — NOT the request date).
         const tdToday = countByDocMatcher(released, isTaxDeclarationDoc, t => isToday(releaseDateOf(t)));
         const tdWeek = countByDocMatcher(released, isTaxDeclarationDoc, t => isThisWeek(releaseDateOf(t)));
         const tdMonth = countByDocMatcher(released, isTaxDeclarationDoc, t => isThisMonth(releaseDateOf(t)));
@@ -385,17 +256,9 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
         const nlhToday = countByDocMatcher(released, isNoLandholdingDoc, t => isToday(releaseDateOf(t)));
         const nlhWeek = countByDocMatcher(released, isNoLandholdingDoc, t => isThisWeek(releaseDateOf(t)));
         const nlhMonth = countByDocMatcher(released, isNoLandholdingDoc, t => isThisMonth(releaseDateOf(t)));
-
-        // Reprinted documents: sum all reprintCounts
         const reprintedCount = filtered.reduce((sum, t) =>
             sum + t.requestedDocuments.reduce((s, d) => s + (d.reprintCount || 0), 0), 0
         );
-
-        // Per-declarant reprint totals — keyed by declarant name so the
-        // head can track total issuance (a declarant may hold multiple
-        // transactions; reprints from all of them are combined here). Each
-        // declarant's total is also broken down by document type so the
-        // Reports card can show exactly which documents were reprinted.
         const reprintsByDeclarant = new Map<string, { count: number; byDoc: Map<string, number> }>();
         for (const t of filtered) {
             for (const d of t.requestedDocuments) {
@@ -420,14 +283,8 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
                 }))
                 .sort((a, b) => b.count - a.count);
 
-        // ── Weekly trend ──────────────────────────────────────────────
         const weeklyTrend = buildWeeklyTrend(filtered, released);
 
-        // ── Document distribution ──────────────────────────────────────
-        // The registry passes document_types.name through verbatim, so the
-        // "Certificate of Landholding" spelling (no space) is the live value;
-        // accept the spaced variant too so a future rename can't silently
-        // zero out the distribution slices.
         const isDocType = (d: { documentType: string }, name: string) => d.documentType === name;
         const tdCount = released.filter(t => t.requestedDocuments.some(d => isDocType(d, 'Tax Declaration'))).length;
         const lhCount = released.filter(t => t.requestedDocuments.some(d =>
@@ -436,7 +293,7 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
         const nlhCount = released.filter(t => t.requestedDocuments.some(d =>
             isDocType(d, 'Certificate of No Landholding') || isDocType(d, 'Certificate of No Land Holding')
         )).length;
-        const totalDocs = tdCount + lhCount + nlhCount || 1; // avoid /0
+        const totalDocs = tdCount + lhCount + nlhCount || 1; 
 
         const documentDistribution: DocumentDistributionSlice[] = [
             { label: 'Tax Declaration', count: tdCount, percentage: Math.round((tdCount / totalDocs) * 100), color: 'primary' },
@@ -444,7 +301,6 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
             { label: 'Certificate of No Landholding', count: nlhCount, percentage: Math.round((nlhCount / totalDocs) * 100), color: 'red' },
         ];
 
-        // ── Status bar chart ──────────────────────────────────────────
         const statusChart: StatusChartBar[] = [
             { label: 'RELEASED', count: released.length, color: '#4f46e5' },
             { label: 'ARCHIVED', count: archived.length, color: '#64748b' },
@@ -452,7 +308,6 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
             { label: 'REPRINTED', count: reprintedCount, color: '#06b6d4' },
         ];
 
-        // ── Declarant rows for the Reports table ───────────────────────
         const declarantRows: DeclarantRecord[] = filtered.map(t => {
             const docTypes =
                 t.requestedDocuments.map(d => d.documentType).join(', ') ||
@@ -465,8 +320,6 @@ export function useReportsAnalytics(documentType: DocumentTypeFilterValue = 'All
                 .map(w => w[0].toUpperCase())
                 .join('');
 
-            // Status is passed through VERBATIM from TransactionStatus so
-            // the Reports table always reflects the actual system status.
             return {
                 reference: t.referenceNumber,
                 declarantName: t.client.declarantName,

@@ -1,14 +1,8 @@
-/* ==========================================================================
-   Payment Verification Page Styles (PaymentDetails.css)
-   ========================================================================== */
-
 @import "./NameTip.css";
 
 .pd-page {
     width: 100%;
     max-width: min(1800px, 96vw);
-    /* Widened from 1150px so the page makes real use of widescreen
-       monitors instead of leaving large idle margins on either side. */
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -26,7 +20,6 @@
     overflow: hidden;
 }
 
-/* --- Header Banner with Back Button --- */
 .pd-header-banner {
     background: linear-gradient(135deg, var(--db-primary) 0%, #3b3498 100%);
     padding: 24px 32px;
@@ -79,7 +72,6 @@
     padding: 32px;
 }
 
-/* --- Split Layout Grid (payment verification step) --- */
 .pd-split-layout {
     display: grid;
     /* Changed from 1.25fr 1fr to 1fr 320px to shrink the right column */
@@ -88,7 +80,6 @@
     align-items: start;
 }
 
-/* --- Feedback Banners --- */
 .pd-banner {
     display: flex;
     align-items: flex-start;
@@ -123,11 +114,6 @@
 .pd-doc-table-wrap {
     border: 1px solid var(--db-glass-border-alt);
     border-radius: var(--db-radius-md);
-    /* FIX: was `overflow: hidden` — a long declarant name stretched the
-       auto-layout table past the container and the right side (the Action
-       column with the View & Edit / Cancel buttons) was silently clipped
-       off-screen. auto keeps the wrap scrollable as a safety net; the
-       declarant cell clamp below prevents the overflow from happening. */
     overflow-x: auto;
 }
 
@@ -158,15 +144,11 @@
     vertical-align: middle;
 }
 
-/* Action column — header label and the view/edit button both centered
-   over the same axis, instead of pinned to the cell's right edge, so the
-   "ACTION" label sits directly above the eye icon + text underneath it. */
 .pd-doc-table th.pd-col-action,
 .pd-doc-table td.pd-col-action {
     text-align: center;
 }
 
-/* Ref number badge, color-coded by document prefix */
 .pd-ref-badge {
     display: inline-block;
     padding: 4px 10px;
@@ -205,17 +187,9 @@
 .pd-doc-declarant {
     font-weight: 600;
     color: var(--db-slate);
-    /* FIX: long declarant names used to stretch the auto-layout table past
-       the container, pushing the Action column (View & Edit / Cancel
-       buttons) off-screen where it was clipped. Clamp the cell to a
-       fixed max width — the ellipsis itself now lives on the inner
-       .pd-doc-declarant-clamp span so this cell can host the
-       system-themed name tooltip without clipping it. */
     max-width: 280px;
 }
 
-/* Inner clamp keeps the original ellipsis look; the cell (not the clamp)
-   is the .name-tip hover target, so the tooltip is never clipped. */
 .pd-doc-declarant-clamp {
     display: block;
     max-width: 280px;
@@ -224,7 +198,6 @@
     white-space: nowrap;
 }
 
-/* Smaller variant used under a document reference in compact cards */
 .pd-doc-type--sm {
     font-size: 11px;
 }
@@ -236,7 +209,6 @@
     white-space: nowrap;
 }
 
-/* "View & Edit" action button inside the document verification table */
 .pd-btn--view-details {
     display: inline-flex;
     align-items: center;
@@ -263,7 +235,6 @@
     stroke: currentColor;
 }
 
-/* Action cell holds View & Edit + Cancel side by side */
 .pd-action-btns {
     display: flex;
     align-items: center;
@@ -317,7 +288,6 @@
     font-weight: 900;
 }
 
-/* --- Right Column: Receipt Form Card --- */
 .pd-receipt-card {
     background-color: rgba(41, 35, 122, 0.03);
     padding: 18px;
@@ -341,9 +311,7 @@
     font-size: 13px;
 }
 
-/* OR number field — now fills the full width of its card instead of
-   capping out at 180px, so it doesn't leave a slab of empty space on the
-   right of the receipt card. */
+
 .pd-field-input--or {
     width: 100%;
     box-sizing: border-box;
@@ -415,8 +383,6 @@
 }
 
 /* --- Form Actions --- */
-/* Confirm & Generate now sizes to its content and sits flush right,
-   instead of stretching full-width like the primary Verify Receipt step. */
 .pd-actions-row {
     margin-top: 10px;
     display: flex;
@@ -483,20 +449,12 @@
     background-color: #3d8b40;
 }
 
-/* Compact modifier — shrinks a full-size .pd-btn down to fit its label
-   instead of stretching the row. Used on Confirm & Generate Document(s)
-   so it stops dominating the receipt card. */
 .pd-btn--compact {
     width: auto;
     padding: 10px 20px;
     font-size: 13px;
 }
 
-/* Verified OR number — compact display + a clearly visible edit button */
-/* Grid instead of flex: an invisible spacer the same width as the edit
-   icon sits opposite it, so the OR value centers against the full card
-   width instead of centering only in the leftover space next to the
-   icon (which would visually shift it left). */
 .pd-or-display {
     display: grid;
     grid-template-columns: 34px 1fr 34px;
@@ -524,9 +482,6 @@
     text-align: center;
 }
 
-/* Edit icon button — now a solid, filled button instead of a faint
-   outline so it reads clearly as an actionable control next to the
-   verified O.R. number. */
 .pd-btn-icon-edit {
     display: inline-flex;
     align-items: center;
@@ -554,7 +509,6 @@
     outline-offset: 2px;
 }
 
-/* --- Shared Receipt Warning Badge inside Card --- */
 .pd-override-badge-card {
     background-color: #fff8e1;
     border: 1px solid #ffe082;
@@ -669,15 +623,6 @@
     background-color: #bf360c;
 }
 
-
-/* ==========================================================================
-   SIGNATORY ASSIGNMENT VIEW
-   (Note: .pd-sig-card / .pd-sig-card-header / .pd-sig-selectors now live in
-   DocumentReleasePanel.css since that component owns them. The remaining
-   classes below — the wrapper view, helper text, list, and footer — belong
-   to a different step and are kept here.)
-   ========================================================================== */
-
 .pd-signatory-view {
     display: flex;
     flex-direction: column;
@@ -716,7 +661,6 @@
     border-top: 1px solid var(--db-glass-border-alt);
 }
 
-/* --- Responsive Adjustments --- */
 @media (max-width: 980px) {
 
     .pd-split-layout {

@@ -9,27 +9,15 @@ interface TransactionTableProps {
     onViewDetails: (group: DeclarantGroup) => void;
     onReprint: (transactionId: string, docId: string) => void;
     onVoidGroup: (group: DeclarantGroup) => void;
-    /** Rendered inside the table card, above the column headers — used for
-     * the search/filter toolbar so it lives in the same card as the table
-     * and pagination, matching PendingPayment's pp-table-card layout. */
     toolbar?: React.ReactNode;
 }
 
 export interface ColumnDef {
     label: string;
-    /** Fixed minimum width in px. The registry table keeps these readable
-     *  widths and scrolls horizontally when the card can't fit them, instead
-     *  of squishing every column into unreadable slivers. */
     width: number;
     align?: 'left' | 'center' | 'right';
 }
 
-/* Column layout — fixed px minimums per column so each cell stays
-   readable: Reference keeps room for the icon badge, Declarant /
-   Requested By / OR Justification host ExpandableText (See more /
-   See less) cells, dates stay narrow-but-legible, staff names may wrap,
-   OR Number never wraps, Current Status keeps its badge intact, and
-   Actions keeps a stable width for the View button. */
 export const REGISTRY_COLUMNS: ColumnDef[] = [
     { label: 'Reference Number', width: 175 },
     { label: 'Declarant', width: 200 },
@@ -44,9 +32,6 @@ export const REGISTRY_COLUMNS: ColumnDef[] = [
     { label: 'Actions', width: 120, align: 'center' },
 ];
 
-/** Total minimum table width (px) — below this the .tr-table-scroll
- *  container scrolls horizontally. Shared with the loading skeleton so
- *  the ghost table always matches the real one. */
 export const REGISTRY_TABLE_MIN_WIDTH = REGISTRY_COLUMNS.reduce(
     (sum, col) => sum + col.width,
     0

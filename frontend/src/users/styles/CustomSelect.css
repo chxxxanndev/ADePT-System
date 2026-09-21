@@ -96,9 +96,6 @@
     }
 }
 
-/* Always-visible search bar shown above the dropdown trigger on
-   searchable selects — makes the search function immediately obvious.
-   Typing filters the list below and auto-opens the menu. */
 .cs-searchbar {
     display: flex;
     align-items: center;

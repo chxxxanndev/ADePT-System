@@ -6,7 +6,6 @@ import '../styles/select.css';
 import { ExpandableText } from '../components/common/ExpandableText';
 import { NameTooltip } from '../components/common/NameTooltip';
 
-// --- ICONS ---
 const SearchIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
 const ArchiveIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>;
 const ProcessIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>;
@@ -16,13 +15,10 @@ const CheckSquareIcon = () => <svg width="15" height="15" viewBox="0 0 24 24" fi
 const UserIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
 const XIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 
-// Stat card icons
 const ClientsIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
 const DocumentsIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
 const AmountIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="3" /><path d="M6 6v.01M18 18v-.01" /></svg>;
 
-// Document-type icons — Tax Declaration reads as an institution/records mark (bank/landmark),
-// Landholding as a certificate document, No Landholding as a verified/checked document
 const TaxDeclarationIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="21" x2="21" y2="21"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 3 21 9 3 9"></polygon></svg>;
 const LandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>;
 const NoLandholdingIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>;
@@ -53,10 +49,6 @@ function resolveDocTypeName(req: any): string {
     return 'Certified True Tax Declaration';
 }
 
-// Splits a queue timestamp (timestamptz from the DB) into a date part and
-// a time part ("Aug 5, 2026" / "2:35 PM") so the UI can render the time
-// on its own line below the date. Falls back to the plain request date
-// when the timestamp is missing (older records) or unparseable.
 function splitQueueDateTime(raw: string | null | undefined, fallback: string): { date: string; time: string } {
     if (!raw) return { date: fallback, time: '' };
     const d = new Date(raw);
@@ -73,14 +65,12 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
     const [loading, setLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // Selection states
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [confirmTarget, setConfirmTarget] = useState<{ groups: any[]; label: string } | null>(null);
     const [archiveReason, setArchiveReason] = useState('');
     const [isArchiving, setIsArchiving] = useState(false);
 
-    // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -91,10 +81,6 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
 
             const rawRequests = await requestService.getRequests();
             if (Array.isArray(rawRequests)) {
-                // Sort the queue by when each request entered it — newest first.
-                // Restored/archived records get a fresh pending_payment_at, so
-                // they surface at the top instead of falling back to the
-                // original request date (created_at) order.
                 const pending = rawRequests
                     .filter((r: any) => r.status === 'PENDING_PAYMENT')
                     .sort((a: any, b: any) => {
@@ -111,9 +97,6 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
                         acc[requester] = {
                             groupId: req.id,
                             requesterName: requester,
-                            // Show the time the request entered this queue
-                            // (pending_payment_at is a timestamptz), not just
-                            // the request date.
                             dateRequested: queueDt.date,
                             timeRequested: queueDt.time,
                             totalAmountDue: 0,
@@ -125,8 +108,8 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
                         id: req.id,
                         referenceNumber: req.reference_number || "REF-PENDING",
                         declarantName: req.declarant_name || 'N/A',
-                        requestedByName: req.requested_by_name || req.requestedByName || requester, // ADDED THIS
-                        propertyLocation: req.property_location || '', // ADDED THIS
+                        requestedByName: req.requested_by_name || req.requestedByName || requester, 
+                        propertyLocation: req.property_location || '', 
                         documentType: resolveDocTypeName(req),
                         encodedByStaff: req.encoded_by_staff_name || req.encodedByStaffName || null,
                         amountDue: 40.00
@@ -137,7 +120,6 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
                 }, {});
 
                 setGroupedPayments(Object.values(grouped));
-                // Only reset selection if it's a hard fresh load, otherwise keep selected (for UX)
                 if (!isManualRefresh) setSelectedIds(new Set());
             }
         } finally {
@@ -148,23 +130,19 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
 
     useEffect(() => { fetchLivePayments(); }, []);
 
-    // Filter by search
     const filtered = groupedPayments.filter(p =>
         p.requesterName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.documents.some((d: any) => d.referenceNumber.toLowerCase().includes(searchQuery.toLowerCase()) || d.declarantName.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
-    // Reset pagination when search query or items per page changes
     useEffect(() => {
         setCurrentPage(1);
     }, [searchQuery, itemsPerPage]);
 
-    // Pagination Logic
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedGroups = filtered.slice(startIndex, startIndex + itemsPerPage);
 
-    // Fix edge case where archiving the last item on a page leaves you on an empty page
     useEffect(() => {
         if (currentPage > totalPages && totalPages > 0) {
             setCurrentPage(totalPages);
@@ -187,17 +165,14 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
         });
     };
 
-    // SMART SELECT ALL: Only toggles visible items on the current page
     const toggleSelectCurrentPage = () => {
         const allVisibleSelected = paginatedGroups.every(g => selectedIds.has(g.groupId));
 
         setSelectedIds(prev => {
             const next = new Set(prev);
             if (allVisibleSelected) {
-                // Deselect visible
                 paginatedGroups.forEach(g => next.delete(g.groupId));
             } else {
-                // Select visible
                 paginatedGroups.forEach(g => next.add(g.groupId));
             }
             return next;
@@ -261,7 +236,6 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
 
     return (
         <div className="pp-container page-transition">
-            {/* --- BREADCRUMB NAV --- */}
             <div className="pp-breadcrumb">
                 <button
                     type="button"
@@ -290,14 +264,12 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
                 </button>
             </div>
 
-            {/* --- PAGE HEADER (no card wrapper) --- */}
             <div className="pp-page-header">
                 <div className="pp-header-top">
                     <div className="pp-header-titles">
                         <h1 className="pp-title">Pending Payments Queue</h1>
                         <p className="pp-subtitle">Verify payments using Official Receipts issued by the Treasurer's Office.</p>
 
-                        {/* TAB SEGMENTED CONTROL (Moved to match Pending For Release) */}
                         <div className="pp-tabs-wrapper">
                             <button className="pp-tab-btn active">
                                 Pending Payments
@@ -350,7 +322,6 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
                 </div>
             </div>
 
-            {/* --- TABLE CARD --- */}
             <div className="pp-table-card">
                 <div className={`pp-table-toolbar${selectionMode ? ' is-active' : ''}`}>
                     <div className="pp-toolbar-left">
@@ -462,8 +433,6 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
                                     const docCount = group.documents.length;
                                     return (
                                         <Fragment key={group.groupId}>
-                                            {/* Group label row — replaces the old floating "N documents" label
-                                                that used to sit disconnected above the Reference No. column */}
                                             <tr className="pp-group-header-row">
                                                 <td colSpan={columnCount} className="pp-group-header-cell">
                                                     {docCount} document{docCount !== 1 && 's'}
@@ -489,9 +458,6 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
                                                         </td>
                                                     )}
 
-                                                    {/* Reference No. and Declarant now live in the SAME <tr> as each
-                                                        other, per document — the browser guarantees they line up,
-                                                        even if a declarant name wraps onto 2-3 lines. */}
                                                     <td className="pp-cell" data-label="Reference No.">
                                                         <span
                                                             className={`pp-ref-chip ${getRefChipClass(d.referenceNumber)}`}
@@ -509,10 +475,6 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
                                                         </span>
                                                     </td>
 
-                                                    {/* Requested By now repeats per document row, same as Encoded By
-                                                        Staff — each row reads as a complete, self-contained line
-                                                        (Reference No. → Declarant → Requested By → Staff) without
-                                                        needing to look up/down to a merged cell. */}
                                                     <td className="pp-cell" data-label="Requested By">
                                                         <span className="pp-client-name">
                                                             <ExpandableText text={group.requesterName} />
@@ -575,7 +537,6 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
                     </table>
                 </div>
 
-                {/* --- PAGINATION FOOTER --- */}
                 {!loading && filtered.length > 0 && (
                     <div className="pp-pagination-footer">
 
@@ -623,7 +584,6 @@ export function PendingPayment({ onSelectPayment, onNavigateBack, onSwitchView, 
                 )}
             </div>
 
-            {/* --- ARCHIVE CONFIRM MODAL --- */}
             {confirmTarget && (
                 <div className="pp-modal-backdrop" onClick={() => !isArchiving && setConfirmTarget(null)}>
                     <div className="pp-modal" onClick={(e) => e.stopPropagation()}>

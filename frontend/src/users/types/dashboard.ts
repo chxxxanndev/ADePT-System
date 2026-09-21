@@ -1,5 +1,3 @@
-// Shared type definitions for the ADePT Dashboard
-
 export type StatAccent = 'teal' | 'gold' | 'green' | 'red';
 
 export interface StatCardData {
@@ -9,10 +7,7 @@ export interface StatCardData {
     sublabel: string;
     accent: StatAccent;
     icon: 'requests' | 'released' | 'ready' | 'active' | 'archived' | 'voided' | 'reprinted' | 'cancelled';
-    /** Active-view the card navigates to when clicked (rendered as a button). */
     view?: string;
-    /** Optional params carried into the destination view, e.g.
-     *  { status: 'Cancelled' } to pre-filter Archive Management. */
     viewParams?: Record<string, string>;
 }
 
@@ -39,14 +34,9 @@ export interface TransactionRow {
 }
 
 export interface WeeklyTrendPoint {
-    /** Short x-axis label — "This Week", "Last Week", or the week-start
-     *  date ("Aug 10") for older weeks. */
     label: string;
-    /** Full week date span for the tooltip, e.g. "3 Aug – 9 Aug". */
     rangeLabel?: string;
-    /** Requests processed that week (bucketed by request date). */
     processed: number;
-    /** Documents actually released that week (bucketed by release time). */
     released: number;
 }
 
@@ -92,7 +82,6 @@ export interface UserProfile {
     avatarUrl?: string;
 }
 
-// Date range produced by the dashboard's Summary period selector
 export interface PeriodRange {
     from: Date;
     to: Date;

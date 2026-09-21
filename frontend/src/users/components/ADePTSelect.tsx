@@ -19,11 +19,6 @@ interface ADePTSelectProps<T extends string = string> {
     className?: string;
 }
 
-/** Custom dropdown with the ADePT panel design — replaces native
- *  <select> elements, whose panels are rendered by the OS and can
- *  therefore never carry the rounded/shadowed ADePT look. The trigger
- *  keeps the exact .adt-select pill; the panel opens in a portal with
- *  the shared white rounded design. */
 export function ADePTSelect<T extends string>({
     value,
     onChange,

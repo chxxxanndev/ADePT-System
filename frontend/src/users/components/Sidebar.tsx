@@ -24,7 +24,7 @@ const ICONS: Record<string, React.ComponentType<{ size?: number; className?: str
     requestProcessing: ClipboardListIcon,
     documentProcessing: FilesIcon,
     transactionManagement: SwapIcon,
-    archiveManagement: ArchiveIcon, // NEW
+    archiveManagement: ArchiveIcon, 
     reports: BarChartIcon,
     settings: SettingsIcon,
     about: InfoIcon,
@@ -56,7 +56,6 @@ export function Sidebar({
 }: SidebarProps) {
     const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
-    // Only toggles the dropdown open/closed. Never touches collapsed state anymore.
     const toggleMenu = (label: string) => {
         setOpenMenus((prev) => ({ ...prev, [label]: !prev[label] }));
     };
@@ -69,12 +68,10 @@ export function Sidebar({
         }
     };
 
-    // Central click handler for every nav item (with or without sub-items).
     const handleItemClick = (item: NavSection['items'][number]) => {
         const hasSubItems = !!item.subItems?.length;
 
         if (collapsed) {
-            // Collapsed: never expand the rail. Jump straight to a preview page instead.
             if (item.view) {
                 onNavigate(item.view);
             } else if (hasSubItems) {
@@ -83,7 +80,6 @@ export function Sidebar({
             return;
         }
 
-        // Expanded: normal behavior — toggle dropdown, or navigate directly.
         if (hasSubItems) {
             toggleMenu(item.label);
             if (item.view) {
@@ -117,7 +113,7 @@ export function Sidebar({
                             const Icon = ICONS[item.icon] ?? DashboardIcon;
                             const hasSubItems = !!item.subItems?.length;
                             const isOpen = !!openMenus[item.label];
-                            const isNotifications = item.view === 'notifications'; // ADDED
+                            const isNotifications = item.view === 'notifications';
 
                             const isActive =
                                 item.view === activeView ||

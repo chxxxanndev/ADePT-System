@@ -23,9 +23,6 @@ const getOrdinalSuffix = (dayInput: string | number) => {
     return `${num}th`;
 };
 
-// ---------------------------------------------------------------------------
-// NLH Spacing — all layout values that staff may need to nudge per-document.
-// ---------------------------------------------------------------------------
 export interface NLHSpacing {
     sigMarginTop: number;
     sigBlockGap: number;
@@ -39,16 +36,9 @@ export interface NLHSpacing {
     receiptRowGap: number;
     declarantPadding: number;
     declarantLetterSpacing: number;
-    /** Space reserved at the bottom of EVERY page so text never runs into the
-     *  footer background / "KUYOG TA" line. In points. 4cm ≈ 113pt. */
+    /** Space reserved at the bottom of EVERY page so text never runs into the footer background / "KUYOG TA" line. In points. 4cm ≈ 113pt. */
     footerClearance: number;
-    /** Space reserved at the TOP of EVERY page (via the Page's own
-     *  paddingTop). Page 1 cancels this out via a negative marginTop on the
-     *  header image, so only continuation pages (2+) actually show the gap.
-     *  IMPORTANT: this must NOT depend on `pageNumber` from a `render`
-     *  callback — doing so creates a circular layout dependency in
-     *  react-pdf (element size depends on pagination, pagination depends on
-     *  element size) which causes unstable/duplicated content across pages. */
+    /** Space reserved at the TOP of EVERY page (via the Page's own paddingTop). */
     continuationTopClearance: number;
 }
 
@@ -69,9 +59,6 @@ export const DEFAULT_NLH_SPACING: NLHSpacing = {
     continuationTopClearance: 60,
 };
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 const styles = StyleSheet.create({
     page: {
         padding: 0,
@@ -111,8 +98,6 @@ const styles = StyleSheet.create({
         marginLeft: 0,
     },
     officialParagraph: {
-        // Changed from 'justify' -> 'left': justify was stretching the
-        // spacing unevenly on short bold lines like "THIS IS TO CERTIFY".
         textAlign: 'left',
         marginBottom: 15,
         fontSize: 10,
@@ -161,9 +146,6 @@ const styles = StyleSheet.create({
     },
 });
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
 interface CertOfNoLandholdingPDFProps {
     declarant_name?: string;
     ownerName?: string;
@@ -194,9 +176,6 @@ interface CertOfNoLandholdingPDFProps {
     };
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 export const CertOfNoLandholdingPDF = (props: CertOfNoLandholdingPDFProps) => {
     const {
         declarant_name,
@@ -222,21 +201,21 @@ export const CertOfNoLandholdingPDF = (props: CertOfNoLandholdingPDFProps) => {
 
     const INDENT = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0';
 
-    // 1. Resolve Declarant Name
+    // 1. Declarant Name
     const displayName = declarant_name || ownerName || request?.requested_by_name || '';
 
-    // 2. Resolve Payment Metadata
+    // 2. Payment Metadata
     const finalOrNumber = orNumber || request?.or_number || '';
     const finalDatePaid = datePaid || request?.payment_date || '';
 
-    // 3. Resolve Grammar & Pronouns
+    // 3. Grammar & Pronouns
     const pronounLower = pronoun.toLowerCase();
     const possessivePronoun =
         pronounLower === 'his' ? 'his' :
             pronounLower === 'her' ? 'her' : 'their';
     const propertyTerm = property_count === 'plural' ? 'real properties' : 'real property';
 
-    // 4. Resolve Date Formatting (Given Date)
+    // 4. Date Formatting (Given Date)
     let displayDay: string | number = day || '';
     let displayMonthYear = monthYear || '';
 
@@ -248,7 +227,7 @@ export const CertOfNoLandholdingPDF = (props: CertOfNoLandholdingPDFProps) => {
         }
     }
 
-    // 5. Resolve Signatories
+    // 5. Signatories
     const activeSignatory1Name = signatory1Name || request?.signatoryDetails?.name || 'ELVIRA T. ENAO, REA';
     const activeSignatory1Title = signatory1Title || request?.signatoryDetails?.title || 'Local Assessment Operations Officer IV';
 
@@ -260,22 +239,12 @@ export const CertOfNoLandholdingPDF = (props: CertOfNoLandholdingPDFProps) => {
             ? { ...DEFAULT_NLH_SPACING, sigMarginTop: 180, ...spacing }
             : { ...DEFAULT_NLH_SPACING, ...spacing };
 
-    // Page style reserves clearance on BOTH edges of EVERY page react-pdf
-    // generates:
-    //  - paddingBottom keeps text off the footer artwork / KUYOG TA band.
-    //  - paddingTop reserves room at the top of continuation pages so text
-    //    doesn't start flush against the header artwork. Page 1 cancels
-    //    this out below via a negative marginTop on the header image, since
-    //    the header image only renders once, at the very start of the flow.
     const pageStyle = {
         ...styles.page,
         paddingBottom: sp.footerClearance,
         paddingTop: sp.continuationTopClearance,
     };
 
-    // Cancels the page-level paddingTop specifically where the header image
-    // sits (start of document / page 1 only — this Image is not `fixed`,
-    // so it never repeats on later pages).
     const headerImageStyle = {
         ...styles.headerImage,
         marginTop: -sp.continuationTopClearance,
@@ -377,11 +346,6 @@ export const CertOfNoLandholdingPDF = (props: CertOfNoLandholdingPDFProps) => {
         </View>
     );
 
-    // Single <Page> — react-pdf's own flow engine decides how many physical
-    // pages are needed. The `content` View wraps normally, and since both
-    // paddingTop and paddingBottom now live on the Page itself (via
-    // pageStyle), every generated page keeps the same clearance at top and
-    // bottom — with no dependency on pageNumber, so pagination stays stable.
     return (
         <Document>
             <Page size={selectedPageSize} style={pageStyle}>

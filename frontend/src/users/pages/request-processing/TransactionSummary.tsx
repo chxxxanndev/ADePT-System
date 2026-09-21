@@ -50,8 +50,6 @@ function WarningIcon({ size = 22, color = '#e11d48' }: { size?: number; color?: 
     );
 }
 
-// --- New icons for LH / NLH badges (distinct shapes, not just recolored DocumentIcon) ---
-
 function PlainPageIcon({ size = 14, color = '#1e293b' }: { size?: number; color?: string }) {
     return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ verticalAlign: 'middle', flexShrink: 0 }}>
@@ -71,7 +69,6 @@ function FileXIcon({ size = 14, color = '#be123c' }: { size?: number; color?: st
     );
 }
 
-// --- Dynamic colored badge component for Reference Numbers ---
 function RefBadge({ refNumber }: { refNumber: string }) {
     let bg, color, icon;
 
@@ -104,14 +101,10 @@ function RefBadge({ refNumber }: { refNumber: string }) {
 export function TransactionSummary({ entryData, onBackToForms, onProceedToQueue }: TransactionSummaryProps) {
     const { items, totalAmount, removeItem, clearCart } = useCart();
     const [submitting, setSubmitting] = useState(false);
-
-    // Track which item the user wants to cancel, so we can show a
-    // confirmation modal before actually archiving it.
     const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
     const [cancelling, setCancelling] = useState(false);
     const [cancelError, setCancelError] = useState<string | null>(null);
 
-    // Safely resolve the primary requester from the cart, falling back to entryData
     const requesterName = items[0]?.requestedByName || entryData?.requestedByName || 'N/A';
 
     const cancelTarget = items.find((i) => i.id === cancelTargetId) || null;
@@ -145,18 +138,12 @@ export function TransactionSummary({ entryData, onBackToForms, onProceedToQueue 
         setCancelError(null);
     };
 
-    // Confirmed: mark the document as Archived on the backend, then drop it
-    // from the local cart. Because Archive Management reads from the same
-    // shared transaction registry (filtering status === "Archived"), this
-    // document will show up there automatically — tagged as Tax Declaration,
-    // Certificate of Land Holding, or No-Landholding Certificate depending on
-    // its requestedDocuments, same as any other archived record.
     const handleConfirmCancel = async () => {
         if (!cancelTarget) return;
         setCancelling(true);
         setCancelError(null);
         try {
-            await requestService.updateRequest(cancelTarget.id, { status: 'ARCHIVED' }); // was 'Archived'
+            await requestService.updateRequest(cancelTarget.id, { status: 'ARCHIVED' });
             removeItem(cancelTarget.id);
             setCancelTargetId(null);
         } catch (err) {
@@ -268,7 +255,6 @@ export function TransactionSummary({ entryData, onBackToForms, onProceedToQueue 
                     {/* --- FOOTER ACTIONS --- */}
                     <div className="rfe-footer" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', background: '#fff', borderTop: '1px solid #e2e8f0', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px', flexWrap: 'wrap', gap: '16px' }}>
 
-                        {/* Upgraded Add Another Document Button */}
                         {!entryData?.amendedFromReference && (
                         <button
                             onClick={onBackToForms}

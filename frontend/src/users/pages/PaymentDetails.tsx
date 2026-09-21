@@ -20,7 +20,7 @@ interface PaymentDetailsProps {
     payment: any | null;
     onBack: () => void;
     onReleased?: () => void;
-    onReleasedReprint?: () => void;   // NEW — where reprint releases go instead
+    onReleasedReprint?: () => void;   
     onSavedForLater?: () => void;
     onEditDocument?: (referenceNumber: string) => void;
 }
@@ -33,10 +33,6 @@ const DEFAULT_SIGNATORIES = [
     { id: 'sig_3', name: 'CHINA CHAN-OLARIO, RN, REA, REB, Enp', title: 'Assistant Provincial Assessor', role: 'ASST_ASSESSOR' },
 ];
 
-// Default property-table layout (row height / text sizes / column widths, %)
-// for Landholding certs. Column widths mirror the template's built-in
-// defaults so an un-adjusted table renders identically to before this
-// feature existed.
 const DEFAULT_TABLE_SPACING = {
     rowHeight: 22,
     fontSize: 9,
@@ -44,15 +40,10 @@ const DEFAULT_TABLE_SPACING = {
     colWidths: { marginLeft: 0, td: 18, location: 26, lot: 12, title: 12, area: 14, assessed: 18, marginRight: 0 },
 };
 
-// Default signatory text sizing / block width for Landholding certs.
-// Gives staff a way to shrink the font or widen the block when a
-// signatory's name or title is too long to fit cleanly at the default size.
 const DEFAULT_SIGNATORY_STYLE = {
     nameFontSize: 11,
     titleFontSize: 11,
     blockWidth: 250,
-    // Per-signatory horizontal nudge (pt) — moves that signatory's whole
-    // block (name + title together) left/right of its default position.
     offsetX1: 0,
     offsetX2: 0,
 };
@@ -70,9 +61,6 @@ const getFormattedDates = () => {
 };
 
 export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint, onSavedForLater }: PaymentDetailsProps) {
-    // Resuming from the "Pending for Release" queue means this payment already
-    // has an O.R. number attached (set by releaseRequest when status flipped
-    // to PAID) — in that case skip VERIFICATION and land straight on RELEASE.
     const [orNumber, setOrNumber] = useState(payment?.orNumber || '');
     const [isVerified, setIsVerified] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
@@ -91,41 +79,21 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
     const [documents, setDocuments] = useState<any[]>([]);
     const [selectedDocForPreview, setSelectedDocForPreview] = useState<any | null>(null);
 
-    // Step 1 = O.R. verification only. Step 2 = generation, signatory confirmation & release.
     const [workflowStep, setWorkflowStep] = useState<'VERIFICATION' | 'RELEASE'>(
         payment?.orNumber ? 'RELEASE' : 'VERIFICATION'
     );
     const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
     const [docSignatories, setDocSignatories] = useState<Record<string, any>>({});
-    // Per-document signature-layout spacing (Landholding certs only for now).
-    // Seeded from the certificate's saved values the first time a doc is
-    // previewed, then staff can nudge it live via the +/- steppers in
-    // DocumentReleasePanel — each nudge regenerates the preview immediately.
     const [docSpacing, setDocSpacing] = useState<Record<string, { top: number; gap: number }>>({});
-    // Receipt block (Cert. Fee / O.R. No. / Dated) position + row spacing —
-    // same seed-then-live-nudge pattern as docSpacing above.
     const [docReceiptSpacing, setDocReceiptSpacing] = useState<Record<string, { bottom: number; left: number; rowGap: number }>>({});
-    // Property table layout (row height, row/header text size, per-column
-    // widths) — same seed-then-live-nudge pattern, Landholding certs only.
     const [docTableSpacing, setDocTableSpacing] = useState<Record<string, TableSpacing>>({});
-    // Signatory text sizing / block width — same seed-then-live-nudge
-    // pattern, Landholding certs only. Exists so a very long name/title
-    // has somewhere to go besides clipping or overflowing the layout.
     const [docSignatoryStyle, setDocSignatoryStyle] = useState<Record<string, SignatoryStyle>>({});
-    
-    // Per-document NLH Spacing state
     const [docNLHSpacing, setDocNLHSpacing] = useState<Record<string, NLHSpacing>>({});
-
-    // Per-document Tax Declaration layout state (base text sizes + auto-fit
-    // floor + Certified Copy block) — same seed-then-live-nudge pattern as
-    // the LH/NLH spacing above.
     const [docTDSpacing, setDocTDSpacing] = useState<Record<string, TDTemplateSpacing>>({});
-
     const [activePreview, setActivePreview] = useState<{ docId: string; url: string; label: string } | null>(null);
     const [releaseStaff, setReleaseStaff] = useState<{ id: string; name: string }[]>([]);
     const [activeSignatories, setActiveSignatories] = useState(DEFAULT_SIGNATORIES);
 
-    // --- NLH Spacing Handlers ---
     const handleNLHSpacingChange = (docId: string, field: keyof NLHSpacing, value: number) => {
         setDocNLHSpacing(prev => {
             const updated = { ...prev, [docId]: { ...(prev[docId] || DEFAULT_NLH_SPACING), [field]: value } };
@@ -148,7 +116,6 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
         });
     };
 
-    // --- TD Spacing Handlers (Tax Declaration layout adjustments) ---
     const handleTDSpacingChange = (docId: string, field: keyof TDTemplateSpacing, value: number) => {
         setDocTDSpacing(prev => {
             const updated = { ...prev, [docId]: { ...(prev[docId] || DEFAULT_TD_TEMPLATE_SPACING), [field]: value } as TDTemplateSpacing };
@@ -226,7 +193,6 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
             const primarySig = activeSignatories.find(s => s.role === 'AUTHORIZED_REP') || activeSignatories[0];
             const secondarySig = activeSignatories.find(s => s.role === 'ASST_ASSESSOR');
 
-            // Pre-filled defaults — staff confirms/edits these at the release step, not here.
             const initialSigs: Record<string, any> = {};
             payment.documents.forEach((doc: any) => {
                 const isTD = doc.referenceNumber.startsWith('TD');
@@ -248,15 +214,10 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
         };
     }, []);
 
-    // Resuming straight into RELEASE (from Pending for Release) skips the
-    // VERIFICATION step entirely, so nothing has generated a preview yet —
-    // handleConfirmAndGenerate normally does that, but it never runs on this
-    // path. Fire once documents + signatories are both populated.
     useEffect(() => {
         if (workflowStep === 'RELEASE' && documents.length > 0 && !activePreview && !isGeneratingPdf) {
             handlePrintDocument(documents[0]);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [workflowStep, documents]);
 
     if (!payment) {
@@ -274,7 +235,6 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
     const requesterName = payment.requesterName;
     const totalAmount = payment.totalAmountDue;
 
-    // --- O.R. VERIFICATION ---
     const handleVerify = async () => {
         const errors: { orNumber?: string } = {};
         const trimmed = orNumber.trim();
@@ -345,16 +305,12 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
             const updated = { ...prev, [docId]: { ...prev[docId], [roleType]: selectedSig } };
             const doc = documents.find(d => d.id === docId);
             if (doc && activePreview?.docId === docId) {
-                // regenerate with the freshly updated signatory
                 setTimeout(() => handlePrintDocument(doc, updated), 0);
             }
             return updated;
         });
     };
 
-    // Live spacing nudge from the +/- steppers — mirrors handleSignatoryChange:
-    // update state, then immediately regenerate the preview if this doc is
-    // the one currently showing.
     const handleSpacingChange = (docId: string, field: 'top' | 'gap', value: number) => {
         setDocSpacing(prev => {
             const current = prev[docId] || { top: 60, gap: 65 };
@@ -379,8 +335,6 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
         });
     };
 
-    // Live table-layout nudge (row height / text sizes) — same pattern as
-    // the spacing handlers above.
     const handleTableSpacingChange = (docId: string, field: 'rowHeight' | 'fontSize' | 'headerFontSize', value: number) => {
         setDocTableSpacing(prev => {
             const current = prev[docId] || DEFAULT_TABLE_SPACING;
@@ -393,10 +347,6 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
         });
     };
 
-    // Bulk column-width update — used by the drag-to-resize bar, which
-    // always changes two adjacent columns at once (grow one, shrink its
-    // neighbor by the same amount) so the row keeps summing to ~100%
-    // without staff having to balance the numbers themselves.
     const handleColWidthsChange = (docId: string, updates: Partial<TableSpacing['colWidths']>) => {
         setDocTableSpacing(prev => {
             const current = prev[docId] || DEFAULT_TABLE_SPACING;
@@ -412,9 +362,6 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
         });
     };
 
-    // Live signatory text-size / block-width nudge — same pattern as the
-    // other spacing handlers. Exists so a long name or title has somewhere
-    // to go besides clipping.
     const handleSignatoryStyleChange = (docId: string, field: keyof SignatoryStyle, value: number) => {
         setDocSignatoryStyle(prev => {
             const current = prev[docId] || DEFAULT_SIGNATORY_STYLE;
@@ -427,7 +374,6 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
         });
     };
 
-    // --- Per-section "Reset to default" handlers ---
     const handleResetSpacing = (docId: string) => {
         setDocSpacing(prev => {
             const updated = { ...prev, [docId]: { top: 60, gap: 65 } };
@@ -472,7 +418,6 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
         });
     };
 
-    // --- STEP 1 CONFIRM: LOCK O.R., GENERATE DOCUMENTS, MOVE TO RELEASE STEP ---
     const handleConfirmAndGenerate = async () => {
         setBanner(null);
         try {
@@ -493,7 +438,6 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
         }
     };
 
-    // --- PDF GENERATION (INLINE PREVIEW) ---
     const handlePrintDocument = async (
         doc: any,
         signatoriesOverride?: Record<string, any>,
@@ -518,9 +462,6 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
             let PDFComponent;
 
             if (doc.referenceNumber.startsWith('NLH')) {
-                // The doc object only carries minimal fields — fetch the encoded
-                // certificate so the pronoun and property/name count reflect what
-                // was chosen during the request (same source the entry form uses).
                 let nlhCert: any = null;
                 try {
                     nlhCert = await noLandholdingService.getByRequestId(doc.id);
@@ -529,14 +470,14 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
                 }
 
                 PDFComponent = <CertOfNoLandholdingPDF
-                    paperSize={doc.paperSize} // optional override — auto-switches to LEGAL when content no longer fits LETTER
+                    paperSize={doc.paperSize} 
                     ownerName={doc.declarantName || doc.declarant_name || nlhCert?.declarant_name}
                     pronoun={nlhCert?.pronoun}
                     property_count={nlhCert?.property_count}
                     day={day} monthYear={monthYear} orNumber={orNumber} datePaid={datePaid}
                     signatory1Name={sigs?.primary?.name} signatory1Title={sigs?.primary?.title}
                     signatory2Name={sigs?.secondary?.name} signatory2Title={sigs?.secondary?.title}
-                    spacing={liveNLHSpacing} // 👈 Change nlhSpacing to spacing
+                    spacing={liveNLHSpacing} 
                 />;
             } else if (doc.referenceNumber.startsWith('LH')) {
                 let landholdingProperties = doc.properties || doc.data?.properties;
@@ -674,26 +615,8 @@ export function PaymentDetails({ payment, onBack, onReleased, onReleasedReprint,
                     colWidths={finalTableSpacing.colWidths}
                 />;
             } else if (doc.referenceNumber.startsWith('TD')) {
-                // FIX: previously this only fetched via
-                // taxDeclarationService.getTaxDeclaration() when doc.data
-                // was falsy — but the documents list (payment.documents)
-                // can already carry a truthy `data` object of a different,
-                // unmapped shape (or an empty {}), which short-circuited
-                // this fetch and fed raw/mismatched fields straight into
-                // TaxDeclarationPDF. That produced blank rows and blank
-                // totals in the generated PDF even though the record had
-                // real assessment data saved.
-                //
-                // Always fetch fresh via the properly-mapped service call,
-                // which translates snake_case DB fields (market_value,
-                // assessment_level, classification_id, ...) into the
-                // camelCase shape TaxDeclarationPDF actually reads
-                // (marketValue, assessmentLevel, classificationLabel, ...).
                 let tdData;
                 try {
-                    // The payment document's id IS the request id (built from
-                    // req.id in PendingPayment), which is the key the TD data
-                    // is stored under.
                     const requestId = doc.requestId || doc.request_id || doc.id;
                     tdData = await taxDeclarationService.getTaxDeclaration(requestId);
                     if (!tdData) {

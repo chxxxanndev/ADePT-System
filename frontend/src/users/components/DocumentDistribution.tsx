@@ -12,15 +12,9 @@ const COLOR_MAP: Record<DocumentDistributionSlice['color'], { fill: string; dot:
     red: { fill: '#EF4444', dot: '#EF4444' },
 };
 
-// Bigger canvas + thicker ring so the donut reads clearly. All count
-// labels sit uniformly OUTSIDE the ring (slice color + white halo, with a
-// thin leader line pointing at the slice) — one consistent style whether
-// the slice is big or small.
 const RADIUS_INNER = 46;
 const RADIUS_OUTER = 112;
 const CENTER = 150;
-
-// Distance from the outer ring edge to the outside labels.
 const OUTER_LABEL_GAP = 18;
 
 function getThickDonutPath(
@@ -103,8 +97,7 @@ export function DocumentDistribution({ slices, totalDocuments }: DocumentDistrib
                     </filter>
 
                     <g>
-                        {/* Neutral track ring — keeps the donut shape even when
-                            one slice dominates or no data exists yet. */}
+                        {/* Neutral track ring — keeps the donut shape even when one slice dominates or no data exists yet. */}
                         <path d={trackPath} fill="#EEF1F6" />
 
                         <g filter="url(#donut-shadow)">
@@ -132,9 +125,6 @@ export function DocumentDistribution({ slices, totalDocuments }: DocumentDistrib
                                             onMouseLeave={() => setHoveredIndex(null)}
                                         />
 
-                                        {/* Count label — uniformly OUTSIDE the ring for every slice: slice
-                                            color, white halo for legibility, leader line pointing
-                                            at the slice. Consistent for big and small slices alike. */}
                                         <line
                                             x1={slice.leaderFrom.x}
                                             y1={slice.leaderFrom.y}
@@ -168,9 +158,7 @@ export function DocumentDistribution({ slices, totalDocuments }: DocumentDistrib
                                 );
                             })}
                         </g>
-
-                        {/* Center stat — the overall total sits in the hole,
-                            leaving all slice numbers fully visible. */}
+                        
                         {isEmpty ? (
                             <text
                                 x={CENTER}

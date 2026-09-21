@@ -106,7 +106,6 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                 </div>
             )}
 
-            {/* Inline search: trigger becomes a text input when open */}
             {inlineSearch && open && !disabled ? (
                 <input
                     ref={searchRef}

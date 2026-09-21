@@ -1,8 +1,3 @@
-/* ==================================================================
-   CertifiedTrueCopy.css
-   Styles for src/users/pages/CertifiedTrueCopy.tsx
-   Palette source: ADePT Official Design System
-   ================================================================== */
 
 .ctc-page {
   --color-primary: #29237a;
@@ -43,7 +38,7 @@
   gap: 20px;
 }
 
-/* ---------- Header ---------- */
+/* Header */
 
 .ctc-header {
   display: flex;
@@ -75,8 +70,6 @@
   color: var(--color-muted);
   margin: 2px 0 0;
 }
-
-/* ---------- Filters ---------- */
 
 .ctc-filters {
   display: flex;
@@ -145,7 +138,7 @@
   pointer-events: none;
 }
 
-/* ---------- Table card ---------- */
+/* Table card */
 
 .ctc-card {
   background-color: #ffffff;
@@ -206,9 +199,6 @@
   white-space: nowrap;
 }
 
-/* FIX: plain declarant name cell — replaces the removed
-   .ctc-declarant-cell / .ctc-avatar wrapper now that the initials
-   circle has been dropped from the Declarant column. */
 .ctc-cell-name {
   font-weight: 500;
   color: var(--color-text);
@@ -223,8 +213,6 @@
   text-align: center;
   color: var(--color-muted-light);
 }
-
-/* ---------- Status badge ---------- */
 
 .ctc-badge {
   display: inline-flex;
@@ -273,18 +261,10 @@
   font-size: 0.85rem;
 }
 
-/* ---------- Expandable text (See more / See less) ----------
-   Long cell values (declarant, OR justification) are truncated at the shared
-   28-char limit by components/common/ExpandableText.tsx and get a "See more"/
-   "See less" toggle. The toggle's base styling lives in ExpandableText.css
-   (imported by the component); this rule keeps it aligned with the page. */
-
 .ctc-table .expandable-text-toggle {
   white-space: nowrap;
   color: var(--color-secondary);
 }
-
-/* ---------- Skeleton loading ---------- */
 
 .ctc-skeleton-item {
   background: linear-gradient(
@@ -301,8 +281,6 @@
   0% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
-
-/* ---------- Error state ---------- */
 
 .ctc-error-state {
   padding: 40px 24px;
@@ -324,8 +302,6 @@
 .ctc-error-state button:hover {
   background: var(--color-error-bg);
 }
-
-/* ---------- Pagination ---------- */
 
 .ctc-pagination {
   display: flex;

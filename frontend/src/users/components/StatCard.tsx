@@ -27,14 +27,7 @@ interface DashboardSummaryProps {
     title: string;
     items: StatCardData[];
     iconType: 'operational' | 'admin';
-    /** While true, renders skeleton placeholders instead of stat cards.
-     *  The skeletons use the same .stat-card box (dimensions, padding,
-     *  radius, grid placement) as the real cards, so the layout never
-     *  jumps when the data arrives. */
     isLoading?: boolean;
-    /** Navigates to a card's `view` target when the card is clicked,
-     *  carrying optional `viewParams` for the destination view.
-     *  Cards without a `view` render as plain boxes. */
     onNavigate?: (view: string, params?: Record<string, string>) => void;
 }
 

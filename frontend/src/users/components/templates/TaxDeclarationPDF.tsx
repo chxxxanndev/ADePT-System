@@ -36,12 +36,12 @@ const styles = StyleSheet.create({
   objectFit: 'cover',
   zIndex: -1,
 },
-  // NEW: header image style (same pattern as CertOfLandholdingPDF's headerImage)
+
   headerImage: {
     width: '100%',
     objectFit: 'contain',
   },
-  // In styles:
+
   formNoTag: { 
   position: 'absolute', 
   top: 25, 
@@ -57,15 +57,13 @@ const styles = StyleSheet.create({
   h11: { fontSize: 12, fontFamily: 'Times-Bold' },
   h7: { fontSize: 8},
 
-  // Reference Row
   refRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, marginTop: -10, },
   refItem: { flexDirection: 'row', alignItems: 'flex-end', flex: 1 },
   refUnderline: { borderBottomWidth: 1, borderBottomColor: '#000', flex: 1, textAlign: 'center', fontFamily: 'BookmanOldStyle', fontWeight: 'bold', fontSize: 10.5, height: 14, paddingBottom: 0 },
 
-  // Title
+
   title: { fontSize: 16, fontFamily: 'Castellar', textAlign: 'center' },
 
-  // Field Rows
   fieldRow: { flexDirection: 'row', alignItems: 'flex-end'},
   label10: { fontSize: 11 },
   underlineData: { 
@@ -94,7 +92,6 @@ const styles = StyleSheet.create({
   tableHeader: { flexDirection: 'row', justifyContent: 'space-between' },
   thCell: { fontSize: 11, textAlign: 'center' },
   
-  // Certified Box
   certifiedBox: { borderWidth: 0.5, padding: 6, flexDirection: 'row', justifyContent: 'space-between' },
   certLeftBlock: { width: '60%', flexDirection: 'row' },
   certSignatoryBlock: { flex: 1, alignItems: 'center', paddingRight: 10, paddingTop: 2 },
@@ -104,12 +101,11 @@ const styles = StyleSheet.create({
   backgroundColor: 'white',
   paddingVertical: 3,
   paddingHorizontal: 2,
-  paddingRight: 10,  // ← add this
+  paddingRight: 10,  
   marginTop: 8,
 },
 importantLabel: {
   fontSize: 11,
-  // fontFamily: 'Times-Bold',
   width: 78,
 },
 importantBody: {
@@ -127,16 +123,13 @@ const peso = (n: any) => (n ? Number(n).toLocaleString(undefined, { minimumFract
 
 const formatArea = (n: any) => {
   if (!n && n !== 0) return '';
-  // Accept a bare number OR a display string like "123,456.78 sqm.".
-  // Split the numeric part from any unit suffix first, reformat the number
-  // with thousand separators, then re-append the suffix ("sqm." / "has.").
   const str = String(n).trim();
   const unitMatch = str.match(/^([\d.,]+)\s*(.*)$/);
   const numPart = unitMatch ? unitMatch[1] : str;
   const suffix = unitMatch ? unitMatch[2].trim() : '';
   const cleaned = numPart.replace(/,/g, '');
   const num = Number(cleaned);
-  if (isNaN(num)) return str; // non-numeric fallback, leave untouched
+  if (isNaN(num)) return str; 
   const decimalPlaces = cleaned.includes('.') ? cleaned.split('.')[1].length : 0;
   const formatted = num.toLocaleString(undefined, {
     minimumFractionDigits: decimalPlaces,
@@ -145,12 +138,6 @@ const formatArea = (n: any) => {
   return suffix ? `${formatted} ${suffix}` : formatted;
 };
 
-// ---------------------------------------------------------------------------
-// Tax Declaration layout adjustments (released from DocumentReleasePanel).
-// All values are "base" font sizes: auto-fit still shrinks from them (down to
-// autoFitFloor) when a long value would otherwise wrap and push the fixed
-// one-page LETTER form out of alignment.
-// ---------------------------------------------------------------------------
 export interface TDTemplateSpacing {
     autoFitEnabled: 0 | 1;   // master switch for the auto-shrink behaviour
     autoFitFloor: number;    // smallest size long text may shrink to (pt)
@@ -196,19 +183,13 @@ export const DEFAULT_TD_TEMPLATE_SPACING: TDTemplateSpacing = {
 // LETTER content width (612pt page minus 2 × 38pt content padding).
 const CONTENT_WIDTH = 612 - 38 * 2;
 
-// Letter page height — used by the page clamp. Kept 2pt under the nominal
-// 792pt so a fractional rounding can never leave a blank second page.
+// Letter page height — used by the page clamp. Kept 2pt under the nominal 792pt so a fractional rounding can never leave a blank second page.
 const PAGE_HEIGHT = 790;
 
-// Hard floor for auto-fit. When a value still can't fit at autoFitFloor it
-// keeps shrinking down to this instead of wrapping and growing its fixed box.
+// Hard floor for auto-fit. When a value still can't fit at autoFitFloor it keeps shrinking down to this instead of wrapping and growing its fixed box.
 const HARD_MIN = 3;
 
-// Lowest the accordion's floor/auto-fit base is ever allowed to render at —
-// matches the floor stepper's own UI minimum (4pt). Stops a stale or typed-in
-// absurd value (e.g. 1pt from the earlier 2nd-page experiments) from blanking
-// a field: the auto-fit *degrade* path for very long text may still dip below
-// this down to HARD_MIN, but normal text never renders smaller than this.
+// Lowest the accordion's floor/auto-fit base is ever allowed to render at — matches the floor stepper's own UI minimum (4pt).
 const RENDER_FLOOR = 4;
 
 export const TaxDeclarationPDF = ({
@@ -221,23 +202,15 @@ export const TaxDeclarationPDF = ({
 }: any) => {
   const s: TDTemplateSpacing = { ...DEFAULT_TD_TEMPLATE_SPACING, ...spacing };
   const rows = data.assessmentRows || data.assessments || [];
-  // Guaranteed 4 blank/underline rows
-  const tableRows = [...rows, ...Array(Math.max(0, 4 - rows.length)).fill({})];
+  const tableRows = [...rows, ...Array(Math.max(0, 4 - rows.length)).fill({})];   // Guaranteed 4 blank/underline rows
 
   const totalMarketValue = rows.reduce((sum: any, r: any) => sum + (Number(r.marketValue) || 0), 0);
   const totalAssessedValue = rows.reduce((sum: any, r: any) => sum + (Number(r.assessedValue) || 0), 0);
 
-  // --- AUTO-FIT ----------------------------------------------------------
-  // Fitted sizes are computed once fonts are ready; until then base sizes are
-  // used so the first paint is never worse than today's output.
   const measureReady = useTextMeasureReady();
   const measure = (text: string, size: number, family = 'Times-Roman') =>
     measureReady ? measureTextWidth(text, family, size) : estimateWidth(text, size);
 
-  // NOTE: the base size is clamped to the auto-fit floor (itself bounded by
-  // RENDER_FLOOR). The floor is the smallest size the accordion is willing to
-  // render at; setting a base below it (e.g. 1pt) would otherwise render
-  // invisible text.
   const fitWidth = (text: string, maxWidth: number, family: string, base: number, weight: any = 'normal', style: any = 'normal') => {
     const floorEff = Math.max(s.autoFitFloor, RENDER_FLOOR);
     const effBase = Math.max(base, floorEff);
@@ -246,11 +219,6 @@ export const TaxDeclarationPDF = ({
       : effBase;
   };
 
-  // Owner / Administrator + addresses — rendered at the user's chosen size and
-  // allowed to WRAP to a second line when longer than the underline (no auto
-  // shrink-to-fit, which is what shrank long values into the clipped "..." look);
-  // the user adjusts the size manually. Guarded by RENDER_FLOOR so a stale tiny
-  // value can never blank a field.
   const fontPt = (size: number) => Math.max(size, RENDER_FLOOR);
 
   const ownerNameSize = fontPt(s.ownerFontSize);
@@ -258,7 +226,6 @@ export const TaxDeclarationPDF = ({
   const adminNameSize = fontPt(s.ownerFontSize);
   const adminAddressSize = fontPt(s.ownerFontSize);
 
-  // Location of property — three columns sharing the space after the label.
   const locationLabelW = Math.max(measure('Location of', 11), measure('Property:', 11));
   const locationColumnW = (CONTENT_WIDTH - locationLabelW - 4 - 30) / 3;
 
@@ -266,8 +233,6 @@ export const TaxDeclarationPDF = ({
   const municipalitySize = fitWidth(data.municipality || '', locationColumnW, 'BookmanOldStyle', s.locationFontSize, 'bold');
   const provinceSize = fitWidth('ZAMBOANGA DEL NORTE', locationColumnW, 'Times-Bold', s.locationFontSize, 'bold');
 
-  // Boundaries — each direction has its own size so the user can adjust them
-  // independently; long values wrap instead of being shrunk or clipped.
   const boundaryNorthSize = fontPt(s.boundaryNorthFontSize);
   const boundarySouthSize = fontPt(s.boundarySouthFontSize);
   const boundaryEastSize = fontPt(s.boundaryEastFontSize);
@@ -287,8 +252,7 @@ export const TaxDeclarationPDF = ({
   const verifiedByNameSize = fitWidth(data.verifiedByName || '', verifiedByW, 'BookmanOldStyle', s.assessorFontSize, 'bold');
   const assessorNameSize = fitWidth(assessorText, verifiedByW, 'BookmanOldStyle', s.assessorFontSize, 'bold');
 
-  // Certified Copy block — signatory block is the 55% column minus the
-  // "Certified copy:" label (85pt) and its right padding (10pt).
+  // Certified Copy block — signatory block is the 55% column minus the "Certified copy:" label (85pt) and its right padding (10pt).
   const certSignatoryW = CONTENT_WIDTH * 0.65 - 60 - 10 - 2;
 
   const wordsSize = fitWidth(String(data.totalAssessedValueWords || ''), wordsW, 'BookmanOldStyle', s.amountWordsFontSize, 'bold', 'italic');
@@ -310,17 +274,13 @@ export const TaxDeclarationPDF = ({
       <Page size="LETTER" style={styles.page}>
         <Image fixed src={window.location.origin + '/images/landholding_bg.png'} style={styles.background} />
 
-        {/* PAGE CLAMP: header + content sit inside a fixed-height, clipped
-            container so the LETTER form can never spill onto a second page —
-            any residual overflow is cut at the page edge instead. */}
         <View style={{ height: PAGE_HEIGHT, overflow: 'hidden' }}>
-          {/* HEADER IMAGE (replaces hardcoded Republic/Province/Office text header) */}
           <Image src={window.location.origin + '/images/landholding_header.png'} style={styles.headerImage} />
   
           <Text style={styles.formNoTag}>RPA FORM NO. 1A</Text>
 
           <View style={styles.content}>
-          {/* ASSESSMENT OF REAL PROPERTY NO. LINE */}
+        
           <View style={styles.refRow}>
             <View style={[styles.refItem, { marginRight: 15 }]}>
               <Text style={styles.label10}>Assessment of Real Property No.: </Text>
@@ -332,18 +292,14 @@ export const TaxDeclarationPDF = ({
             </View>
           </View>
 
-          {/* [2 enter spaces after Assessment line] */}
           <View style={{ height: 6 }} />
 
-          {/* DECLARATION OF REAL PROPERTY */}
           <Text style={styles.title}>DECLARATION OF REAL PROPERTY</Text>
 
-          {/* [1 enter space (16 font size)] */}
           <View style={{ height: 16 }} />
-          {/* [1 enter space (11 font size)] */}
+      
           <View style={{ height: 11 }} />
 
-          {/* ROW 1: OWNER & ADDRESS */}
             <View style={{ width: '100%', marginBottom: 4 }}>
             
             {/* ROW 1: OWNER & ADDRESS */}
@@ -508,19 +464,10 @@ export const TaxDeclarationPDF = ({
 
             </View>
 
-          {/* [1 space] */}
           <View style={{ height: 11 }} />
-
-          {/* (State streets, streams...) */}
           <Text style={styles.descriptionText}>(State streets, streams or PIN by bounded, or names of owner of adjoining lands)</Text>
-
-          {/* [1 space] */}
           <View style={{ height: 11 }} />
-
-          {/* DOUBLE LINE */}
           <View style={styles.doubleLine} />
-
-          {/* [1 space] */}
           <View style={{ height: 11 }} />
 
           {/* KIND OF PROPERTY (TABLE HEADERS) */}

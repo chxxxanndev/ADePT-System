@@ -4,7 +4,7 @@ import '../styles/ReprintConfirmModal.css';
 
 interface ReprintConfirmModalProps {
     open: boolean;
-    documentLabel: string;   // "Certificate of No Landholding - NLH-2026-1772"
+    documentLabel: string;  
     declarantName: string;
     requestedBy: string;
     onCancel: () => void;

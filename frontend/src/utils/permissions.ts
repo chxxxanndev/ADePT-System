@@ -1,14 +1,10 @@
-// users/hooks/permissions.ts  (or wherever shared frontend utils live — adjust path)
 import type { User } from '../auth-folder/types/auth';
 
 type AdminLevel = 'HIGH' | 'MEDIUM' | 'LOW';
 
 const LEVEL_RANK: Record<AdminLevel, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
 
-/**
- * Mirrors the backend's hasAdminLevel() check, for UI purposes only.
- * The backend is the real gatekeeper — this just controls what renders.
- */
+// The backend is the real gatekeeper. This just controls what renders. 
 export function hasAdminLevel(user: User | null | undefined, minLevel: AdminLevel): boolean {
     if (!user) return false;
     if (user.role === 'SUPER_ADMIN') return true;

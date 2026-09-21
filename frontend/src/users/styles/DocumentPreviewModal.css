@@ -1,6 +1,3 @@
-/* =========================================
-   DOCUMENT PREVIEW MODAL STYLES 
-   ========================================= */
 .preview-modal-overlay {
     position: fixed !important;
     top: 0 !important;
@@ -9,7 +6,6 @@
     bottom: 0 !important;
     background-color: rgba(17, 24, 39, 0.95) !important;
     z-index: 999999 !important;
-    /* Extremely high z-index */
     display: flex !important;
     width: 100vw !important;
     height: 100vh !important;
@@ -25,7 +21,6 @@
     box-sizing: border-box;
 }
 
-/* Tabs for Multiple Documents */
 .preview-modal-tabs {
     display: flex;
     gap: 8px;
