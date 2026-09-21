@@ -4,17 +4,6 @@ import { supabaseAdmin } from '../../config/supabaseAdmin.js';
 
 const REACTIVATION_WINDOW_DAYS = 7;
 
-/**
- * Creates a throwaway Supabase client scoped to a single request, used only
- * for password verification (auth.signInWithPassword). This is deliberate:
- * calling signInWithPassword/signUp on a *shared* client instance mutates
- * that instance's in-memory session, and every subsequent .from(...) call
- * made through that same shared client — from ANY request, anywhere in the
- * app — then silently starts running as whichever user last signed in,
- * subject to full RLS, instead of your intended service-role/admin identity.
- * A fresh client per call means each login's session death is scoped to
- * that ephemeral instance and can never leak into shared state.
- */
 function createEphemeralAuthClient() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -25,9 +14,6 @@ function createEphemeralAuthClient() {
 
 class AuthService {
   async registerUser({ firstName, middleInitial, lastName, email, username, password, suffix }) {
-    // Use the admin API to create the auth user — this does NOT touch any
-    // client's session state (unlike auth.signUp), so it's safe to call on
-    // the shared admin client without any risk of session leakage.
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -66,8 +52,6 @@ class AuthService {
         else throw new Error("Username not found.");
     }
 
-    // Ephemeral client — verifies the password without touching the shared
-    // admin client's session (see createEphemeralAuthClient's comment above).
     const authClient = createEphemeralAuthClient();
     const { data, error } = await authClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
@@ -191,8 +175,6 @@ class AuthService {
   }
 
   async forgotPassword(email) {
-    // resetPasswordForEmail doesn't establish a session, so it's safe on
-    // the shared client — kept as-is.
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: 'http://localhost:5173/reset-password'
     });

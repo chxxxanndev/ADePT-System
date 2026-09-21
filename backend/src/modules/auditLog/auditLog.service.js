@@ -1,30 +1,11 @@
 import { supabaseAdmin } from '../../config/supabaseAdmin.js';
 
-/**
- * Writes and reads audit_log rows. Uses supabaseAdmin (service role) rather
- * than the RLS-scoped client — same reasoning as auth.service.js: this
- * needs to reliably insert/read regardless of the acting user's own RLS
- * policies, and it never touches session state so it's safe on the shared
- * admin client.
- */
-
-// Staff accounts whose activity should never be written to audit_log
 const EXCLUDED_ACTOR_IDS = new Set([
   'ad794ba9-1e22-4d49-9523-db5b2c6e7b52', // ADePT Development Team (dev account)
 ]);
 
 class AuditLogService {
-  /**
-   * Resolves the acting staff member's id/name/role, then inserts a row.
-   * Accepts EITHER an already-resolved staffId (from a requireAuth that
-   * sets req.staffId) OR a raw Supabase auth user id (from a requireAuth
-   * that only sets req.user.id) — whichever the calling controller has.
-   *
-   * Accounts listed in EXCLUDED_ACTOR_IDS are resolved as normal (so we
-   * still know who they are) but no row is written to audit_log for them —
-   * this silently no-ops and returns null instead of throwing, since
-   * callers generally fire-and-forget this call.
-   */
+
   async createEntry({ actorStaffId, actorAuthId, type, description, details }) {
     if (!type || !description) {
       throw new Error('type and description are required.');
@@ -47,7 +28,6 @@ class AuditLogService {
       throw new Error('Could not resolve the acting staff member.');
     }
 
-    // Skip writing an audit_log row entirely for excluded accounts.
     if (EXCLUDED_ACTOR_IDS.has(staff.id)) {
       return null;
     }
@@ -72,16 +52,6 @@ class AuditLogService {
     return entry;
   }
 
-  /**
-   * Returns entries newest-first. The frontend still does its own
-   * search/time-range/super-admin filtering — this just returns the raw
-   * rows, capped so a growing table can't blow up the response.
-   *
-   * Document-forwards are not written to audit_log; they live in the
-   * `notifications` table (one row per forward, with actor_id and
-   * recipient_id). They are merged in here as `document_forwarded`
-   * entries so the audit log can show who each request was forwarded to.
-   */
   async listEntries({ limit = 500 } = {}) {
     const [auditResult, notifResult] = await Promise.all([
       supabaseAdmin

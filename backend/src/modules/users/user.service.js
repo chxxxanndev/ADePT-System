@@ -1,17 +1,11 @@
 import { supabase, useMock } from '../../config/supabase.js';
 import { validatePassword } from '../../utils/validators.js';
 
-// Composes "First M. Last" when a middle initial exists, "First Last" otherwise.
 function composeFullName(firstName, middleInitial, lastName) {
     const mi = middleInitial ? middleInitial.replace(/\.$/, '') + '.' : '';
     return `${firstName} ${mi} ${lastName}`.replace(/\s+/g, ' ').trim();
 }
 
-// Pings the staff member's own open browser session (via a Realtime
-// broadcast channel) after their role/admin level changes, so they pick up
-// the new access immediately instead of having to log out and back in. The
-// frontend subscribes to this channel and re-fetches /api/account/profile.
-// Fire-and-forget: a failed broadcast must never fail the promotion itself.
 function broadcastStaffRoleUpdate(staffId) {
     if (!supabase || useMock) return;
     const channel = supabase.channel('staff-role-updates');
@@ -24,7 +18,6 @@ function broadcastStaffRoleUpdate(staffId) {
     });
 }
 
-// ─── Mock fallback ────────────────────────────────────────────────────────────
 const MOCK_STAFF = [
     {
         id: 'mock-1',
@@ -96,13 +89,8 @@ function hasAdminLevel(actingStaff, minLevel) {
     return LEVEL_RANK[actingStaff.adminLevel] >= LEVEL_RANK[minLevel];
 }
 
-// ─── Service ──────────────────────────────────────────────────────────────────
 class UserService {
-    /**
-     * Resolves the acting user's staff row (id, roleCode, adminLevel) from
-     * their Supabase auth_user_id. Every permission-gated method needs this
-     * to know who's calling and what they're allowed to do.
-     */
+
     async getActingStaff(authUserId) {
         if (useMock || !supabase) {
             return { id: 'mock-actor', roleCode: 'SUPER_ADMIN', adminLevel: null };
@@ -139,10 +127,6 @@ class UserService {
 
     async getAccountRequests() {
         const toRequestView = (member) => {
-            // updated_at auto-bumps on any row edit, but for a request that's
-            // still PENDING_APPROVAL there's nothing decided yet, so we only
-            // surface it once the row has actually moved to approved/rejected —
-            // that's the moment updated_at reflects the decision itself.
             const decidedAt = member.account_status !== 'PENDING_APPROVAL' ? member.updated_at : null;
 
             if (member.account_status === 'ACTIVE') {
@@ -205,10 +189,6 @@ class UserService {
         return (data ?? []).map(toRequestView).filter(Boolean);
     }
 
-    /**
-     * Approving/declining a self-registered sign-up request.
-     * Permission: SUPER_ADMIN, or ADMIN with adminLevel === 'HIGH'.
-     */
     async decideAccountRequest(requestId, decision, reason, actingStaff) {
         if (!hasAdminLevel(actingStaff, 'HIGH')) {
             throw new Error('Your admin access level does not permit approving account requests.');
@@ -267,13 +247,6 @@ class UserService {
         };
     }
 
-    /**
-     * Creating a staff account via the "Add Staff" modal.
-     * Permission: SUPER_ADMIN, ADMIN with adminLevel HIGH or MEDIUM.
-     * LOW-mode admins cannot create staff.
-     * Optionally accepts adminLevel when roleCode is 'ADMIN' (Super Admin or
-     * High-level Admin only).
-     */
     async createStaff({ firstName, middleInitial, lastName, suffix, email, username, password, roleCode = 'OFFICE_STAFF', adminLevel }, actingStaff) {
         if (!hasAdminLevel(actingStaff, 'MEDIUM')) {
             throw new Error('Your admin access level does not permit creating staff accounts.');
@@ -371,15 +344,6 @@ class UserService {
         return data;
     }
 
-    /**
-     * Toggles a staff member's account_status between ACTIVE and DISABLED.
-     * Permission rules:
-     *  - Target is ADMIN or SUPER_ADMIN → only SUPER_ADMIN may act.
-     *  - Target is OFFICE_STAFF:
-     *      - SUPER_ADMIN or ADMIN(HIGH) → unrestricted.
-     *      - ADMIN(MEDIUM) → only if they created this staff member.
-     *      - ADMIN(LOW) → not permitted at all.
-     */
     async updateStaffStatus(staffId, newStatus, reason, actingStaff) {
         if (!['ACTIVE', 'DISABLED'].includes(newStatus)) {
             throw new Error('Invalid status. Must be ACTIVE or DISABLED.');
@@ -426,9 +390,6 @@ class UserService {
         return updatedMember;
     }
 
-    /**
-     * Shared permission check for status changes. Throws if not permitted.
-     */
     _assertCanManageTarget(target, actingStaff) {
         const targetRole = target.roles?.code;
 
@@ -454,14 +415,6 @@ class UserService {
         throw new Error('You do not have permission to manage staff accounts.');
     }
 
-    /**
-     * Shared permission check for admin-access actions (promote, demote,
-     * change level). Rules:
-     *  - SUPER_ADMIN → always allowed.
-     *  - ADMIN(HIGH) → allowed on any non-super-admin target.
-     *  - ADMIN(MEDIUM) → allowed only on staff accounts they created.
-     *  - ADMIN(LOW) → never allowed.
-     */
     _assertCanManageAdminAccess(target, actingStaff) {
         if (actingStaff.roleCode === 'SUPER_ADMIN') return;
 
@@ -478,10 +431,6 @@ class UserService {
         }
     }
 
-    /**
-     * Sets or changes an Admin's mode. Super Admin always; Admin(HIGH) on
-     * any admin; Admin(MEDIUM) only on admins they created; Admin(LOW) never.
-     */
     async setAdminLevel(staffId, newLevel, actingStaff) {
         if (!['HIGH', 'MEDIUM', 'LOW'].includes(newLevel)) {
             throw new Error('Invalid admin level. Must be HIGH, MEDIUM, or LOW.');
@@ -521,11 +470,6 @@ class UserService {
         return data;
     }
 
-    /**
-     * Promotes an existing OFFICE_STAFF member to ADMIN with an initial level.
-     * Super Admin always; Admin(HIGH) on anyone; Admin(MEDIUM) only on staff
-     * they created; Admin(LOW) never.
-     */
     async promoteToAdmin(staffId, adminLevel, actingStaff) {
         if (!['HIGH', 'MEDIUM', 'LOW'].includes(adminLevel)) {
             throw new Error('Invalid admin level. Must be HIGH, MEDIUM, or LOW.');
@@ -581,11 +525,6 @@ class UserService {
         return data;
     }
 
-    /**
-     * Demotes an existing ADMIN back to OFFICE_STAFF, clearing their level.
-     * Super Admin always; Admin(HIGH) on anyone; Admin(MEDIUM) only on admins
-     * they created; Admin(LOW) never.
-     */
     async demoteToStaff(staffId, actingStaff) {
         if (useMock || !supabase) {
             const member = MOCK_STAFF.find((s) => s.id === staffId);
@@ -662,7 +601,6 @@ class UserService {
             const member = MOCK_STAFF.find((s) => s.id === staffId);
             if (!member) throw new Error('Staff member not found.');
             member.position = position;
-            // If member is a signatory, sync their position in the signatories table
             const fullName = composeFullName(member.first_name, member.middle_initial, member.last_name);
             const existing = MOCK_SIGNATORIES.find(s => s.name === fullName);
             if (existing) existing.position = position;
@@ -678,7 +616,6 @@ class UserService {
 
         if (error) throw error;
 
-        // If this staff is a signatory, sync their position in the signatories table
         if (data && data.is_signatory) {
             const fullName = composeFullName(data.first_name, data.middle_initial, data.last_name);
             await supabase
@@ -825,10 +762,7 @@ class UserService {
 
         return data ?? [];
     }
-    /**
-     * Returns all staff members ranked by the number of requests they have
-     * handled (encoded_by in the requests table).
-     */
+
     async getStaffPerformance(from, to) {
         if (useMock || !supabase) {
             return MOCK_STAFF
@@ -843,7 +777,6 @@ class UserService {
                 .sort((a, b) => b.requests - a.requests);
         }
 
-        // Build date-filtered requests query when a range is provided
         let requestsQuery = supabase
             .from('requests')
             .select('encoded_by')
@@ -851,7 +784,6 @@ class UserService {
         if (from) requestsQuery = requestsQuery.gte('request_date', from);
         if (to)   requestsQuery = requestsQuery.lte('request_date', to);
 
-        // Fetch active staff and date-filtered request counts in parallel
         const [{ data: staffRows }, { data: requestRows }] = await Promise.all([
             supabase
                 .from('staff')
@@ -861,7 +793,6 @@ class UserService {
             requestsQuery,
         ]);
 
-        // Count requests per staff id
         const countMap = {};
         for (const row of requestRows ?? []) {
             if (row.encoded_by) {

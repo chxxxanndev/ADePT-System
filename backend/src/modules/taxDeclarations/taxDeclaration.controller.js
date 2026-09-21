@@ -1,14 +1,10 @@
 import TaxDeclarationService from './taxDeclaration.service.js';
 
-/**
- * POST /api/tax-declarations
- * Create (or upsert) a Tax Declaration record for a given request.
- */
+
 export const createTaxDeclaration = async (req, res) => {
     try {
         const data = req.body;
 
-        // Basic validation
         if (!data.requestId) {
             return res.status(400).json({ error: 'requestId is required.' });
         }
@@ -19,7 +15,6 @@ export const createTaxDeclaration = async (req, res) => {
             return res.status(400).json({ error: 'ownerName is required.' });
         }
 
-        // Encoder's auth user ID comes from request body (will use auth middleware later)
         const staffAuthId = data.staffAuthId;
 
         const result = await TaxDeclarationService.saveTaxDeclaration(data, staffAuthId);
@@ -34,10 +29,6 @@ export const createTaxDeclaration = async (req, res) => {
     }
 };
 
-/**
- * GET /api/tax-declarations/:requestId
- * Fetch the Tax Declaration associated with a given request ID.
- */
 export const getTaxDeclaration = async (req, res) => {
     try {
         const { requestId } = req.params;
@@ -61,10 +52,9 @@ export const getTaxDeclaration = async (req, res) => {
 
 export const updateDraft = async (req, res) => {
     try {
-        const { id } = req.params; // In Tax Dec, this might be the requestId or primary ID
+        const { id } = req.params; 
         const updateData = req.body;
 
-        // Assuming your service has an update method:
         const updatedRecord = await TaxDeclarationService.updateDraft(id, updateData);
 
         return res.status(200).json({ message: 'Draft updated successfully', data: updatedRecord });

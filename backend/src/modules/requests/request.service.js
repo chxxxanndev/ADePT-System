@@ -2,7 +2,6 @@ import { randomInt } from 'node:crypto';
 import { supabase } from '../../config/supabase.js';
 
 class RequestService {
-    // Helper to fetch prefix from DB
     async _getPrefixForDocType(docTypeId) {
         if (!docTypeId) return null;
         try {
@@ -14,10 +13,6 @@ class RequestService {
         }
     }
 
-    // Generates Prefix-Year-Random (e.g., NLH-2026-000123), zero-padded to
-    // six digits to match the DB's generate_control_number() format, with a
-    // uniqueness retry so two requests in the same prefix-year can never
-    // collide on the same reference number.
     async _generateReferenceNumber(documentTypeIds) {
         let prefix = 'REF';
         if (documentTypeIds && documentTypeIds.length > 0) {
@@ -39,7 +34,6 @@ class RequestService {
         throw new Error('Could not generate a unique reference number. Please try again.');
     }
 
-    // Helper to sync many-to-many relationship for document types
     async _syncRequestDocuments(requestId, documentTypeIds) {
         const docTypeIds = documentTypeIds || [];
         if (!docTypeIds.length) {
@@ -47,10 +41,6 @@ class RequestService {
             return;
         }
 
-        // FIX: upsert instead of delete-and-reinsert. Deleting every link on
-        // each update regenerated the trigger-assigned document_number and
-        // dropped the encoded_tax_declaration_id linkage set by the tax
-        // declaration form — silently corrupting reprints and edits.
         const { data: existing, error: fetchErr } = await supabase
             .from('request_documents')
             .select('id, document_type_id')
@@ -110,25 +100,20 @@ class RequestService {
         };
     }
 
-    // Change this name in your BACKEND service file
-    // Inside your Backend RequestService class
     async createRequest(formData, authUserId) {
         let staffId = formData.encodedBy;
 
-        // Fallback if staffId is missing
         if (!staffId && authUserId) {
             const { data: staff } = await supabase.from('staff').select('id').eq('auth_user_id', authUserId).single();
             if (staff) staffId = staff.id;
         }
 
-        // FIX: Allow all IDs (especially those starting with 'dt')
         const validDocTypeIds = (formData.documentTypeIds || []).filter(id => !!id);
 
         if (validDocTypeIds.length === 0) {
             throw new Error("Please select at least one Document Type.");
         }
 
-        // Reference Number Logic
         const uniqueRef = (formData.referenceNumber && !formData.referenceNumber.includes('XXXX'))
             ? formData.referenceNumber
             : await this._generateReferenceNumber(validDocTypeIds);
@@ -151,7 +136,6 @@ class RequestService {
 
         if (reqError) throw reqError;
 
-        // Link documents
         if (validDocTypeIds.length) {
             await this._syncRequestDocuments(request.id, validDocTypeIds);
         }
@@ -160,7 +144,6 @@ class RequestService {
 
     async getRequests() {
         try {
-            // UPDATED: Added the join to the staff table for 'encoded_by'
             const { data: requests, error: reqErr } = await supabase
                 .from('requests')
                 .select('*, staff:encoded_by(first_name, last_name)')
@@ -180,8 +163,6 @@ class RequestService {
                 request_documents: (docLinks || []).filter(d => d.request_id === r.id)
             }));
         } catch (err) {
-            // Surface DB failures instead of silently returning an empty
-            // list — an empty list hides outages as "no requests".
             throw err;
         }
     }
@@ -205,13 +186,7 @@ class RequestService {
         };
     }
 
-    /**
-     * Returns requests shaped to match the frontend's Transaction type.
-     * Combines logic from Code 1 with additional schema safety.
-     */
     async getTransactionRegistry(from, to) {
-        // Optional date-range filtering (from/to as YYYY-MM-DD), honored
-        // when the frontend sends them via GET /api/requests/registry.
         let requestsQuery = supabase
             .from('requests')
             .select('*, staff:encoded_by(first_name, last_name)');
@@ -247,10 +222,6 @@ class RequestService {
             effectivity_year, cancelled_td_number, memoranda, notes,
             assessor_name, assessor_title
         `),
-            // Full column set — previously only id/encoded_tax_declaration_id/row_order/
-            // classification_id/area were fetched, silently dropping actual_use_id,
-            // actual_use_other_text, area_unit, per-row market_value/assessment_level/
-            // assessed_value, and kind_of_property.
             supabase.from('encoded_assessment_rows').select(`
             id, encoded_tax_declaration_id, row_order, classification_id,
             actual_use_id, actual_use_other_text, area, area_unit,
@@ -265,10 +236,8 @@ class RequestService {
 
         if (reqErr) throw reqErr;
 
-        // UUID pattern check
         const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(v || '');
 
-        // Resolve barangay UUID → "Barangay, Municipality" label
         const resolveLocation = (raw) => {
             if (!raw || !isUuid(raw)) return raw || '';
             const barangay = (barangays || []).find((b) => b.id === raw);
@@ -279,7 +248,6 @@ class RequestService {
 
         const toNum = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
 
-        // ── lookup maps for the new property sources ──
         const docsByRequestId = new Map();
         (docLinks || []).forEach((d) => {
             const list = docsByRequestId.get(d.request_id) || [];
@@ -320,8 +288,6 @@ class RequestService {
                 list.push(row);
                 assessmentRowsByTdId.set(row.encoded_tax_declaration_id, list);
             });
-        // classification_id and actual_use_id both reference lookup_values, so
-        // the same id→label map serves both.
         const lookupById = new Map((lookupValues || []).map((l) => [l.id, l]));
 
         const landholdingCertByRequestId = new Map();
@@ -339,7 +305,6 @@ class RequestService {
 
         const noLandholdingRequestIds = new Set((noLandholdingCerts || []).map((c) => c.request_id));
 
-        // Used to resolve `authorized_signatory` (often a staff uuid) into a display name.
         const staffById = new Map((staffRows || []).map((s) => [s.id, `${s.first_name} ${s.last_name}`]));
 
         const STATUS_MAP = {
@@ -359,16 +324,13 @@ class RequestService {
         return (requests || []).map((r) => {
             const reqDocs = docsByRequestId.get(r.id) || [];
 
-            // Live document types (id + name + whether it needs a tax dec),
-            // instead of hardcoded strings.
             const documentEntries = reqDocs.map((d) => ({
                 id: d.id,
                 documentTypeId: d.document_type_id,
                 name: d.document_types?.name || 'Document',
                 requiresTaxDeclaration: !!d.document_types?.requires_tax_declaration,
-                reprintCount: reprintCountByParentDocType.get(`${r.id}::${d.document_type_id}`) || 0,   // NEW
+                reprintCount: reprintCountByParentDocType.get(`${r.id}::${d.document_type_id}`) || 0,   
             }));
-            // ── Resolve Property Information ──
             let property = {
                 source: 'UNKNOWN',
                 taxDeclarationNo: '',
@@ -406,20 +368,16 @@ class RequestService {
                 assessmentRows: [],
             };
 
-            // Prefer the tax declaration a specific requested document points to
-            // (request_documents.encoded_tax_declaration_id); fall back to any
-            // tax dec on this request.
             const directTdId = reqDocs.map((d) => d.encoded_tax_declaration_id).find(Boolean);
             const td = (directTdId && taxDecById.get(directTdId)) || taxDecByRequestId.get(r.id);
 
             if (td) {
                 const rows = assessmentRowsByTdId.get(td.id) || [];
-                const firstRow = rows[0]; // used only for the top-level classification/area summary fields
+                const firstRow = rows[0]; 
                 const classification = firstRow
                     ? (lookupById.get(firstRow.classification_id)?.label || firstRow.classification_id || '')
                     : '';
 
-                // Full row list — no longer dropped after the first row.
                 const assessmentRowEntries = rows.map((row) => ({
                     id: row.id,
                     rowOrder: row.row_order,
@@ -505,9 +463,9 @@ class RequestService {
                         titleNumber: first?.title_number || '',
                         location: first?.location_of_property || property.location,
                         area: first?.area || '',
-                        assessedValue: rows.length ? totalAssessedValue : null,   // ← use the sum
+                        assessedValue: rows.length ? totalAssessedValue : null, 
                         ownerOnRecord: r.declarant_name,
-                        landholdingRows: landholdingRowEntries,                   // ← ADD THIS LINE
+                        landholdingRows: landholdingRowEntries,                
                     };
                 } else if (noLandholdingRequestIds.has(r.id)) {
                     property = {
@@ -545,28 +503,12 @@ class RequestService {
                 property,
                 requestedDocuments: documentEntries,
                 dateRequested: r.request_date,
-                // Accurate timestamps for the UI. request_date is a plain
-                // `date` column (no time), so the real "requested" time comes
-                // from created_at (set by the DB at insert), and released_at
-                // is the full timestamptz recorded when status flips to
-                // RELEASED — both are surfaced alongside the date-only fields
-                // so the UI can show "MM/DD/YYYY hh:mm AM/PM" for both.
                 requestedAt: r.created_at || null,
-                // released_at is a timestamptz (e.g. "2026-01-15T08:23:00.000Z"),
-                // trimmed to just the date portion so it displays consistently
-                // alongside dateRequested (a plain `date` column). Set once by
-                // whatever handler flips status → Released via released_by, so
-                // (unlike updated_at) it won't drift on later unrelated edits.
                 dateReleased: r.released_at ? r.released_at.split('T')[0] : null,
                 releasedAt: r.released_at || null,
                 releasedBy: resolvedReleasedBy || null,
                 assignedStaff: r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : 'Unassigned',
                 status: STATUS_MAP[r.status] || 'Pending',
-                // Raw backend status (e.g. PENDING_PAYMENT, DRAFT, PAID) —
-                // the mapped label above collapses several raw statuses into
-                // one word ("Pending" covers both DRAFT and PENDING_PAYMENT),
-                // so consumers that need to count a specific stage exactly
-                // (e.g. the Pending Payments queue) read this instead.
                 statusRaw: r.status,
                 payment: {
                     orNumber: r.or_number || null,
@@ -597,7 +539,6 @@ class RequestService {
     async updateRequest(id, formData) {
         const updateData = {};
 
-        // Handle field mappings from both codes
         if (formData.status) updateData.status = formData.status;
         if (formData.declarantName || formData.declarant_name) {
             updateData.declarant_name = formData.declarantName || formData.declarant_name;
@@ -611,7 +552,6 @@ class RequestService {
         if (formData.propertyLocation !== undefined) updateData.property_location = formData.propertyLocation;
         if (formData.authRequired !== undefined) updateData.authorization_required = formData.authRequired;
 
-        // Code 2 logic: Refresh ref number if it's still a placeholder
         if (formData.documentTypeIds?.length && (formData.referenceNumber?.includes('XXXX') || !formData.referenceNumber)) {
             updateData.reference_number = await this._generateReferenceNumber(formData.documentTypeIds);
         }
@@ -628,9 +568,6 @@ class RequestService {
         }
 
         const { data, error } = await supabase.from('requests').update(updateData).eq('id', id).select().single();
-        // The archive_reason/archived_at columns may not exist yet if the
-        // archive migration hasn't been applied — retry without them so the
-        // archive flow keeps working until the migration runs.
         if (error && error.code === '42703') {
             delete updateData.archive_reason;
             delete updateData.archived_at;
@@ -645,7 +582,6 @@ class RequestService {
         }
         if (error) throw error;
 
-        // Sync document type links
         if (formData.documentTypeIds !== undefined) {
             await this._syncRequestDocuments(id, formData.documentTypeIds);
         }
@@ -654,7 +590,6 @@ class RequestService {
     }
 
     async forwardRequest(requestId, { recipientStaffId, note, actorStaffId }) {
-        // 1. Update the request
         const { data, error } = await supabase
             .from('requests')
             .update({
@@ -669,12 +604,10 @@ class RequestService {
 
         if (error) throw error;
 
-        // 2. Format the notification message
         const message = note
             ? `forwarded a request to you — "${note}"`
             : 'forwarded a request to you';
 
-        // 3. Insert the notification
         const { error: notifErr } = await supabase.from('notifications').insert([{
             request_id: requestId,
             actor_id: actorStaffId,
@@ -741,17 +674,13 @@ class RequestService {
         return data;
     }
 
-    // Inside your RequestService class in the backend file
-
     async updateStatus(id, updateData) {
         const { data, error } = await supabase
             .from('requests')
             .update({
-                // Match the UI request to your DB columns
                 status: updateData.status,
                 authorized_signatory: updateData.releasedBy,
                 payment_date: updateData.releasedAt,
-                // You can also store the specific signatory IDs if you have columns for them
             })
             .eq('id', id)
             .select()
@@ -761,10 +690,7 @@ class RequestService {
         return data;
     }
 
-    // Inside RequestService.js
-
     async createReprint(originalRequestId, docId) {
-        // 1. Get the document link
         const { data: link, error: linkErr } = await supabase
             .from('request_documents')
             .select('document_type_id, document_types(name, prefix)')
@@ -773,7 +699,6 @@ class RequestService {
 
         if (linkErr) throw new Error(`Document Link not found: ${linkErr.message}`);
 
-        // 2. Get the original request
         const { data: original, error: origErr } = await supabase
             .from('requests')
             .select('*')
@@ -784,7 +709,6 @@ class RequestService {
 
         const rootId = original.parent_id || original.id;
 
-        // 3. Count siblings for the -R1, -R2 suffix
         const { data: siblings } = await supabase
             .from('requests')
             .select('id')
@@ -794,7 +718,6 @@ class RequestService {
         const baseRef = (original.reference_number || '').replace(/-R\d+$/, '');
         const newRef = `${baseRef}-R${reprintNumber}`;
 
-        // 4. Create the new request record
         const { data: reprint, error: insErr } = await supabase
             .from('requests')
             .insert([{
@@ -814,15 +737,8 @@ class RequestService {
             .single();
 
         if (insErr) throw insErr;
-
-        // 5. Link the specific document being reprinted
         await this._syncRequestDocuments(reprint.id, [link.document_type_id]);
 
-        // 6. Copy underlying data based on prefix. Document-type prefixes
-        // come from the document_types table; accept both the legacy
-        // (LH/NLH) and current schema (CLH/CNL) spellings so reprints of
-        // landholding / no-landholding certificates never silently skip
-        // the deep-copy (which left the reprint with no data to print).
         const docPrefix = link.document_types?.prefix;
         const isLandholding = docPrefix === 'LH' || docPrefix === 'CLH';
         const isTaxDeclaration = docPrefix === 'TD' || docPrefix === 'CTC';
@@ -832,7 +748,6 @@ class RequestService {
         } else if (isTaxDeclaration) {
             await this._copyTaxDeclaration(originalRequestId, reprint.id);
         } else if (isNoLandholding) {
-            // Use the updated fix for NLH from previous step
             await this._copyNoLandholdingCertificate(originalRequestId, reprint.id);
         }
 
@@ -840,7 +755,6 @@ class RequestService {
     }
 
     async _copyNoLandholdingCertificate(originalRequestId, newRequestId) {
-        // We use .maybeSingle() instead of .single() to prevent crashing if record is missing
         const { data: origCert, error: fetchErr } = await supabase
             .from('encoded_no_landholding_certificates')
             .select('*')
@@ -849,8 +763,6 @@ class RequestService {
 
         if (fetchErr) throw fetchErr;
 
-        // If the original certificate doesn't exist yet, we can't copy it. 
-        // We just create a fresh link for the new request.
         if (!origCert) {
             await supabase.from('encoded_no_landholding_certificates').insert([{ request_id: newRequestId }]);
             return;
@@ -864,9 +776,6 @@ class RequestService {
         if (insErr) throw insErr;
     }
 
-    // Deep-copies an encoded_landholding_certificates row (+ its property rows)
-    // from the original request onto the new reprint request, so PaymentDetails
-    // can regenerate an identical PDF without depending on the original record.
     async _copyLandholdingCertificate(originalRequestId, newRequestId) {
         const { data: origCert, error: certErr } = await supabase
             .from('encoded_landholding_certificates')
@@ -905,8 +814,6 @@ class RequestService {
         }
     }
 
-    // Same idea for Tax Declarations — copies the encoded_tax_declarations row
-    // AND its encoded_assessment_rows.
     async _copyTaxDeclaration(originalRequestId, newRequestId) {
         const { data: origTd, error: tdErr } = await supabase
             .from('encoded_tax_declarations')
@@ -960,15 +867,6 @@ class RequestService {
         if (error) throw error;
         return data;
     }
-
-    // ── Amend ─────────────────────────────────────────────────────────────
-
-    /**
-     * Clones a voided (or any) request into a brand-new, fully editable
-     * DRAFT request with a new control number, so staff can walk back
-     * through the normal intake + document-fill flow with everything
-     * pre-populated. Reuses the same deep-copy helpers createReprint() uses.
-     */
 
     async amendRequest(originalRequestId, staffId) {
         if (!staffId) {
@@ -1042,14 +940,6 @@ class RequestService {
         };
     }
 
-    /**
-     * Reads back whatever document-specific data already exists for a
-     * request (used right after amendRequest's deep-copy, so the intake →
-     * document-fill forms can open pre-populated instead of blank).
-     *
-     * ⚠️ Column names for LH/NLH below are inferred from how the frontend
-     * calls saveCertificate() — verify against your actual schema.
-     */
     async getDocumentDataByRequestId(requestId) {
         const [{ data: td }, { data: lhCert }, { data: nlhCert }] = await Promise.all([
             supabase.from('encoded_tax_declarations').select('*').eq('request_id', requestId).maybeSingle(),
@@ -1147,14 +1037,10 @@ class RequestService {
     }
 
     async deleteRequest(id) {
-        // request_documents usually has ON DELETE CASCADE, if not, manual deletion is needed
         await supabase.from('requests').delete().eq('id', id);
         return { id };
     }
 
-    /**
-     * Aggregates real-time dashboard metrics (access requests, transaction status breakdown, document type distribution) from Supabase.
-     */
     async getDashboardMetrics(from, to) {
         let requestsQuery = supabase
             .from('requests')
@@ -1178,25 +1064,12 @@ class RequestService {
             return staffById.get(raw) || raw;
         };
 
-        // Transaction Summary Counts
         const totalCount = allReqs.length;
         const pendingCount = allReqs.filter(r => ['DRAFT', 'PENDING', 'SUBMITTED'].includes(r.status)).length;
         const verifiedCount = allReqs.filter(r => ['PAID', 'FOR_PAYMENT', 'IN_PROGRESS'].includes(r.status)).length;
         const releasedCount = allReqs.filter(r => ['RELEASED', 'APPROVED'].includes(r.status)).length;
         const voidCount = allReqs.filter(r => ['VOID', 'CANCELLED', 'REJECTED'].includes(r.status)).length;
 
-        // NEW — feeds the "Document Request Queue" summary cards on the
-        // Overview page (Request Today / Processing / Approved Documents /
-        // Disapproved Documents). Kept as separate counts from
-        // pendingCount/verifiedCount above, which mix several statuses
-        // together for the (currently unused by the frontend) accessRequests
-        // card set below — these two are purpose-built for the new cards.
-        //   - requestedTodayCount: any request created/dated today, regardless
-        //     of status.
-        //   - processingCount: requests actively being worked (IN_PROGRESS).
-        //   - "Approved Documents" reuses releasedCount, "Disapproved
-        //     Documents" reuses voidCount — same status buckets, just
-        //     surfaced under the labels shown in the reference design.
         const today = new Date();
         const isToday = (value) => {
             if (!value) return false;
@@ -1207,15 +1080,11 @@ class RequestService {
                 && date.getDate() === today.getDate();
         };
 
-        // When a date range is selected, "Request Today" becomes "requests
-        // in the selected range" — the SQL query already filtered to it.
-        // Without a range, fall back to counting only today's requests.
         const requestedTodayCount = (from && to)
             ? allReqs.length
             : allReqs.filter(r => isToday(r.request_date || r.created_at)).length;
         const processingCount = allReqs.filter(r => ['IN_PROGRESS'].includes(r.status)).length;
 
-        // Document Distribution
         const validReqIds = new Set(allReqs.map(r => r.id));
         const docCounts = {};
         for (const link of docLinks || []) {
@@ -1236,7 +1105,6 @@ class RequestService {
             color: COLORS[index % COLORS.length],
         }));
 
-        // Access Requests Metrics Card Data
         const accessRequests = [
             { id: '1', title: 'Total Transactions', value: totalCount, change: '+100%', isPositive: true, variant: 'blue' },
             { id: '2', title: 'Pending Approval', value: pendingCount, change: 'Active', isPositive: true, variant: 'gold' },
@@ -1244,10 +1112,6 @@ class RequestService {
             { id: '4', title: 'Total Released', value: releasedCount, change: 'Completed', isPositive: true, variant: 'red' },
         ];
 
-        // Request Queue (Top pending/in-progress items) — RAW per-request
-        // rows. This is intentionally NOT the shape the Overview summary
-        // cards need; it's meant for a detail list/table. The Overview
-        // widget should be built from `summaryCounts` below instead.
         const STATUS_MAP = {
             DRAFT: 'Pending',
             PENDING_PAYMENT: 'Pending',
@@ -1318,10 +1182,6 @@ class RequestService {
         };
     }
 
-    /**
-     * Aggregates reports and analytics dataset directly from Supabase.
-     * Optional `from`/`to` (YYYY-MM-DD) restrict rows to a request-date range.
-     */
     async getReportsData(from, to) {
         let requestsQuery = supabase
             .from('requests')
@@ -1337,7 +1197,6 @@ class RequestService {
 
         const allReqs = requests || [];
 
-        // ── helper maps ──
         const docCountByRequest = new Map();
         (docLinks || []).forEach((d) => {
             docCountByRequest.set(d.request_id, (docCountByRequest.get(d.request_id) || 0) + 1);
@@ -1352,7 +1211,6 @@ class RequestService {
         const reprintCount = allReqs.filter(r => r.request_type === 'REPRINT').length;
         const amendedCount = allReqs.filter(r => !!r.amended_from_id).length;
 
-        // ── revenue ──
         const FEE_PER_DOC = 40;
         let totalFees = 0;
         let totalCollected = 0;
@@ -1381,7 +1239,6 @@ class RequestService {
             });
         }
 
-        // ── void reason breakdown ──
         const voidReasonCounts = {};
         allReqs.forEach((r) => {
             if (r.status !== 'VOID' && r.status !== 'VOIDED' && r.status !== 'CANCELLED') return;
@@ -1395,7 +1252,6 @@ class RequestService {
             .map(([reason, count]) => ({ reason, count }))
             .sort((a, b) => b.count - a.count);
 
-        // ── activity buckets (by hour of day / day of week, from created_at) ──
         const hourly = Array(24).fill(0);
         const byDay = Array(7).fill(0);
         allReqs.forEach((r) => {
@@ -1405,7 +1261,6 @@ class RequestService {
             byDay[d.getDay()] += 1;
         });
 
-        // ── staff performance ──
         const staffStats = {};
         allReqs.forEach((r) => {
             const encoder = r.staff ? `${r.staff.first_name} ${r.staff.last_name}` : null;
@@ -1445,10 +1300,6 @@ class RequestService {
             CANCELLED: 'Cancelled',
         };
 
-        // Best-available proxy for "when did the request enter its current
-        // status": released_at for released, pending_payment_at for the
-        // payment step, otherwise updated_at. There is no dedicated
-        // status-changed column in the schema.
         const statusAtFor = (r) => {
             if (r.status === 'RELEASED' && r.released_at) return r.released_at;
             if (r.status === 'PENDING_PAYMENT' && r.pending_payment_at) return r.pending_payment_at;

@@ -1,13 +1,9 @@
-// backend/src/modules/landholding/landholding.service.js
 import { supabase, useMock } from '../../config/supabase.js';
 import { randomUUID } from 'crypto';
 
 const mockStore = new Map();
 
 class LandholdingService {
-    /**
-     * Helper to map property rows so they satisfy both camelCase and snake_case UI/PDF needs.
-     */
     _normalizePropertyRow(row) {
         return {
             ...row,
@@ -26,15 +22,11 @@ class LandholdingService {
         };
     }
 
-    /**
-     * Saves or updates a Landholding Certificate and syncs its property rows.
-     */
     async saveLandholdingCertificate(data, staffAuthId, status = 'DRAFT') {
         if (useMock) {
             return this._mockSave(data, staffAuthId, status);
         }
 
-        // 1. Get the internal Staff ID from Auth ID
         const { data: staff, error: staffErr } = await supabase
             .from('staff')
             .select('id')
@@ -43,7 +35,6 @@ class LandholdingService {
 
         if (staffErr || !staff) throw new Error('Staff profile not found.');
 
-        // 2. Prepare payload
         const certPayload = {
             request_id: data.requestId,
             declarant_name: data.declarantName,
@@ -55,7 +46,6 @@ class LandholdingService {
             encoded_by: staff.id,
         };
 
-        // 3. Check for existing certificate for this request
         const { data: existing } = await supabase
             .from('encoded_landholding_certificates')
             .select('id')
@@ -82,7 +72,6 @@ class LandholdingService {
             cert = inserted;
         }
 
-        // 4. Sync Property Rows (Clear existing rows and re-insert)
         const propertyInput = data.propertyRows || data.properties || [];
         if (Array.isArray(propertyInput)) {
             await supabase
@@ -110,7 +99,6 @@ class LandholdingService {
             }
         }
 
-        // 5. Sync Signatory back to requests if provided
         if (data.signatory1Name) {
             await supabase
                 .from('requests')
@@ -121,13 +109,9 @@ class LandholdingService {
         return cert;
     }
 
-    /**
-     * Fetches a certificate by ID with property rows, request info, and signatory details.
-     */
     async getLandholdingById(id) {
         if (useMock) return mockStore.get(id) ?? null;
 
-        // 1. Fetch certificate and property rows
         const { data: cert, error: certErr } = await supabase
             .from('encoded_landholding_certificates')
             .select(`
@@ -139,7 +123,6 @@ class LandholdingService {
 
         if (certErr) throw certErr;
 
-        // 2. Fetch request info
         const { data: request, error: reqErr } = await supabase
             .from('requests')
             .select('or_number, payment_date, authorized_signatory, requested_by_name, property_location')
@@ -148,7 +131,6 @@ class LandholdingService {
 
         if (reqErr) throw reqErr;
 
-        // 3. Fetch signatory details
         let signatoryDetails = null;
         if (request?.authorized_signatory) {
             const { data: sig } = await supabase
@@ -172,13 +154,10 @@ class LandholdingService {
                   }
                 : null,
             properties: sortedProperties,
-            propertyRows: sortedProperties, // Map both property and propertyRows for PDF component compatibility
+            propertyRows: sortedProperties,
         };
     }
 
-    /**
-     * Fetches certificate linked to a Request ID.
-     */
     async getLandholdingCertificateByRequestId(requestId) {
         if (useMock) {
             const record = [...mockStore.values()].find((r) => r.request_id === requestId);
@@ -228,11 +207,7 @@ class LandholdingService {
         return data;
     }
 
-    /**
-     * Updates an existing certificate draft and syncs property rows.
-     */
     async updateDraft(id, formData) {
-        // 1. Update main certificate record
         const { data: cert, error: certErr } = await supabase
             .from('encoded_landholding_certificates')
             .update({
@@ -248,7 +223,6 @@ class LandholdingService {
 
         if (certErr) throw certErr;
 
-        // 2. Sync property rows
         const properties = formData.properties || formData.propertyRows || [];
         if (Array.isArray(properties)) {
             await supabase
@@ -276,7 +250,6 @@ class LandholdingService {
             }
         }
 
-        // 3. Update requested signatory in requests table if provided
         if (formData.signatory1Name && cert.request_id) {
             await supabase
                 .from('requests')
@@ -284,7 +257,6 @@ class LandholdingService {
                 .eq('id', cert.request_id);
         }
 
-        // 4. Fetch updated properties to return back
         const { data: refreshedProps, error: refreshErr } = await supabase
             .from('encoded_landholding_property_rows')
             .select('*')
@@ -302,7 +274,6 @@ class LandholdingService {
         };
     }
 
-    // --- MOCK LOGIC ---
     _mockSave(data, staffAuthId, status) {
         const id = randomUUID();
         const record = {

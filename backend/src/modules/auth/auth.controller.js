@@ -33,9 +33,6 @@ export const login = async (req, res) => {
 
     const result = await AuthService.loginUser({ username, password });
 
-    // Best-effort — a failed audit write should never block a successful
-    // login. result.user.staffId is already resolved by loginUser(), so
-    // no extra lookup is needed here.
     AuditLogService
       .createEntry({
         actorStaffId: result.user.staffId,
@@ -46,9 +43,6 @@ export const login = async (req, res) => {
 
     res.status(200).json({ message: 'Login successful.', ...result });
   } catch (error) {
-    // Special case: correct credentials, but the account is disabled and
-    // still within the 7-day reactivation window. Not a hard failure —
-    // the frontend uses this to show the "log in again?" confirmation.
     if (error.reactivatable) {
       return res.status(200).json({
         reactivatable: true,

@@ -7,10 +7,6 @@ export const getFormMetadata = async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
-/**
- * RESTORED — required by request.routes.js (GET /:id) but missing from the
- * version pasted into this conversation.
- */
 export const getRequestById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -36,18 +32,7 @@ export const getAllRequests = async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
-/**
- * NEW: GET /api/requests/registry
- * Returns requests reshaped to match the frontend's Transaction type,
- * for the Transaction Registry page. See RequestService.getTransactionRegistry()
- * for the documented gaps (property info, payment amounts, generated
- * documents, and activity timeline are stubbed until schema work lands).
- *
- * NOTE: not yet added to request.routes.js — add this line there:
- *   router.get('/registry', requireAuth, getTransactionRegistry);
- * (register it above the '/:id' route so '/registry' isn't swallowed by
- * the ':id' param matcher)
- */
+
 export const getTransactionRegistry = async (req, res) => {
     try {
         const { from, to } = req.query;
@@ -102,7 +87,7 @@ export const forwardRequest = async (req, res) => {
         const result = await RequestService.forwardRequest(id, {
             recipientStaffId: recipientStaffId || targetStaffId,
             note,
-            actorStaffId: req.staffId   // ← trustworthy, server-verified, no client involvement needed
+            actorStaffId: req.staffId  
         });
         res.status(200).json({ message: 'Request forwarded.', request: result });
     } catch (error) {
@@ -127,7 +112,7 @@ export const markAsReleased = async (req, res) => {
 
 export const createReprint = async (req, res) => {
     try {
-        const { id, docId } = req.params; // Ensure these names match the route :id and :docId
+        const { id, docId } = req.params; 
         const result = await RequestService.createReprint(id, docId);
         res.status(200).json(result);
     } catch (error) {

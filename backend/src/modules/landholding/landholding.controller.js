@@ -1,10 +1,6 @@
 import landholdingService from './landholding.service.js';
 
 class LandholdingController {
-    /**
-     * POST /api/landholding
-     * Saves or creates a new landholding certificate draft/submission.
-     */
     async save(req, res) {
         try {
             const data = req.body;
@@ -29,10 +25,6 @@ class LandholdingController {
         }
     }
 
-    /**
-     * GET /api/landholding/:id
-     * Fetches full certificate data by Certificate UUID.
-     */
     async getById(req, res) {
         try {
             const { id } = req.params;
@@ -48,10 +40,6 @@ class LandholdingController {
         }
     }
 
-    /**
-     * GET /api/landholding/request/:requestId
-     * Fetches certificate details linked to a Request ID.
-     */
     async getByRequestId(req, res) {
         try {
             const { requestId } = req.params;
@@ -67,10 +55,6 @@ class LandholdingController {
         }
     }
 
-    /**
-     * PUT /api/landholding/:id/edit-draft
-     * Updates an existing certificate draft.
-     */
     async updateDraft(req, res) {
         try {
             const { id } = req.params;

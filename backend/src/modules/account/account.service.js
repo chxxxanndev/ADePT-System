@@ -30,8 +30,6 @@ class AccountService {
     }
 
     async updateProfile(authUserId, { fullName, username, position, suffix }) {
-        // Parse "First M. Last": if the second token is a single letter
-        // (with optional period), treat it as the middle initial.
         const tokens = fullName.trim().split(/\s+/);
         let firstName = tokens[0] || '';
         let middleInitial = null;
@@ -81,8 +79,7 @@ class AccountService {
 
     async uploadPhoto(authUserId, file) {
         const ext = file.originalname.split('.').pop();
-        const path = `${authUserId}/avatar.${ext}`; // fixed name per user — upsert replaces the old file instead of piling up new ones
-
+        const path = `${authUserId}/avatar.${ext}`; 
         const { error: uploadError } = await supabaseAdmin.storage
             .from(AVATAR_BUCKET)
             .upload(path, file.buffer, { contentType: file.mimetype, upsert: true, cacheControl: '3600' });
@@ -135,9 +132,6 @@ class AccountService {
         return { message: 'Password updated successfully.' };
     }
 
-    // NOTE: does NOT ban at the Supabase Auth level — see auth.service.js
-    // loginUser() for why (the 7-day reactivation flow needs the password
-    // check to still succeed for a disabled account).
     async setAccountStatus(authUserId, disabled, reason = 'Disabled by account holder') {
         const { error } = await supabaseAdmin
             .from('staff')

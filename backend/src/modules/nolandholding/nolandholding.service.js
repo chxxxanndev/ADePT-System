@@ -23,7 +23,6 @@ class NoLandholdingService {
             encoded_by: staff.id,
         };
 
-        // Check if one already exists for this request to update, otherwise insert
         const { data: existing } = await supabase
             .from('encoded_no_landholding_certificates')
             .select('id')
@@ -60,7 +59,6 @@ class NoLandholdingService {
         if (certErr) throw certErr;
         if (!cert) return null;
 
-        // Fetch expanded request details needed for PDF generation
         const { data: request, error: reqErr } = await supabase
             .from('requests')
             .select('requested_by_name, property_location, or_number, payment_date, authorized_signatory, reference_number')
@@ -69,7 +67,6 @@ class NoLandholdingService {
 
         if (reqErr) throw reqErr;
 
-        // Fetch signatory info if an authorized signatory name exists on the request
         let signatoryDetails = null;
         if (request?.authorized_signatory) {
             const { data: sig } = await supabase

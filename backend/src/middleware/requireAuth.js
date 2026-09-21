@@ -30,9 +30,6 @@ export async function requireAuth(req, res, next) {
         if (result.error) throw result.error;
         staffMember = result.data;
     } catch (err) {
-        // A throwing query here used to reject the async middleware, which
-        // Express 4 never catches — the request hung and produced an
-        // unhandled rejection. Fail fast with a clear 503 instead.
         console.error('❌ staff lookup failed:', err.message || err);
         return res.status(503).json({ error: 'Authentication service unavailable. Please try again later.' });
     }
@@ -40,9 +37,6 @@ export async function requireAuth(req, res, next) {
     if (!staffMember) return res.status(403).json({ error: 'Staff record not found' });
     if (staffMember.account_status !== 'ACTIVE') return res.status(403).json({ error: 'Account is not active' });
 
-    // All three conventions populated — every existing controller across
-    // the app (req.user.id, req.authUserId, req.staffId) keeps working
-    // unchanged, regardless of which router file originally imported it.
     req.user = user;
     req.authUserId = user.id;
     req.staffId = staffMember.id;

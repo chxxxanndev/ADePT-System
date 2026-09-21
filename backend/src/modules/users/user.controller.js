@@ -1,8 +1,5 @@
 import UserService from './user.service.js';
 
-/**
- * GET /api/users/staff
- */
 export const getAllStaff = async (req, res) => {
     try {
         const staff = await UserService.getAllStaff();
@@ -12,9 +9,7 @@ export const getAllStaff = async (req, res) => {
     }
 };
 
-/**
- * GET /api/users/account-requests
- */
+
 export const getAccountRequests = async (req, res) => {
     try {
         const requests = await UserService.getAccountRequests();
@@ -24,9 +19,6 @@ export const getAccountRequests = async (req, res) => {
     }
 };
 
-/**
- * PATCH /api/users/account-requests/:id/decision
- */
 export const decideAccountRequest = async (req, res) => {
     try {
         const { id } = req.params;
@@ -53,9 +45,6 @@ export const decideAccountRequest = async (req, res) => {
     }
 };
 
-/**
- * POST /api/users/staff
- */
 export const createStaff = async (req, res) => {
     try {
         const { firstName, middleInitial, lastName, suffix, email, username, password, roleCode, adminLevel } = req.body;
@@ -88,10 +77,6 @@ export const createStaff = async (req, res) => {
     }
 };
 
-/**
- * PATCH /api/users/staff/:id/status
- * Body: { status: 'ACTIVE' | 'DISABLED', reason?: string }
- */
 export const updateStaffStatus = async (req, res) => {
     try {
         const { id } = req.params;
@@ -116,11 +101,6 @@ export const updateStaffStatus = async (req, res) => {
     }
 };
 
-/**
- * PATCH /api/users/staff/:id/admin-level
- * Body: { adminLevel: 'HIGH' | 'MEDIUM' | 'LOW' }
- * Super Admin only.
- */
 export const setAdminLevel = async (req, res) => {
     try {
         const { id } = req.params;
@@ -145,11 +125,6 @@ export const setAdminLevel = async (req, res) => {
     }
 };
 
-/**
- * PATCH /api/users/staff/:id/promote-to-admin
- * Body: { adminLevel: 'HIGH' | 'MEDIUM' | 'LOW' }
- * Super Admin only.
- */
 export const promoteToAdmin = async (req, res) => {
     try {
         const { id } = req.params;
@@ -174,10 +149,6 @@ export const promoteToAdmin = async (req, res) => {
     }
 };
 
-/**
- * PATCH /api/users/staff/:id/demote-to-staff
- * Super Admin only.
- */
 export const demoteToStaff = async (req, res) => {
     try {
         const { id } = req.params;
@@ -198,11 +169,6 @@ export const demoteToStaff = async (req, res) => {
     }
 };
 
-/**
- * PATCH /api/users/staff/:id/set-position
- * Body: { position: string }
- * SUPER_ADMIN or ADMIN(HIGH) only.
- */
 export const setStaffPosition = async (req, res) => {
     try {
         const { id } = req.params;
@@ -227,10 +193,6 @@ export const setStaffPosition = async (req, res) => {
     }
 };
 
-/**
- * PATCH /api/users/staff/:id/assign-signatory
- * Assigns this staff member as the sole signatory. SUPER_ADMIN or ADMIN(HIGH).
- */
 export const assignSignatory = async (req, res) => {
     try {
         const { id } = req.params;
@@ -251,10 +213,6 @@ export const assignSignatory = async (req, res) => {
     }
 };
 
-/**
- * PATCH /api/users/staff/:id/unassign-signatory
- * SUPER_ADMIN or ADMIN(HIGH).
- */
 export const unassignSignatory = async (req, res) => {
     try {
         const { id } = req.params;
@@ -275,9 +233,6 @@ export const unassignSignatory = async (req, res) => {
     }
 };
 
-/**
- * GET /api/users/staff-performance
- */
 export const getStaffPerformance = async (req, res) => {
     try {
         const { from, to } = req.query;
@@ -288,9 +243,7 @@ export const getStaffPerformance = async (req, res) => {
     }
 };
 
-/**
- * GET /api/users/signatories
- */
+
 export const getSignatories = async (req, res) => {
     try {
         const signatories = await UserService.getSignatories();
