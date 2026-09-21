@@ -6,7 +6,6 @@ export interface AdminStatItem {
     value: number | string;
     icon: 'user' | 'alert' | 'check' | 'close' | 'request' | 'gears' | 'inboxDown';
     accent: 'teal' | 'gold' | 'green' | 'red';
-    /** Names of the records behind this card's count, shown in the hover popup. */
     details?: string[];
 }
 

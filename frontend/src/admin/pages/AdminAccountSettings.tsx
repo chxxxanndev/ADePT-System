@@ -48,11 +48,8 @@ export function AdminAccountSettings() {
     const initialSuffix = currentUser?.suffix || '';
     const roleLabel = currentUser?.role === 'SUPER_ADMIN' ? 'Super Admin' : currentUser?.role === 'OFFICE_STAFF' ? 'Office Staff' : currentUser?.role || 'Super Admin';
 
-    // Super Admin accounts cannot disable themselves — every other admin
-    // level (however many tiers exist) keeps the Disable Account option.
     const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
 
-    // --- 1. STAGED PROFILE STATE (requires Save Changes) ---
     const [form, setForm] = useState({
         fullName,
         username: initialUsername,
@@ -62,14 +59,12 @@ export function AdminAccountSettings() {
     const [saving, setSaving] = useState(false);
     const isDirty = form.fullName !== fullName || form.username !== initialUsername || form.position !== initialPosition || form.suffix !== initialSuffix;
 
-    // --- 2. INSTANT STATES ---
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [emailDraft, setEmailDraft] = useState(currentUser?.email || '');
     const [isEditingEmail, setIsEditingEmail] = useState(false);
     const [emailSubmitting, setEmailSubmitting] = useState(false);
     const [togglingStatus, setTogglingStatus] = useState(false);
 
-    // --- 3. MODAL & UI STATES ---
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [showDisableConfirmModal, setShowDisableConfirmModal] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
@@ -81,8 +76,6 @@ export function AdminAccountSettings() {
         setToast(message);
         window.setTimeout(() => setToast(null), 2500);
     };
-
-    // --- HANDLERS ---
 
     const handleSaveProfile = async () => {
         setSaving(true);
@@ -164,15 +157,12 @@ export function AdminAccountSettings() {
         }
     };
 
-    // --- Early return AFTER all hooks are declared ---
     if (!currentUser) return null;
 
     const accountDisabled = currentUser.status === 'DISABLED';
 
     return (
         <div className="aas-page">
-
-            {/* Page heading */}
             <div className="aas-page-header">
                 <h1 className="aas-page-title">Account settings</h1>
                 <span className="aas-page-subtitle">
@@ -180,7 +170,6 @@ export function AdminAccountSettings() {
                 </span>
             </div>
 
-            {/* Profile banner */}
             <div className="aas-profile-banner">
                 <div className="aas-profile-identity">
                     <div className="aas-avatar-circle">
@@ -208,7 +197,6 @@ export function AdminAccountSettings() {
                 <input ref={fileInputRef} type="file" hidden accept="image/*" onChange={handlePhotoChange} />
             </div>
 
-            {/* Profile information */}
             <div>
                 <div className="aas-section-header">
                     <h2 className="aas-section-title">Profile Information</h2>
@@ -294,7 +282,6 @@ export function AdminAccountSettings() {
                 )}
             </div>
 
-            {/* Security settings */}
             <div>
                 <div className="aas-section-header">
                     <h2 className="aas-section-title">Security Settings</h2>
@@ -346,8 +333,6 @@ export function AdminAccountSettings() {
                 </div>
             </div>
 
-            {/* Account status — Super Admins cannot disable their own account.
-               Every other admin level (regardless of tier) still gets this. */}
             {!isSuperAdmin && (
                 <div>
                     <div className="aas-section-header">
@@ -378,7 +363,6 @@ export function AdminAccountSettings() {
                 </div>
             )}
 
-            {/* CHANGE PASSWORD MODAL */}
             {showPasswordModal && (
                 <div className="as-modal-overlay" onClick={() => setShowPasswordModal(false)}>
                     <div className="as-modal" onClick={(e) => e.stopPropagation()} role="dialog">
@@ -397,9 +381,6 @@ export function AdminAccountSettings() {
                 </div>
             )}
 
-            {/* DISABLE CONFIRM MODAL — unreachable for Super Admin since
-               showDisableConfirmModal can only be set true from the button
-               above, which no longer renders for them. */}
             {!isSuperAdmin && showDisableConfirmModal && (
                 <div className="as-modal-overlay" onClick={() => setShowDisableConfirmModal(false)}>
                     <div className="as-modal" onClick={(e) => e.stopPropagation()}>

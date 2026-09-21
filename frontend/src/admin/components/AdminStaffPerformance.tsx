@@ -25,11 +25,9 @@ export function AdminStaffPerformance({
 
     return (
         <div className="admin-card">
-            {/* Card Header */}
             <div className="admin-card-header">
                 <span className="admin-card-title" style={{ fontSize: '18px', fontWeight: '750' }}>Staff Performance</span>
                 <div className="admin-card-actions">
-                    {/* All Requests toggle */}
                     <button
                         type="button"
                         className="staff-perf-view-full-btn"
@@ -64,12 +62,10 @@ export function AdminStaffPerformance({
                 </div>
             </div>
 
-            {/* Mode badge */}
             <span className="staff-performance-pill">
                 {showAll ? 'All-Time Rankings' : 'Top Performing Staff'}
             </span>
 
-            {/* List of Staff Performance Rows */}
             <div className="staff-list-container">
                 {visibleItems.length === 0 && (
                     <p style={{ color: '#9aa0af', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>

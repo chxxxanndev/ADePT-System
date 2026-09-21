@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import '../styles/RequestQueue.css';
 import { SearchIcon, ChevronDownIcon } from './icons';
 import type { User } from '../../auth-folder/types/auth';
-// 1. Updated Imports: Removed authHeaders, Added api
 import { api } from '../../users/services/requestService';
 
 type RequestStatus = 'Pending' | 'Processing' | 'Payment Verified' | 'Released' | 'Void' | 'Cancelled';
@@ -75,7 +74,7 @@ export function AdminRequestQueue({ user }: AdminRequestQueueProps) {
         void fetchLiveQueue();
     }, []);
 
-    // ... (All other logic and JSX remains exactly as you wrote it)
+
     const fullName = `${user.firstName || 'Vicente'} ${user.lastName || 'Desoy'}`;
     const initials = `${user.firstName?.[0] || 'V'}${user.lastName?.[0] || 'D'}`;
     const roleLabel = user.role === 'SUPER_ADMIN' ? 'Super admin' : user.role === 'OFFICE_STAFF' ? 'Office staff' : user.role || 'Super admin';

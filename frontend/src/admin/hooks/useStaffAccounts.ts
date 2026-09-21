@@ -6,7 +6,6 @@ import {
 } from '../services/userManagementService';
 import { addAdminAuditEntry } from '../services/auditLogService';
 
-// ─── UI-facing shape ──────────────────────────────────────────────────────────
 export interface StaffRow {
     id: string;
     name: string;
@@ -69,15 +68,12 @@ function mapToRow(member: StaffMember): StaffRow {
     };
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 export function useStaffAccounts() {
     const [staff, setStaff]               = useState<StaffRow[]>([]);
     const [loading, setLoading]           = useState(true);
     const [error, setError]               = useState<string | null>(null);
     const [searchQuery, setSearchQuery]   = useState('');
     const [updatingId, setUpdatingId]     = useState<string | null>(null);
-
-    // ── Initial fetch ────────────────────────────────────────────────────────
     const loadStaff = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -92,8 +88,6 @@ export function useStaffAccounts() {
     }, []);
 
     useEffect(() => { loadStaff(); }, [loadStaff]);
-
-    // ── Toggle active / inactive ─────────────────────────────────────────────
     const toggleStatus = useCallback(async (staffId: string) => {
         const member = staff.find((s) => s.id === staffId);
         if (!member) return;
@@ -120,8 +114,7 @@ export function useStaffAccounts() {
             setUpdatingId(null);
         }
     }, [staff]);
-
-    // ── Derived: filtered list ───────────────────────────────────────────────
+    
     const filteredStaff = staff.filter((member) => {
         const q = searchQuery.toLowerCase();
         return (

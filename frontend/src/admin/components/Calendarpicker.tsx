@@ -21,9 +21,7 @@ function formatShort(date: Date) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// Note: this component renders ONLY the calendar's inner content — no
-// positioned wrapper. The parent is expected to render it inside a
-// FloatingPopover, e.g.: <FloatingPopover className="period-dropdown period-dropdown-calendar">
+
 export function CalendarPicker({ onApply, onCancel }: CalendarPickerProps) {
     const today = new Date();
     const [viewMonth, setViewMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -32,10 +30,10 @@ export function CalendarPicker({ onApply, onCancel }: CalendarPickerProps) {
 
     const monthLabel = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-    // Build the 7-wide day grid, with leading blanks for the first week
+
     const firstOfMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
     const daysInMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getDate();
-    const leadingBlanks = firstOfMonth.getDay(); // 0 = Sunday
+    const leadingBlanks = firstOfMonth.getDay(); 
 
     const cells: (Date | null)[] = [
         ...Array(leadingBlanks).fill(null),
@@ -51,13 +49,13 @@ export function CalendarPicker({ onApply, onCancel }: CalendarPickerProps) {
     }
 
     function handleDayClick(day: Date) {
-        // No start yet, or both already set → start a fresh range
+
         if (!rangeStart || (rangeStart && rangeEnd)) {
             setRangeStart(day);
             setRangeEnd(null);
             return;
         }
-        // Have a start, picking the end
+       
         if (day < rangeStart) {
             setRangeEnd(rangeStart);
             setRangeStart(day);

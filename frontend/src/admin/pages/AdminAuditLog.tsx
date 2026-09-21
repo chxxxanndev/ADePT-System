@@ -12,29 +12,26 @@ import { AuditTypeIcon } from '../services/auditIcons';
 import { fetchAllStaff, fetchStaffPerformance, type StaffMember, type StaffPerformanceItem } from '../services/userManagementService';
 import { onStaffPresence, getStaffPresenceChannel } from '../services/staffPresenceChannel';
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
 interface AuditLogEntry extends StoredAuditLogEntry {
   id: string;
   type: AuditActionType;
   actor: string;
   description: string;
-  date: string; // 'Today', 'Yesterday', or an explicit date label
-  time: string; // '8:40 AM'
-  timestamp?: number; // epoch ms, if the source ever stamps it — used for sorting when present
+  date: string; 
+  time: string; 
+  timestamp?: number;
 }
 
 interface StaffPresence {
-  id: string;            // stable key for React + display
-  authUserId?: string;   // separate field used specifically for presence matching
+  id: string; 
+  authUserId?: string;
   name: string;
   role: string;
   initials: string;
   avatarColor: string;
   online: boolean;
   accountActive: boolean;
-  lastSeen: string; // 'Just now', 'Offline', 'Inactive account'
+  lastSeen: string; 
 }
 
 type TimeRange = "Today" | "This Week" | "This Month" | "All Time";
@@ -74,9 +71,6 @@ const DEFAULT_USER: CurrentUser = {
   initials: "VD",
 };
 
-/* ------------------------------------------------------------------ */
-/*  Activity taxonomy                                                  */
-/* ------------------------------------------------------------------ */
 const STAFF_ACTIVITY_TYPES: AuditActionType[] = [
   'document_pending',
   'document_voided',
@@ -115,7 +109,6 @@ const ADMIN_FILTER_TO_TYPE: Record<AdminActivityFilter, AuditActionType | null> 
   Demotions: 'staff_demote',
 };
 
-// Human-readable label for the type shown in the detail popup header.
 const TYPE_LABELS: Record<AuditActionType, string> = {
   login: "Login",
   logout: "Logout",
@@ -136,24 +129,14 @@ const TYPE_LABELS: Record<AuditActionType, string> = {
   system: "System Event",
 };
 
-/* ------------------------------------------------------------------ */
-/*  Sorting helper                                                     */
-/* ------------------------------------------------------------------ */
-/**
- * Returns a sortable epoch-ms value for an entry. Prefers a real
- * `timestamp` if the entry has one; otherwise falls back to parsing
- * the display `date` ('Today' / 'Yesterday' / explicit date) + `time`
- * ('8:40 AM') strings. The fallback only has minute precision, so
- * same-minute entries may tie — for exact ordering, stamp
- * `timestamp: Date.now()` when entries are created in auditLogService.
- */
+
 function getRangeStart(timeRange: TimeRange): number {
   const now = new Date();
   const start = new Date(now);
   if (timeRange === "Today") {
     start.setHours(0, 0, 0, 0);
   } else if (timeRange === "This Week") {
-    const day = now.getDay(); // 0 = Sunday
+    const day = now.getDay(); 
     start.setDate(now.getDate() - day);
     start.setHours(0, 0, 0, 0);
   } else if (timeRange === "This Month") {
@@ -193,9 +176,6 @@ function getEntrySortValue(entry: AuditLogEntry): number {
   return base.getTime();
 }
 
-/* ------------------------------------------------------------------ */
-/*  Small building blocks                                             */
-/* ------------------------------------------------------------------ */
 function AuditRow({ entry, onSelect }: { entry: AuditLogEntry; onSelect: (entry: AuditLogEntry) => void }) {
   return (
     <button type="button" className="audit-row audit-row--clickable" onClick={() => onSelect(entry)}>
@@ -214,7 +194,7 @@ function AuditRow({ entry, onSelect }: { entry: AuditLogEntry; onSelect: (entry:
 
 function PresenceRow({ staff }: { staff: StaffPresence }) {
   const dotClass = !staff.accountActive
-    ? '' // no dot for inactive accounts
+    ? '' 
     : staff.online
       ? ' presence-dot--online'
       : ' presence-dot--offline';
@@ -238,11 +218,7 @@ function PresenceRow({ staff }: { staff: StaffPresence }) {
   );
 }
 
-/**
- * Popup shown when an audit row is clicked. Shows the full context:
- * actor, type, timestamp, the row's description, and — if the entry
- * carries a `details` payload — every key/value pair in it.
- */
+
 function AuditDetailModal({ entry, onClose }: { entry: AuditLogEntry; onClose: () => void }) {
   const detailEntries = entry.details ? Object.entries(entry.details) : [];
 
@@ -298,9 +274,9 @@ function StaffPerformanceCard() {
     try {
       const data = await fetchStaffPerformance();
       setItems(data);
-    } catch {
-      /* silently keep last known state */
-    } finally {
+    } catch {} 
+    
+    finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -369,9 +345,6 @@ function StaffPerformanceCard() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Page component                                                    */
-/* ------------------------------------------------------------------ */
 export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
   const [search, setSearch] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRange>("All Time");
@@ -383,24 +356,12 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
   const [staffPresence, setStaffPresence] = useState<StaffPresence[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | null>(null);
 
-  // ---- Real presence via Supabase Realtime ----
-  // This component only *listens* to the shared presence channel; the
-  // actual "I'm online" announcement happens in useOnlinePresence(user),
-  // mounted higher up in AdminDashboard.tsx. Both consumers go through the
-  // staffPresenceChannel singleton, so it doesn't matter which one mounts
-  // first or creates the underlying channel.
   useEffect(() => {
     let isMounted = true;
 
     const applyPresenceState = () => {
       const ch = getStaffPresenceChannel();
       const state = ch.presenceState();
-
-      // Only trust `user_id` — this is the field useOnlinePresence.ts
-      // actually tracks. (Avoid also reading `p.id`: Supabase presence
-      // payloads carry internal fields like presence_ref that can
-      // coincidentally collide with staff row ids and produce false
-      // "online" matches.)
       const onlineUserIds = new Set<string>();
       Object.values(state)
         .flat()
@@ -410,9 +371,6 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
 
       setStaffPresence((prev) =>
         prev.map((s) => {
-          // Match against both possible id fields for this staff row,
-          // since we don't rely on a single fallback id chosen once
-          // at roster-build time.
           const isOnline =
             onlineUserIds.has(String(s.id)) ||
             (!!s.authUserId && onlineUserIds.has(String(s.authUserId)));
@@ -456,14 +414,14 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
             role,
             initials,
             avatarColor: ['#3D2E7C', '#00BCD4', '#1976D2', '#4CAF50', '#607D8B'][index % 5],
-            online: false, // corrected immediately by applyPresenceState() below
+            online: false, 
             accountActive: member.account_status === 'ACTIVE',
             lastSeen: member.account_status === 'ACTIVE' ? 'Offline' : 'Inactive account',
           } satisfies StaffPresence;
         });
         if (isMounted) {
           setStaffPresence(nextStaffPresence);
-          applyPresenceState(); // reflect anyone already connected right now
+          applyPresenceState();
         }
       } catch {
         if (isMounted) setStaffPresence([]);
@@ -491,8 +449,6 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
       void loadEntries();
     };
 
-    // Fired by StaffAccounts.tsx right after an activate/deactivate call
-    // succeeds, so the roster (names/roles) refetches immediately too.
     const handleStaffDirectoryUpdate = () => {
       void loadStaffPresence();
     };
@@ -507,24 +463,18 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
       offSync();
       offJoin();
       offLeave();
-      // Don't remove the shared channel here — useOnlinePresence (or another
-      // consumer) may still depend on it. The singleton owns its own lifecycle.
       window.removeEventListener('admin-audit-log:updated', handleAuditUpdate);
       window.removeEventListener('staff-directory:updated', handleStaffDirectoryUpdate);
     };
   }, []);
 
-  // Base filter shared by both cards: respect the search box + time range picked in the toolbar.
   const baseFilteredEntries = useMemo(() => {
     return entries.filter((entry) => {
       const matchesSearch =
         search.trim() === "" ||
         entry.actor.toLowerCase().includes(search.toLowerCase()) ||
         entry.description.toLowerCase().includes(search.toLowerCase());
-      // Timestamp-based range matching: "Today" starts at midnight, "This
-      // Week" at the most recent Sunday (or Monday for locales where the
-      // week starts then), "This Month" at the 1st. Falls back to the
-      // display-date string for entries lacking a timestamp.
+
       const matchesTimeRange =
         timeRange === "All Time" ||
         (entry.timestamp !== undefined && entry.timestamp >= getRangeStart(timeRange)) ||
@@ -547,7 +497,6 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
       .sort((a, b) => getEntrySortValue(b) - getEntrySortValue(a));
   }, [baseFilteredEntries, adminFilter]);
 
-  // Staff Online Now should also reflect staff/admin only, not the super admin.
   const visibleStaffPresence = useMemo(
     () => staffPresence.filter((s) => s.role !== 'Super Admin'),
     [staffPresence]
@@ -557,7 +506,6 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
 
   return (
     <div className="audit-log-page">
-      {/* Page header: title/subtitle + profile chip, then toolbar */}
       <div className="audit-page-header">
         <div className="audit-page-header-row">
           <div>
@@ -618,10 +566,8 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
         </div>
       </div>
 
-      {/* Scrollable content area — mirrors account-request-content */}
       <div className="audit-log-content">
         <div className="audit-content-grid">
-          {/* Staff activity card */}
           <div className="audit-card">
             <div className="audit-card-header">
               <h2 className="audit-card-title">Staff Activity Log</h2>
@@ -659,7 +605,6 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
             </div>
           </div>
 
-          {/* Admin activity card */}
           <div className="audit-card">
             <div className="audit-card-header">
               <h2 className="audit-card-title">Admin Activity Log</h2>
@@ -697,7 +642,6 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
             </div>
           </div>
 
-          {/* Staff online now panel */}
           <div className="presence-card">
             <div className="presence-card-header">
               <h2 className="presence-card-title">Staff Online Now</h2>
@@ -711,7 +655,6 @@ export function AdminAuditLog({ currentUser = DEFAULT_USER }: AuditLogProps) {
           </div>
         </div>
 
-        {/* Staff Performance card — full width below the 3-column grid */}
         <StaffPerformanceCard />
       </div>
 

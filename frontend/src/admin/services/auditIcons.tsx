@@ -20,9 +20,6 @@ import {
 import type { AuditActionType } from './auditLogService';
 import '../styles/AdminAuditLog.css';
 
-// Shared icon + color styling for audit activity. Used by both the Admin
-// Audit Log page (Staff/Admin Activity Log) and the dashboard's Recent
-// Activity card, so both always render identically.
 export const AUDIT_ICON_MAP: Record<AuditActionType, ReactNode> = {
     login: <LogIn size={16} />,
     logout: <LogOut size={16} />,

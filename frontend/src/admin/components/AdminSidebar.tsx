@@ -25,7 +25,7 @@ interface AdminSidebarProps {
     accountRequestCount?: number;
 }
 
-// Icon mapper for general navigation
+
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
     'Overview': DashboardIcon,
     'User Management': UserIcon,
@@ -97,7 +97,7 @@ export function AdminSidebar({
                             const hasSubItems = !!item.subItems?.length;
                             const isExpanded = item.label === 'User Management' ? userManagementExpanded : false;
 
-                            // Check if active
+                       
                             const isParentActive = activeView === item.view ||
                                 (hasSubItems && item.subItems?.some(sub => sub.view === activeView));
 

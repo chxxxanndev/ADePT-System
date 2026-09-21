@@ -719,7 +719,6 @@
 
 .presence-dot--offline {
   background-color: #9ca3af;
-  /* gray */
 }
 
 @keyframes presence-pulse {
@@ -918,4 +917,4 @@
 .perf-row--card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
+}

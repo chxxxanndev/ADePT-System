@@ -11,7 +11,6 @@ export function AdminRecentActivity({ activities, onViewFullLog }: AdminRecentAc
 
     return (
         <div className="admin-card">
-            {/* Card Header */}
             <div className="admin-card-header">
                 <span className="admin-card-title">Recent Activity</span>
                 <button
@@ -22,7 +21,6 @@ export function AdminRecentActivity({ activities, onViewFullLog }: AdminRecentAc
                 </button>
             </div>
 
-            {/* Activity Stack */}
             {visibleActivities.length === 0 ? (
                 <div className="admin-empty-state">
                     No recent activity yet.

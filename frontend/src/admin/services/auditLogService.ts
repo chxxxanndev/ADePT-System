@@ -1,4 +1,3 @@
-// 1. Updated Imports: removed supabase/authHeaders, added api
 import { api } from '../../users/services/requestService';
 
 export type AuditActionType =
@@ -17,12 +16,12 @@ export interface AuditLogEntry {
   actorRole: AuditActorRole;
   description: string;
   details?: Record<string, string>;
-  timestamp?: number; // epoch ms, used for time-range filtering
+  timestamp?: number; 
   date: string;
   time: string;
 }
 
-// 2. Removed manual authHeaders and hardcoded API_BASE_URL
+
 
 function formatEntryDate(iso: string) {
   const date = new Date(iso);
@@ -64,11 +63,6 @@ function toAuditLogEntry(row: any): AuditLogEntry {
   };
 }
 
-// ─── API calls ────────────────────────────────────────────────────────────────
-
-/**
- * Fetches audit log entries from the backend.
- */
 export async function getAuditLog(): Promise<AuditLogEntry[]> {
   try {
     const res = await api.get('/audit-log');
@@ -79,9 +73,6 @@ export async function getAuditLog(): Promise<AuditLogEntry[]> {
   }
 }
 
-/**
- * Records an audit log entry.
- */
 const AUDIT_EVENT_NAME = 'admin-audit-log:updated';
 
 export async function addAdminAuditEntry(entry: {
@@ -89,11 +80,9 @@ export async function addAdminAuditEntry(entry: {
   description: string;
   details?: Record<string, string>;
 }): Promise<AuditLogEntry> {
-  // api.post handles JSON stringify and headers automatically
   const res = await api.post('/audit-log', entry);
   const data = res.data;
 
-  // Preserve the live-update signal logic
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event(AUDIT_EVENT_NAME));
   }

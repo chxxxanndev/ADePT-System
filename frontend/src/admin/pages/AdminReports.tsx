@@ -174,8 +174,6 @@ const DOC_TYPE_SERIES = [
     { key: 'noLandholding', label: 'Certificate of No Landholding', color: DOC_TYPE_COLORS.noLandholding },
 ] as const;
 
-// A request can carry several document types (the backend joins them with
-// ", "). Each recognized type counts toward its own series segment.
 function countDocumentTypes(documentType: string): { taxDeclaration: number; landholding: number; noLandholding: number } {
     const counts = { taxDeclaration: 0, landholding: 0, noLandholding: 0 };
     for (const part of documentType.split(',')) {
@@ -287,7 +285,6 @@ export function AdminReports({ user }: AdminReportsProps) {
         void loadReportData(false, null);
     }
 
-    // ── CSV export ──
     async function handleExportCsv() {
         const XLSX = await import('xlsx');
         const headers = [
@@ -504,7 +501,6 @@ export function AdminReports({ user }: AdminReportsProps) {
 
     const monthlyRequests = useMemo(() => buildMonthlyBuckets(filteredRows), [filteredRows]);
 
-    // ── Previous-period window (for % change deltas) ──
     const previousRows = useMemo(() => {
         if (!dateRange) return [];
         const from = parseLocalDate(dateRange.from);
@@ -550,7 +546,6 @@ export function AdminReports({ user }: AdminReportsProps) {
         };
     }, [previousRows, filteredRows, totalApproved, totalVoided, totalCancelled, totalPending]);
 
-    // ── Void / cancelled reason breakdown (period-scoped) ──
     const voidReasonBreakdown = useMemo(() => {
         const counts: Record<string, number> = {};
         filteredRows.forEach((r) => {
@@ -566,7 +561,6 @@ export function AdminReports({ user }: AdminReportsProps) {
             .sort((a, b) => b.count - a.count);
     }, [filteredRows]);
 
-    // ── Peak activity buckets (period-scoped, from createdAt) ──
     const hourlyActivity = useMemo(() => {
         const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }));
         filteredRows.forEach((r) => {
@@ -588,7 +582,6 @@ export function AdminReports({ user }: AdminReportsProps) {
         return buckets;
     }, [filteredRows]);
 
-    // ── Staff performance (period-scoped) ──
     const staffPerformance = useMemo(() => {
         const grouped: Record<string, { released: number; reprints: number; voided: number; turnaroundMs: number; releaseCount: number }> = {};
         filteredRows.forEach((r) => {
@@ -675,7 +668,6 @@ export function AdminReports({ user }: AdminReportsProps) {
             .map((status): AgingRow => {
                 const v = agingMap[status];
                 const total = v.under3 + v.d3to7 + v.d8to14 + v.over14;
-                // FIX: Explicitly returning properties to satisfy AgingRow interface
                 return {
                     status,
                     under3: v.under3,
@@ -691,9 +683,6 @@ export function AdminReports({ user }: AdminReportsProps) {
     const [nowYear, setNowYear] = useState<number>(() => new Date().getFullYear());
     const userPickedYearRef = useRef(false);
 
-    // Poll for the real-world year changing (e.g. a tab left open across
-    // New Year's) so the dropdown and default selection stay current
-    // without requiring a page refresh.
     useEffect(() => {
         const interval = setInterval(() => {
             const currentYear = new Date().getFullYear();
@@ -701,7 +690,7 @@ export function AdminReports({ user }: AdminReportsProps) {
             if (!userPickedYearRef.current) {
                 setTrendYear((prev) => (prev !== currentYear ? currentYear : prev));
             }
-        }, 60 * 1000); // check once a minute; cheap and plenty responsive for a year rollover
+        }, 60 * 1000);
         return () => clearInterval(interval);
     }, []);
 
@@ -1326,7 +1315,7 @@ export function AdminReports({ user }: AdminReportsProps) {
                                         tickFormatter={(v: number) => `${v}%`}
                                     />
                                     <Tooltip
-                                        // FIX: Cast to any to bypass Recharts ValueType incompatibility
+                                       
                                         formatter={(value: any, name: any) => [
                                             `${value}%`,
                                             name === 'releaseRate' ? 'Released' : 'Voided / Cancelled',

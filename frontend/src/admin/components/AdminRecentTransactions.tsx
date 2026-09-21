@@ -17,7 +17,6 @@ export function AdminRecentTransactions({
 
     return (
         <div className="admin-card">
-            {/* Table Header */}
             <div className="admin-card-header">
                 <div className="admin-card-title-group">
                     <span className="recent-transaction-header-pill">Recent Transaction</span>
@@ -32,7 +31,6 @@ export function AdminRecentTransactions({
                 </button>
             </div>
 
-            {/* Scrollable Table View */}
             <div className="admin-table-container">
                 <table className="admin-table">
                     <thead>
@@ -74,7 +72,6 @@ export function AdminRecentTransactions({
                 </table>
             </div>
 
-            {/* Bottom button */}
             <div className="admin-table-footer">
                 <button
                     className="admin-view-all-btn"

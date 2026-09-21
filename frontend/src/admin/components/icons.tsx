@@ -1,8 +1,3 @@
-// Shared icon library
-// Feather-style line icons, consistent with the inline icons already used in
-// AdminDashboard.tsx (strokeWidth 2.5, round caps/joins, currentColor).
-// Every icon accepts `size` (px, default 18) and an optional `className`.
-
 export interface IconProps {
     size?: number;
     className?: string;
@@ -15,8 +10,6 @@ const base = {
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
 };
-
-/* ---------------------------------- Header ---------------------------------- */
 
 export function SearchIcon({ size = 18, className }: IconProps) {
     return (
@@ -65,8 +58,6 @@ export function MenuIcon({ size = 18, className }: IconProps) {
         </svg>
     );
 }
-
-/* --------------------------------- Sidebar ---------------------------------- */
 
 export function DashboardIcon({ size = 18, className }: IconProps) {
     return (
@@ -139,8 +130,6 @@ export function LogoutIcon({ size = 18, className }: IconProps) {
     );
 }
 
-/* -------------------------------- Stat cards --------------------------------- */
-
 export function AlertTriangleIcon({ size = 18, className }: IconProps) {
     return (
         <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
@@ -180,8 +169,6 @@ export function RequestsIcon({ size = 18, className }: IconProps) {
         </svg>
     );
 }
-
-/* ---------------------------------- Shared ----------------------------------- */
 
 export function RefreshIcon({ size = 18, className }: IconProps) {
     return (

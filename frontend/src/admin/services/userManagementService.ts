@@ -1,6 +1,5 @@
 import { api } from '../../users/services/requestService';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 export interface StaffMember {
     id: string;
     auth_user_id: string;
@@ -39,11 +38,6 @@ export interface StaffPerformanceItem {
     avatarBg: string;
 }
 
-// ─── API calls ────────────────────────────────────────────────────────────────
-
-/**
- * Fetches all staff members from the backend.
- */
 export async function fetchAllStaff(): Promise<StaffMember[]> {
     const res = await api.get('/users/staff');
     return res.data.staff as StaffMember[];
@@ -54,9 +48,6 @@ export async function createStaffAccount(payload: CreateStaffPayload): Promise<S
     return res.data.staff as StaffMember;
 }
 
-/**
- * Toggles a staff member's account status.
- */
 export async function updateStaffStatus(
     staffId: string,
     status: 'ACTIVE' | 'DISABLED',
@@ -66,9 +57,6 @@ export async function updateStaffStatus(
     return res.data.staff as StaffMember;
 }
 
-/**
- * Sets an Admin's access level.
- */
 export async function setAdminLevel(
     staffId: string,
     adminLevel: 'HIGH' | 'MEDIUM' | 'LOW'
@@ -77,9 +65,6 @@ export async function setAdminLevel(
     return res.data.staff as StaffMember;
 }
 
-/**
- * Promotes an Office Staff member to Admin.
- */
 export async function promoteToAdmin(
     staffId: string,
     adminLevel: 'HIGH' | 'MEDIUM' | 'LOW'
@@ -88,33 +73,21 @@ export async function promoteToAdmin(
     return res.data.staff as StaffMember;
 }
 
-/**
- * Demotes an Admin back to Office Staff.
- */
 export async function demoteToStaff(staffId: string): Promise<StaffMember> {
     const res = await api.patch(`/users/staff/${staffId}/demote-to-staff`);
     return res.data.staff as StaffMember;
 }
 
-/**
- * Assigns this staff member as the sole signatory.
- */
 export async function assignSignatory(staffId: string): Promise<StaffMember> {
     const res = await api.patch(`/users/staff/${staffId}/assign-signatory`);
     return res.data.staff as StaffMember;
 }
 
-/**
- * Removes the signatory designation.
- */
 export async function unassignSignatory(staffId: string): Promise<StaffMember> {
     const res = await api.patch(`/users/staff/${staffId}/unassign-signatory`);
     return res.data.staff as StaffMember;
 }
 
-/**
- * Sets a staff member's official position.
- */
 export async function setStaffPosition(
     staffId: string,
     position: string
@@ -123,9 +96,6 @@ export async function setStaffPosition(
     return res.data.staff;
 }
 
-/**
- * Fetches staff performance metrics.
- */
 export async function fetchStaffPerformance(from?: string, to?: string): Promise<StaffPerformanceItem[]> {
     const params = new URLSearchParams();
     if (from) params.set('from', from);
@@ -135,18 +105,11 @@ export async function fetchStaffPerformance(from?: string, to?: string): Promise
     return res.data.performance as StaffPerformanceItem[];
 }
 
-/**
- * Fetches active signatories from the signatories table.
- */
 export async function fetchSignatories(): Promise<any[]> {
     const res = await api.get('/users/signatories');
     return res.data.signatories;
 }
 
-/**
- * Fetches real-time dashboard metrics (URL standardized).
- * Optional from/to (YYYY-MM-DD) restrict the data to a date range.
- */
 export async function fetchDashboardMetrics(from?: string, to?: string) {
     const params = new URLSearchParams();
     if (from) params.set('from', from);
@@ -156,10 +119,7 @@ export async function fetchDashboardMetrics(from?: string, to?: string) {
     return res.data;
 }
 
-/**
- * Fetches and maps recent transactions. Logic exactly as original.
- * Optional from/to (YYYY-MM-DD) restrict the data to a date range.
- */
+
 export async function fetchRecentTransactions(limit = 5, from?: string, to?: string): Promise<any[]> {
     const params = new URLSearchParams();
     if (from) params.set('from', from);
@@ -196,10 +156,7 @@ export async function fetchRecentTransactions(limit = 5, from?: string, to?: str
     return transactions;
 }
 
-/**
- * Fetches real-time reports & analytics (URL standardized).
- * Optional from/to (YYYY-MM-DD) restrict row counts to a request-date range.
- */
+
 export async function fetchReportsAnalytics(from?: string, to?: string) {
     const res = await api.get('/requests/reports-data', {
         params: { from, to },

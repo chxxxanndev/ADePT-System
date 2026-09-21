@@ -16,9 +16,6 @@ export function useOnlinePresence(user: User | null) {
 
         return () => {
             offSubscribed();
-            // Note: this no longer removes the shared channel itself —
-            // AdminAuditLog may still be reading from it. untrack() still
-            // marks this user offline for everyone else immediately.
             getStaffPresenceChannel().untrack();
         };
     }, [user?.id]);

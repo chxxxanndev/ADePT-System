@@ -2,11 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import "../styles/StaffAccounts.css";
 import "../styles/AccountRequest.css";
 import { addAdminAuditEntry } from '../services/auditLogService';
-// 1. Updated Imports: removed authHeaders, added api
 import { api } from '../../users/services/requestService';
 import { useAuth } from "../../users/hooks/useAuth";
 
-// ---------- Types ----------
 type RequestStatus = "pending" | "approved" | "disapproved";
 
 interface AccountRequestItem {
@@ -22,8 +20,6 @@ interface AccountRequestItem {
   decidedOn: string | null;
   accountStatus: string | null;
 }
-
-// 2. Removed hardcoded API_BASE_URL
 
 function formatSubmitted(value: string) {
   const date = new Date(value);
@@ -96,9 +92,6 @@ export default function AccountRequest({ user }: AccountRequestProps) {
   const { currentUser } = useAuth();
   const safeUser = currentUser ?? user ?? { firstName: "Admin", lastName: "User", email: "provincialassessor@gmail.com", role: "SUPER_ADMIN" };
 
-  /**
-   * 3. Updated loadRequests to use standardized 'api'
-   */
   const loadRequests = async () => {
     try {
       setLoading(true);
@@ -140,9 +133,6 @@ export default function AccountRequest({ user }: AccountRequestProps) {
       });
   }, [requests, activeTab, query]);
 
-  /**
-   * 4. Updated handleDecision to use standardized 'api'
-   */
   async function handleDecision(id: string, decision: "approved" | "disapproved") {
     if (decidingId) return; 
     const applicant = requests.find((request) => request.id === id);
@@ -150,8 +140,6 @@ export default function AccountRequest({ user }: AccountRequestProps) {
 
     try {
       const normalizedDecision = decision === 'disapproved' ? 'rejected' : decision;
-      
-      // Using api.patch handles the headers, URL, and stringifying automatically
       await api.patch(`/users/account-requests/${id}/decision`, { 
         decision: normalizedDecision, 
         reason: decision === 'approved' ? 'Approved by super admin.' : 'Disapproved by super admin.' 
@@ -171,11 +159,8 @@ export default function AccountRequest({ user }: AccountRequestProps) {
       setDecidingId(null);
     }
   }
-
-  // ... (rest of your component JSX stays exactly the same)
   return (
     <div className="account-request-page">
-      {/* ... keeping all original JSX ... */}
       <div className="staff-page-header">
         <div className="staff-page-header-row">
           <div>

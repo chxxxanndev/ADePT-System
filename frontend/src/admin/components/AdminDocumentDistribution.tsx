@@ -42,8 +42,6 @@ export function AdminDocumentDistribution({ slices = [], onRefresh, isRefreshing
     const strokeWidth = 22;
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
-    // Extra canvas margin so the 1.06x hover scale-up has room to grow
-    // without being clipped by the SVG viewBox edge.
     const viewBoxPadding = 8;
     const viewBoxSize = size + viewBoxPadding * 2;
     const center = viewBoxSize / 2;
@@ -62,10 +60,7 @@ export function AdminDocumentDistribution({ slices = [], onRefresh, isRefreshing
         return segment;
     });
 
-    // Render order for the SVG circles: the hovered segment is moved to the
-    // end of the array so it paints on top of its neighbors. Without this,
-    // a scaled-up hovered segment can get visually clipped at the seam by
-    // whichever adjacent segment happens to be drawn after it in DOM order.
+
     const renderOrder = segments
         .map((seg, i) => ({ ...seg, i }))
         .sort((a, b) => {

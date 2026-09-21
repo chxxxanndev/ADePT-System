@@ -18,7 +18,6 @@ import { useOnlinePresence } from '../services/useOnlinePresence';
 import { AdminAccountSettings } from '../pages/AdminAccountSettings';
 import { AboutADePT } from '../../users/pages/AboutADePT';
 
-// User Icon for Access Requests Header
 function ShieldUserIcon({ size = 18 }: { size?: number }) {
     return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -29,7 +28,6 @@ function ShieldUserIcon({ size = 18 }: { size?: number }) {
     );
 }
 
-// Link/Chain Icon for Queue Header
 function ChainLinkIcon({ size = 18 }: { size?: number }) {
     return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -57,7 +55,6 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
         dateFilter,
         applyDateFilter,
 
-        // Data states
         accessRequests,
         pendingRequestCount,
         requestQueue,
@@ -67,14 +64,12 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
         allTimeStaffPerformance,
         activities,
 
-        // Refresh indicators
         refreshingTransactions,
         refreshingPerformance,
         refreshingDistribution,
         refreshingAccessRequests,
         refreshingQueue,
 
-        // Handlers
         refreshTransactions,
         refreshPerformance,
         refreshDistribution,
@@ -84,13 +79,11 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
 
     return (
         <div className="admin-dashboard-page">
-            {/* Mobile backdrop for dismissing the slide-in menu */}
             <div
                 className={`mobile-sidebar-backdrop ${mobileMenuOpen ? 'active' : ''}`}
                 onClick={() => setMobileMenuOpen(false)}
             />
 
-            {/* Sidebar */}
             <AdminSidebar
                 activeView={activeView}
                 onNavigate={setActiveView}
@@ -102,9 +95,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                 accountRequestCount={pendingRequestCount}
             />
 
-            {/* Main Panel */}
             <main className="admin-dashboard-main">
-                {/* Header — hidden on views that render their own header */}
                 {activeView !== 'account-request' && activeView !== 'staff-accounts' && activeView !== 'request-queue' && activeView !== 'reports-analytics' && activeView !== 'audit-log' && activeView !== 'settings' && activeView !== 'about-adept' && (
                     <AdminHeader
                         user={user}
@@ -115,12 +106,9 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                     />
                 )}
 
-                {/* Content container — everything except the footer lives here */}
                 <div className="admin-dashboard-content">
                     {activeView === 'overview' ? (
                         <div className="admin-overview-content">
-                            {/* Both stat sections have their own boxes now, matching user dashboard */}
-                            {/* Access Requests cards */}
                             <AdminStatsSection
                                 title="Account Access Requests"
                                 items={accessRequests}
@@ -129,7 +117,6 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                 isRefreshing={refreshingAccessRequests}
                             />
 
-                            {/* Request Queue cards */}
                             <AdminStatsSection
                                 title="Document Request Queue"
                                 items={requestQueue}
@@ -138,9 +125,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                 isRefreshing={refreshingQueue}
                             />
 
-                            {/* Split column grids */}
                             <div className="admin-grid-columns">
-                                {/* Column 1 (Left): Recent Transactions & Staff Performance */}
                                 <div className="admin-column-stack">
                                     <AdminRecentTransactions
                                         rows={transactions}
@@ -157,7 +142,6 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                                     />
                                 </div>
 
-                                {/* Column 2 (Right): Document Distribution & Recent Activity */}
                                 <div className="admin-column-stack">
                                     <AdminDocumentDistribution
                                         slices={distribution}
@@ -197,7 +181,6 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                     ) : activeView === 'about-adept' ? (
                         <AboutADePT onNavigateToDashboard={() => setActiveView('overview')} />
                     ) : (
-                        /* Placeholder views for submenu clicks */
                         <div className="admin-placeholder-view">
                             <h2>{activeView.replace(/-/g, ' ').toUpperCase()}</h2>
                             <p>This administrative component is fully prepped and styled. Integrating live API hooks is ongoing.</p>
@@ -208,7 +191,6 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
                     )}
                 </div>
 
-                {/* Footer Section — sibling of content, not nested inside it */}
                 <DashboardFooter />
             </main>
         </div>

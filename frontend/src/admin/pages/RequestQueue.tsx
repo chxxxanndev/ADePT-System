@@ -3,10 +3,7 @@ import '../styles/RequestQueue.css';
 import { SearchIcon } from '../components/icons';
 import { RefreshIcon } from '../../users/components/icons';
 import type { User } from '../../auth-folder/types/auth';
-// 1. Updated Imports: Removed authHeaders, Added api
 import { api, requestService } from '../../users/services/requestService';
-
-// 2. Removed hardcoded API_BASE
 
 type RequestStatus = 'Pending' | 'Processing' | 'Payment Verified' | 'Released' | 'Void' | 'Cancelled' | 'Archived';
 
@@ -105,15 +102,12 @@ export function RequestQueue({ user }: RequestQueueProps) {
         user.role === 'OFFICE_STAFF' ? 'Office Staff' :
         user.role || 'Staff';
 
-    /**
-     * 3. Updated fetchRequests to use standardized 'api'
-     */
+
     const fetchRequests = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
         else setLoading(true);
         setError(null);
         try {
-            // Standardized call to /requests/dashboard-metrics
             const res = await api.get('/requests/dashboard-metrics');
             const data = res.data;
 
@@ -149,10 +143,7 @@ export function RequestQueue({ user }: RequestQueueProps) {
     useEffect(() => {
         void fetchRequests();
     }, [fetchRequests]);
-
-    // ... (Keep all mapping logic, pagination, and JSX exactly the same)
     
-    // Count helpers
     const countForTab = (tab: TabKey) => {
         if (tab === 'all') return requests.length;
         if (tab === 'amend') return requests.filter(r => r.amendedFromId).length;
@@ -189,9 +180,6 @@ export function RequestQueue({ user }: RequestQueueProps) {
     const startIndex = (currentPage - 1) * rowsPerPage;
     const endIndex = Math.min(startIndex + rowsPerPage, filteredRequests.length);
     const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
-
-    // Requests that are not yet released have no released staff — show the
-    // assigned staff column instead on those tabs.
     const showAssignedStaff = activeTab === 'pending' || activeTab === 'processing' || activeTab === 'void' || activeTab === 'archive';
 
     useEffect(() => { setCurrentPage(1); }, [activeTab, searchQuery, rowsPerPage]);
@@ -315,7 +303,6 @@ export function RequestQueue({ user }: RequestQueueProps) {
                     )}
                 </div>
 
-                {/* Pagination footer */}
                 {!loading && !error && filteredRequests.length > 0 && (
                     <div style={{
                         display: 'flex',

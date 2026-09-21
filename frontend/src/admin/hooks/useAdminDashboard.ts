@@ -4,7 +4,7 @@ import {
     type AdminTransactionRow,
     type AdminActivityItem,
 } from '../data/adminTypes';
-// 1. Cleaned up imports - removed authHeaders
+
 import { 
     fetchAllStaff, 
     fetchStaffPerformance, 
@@ -14,9 +14,7 @@ import {
     type StaffPerformanceItem 
 } from '../services/userManagementService';
 import { getAuditLog, type AuditLogEntry, type AuditActionType } from '../services/auditLogService';
-// 2. Import our smart api instance
 import { api } from '../../users/services/requestService';
-// 3. Realtime client for the live account-request badge
 import { supabase } from '../../lib/supabaseClient';
 
 const REFRESH_DELAY_MS = 700;
@@ -78,9 +76,6 @@ function declarantOf(t: RegistryTransaction): string {
     return t.client?.declarantName || 'Unknown Declarant';
 }
 
-// Picks the label for the first queue card based on the selected range:
-// a single-day range gets "Request That Day" (or "Request Today" if that
-// day is today); multi-day ranges get "Requests In Range".
 function requestCardLabel(range: { from: string; to: string }): string {
     if (range.from === range.to) {
         const now = new Date();
@@ -125,8 +120,6 @@ function auditEntryToActivityItem(entry: AuditLogEntry): AdminActivityItem {
     };
 }
 
-// The dashboard feed mirrors the Staff + Admin Activity Logs exactly:
-// logins/logouts are not part of either log, so they're excluded here too.
 const ACTIVITY_FEED_EXCLUDED_TYPES = new Set<AuditActionType>(['login', 'logout']);
 
 async function buildActivityFeed(): Promise<AdminActivityItem[]> {
@@ -152,13 +145,7 @@ export function useAdminDashboard() {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [dateFilter, setDateFilter] = useState('Today');
-
-    // Number of pending account requests — drives the sidebar badge on
-    // the "Account Request" item so the admin sees new signups at a glance.
     const [pendingRequestCount, setPendingRequestCount] = useState(0);
-
-    // Inclusive [from, to] YYYY-MM-DD range driving the dashboard queries.
-    // Defaults to today so the initial load already respects the selector.
     const [dateRange, setDateRange] = useState<{ from: string; to: string }>(() => {
         const now = new Date();
         const y = now.getFullYear();
@@ -209,14 +196,9 @@ export function useAdminDashboard() {
             }
             if (recent.length > 0) setTransactions(recent);
             if ((performance as StaffPerformanceItem[]).length > 0) setStaffPerformance(performance as StaffPerformanceItem[]);
-        } catch {
-            /* silently keep current state */
-        }
+        } catch {}
     };
 
-    /**
-     * UPDATED: Uses 'api' instance with graceful fallback for session state / auth 401 errors.
-     */
     const loadAccessRequestMetrics = async () => {
         try {
             const [staffMembers, requestResponse] = await Promise.all([
@@ -227,21 +209,15 @@ export function useAdminDashboard() {
             const requests = (requestResponse.data?.requests || []) as AccountRequestSummary[];
             setPendingRequestCount(requests.filter((request) => request.status === 'pending').length);
             setAccessRequests(buildAccessRequestItems(staffMembers, requests));
-        } catch {
-            /* silently keep current state */
-        }
+        } catch {}
     };
 
     useEffect(() => {
-        // Wait for the Supabase session to be available before firing API
-        // calls so the auth interceptor always has a token to attach.
         supabase.auth.getSession().then(({ data }) => {
             if (data.session?.access_token) {
                 void loadAccessRequestMetrics();
                 void loadDashboardData();
             } else {
-                // Session not ready yet — subscribe to the next auth state
-                // change (SIGNED_IN / TOKEN_REFRESHED) and load once it fires.
                 const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
                     if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
                         void loadAccessRequestMetrics();
@@ -253,8 +229,6 @@ export function useAdminDashboard() {
         });
     }, []);
 
-    // Keep the sidebar badge in sync when the admin approves/declines
-    // requests on the Account Request page (it dispatches this event).
     useEffect(() => {
         const onStaffDirectoryUpdated = () => {
             void loadAccessRequestMetrics();
@@ -265,10 +239,6 @@ export function useAdminDashboard() {
         };
     }, []);
 
-    // Real-time badge: subscribes to INSERT/UPDATE changes on the staff
-    // table so a new sign-up (or a decision made elsewhere) bumps the badge
-    // instantly. A 30s poll acts as a fallback for projects that haven't
-    // added the table to the supabase_realtime publication.
     useEffect(() => {
         let isMounted = true;
         const refresh = () => {
@@ -319,23 +289,17 @@ export function useAdminDashboard() {
     const refreshDistribution = () => withSpinner(setRefreshingDistribution, () => loadDashboardData());
     const refreshAccessRequests = () => withSpinner(setRefreshingAccessRequests, () => loadAccessRequestMetrics());
     const refreshQueue = () => withSpinner(setRefreshingQueue, () => loadDashboardData());
-
-    // Applies a new dashboard period AND refetches the period-sensitive
-    // widgets (queue summary, document distribution, recent transactions)
-    // with the selected range. Access-request metrics are account-driven
-    // (not request-date-driven), so they intentionally stay untouched.
     const applyDateFilter = (label: string, range: { from: string; to: string }) => {
         setDateFilter(label);
         setDateRange(range);
         void loadDashboardData(range);
     };
 
-    // Initial staff performance load — scoped to today (matches the default dateRange)
+
     useEffect(() => {
         fetchStaffPerformance(dateRange.from, dateRange.to)
             .then(setStaffPerformance)
             .catch(() => {});
-        // Also fetch all-time performance once for the "All Requests" toggle
         fetchStaffPerformance()
             .then(setAllTimeStaffPerformance)
             .catch(() => {});

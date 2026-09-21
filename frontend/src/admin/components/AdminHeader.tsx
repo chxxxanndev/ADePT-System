@@ -26,7 +26,7 @@ const PERIOD_OPTIONS = [
     'Custom Range...',
 ];
 
-// Returns the inclusive [from, to] date range (YYYY-MM-DD) for a period label.
+
 function toLocalISO(d: Date): string {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -49,7 +49,7 @@ function rangeForPeriod(period: string): { from: string; to: string } {
         }
         case 'This Week': {
             const start = startOfDay(now);
-            const dow = (start.getDay() + 6) % 7; // Monday = 0
+            const dow = (start.getDay() + 6) % 7; 
             const from = new Date(start.getFullYear(), start.getMonth(), start.getDate() - dow);
             const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6);
             return { from: toLocalISO(from), to: toLocalISO(to) };

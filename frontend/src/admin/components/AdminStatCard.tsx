@@ -8,7 +8,7 @@ import {
 } from '../../users/components/icons';
 import type { AdminStatItem } from '../data/adminTypes';
 
-// SVG down-arrow / inbox icon for the "Request Today" card
+
 function InboxDownIcon({ size = 18, className }: { size?: number; className?: string }) {
     return (
         <svg
@@ -29,7 +29,7 @@ function InboxDownIcon({ size = 18, className }: { size?: number; className?: st
     );
 }
 
-// SVG Gears Icon for the "Processing" card
+
 function GearsIcon({ size = 18, className }: { size?: number; className?: string }) {
     return (
         <svg
@@ -49,7 +49,7 @@ function GearsIcon({ size = 18, className }: { size?: number; className?: string
     );
 }
 
-// Icon mapper for stat cards
+
 const STAT_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
     user: UserIcon,
     alert: AlertTriangleIcon,

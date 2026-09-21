@@ -82,7 +82,6 @@ const menuItemStyle: React.CSSProperties = {
     cursor: 'pointer',
 };
 
-// Icon button with a custom CSS hover tooltip explaining what the icon does.
 function IconTooltipButton({
     label,
     disabled = false,
@@ -151,7 +150,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const [formSuccess, setFormSuccess] = useState<string | null>(null);
     const [filter, setFilter] = useState('all');
 
-    // ── Promote / Demote / Change-level flow state ────────────────────────────
     const [confirmPromote, setConfirmPromote] = useState<StaffRow | null>(null);
     const [confirmDemote, setConfirmDemote] = useState<StaffRow | null>(null);
     const [levelPicker, setLevelPicker] = useState<{ member: StaffRow; mode: 'promote' | 'change' } | null>(null);
@@ -159,18 +157,14 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const [roleActionLoadingId, setRoleActionLoadingId] = useState<string | null>(null);
     const [roleActionError, setRoleActionError] = useState<string | null>(null);
 
-    // ── Signatory flow state ────────────────────────────────────────────────
     const [confirmSignatory, setConfirmSignatory] = useState<StaffRow | null>(null);
 
-    // ── Title picker state ──────────────────────────────────────────────────
     const [positionPicker, setPositionPicker] = useState<StaffRow | null>(null);
     const [pickedPosition, setPickedPosition] = useState<string>('');
 
-    // ── Icon-button menu state ──────────────────────────────────────────────
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
-    // Close the portal menu on scroll/resize so it doesn't drift away from its button
     useEffect(() => {
         if (!openMenuId) return;
         const close = () => setOpenMenuId(null);
@@ -182,7 +176,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         };
     }, [openMenuId]);
 
-    // ── Pagination state ───────────────────────────────────────────────────────
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -193,30 +186,21 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const canManageSignatory = hasAdminLevel(user, 'HIGH');
     const superAdmin = isSuperAdmin(user);
 
-    // Admin Access column: visible to Super Admin and to any Admin account.
     const canUseAdminAccess = superAdmin || user.role === 'ADMIN';
 
-    // Only Super Admin and High-level Admins may choose "Admin" as the role
-    // when creating an account (backend enforces the same rule).
     const canChooseAdminRole = superAdmin || (user.role === 'ADMIN' && user.adminLevel === 'HIGH');
 
-    /**
-     * Can the current user manage this member's admin access (promote,
-     * demote, change level)? LOW → never; MEDIUM → only staff they
-     * created; HIGH → everyone except Super Admins.
-     */
     const canManageAdminAccess = (member: StaffRow): boolean => {
         if (member.roleCode === 'SUPER_ADMIN') return false;
         if (superAdmin) return true;
         if (user.role === 'ADMIN') {
             if (user.adminLevel === 'LOW') return false;
             if (user.adminLevel === 'MEDIUM') return member.createdBy === user.staffId;
-            return true; // HIGH
+            return true;
         }
         return false;
     };
 
-    // ── Filtered + paginated derived lists ─────────────────────────────────────
     const positionOptions = [...new Set(staff.map((s) => s.position).filter((p): p is string => !!p))].sort();
     const filteredStaffList = staff.filter((member) => {
         if (filter === 'all') return true;
@@ -235,15 +219,10 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
     const endIndex = Math.min(startIndex + rowsPerPage, totalRows);
     const paginatedStaff = filteredStaffList.slice(startIndex, endIndex);
 
-    // Reset to page 1 whenever the filter, rows-per-page, or search changes,
-    // so you don't get stuck on an empty page after narrowing the results.
     useEffect(() => {
         setCurrentPage(1);
     }, [filter, rowsPerPage, searchQuery]);
 
-    /**
-     * Can the current user toggle active/inactive on this staff member?
-     */
     const canManageStaffMember = (member: StaffRow): boolean => {
         if (member.roleCode === 'SUPER_ADMIN') return false;
         if (member.roleCode === 'ADMIN') {
@@ -253,12 +232,11 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         if (user.role === 'ADMIN') {
             if (user.adminLevel === 'LOW') return false;
             if (user.adminLevel === 'MEDIUM') return member.createdBy === user.staffId;
-            return true; // HIGH
+            return true; 
         }
         return false;
     };
 
-    // ── Add Staff ───────────────────────────────────────────────────────────
     const handleAddStaff = async (event: React.FormEvent) => {
         event.preventDefault();
         setSubmitting(true);
@@ -303,7 +281,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         }
     };
 
-    // ── Promote flow ────────────────────────────────────────────────────────
     const openPromoteConfirm = (member: StaffRow) => {
         setRoleActionError(null);
         setConfirmPromote(member);
@@ -316,7 +293,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         setConfirmPromote(null);
     };
 
-    // ── Change level flow ───────────────────────────────────────────────────
     const openChangeLevel = (member: StaffRow) => {
         setRoleActionError(null);
         setLevelPicker({ member, mode: 'change' });
@@ -351,7 +327,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         }
     };
 
-    // ── Demote flow ─────────────────────────────────────────────────────────
     const openDemoteConfirm = (member: StaffRow) => {
         setRoleActionError(null);
         setConfirmDemote(member);
@@ -377,7 +352,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         }
     };
 
-    // ── Signatory flow ──────────────────────────────────────────────────────
     const openSignatoryConfirm = (member: StaffRow) => {
         setRoleActionError(null);
         setConfirmSignatory(member);
@@ -411,7 +385,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
         }
     };
 
-    // ── Set Position flow ───────────────────────────────────────────────────
     const openPositionPicker = (member: StaffRow) => {
         setRoleActionError(null);
         setPickedPosition(member.position || '');
@@ -440,7 +413,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
 
     return (
         <>
-            {/* Page header */}
             <div className="staff-page-header">
                 <div className="staff-page-header-row">
                     <div>
@@ -789,7 +761,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                     </table>
                 </div>
 
-                {/* Pagination footer */}
                 {!loading && totalRows > 0 && (
                     <div style={{
                         display: 'flex',
@@ -854,7 +825,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                 )}
             </div>
 
-            {/* ── Add Staff modal ─────────────────────────────────────────────── */}
             {showAddModal && canCreateStaff && (
                 <div className="staff-modal-backdrop" onClick={() => setShowAddModal(false)}>
                     <div className="staff-modal-card" onClick={(event) => event.stopPropagation()}>
@@ -952,7 +922,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                 </div>
             )}
 
-            {/* ── Promote confirm modal ───────────────────────────────────────── */}
             {confirmPromote && (
                 <div className="staff-modal-backdrop" onClick={() => setConfirmPromote(null)}>
                     <div className="staff-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
@@ -979,7 +948,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                 </div>
             )}
 
-            {/* ── Demote confirm modal ────────────────────────────────────────── */}
             {confirmDemote && (
                 <div className="staff-modal-backdrop" onClick={() => setConfirmDemote(null)}>
                     <div className="staff-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
@@ -1006,7 +974,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                 </div>
             )}
 
-            {/* ── Level picker modal (used for both promote step 2, and change-level) ── */}
             {levelPicker && (
                 <div className="staff-modal-backdrop" onClick={() => setLevelPicker(null)}>
                     <div className="staff-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
@@ -1098,7 +1065,6 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                 </div>
             )}
 
-            {/* ── Signatory confirm modal ─────────────────────────────────────── */}
             {confirmSignatory && (
                 <div className="staff-modal-backdrop" onClick={() => setConfirmSignatory(null)}>
                     <div className="staff-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
@@ -1128,7 +1094,7 @@ export function StaffAccounts({ user, onAddStaff }: StaffAccountsProps) {
                     </div>
                 </div>
             )}
-            {/* ── Position picker modal ──────────────────────────────────── */}
+
             {positionPicker && (
                 <div className="staff-modal-backdrop" onClick={() => setPositionPicker(null)}>
                     <div className="staff-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>

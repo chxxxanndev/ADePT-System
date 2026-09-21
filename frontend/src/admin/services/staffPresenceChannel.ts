@@ -17,10 +17,6 @@ function ensureChannel(): RealtimeChannel {
     if (channel) return channel;
     channel = supabase.channel(STAFF_PRESENCE_CHANNEL);
 
-    // Written out explicitly (not looped) so each `.on()` call has a literal
-    // event type TypeScript can match against the right overload — looping
-    // over a `PresenceEvent` union widens the argument and breaks overload
-    // resolution (TS2769).
     channel.on('presence', { event: 'sync' }, () => {
         listeners.sync.forEach((cb) => cb());
     });
@@ -54,8 +50,6 @@ export function onStaffPresence(event: PresenceEvent, cb: () => void): () => voi
     return () => listeners[event].delete(cb);
 }
 
-/** Fires cb once the shared channel is SUBSCRIBED — immediately if it's
- * already there, otherwise the first time it reaches that state. */
 export function onStaffPresenceSubscribed(cb: (channel: RealtimeChannel) => void): () => void {
     const ch = startSubscription();
     if (isSubscribed) {
