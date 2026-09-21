@@ -1,11 +1,9 @@
-/* ===== Page Header ===== */
 .request-queue-page {
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
 
-/* ===== Page Header ===== */
 .rq-page-header {
     background: #ECEDF3;
     border-radius: 14px;
@@ -37,7 +35,6 @@
     margin: 0;
 }
 
-/* Search */
 .rq-search-wrapper {
     position: relative;
     display: flex;
@@ -77,7 +74,6 @@
     pointer-events: none;
 }
 
-/* ===== Card / Tabs ===== */
 .rq-card {
     padding: 20px 24px 24px;
 }
@@ -122,7 +118,6 @@
     font-weight: 600;
 }
 
-/* ===== Table cells ===== */
 .rq-table thead th {
     text-align: center;
 }
@@ -140,11 +135,6 @@
     white-space: nowrap;
 }
 
-/* ===== Status colors =====
-   Requests are now only ever Pending or Released. "Reprint" is not its own
-   status — it's shown as a small badge next to the status pill instead
-   (see .rq-reprint-badge below), since a reprint is still a Released
-   document that happened to be printed again. */
 .rq-status-pending {
     background: #FFF6E5;
     color: #D89A1D;
@@ -194,11 +184,6 @@
     letter-spacing: 0.02em;
 }
 
-/* ===== Reprint status stack =====
-   When a row is a reprint, the status is rendered as two separate full
-   pill-shaped badges stacked vertically (status pill on top, "Reprint"
-   pill below) instead of one pill + inline badge, so both statuses read
-   clearly on their own line. */
 .rq-status-stack {
     display: inline-flex;
     flex-direction: column;
@@ -225,8 +210,6 @@
     color: #6D4FC4;
 }
 
-/* Dot color per pill variant — same .status-dot element/size as the
-   regular indicator, just recolored to match each pill. */
 .rq-status-pill.rq-status-pending .status-dot {
     background: #D89A1D;
 }
@@ -239,17 +222,11 @@
     background: #6D4FC4;
 }
 
-/* Force ALL CAPS on every status label in this table — both the
-   single dot+label indicator (non-reprint rows) and the stacked pills
-   (reprint rows) — regardless of what casing the shared .status-indicator
-   class defaults to elsewhere in the app. Scoped to .rq-table so it
-   doesn't affect status indicators on other pages. */
 .rq-table .status-indicator {
     text-transform: uppercase;
     letter-spacing: 0.03em;
 }
 
-/* ===== Responsive ===== */
 @media (max-width: 900px) {
     .rq-header-row {
         flex-direction: column;
@@ -266,7 +243,6 @@
     }
 }
 
-/* ===== State Messages (loading / error / empty) ===== */
 .rq-state-message {
     display: flex;
     flex-direction: column;
@@ -300,7 +276,6 @@
 }
 .rq-retry-btn:hover { background: #fdf0ef; }
 
-/* Spinner for the refresh button within the page header */
 .rq-spinner {
     width: 22px;
     height: 22px;
@@ -311,7 +286,6 @@
 }
 @keyframes rq-spin { to { transform: rotate(360deg); } }
 
-/* Footer row count */
 .rq-footer-count {
     padding: 10px 20px;
     font-size: 12px;
@@ -320,50 +294,45 @@
     text-align: right;
 }
 
-/* ===== Extended Status Pill Variants ===== */
-/* Processing */
 .rq-status-processing {
     background: #e8f0fe;
     color: #3267d6;
 }
 .rq-status-processing .status-dot { background: #3267d6; }
 
-/* Payment Verified / Paid */
 .rq-status-paid {
     background: #e8f5e9;
     color: #2e7d32;
 }
 .rq-status-paid .status-dot { background: #2e7d32; }
 
-/* Void / Cancelled */
 .rq-status-void {
     background: #fce4ec;
     color: #b71c1c;
 }
 .rq-status-void .status-dot { background: #b71c1c; }
 
-/* Archived */
 .rq-status-archived {
     background: #eef2f7;
     color: #475569;
 }
 .rq-status-archived .status-dot { background: #64748b; }
 
-/* Released (shared with existing admin-table usage) */
 .rq-status-released {
     background: #e6f9f1;
     color: #1E9E5A;
 }
 .rq-status-released .status-dot { background: #1E9E5A; }
 
-/* Pending (ensure scoped override) */
 .rq-status-pending {
     background: #fffbe6;
     color: #b7860d;
 }
-.rq-status-pending .status-dot { background: #D89A1D; }
 
-/* Summary pills row */
+.rq-status-pending .status-dot { 
+    background: #D89A1D; 
+}
+
 .rq-summary-pills {
     display: flex;
     flex-wrap: wrap;
@@ -378,7 +347,6 @@
     padding-left: 16px;
 }
 
-/* ===== Clickable Void / Cancelled status ===== */
 .rq-status-link {
     font-family: inherit;
     border: 1px solid #FFCDD2;
@@ -391,7 +359,6 @@
     text-decoration: underline;
 }
 
-/* ===== Reason popup modal ===== */
 .rq-modal-overlay {
     position: fixed;
     inset: 0;
@@ -511,7 +478,6 @@
     background: #2F2363;
 }
 
-/* ===== Amend action ===== */
 .rq-modal-actions {
     margin-top: 20px;
     display: flex;

@@ -1,15 +1,3 @@
-/* ============================================================
-   Calendar Picker (admin) — shared stylesheet for the admin
-   CalendarPicker component used by the Admin Dashboard
-   (AdminHeader) and Admin Reports period selectors.
-
-   Redesigned as a modern rounded light card matched to the ADePT
-   brand: navy selected day, soft indigo hover, muted range
-   tint, pill action buttons. Only the calendar popup styling
-   lives here; the outer .period-dropdown shell stays in the
-   page stylesheets.
-   ============================================================ */
-
 .period-dropdown-calendar {
     width: 320px;
     flex-direction: column;

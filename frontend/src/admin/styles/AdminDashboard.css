@@ -1,33 +1,18 @@
-/* AdminDashboard.css - Admin Design System and Layout */
-
-/* Root styling variables mapping to the color palette */
 :root {
     --admin-primary: #29237A;
-    /* Deep Indigo */
     --admin-primary-hover: #201C61;
     --admin-secondary: #00BCD4;
-    /* Marine Teal */
     --admin-secondary-hover: #00ACC1;
     --admin-bg-base: #ffffff;
-    /* Light neutral base for main content area */
     --admin-text-primary: #2C3338;
-    /* Slate Gray */
     --admin-text-muted: #6B7280;
-
-    /* Status Badge Colors */
     --admin-success: #4CAF50;
-    /* Agri Green */
     --admin-success-bg: #E8F5E9;
     --admin-pending: #FDD835;
-    /* Star Gold */
     --admin-pending-dark: #C9A000;
-    /* Darker Gold for text legibility */
     --admin-pending-bg: #FFFDE7;
     --admin-error: #D32F2F;
-    /* Crimson Red */
     --admin-error-bg: #FFEBEE;
-
-    /* Sidebar / Footer - solid deep indigo, no glass */
     --admin-sidebar-bg: #29237A;
     --admin-sidebar-bg-elevated: #201C61;
     --admin-sidebar-text: rgba(255, 255, 255, 0.92);
@@ -35,8 +20,6 @@
     --admin-sidebar-border: rgba(255, 255, 255, 0.08);
     --admin-sidebar-active-bg: rgba(255, 255, 255, 0.14);
     --admin-sidebar-hover-bg: rgba(255, 255, 255, 0.08);
-
-    /* Stat card accent tints — match user dashboard icon-well tints */
     --stat-blue-bg: rgba(0, 122, 138, 0.10);
     --stat-blue-icon: #007A8A;
     --stat-gold-bg: rgba(180, 83, 9, 0.10);
@@ -45,13 +28,9 @@
     --stat-green-icon: #43A047;
     --stat-red-bg: rgba(211, 47, 47, 0.10);
     --stat-red-icon: #E53935;
-
-    /* Card surface (opaque, light) used for table/list cards */
     --admin-card-bg: #FFFFFF;
     --admin-card-border: rgba(37, 33, 117, 0.06);
     --admin-card-shadow: rgba(41, 35, 122, 0.06);
-
-    /* Legacy glass tokens kept for anything still referencing them */
     --admin-glass-bg: rgba(255, 255, 255, 0.9);
     --admin-glass-border-light: rgba(255, 255, 255, 0.5);
     --admin-glass-border-depth: rgba(41, 35, 122, 0.06);
@@ -68,7 +47,6 @@
     font-family: var(--font-family, 'Poppins', sans-serif);
 }
 
-/* Background Gradients Orbs (kept subtle, main area is light/flat now) */
 .admin-dashboard-page::before {
     content: '';
     position: absolute;
@@ -97,8 +75,6 @@
     pointer-events: none;
 }
 
-/* Main scrollable content container - no padding here, so children
-   (like the footer) can be naturally full-width with zero extra math */
 .admin-dashboard-main {
     position: relative;
     flex: 1;
@@ -109,7 +85,6 @@
     z-index: 2;
 }
 
-/* Padded wrapper around everything except the footer */
 .admin-dashboard-content {
     display: flex;
     flex-direction: column;
@@ -121,7 +96,6 @@
     width: 100%;
 }
 
-/* --- SIDEBAR STYLING --- */
 .admin-sidebar {
     position: relative;
     z-index: 20;
@@ -141,7 +115,6 @@
     width: 72px;
 }
 
-/* Sidebar Brand / Header */
 .sidebar-brand-wrapper {
     display: flex;
     align-items: center;
@@ -170,7 +143,6 @@
     gap: 10px;
 }
 
-/* Center the logo when the sidebar is collapsed */
 .admin-sidebar.collapsed .sidebar-brand-info {
     justify-content: center;
     width: 100%;
@@ -233,7 +205,6 @@
     background-color: var(--admin-sidebar-hover-bg);
 }
 
-/* Sidebar Navigation Items */
 .sidebar-navigation {
     flex: 1;
     overflow-y: auto;
@@ -320,9 +291,6 @@
     color: var(--admin-primary);
 }
 
-/* Center nav icons when the sidebar is collapsed (label + chevron
-   collapse to zero-width, so justify-content: space-between would
-   otherwise leave the icon pinned to the left edge) */
 .admin-sidebar.collapsed .sidebar-item-btn {
     justify-content: center;
     padding: 9px 0;
@@ -381,7 +349,6 @@
     pointer-events: none;
 }
 
-/* Sidebar Sub-items */
 .sidebar-subitems-wrapper {
     display: flex;
     flex-direction: column;
@@ -437,7 +404,6 @@
     background-color: var(--admin-sidebar-active-bg);
 }
 
-/* Sidebar Logout Footer */
 .sidebar-footer {
     padding-top: 14px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -480,7 +446,6 @@
     max-width: 0;
 }
 
-/* Center the logout icon when the sidebar is collapsed */
 .admin-sidebar.collapsed .sidebar-logout-btn {
     justify-content: center;
     gap: 0;
@@ -489,7 +454,6 @@
     padding: 8px 0;
 }
 
-/* --- HEADER STYLING --- */
 .admin-header {
     display: flex;
     flex-direction: column;
@@ -511,9 +475,6 @@
     gap: 4px;
 }
 
-/* Dashboard title multicolor gradient (letter-by-letter rainbow look via
-   background-clip; for a true per-letter palette, wrap each character in a
-   <span> inside AdminHeader.tsx and drop the gradient below) */
 .header-dashboard-title {
     font-size: 40px;
     font-weight: 800;
@@ -546,7 +507,6 @@
     font-weight: 700;
 }
 
-/* Mobile Hamburger Toggle */
 .mobile-menu-toggle {
     display: none;
     background: var(--admin-card-bg);
@@ -557,7 +517,6 @@
     cursor: pointer;
 }
 
-/* Profile Widget card */
 .header-profile {
     display: flex;
     flex-direction: column;
@@ -702,7 +661,6 @@
     font-weight: 700;
 }
 
-/* Search and Date Row */
 .header-actions-row {
     display: flex;
     align-items: center;
@@ -756,7 +714,6 @@
     pointer-events: none;
 }
 
-/* Date Selector Dropdown */
 .date-selector-wrapper {
     position: relative;
 }
@@ -853,17 +810,12 @@
     font-weight: 800;
 }
 
-/* Custom Range calendar styles live in the shared
-   admin/styles/CalendarPicker.css (imported by CalendarPicker.tsx). */
-
-/* --- STAT CARDS SECTION --- */
 .admin-stats-section {
     display: flex;
     flex-direction: column;
     gap: 14px;
 }
 
-/* Wraps Account Access Requests + Document Request Queue together in one box */
 .admin-stats-panel {
     background: var(--admin-card-bg);
     border: 1px solid rgba(0, 0, 0, 0.05);
@@ -897,8 +849,6 @@
     gap: 12px;
 }
 
-/* Stat card element - now white glass card with tinted circular icon well,
-   matching the user dashboard's stat card treatment */
 .admin-stat-card {
     background: var(--admin-card-bg);
     border: 1px solid rgba(41, 35, 122, 0.12);
@@ -954,7 +904,6 @@
     align-self: flex-end;
 }
 
-/* Stat card accent variants - tinted circular icon well per card */
 .admin-stat-card.teal .admin-stat-card-icon-container {
     background-color: var(--stat-blue-bg);
     color: var(--stat-blue-icon);
@@ -975,7 +924,6 @@
     color: var(--admin-error);
 }
 
-/* --- RECENT TRANSACTION TABLE CARD (and other content cards) --- */
 .admin-card {
     background: var(--admin-card-bg);
     border: 1px solid var(--admin-card-border);
@@ -1067,7 +1015,6 @@
     font-weight: 700;
 }
 
-/* Custom Table */
 .admin-table-container {
     overflow-x: auto;
     width: 100%;
@@ -1083,7 +1030,6 @@
 
 .admin-table th {
     background-color: rgba(41, 35, 122, 0.04);
-    /* Light indigo tint */
     color: var(--admin-text-primary);
     font-weight: 700;
     font-size: 13.5px;
@@ -1105,7 +1051,6 @@
     vertical-align: top;
 }
 
-/* Columns that hold short fixed-format values stay on one line */
 .admin-table td:nth-child(1),
 .admin-table td:nth-child(5),
 .admin-table td:nth-child(6),
@@ -1130,7 +1075,6 @@
     border-bottom: none;
 }
 
-/* Badge status pills */
 .admin-status-badge {
     display: inline-block;
     padding: 4px 10px;
@@ -1193,7 +1137,6 @@
     background-color: #CFD8DC;
 }
 
-/* --- COLUMN GRID PATTERN --- */
 .admin-grid-columns {
     display: grid;
     grid-template-columns: 1.3fr 1fr;
@@ -1206,7 +1149,6 @@
     gap: 20px;
 }
 
-/* --- STAFF PERFORMANCE STYLING --- */
 .staff-performance-pill {
     display: inline-flex;
     align-items: center;
@@ -1267,9 +1209,6 @@
 
 .staff-perf-bar-wrapper {
     display: none;
-    /* Reference layout shows a rounded "N Request" pill rather than a bar;
-       kept in the DOM-compatible stylesheet but hidden. Remove this rule
-       if you'd rather keep the progress-bar look. */
 }
 
 .staff-perf-req-pill {
@@ -1287,7 +1226,6 @@
     flex-shrink: 0;
 }
 
-/* --- DOCUMENT DISTRIBUTION --- */
 .donut-chart-card {
     display: flex;
     flex-direction: column;
@@ -1348,9 +1286,6 @@
     padding-top: 14px;
 }
 
-/* FIX: legend row no longer squashes onto one tight line — the label
-   gets its own flexible column (wraps cleanly to 2 lines if long)
-   while the %/count stay pinned, fixed-width, on the right. */
 .donut-legend-item {
     display: flex;
     align-items: flex-start;
@@ -1417,7 +1352,6 @@
     color: var(--admin-success);
 }
 
-/* --- RECENT ACTIVITY --- */
 .activity-stack {
     display: flex;
     flex-direction: column;
@@ -1492,7 +1426,6 @@
     background-color: #CFD8DC;
 }
 
-/* Mobile responsive menu layout overlay */
 .mobile-sidebar-backdrop {
     display: none;
     position: fixed;
@@ -1504,7 +1437,6 @@
     z-index: 9;
 }
 
-/* Placeholder for admin sub-views */
 .admin-placeholder-view {
     display: flex;
     flex-direction: column;
@@ -1547,7 +1479,6 @@
     background-color: var(--admin-primary-hover);
 }
 
-/* --- DASHBOARD FOOTER (standalone component) --- */
 .dashboard-footer {
     display: flex;
     flex-direction: column;
@@ -1641,8 +1572,6 @@
     border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-/* --- EMPTY STATES --- */
-/* Stat panel with no items: keep just the header row, no grid beneath it */
 .admin-stats-panel.is-empty {
     padding-bottom: 20px;
 }
@@ -1651,8 +1580,6 @@
     display: none;
 }
 
-/* Generic centered "no data yet" message, used inside table cards,
-   the donut chart card, and the activity list card */
 .admin-empty-state {
     display: flex;
     align-items: center;
@@ -1666,25 +1593,20 @@
     font-weight: 550;
 }
 
-/* Table-specific empty state sits where rows would go, so the
-   header row still shows above it */
 .admin-table-container .admin-empty-state {
     min-height: 80px;
     padding: 32px 16px;
 }
 
-/* Donut card empty state replaces the chart + legend entirely */
 .donut-chart-card .admin-empty-state {
     min-height: 160px;
 }
 
-/* Activity list empty state (sibling of .activity-stack, shown instead of it) */
 .admin-card .admin-empty-state {
     min-height: 60px;
     padding: 16px;
 }
 
-/* --- RESPONSIVE STYLES --- */
 @media (max-width: 1100px) {
     .admin-stats-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -1719,7 +1641,6 @@
 
     .admin-sidebar.collapsed {
         width: 260px;
-        /* Do not collapse sidebar on mobile */
     }
 
     .mobile-sidebar-backdrop.active {
